@@ -1,0 +1,127 @@
+from dataclasses import asdict,dataclass,replace
+from pathlib import Path
+import hashlib
+import html
+import json
+import os
+import re
+import time
+from urllib.request import Request,urlopen
+
+import pysubs2
+from .domain import canonical,identifier
+from .prototypes.subtitles import Cue,map_trimmed_cues
+
+
+@dataclass
+class Caption:
+    start_ms:int
+    end_ms:int
+    text:str
+    source_text:str=''
+    locked:bool=False
+    id:str=''
+
+    def __post_init__(self):
+        if not self.id:self.id=identifier()
+        if self.start_ms<0 or self.end_ms<=self.start_ms:raise ValueError('Invalid caption interval')
+
+
+def read_captions(path:Path):
+    data=pysubs2.load(str(path),encoding='utf-8-sig')
+    return [Caption(event.start,event.end,event.plaintext) for event in data if not event.is_comment and event.plaintext.strip()]
+
+
+def write_captions(path:Path,captions,overwrite=False):
+    if path.exists() and not overwrite:raise FileExistsError(path)
+    data=pysubs2.SSAFile()
+    for cue in captions:
+        if cue.end_ms<=cue.start_ms:raise ValueError('Invalid caption interval')
+        data.events.append(pysubs2.SSAEvent(start=cue.start_ms,end=cue.end_ms,text=cue.text.replace('\n',r'\N')))
+    path.parent.mkdir(parents=True,exist_ok=True)
+    # Exclusive publication when creating; explicit save may replace a subtitle document.
+    encoded=data.to_string(format_=path.suffix.lstrip('.')).encode('utf-8')
+    with path.open('wb' if overwrite else 'xb') as stream:stream.write(encoded)
+
+
+def caption_warnings(captions,duration_ms=None):
+    warnings=[];last_end=0
+    for i,cue in enumerate(captions,1):
+        if cue.start_ms<last_end:warnings.append(f'Cue {i}: chồng thời gian')
+        if cue.end_ms-cue.start_ms<400:warnings.append(f'Cue {i}: hiển thị ngắn')
+        if len(cue.text)>100:warnings.append(f'Cue {i}: nhiều chữ')
+        if duration_ms is not None and cue.end_ms>duration_ms:warnings.append(f'Cue {i}: vượt video')
+        last_end=max(last_end,cue.end_ms)
+    return warnings
+
+
+def _request_translation(texts,source,target,config):
+    provider=config.get('provider','google')
+    if provider=='google':
+        key=os.environ.get('FONESI_GOOGLE_TRANSLATE_API_KEY')
+        if not key:raise PermissionError('Thiếu FONESI_GOOGLE_TRANSLATE_API_KEY; không gọi dịch giả')
+        url='https://translation.googleapis.com/language/translate/v2'
+        body={'q':texts,'target':target,'format':'text'}
+        if source!='auto':body['source']=source
+        headers={'Content-Type':'application/json','X-Goog-Api-Key':key}
+    elif provider=='libre':
+        url=config.get('endpoint','').rstrip('/')+'/translate'
+        if not url.startswith('https://') and not url.startswith(('http://127.0.0.1:','http://localhost:')):
+            raise ValueError('LibreTranslate requires HTTPS or a local service')
+        body={'q':texts,'source':source,'target':target,'format':'text'};headers={'Content-Type':'application/json'}
+        key=os.environ.get('FONESI_LIBRETRANSLATE_API_KEY')
+        if key:body['api_key']=key
+    else:raise ValueError('Unknown translation provider')
+    try:
+        with urlopen(Request(url,data=json.dumps(body).encode(),headers=headers),timeout=45) as response:data=json.load(response)
+    except Exception as exc:raise RuntimeError(f'Translation request not confirmed ({type(exc).__name__}); no automatic paid retry') from None
+    values=[item['translatedText'] for item in data.get('data',{}).get('translations',[])] if provider=='google' else data.get('translatedText',[])
+    if isinstance(values,str):values=[values]
+    if len(values)!=len(texts) or any(not str(value).strip() for value in values):raise RuntimeError('Translation cue count/content mismatch')
+    return [html.unescape(str(value)) for value in values]
+
+
+def translate_captions(store,captions,source='auto',target='vi',config=None,progress=lambda n:None,cancel=None,transport=None):
+    config=config or {};transport=transport or _request_translation
+    result=[replace(c) for c in captions];missing=[]
+    glossary=config.get('glossary',{})
+    for index,cue in enumerate(result):
+        if cue.locked:continue
+        original=cue.source_text or cue.text
+        key='translation:'+hashlib.sha256(canonical([original,source,target,config]).encode()).hexdigest()
+        cached=store.cached(key)
+        if cached:cue.source_text=original;cue.text=cached['text']
+        else:missing.append((index,key,original))
+    for start in range(0,len(missing),32):
+        if cancel and cancel.is_set():raise RuntimeError('Canceled')
+        batch=missing[start:start+32];texts=[];protected=[]
+        for _,_,original in batch:
+            terms={}
+            for number,(term,value) in enumerate(glossary.items()):
+                if term and term in original:
+                    marker=f'FONESIPROTECTEDTERM{number}END';original=original.replace(term,marker);terms[marker]=value
+            texts.append(original);protected.append(terms)
+        chars=sum(len(text) for text in texts)
+        quota=int(config.get('daily_limit',100000))
+        usage_key='translation_usage:'+config.get('provider','google')+':'+time.strftime('%Y-%m-%d',time.gmtime())
+        with store.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE');row=conn.execute('SELECT value FROM settings WHERE key=?',(usage_key,)).fetchone()
+            used=json.loads(row[0]) if row else 0
+            if used+chars>quota:raise PermissionError('Daily translation character limit reached')
+            conn.execute('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(usage_key,json.dumps(used+chars)))
+        translated=transport(texts,source,target,config)
+        if len(translated)!=len(batch):raise RuntimeError('Translation result count mismatch')
+        for (index,key,original),text,terms in zip(batch,translated,protected,strict=True):
+            for marker,value in terms.items():
+                if marker not in text:raise RuntimeError('Provider altered a protected glossary marker; review translation')
+                text=text.replace(marker,value)
+            result[index].source_text=original;result[index].text=text;store.cache(key,{'text':text})
+        progress(min(.99,(start+len(batch))/max(1,len(missing))))
+    return result
+
+
+def execute_translation(store,payload,progress,cancel):
+    cues=[Caption(**c) for c in payload['captions']] if 'captions' in payload else read_captions(Path(payload['source']))
+    result=translate_captions(store,cues,payload.get('source_language','auto'),payload.get('target_language','vi'),payload.get('config',{}),progress,cancel)
+    output=Path(payload['output']);write_captions(output,result)
+    return {'output':str(output),'captions':[asdict(c) for c in result],'warnings':caption_warnings(result)}

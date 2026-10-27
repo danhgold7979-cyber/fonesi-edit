@@ -70,4 +70,4 @@ Không có GH_TOKEN vẫn push Git thành công qua HTTPS proxy hiện có; khô
 
 ## 6. Điều kiện tiếp tục
 
-Áp dụng egress rồi retry live nguồn; cấu hình provider qua nơi nhập an toàn nếu muốn dùng adapter Google; kiểm tra kết quả Windows CI và chạy Chrome/account/GPU trên máy tương ứng. Sau khi đủ cổng, cập nhật master và lập P03_PLAN trước khi triển khai P03. Không tự đánh dấu phase hoàn tất để đi tiếp.
+Áp dụng egress rồi retry live nguồn; cấu hình provider qua nơi nhập an toàn nếu muốn dùng adapter Google; kiểm tra kết quả Windows CI và chạy Chrome/account/GPU trên máy tương ứng. Theo chỉ đạo mới của người dùng, tiếp tục code các phần độc lập sau khi đọc master/lập phase plan. P02 vẫn chưa được đánh dấu hoàn tất nghiệm thu bên ngoài.

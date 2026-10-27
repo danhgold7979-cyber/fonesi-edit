@@ -6,6 +6,12 @@ import shutil
 import subprocess
 import sys
 
+_OVERRIDES={}
+
+def configure_tools(overrides):
+    _OVERRIDES.clear()
+    _OVERRIDES.update({name:str(path) for name,path in overrides.items() if name in {'ffmpeg','ffprobe','Google Chrome','node'}})
+
 
 @dataclass(frozen=True)
 class ToolStatus:
@@ -74,12 +80,17 @@ def check_tool(name: str, path: str | None) -> ToolStatus:
             return ToolStatus(name, path, "error", first[:240], f"Exit {completed.returncode}")
         if name == "Google Chrome" and not first.startswith("Google Chrome "):
             return ToolStatus(name, path, "incompatible", first[:240], "Không xác nhận Google Chrome chính thức")
+        if name=='node':
+            import re
+            match=re.match(r'v(\d+)',first)
+            if not match or int(match[1])<20:return ToolStatus(name,path,'incompatible',first,'YouTube JS runtime cần Node 20 trở lên')
         return ToolStatus(name, str(Path(path).resolve()), "ready", first[:240])
     except (OSError, subprocess.TimeoutExpired) as exc:
         return ToolStatus(name, path, "error", detail=type(exc).__name__)
 
 
 def locate_tool(name: str) -> str | None:
+    if name in _OVERRIDES:return _OVERRIDES[name]
     scripts = Path(sys.executable).parent
     if name == "Google Chrome":
         return find_chrome()
@@ -91,7 +102,7 @@ def locate_tool(name: str) -> str | None:
 def scan_tools(overrides: dict[str, str] | None = None) -> list[ToolStatus]:
     overrides = overrides or {}
     result = []
-    for name in ("ffmpeg", "ffprobe", "yt-dlp", "gallery-dl", "Google Chrome"):
+    for name in ("ffmpeg", "ffprobe", "yt-dlp", "gallery-dl", "Google Chrome", "node"):
         if name in overrides:
             path = overrides[name]  # An explicit broken override must not silently fall back.
         else:

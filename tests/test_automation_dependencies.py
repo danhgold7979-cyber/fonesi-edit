@@ -1,0 +1,50 @@
+import hashlib
+import os
+import zipfile
+from pathlib import Path
+import pytest
+from fonesi_edit.automation import submit_once,Automation,recommended_parallel
+from fonesi_edit.dependencies import extract_zip,install
+from fonesi_edit.domain import Composition
+from fonesi_edit.storage import Store
+from fonesi_edit.prototypes.media import create_fixture
+
+
+def test_submit_once_and_watcher_are_idempotent(tmp_path):
+    store=Store(tmp_path/'state.db')
+    first=submit_once(store,'scan',{'url':'https://example.invalid'},'same')
+    assert submit_once(store,'scan',{'url':'https://example.invalid'},'same')==first
+    with pytest.raises(ValueError):submit_once(store,'scan',{'password':'never store'},'secret')
+    files=create_fixture(tmp_path/'watch/videos',duration=.5)
+    store.set_setting('watches',[{'folder':str(tmp_path/'watch'),'preset':Composition(width=320,height=180).to_dict()}])
+    auto=Automation(store);auto.watch();auto.watch();auto.watch()
+    assert sum(j['kind']=='render' for j in store.jobs())==1
+
+
+def test_low_resources_stop_admission_without_fake_gpu():
+    data={'ram_available':100,'disk_free':10**10,'cores':16}
+    assert recommended_parallel(data)==0
+    data['ram_available']=8*1024**3
+    assert recommended_parallel(data,'quiet')==1 and recommended_parallel(data,'balanced')==2
+
+
+def test_archive_traversal_and_bad_hash_never_activate(tmp_path):
+    archive=tmp_path/'evil.zip'
+    with zipfile.ZipFile(archive,'w') as z:z.writestr('../escape','bad')
+    with pytest.raises(ValueError):extract_zip(archive,tmp_path/'unpack')
+    assert not (tmp_path/'escape').exists()
+    store=Store(tmp_path/'state.db')
+    manifest={'name':'ffmpeg','version':'test','url':'https://example.invalid/tool','sha256':'0'*64,'executable':'ffmpeg'}
+    def fetch(url,path,*args):path.write_bytes(b'invalid')
+    with pytest.raises(ValueError,match='SHA256'):install(store,manifest,fetch=fetch)
+    assert not store.setting('tool_paths',{})
+
+
+@pytest.mark.skipif(os.name=='nt',reason='POSIX fixture tool; Windows installer requires native acceptance')
+def test_verified_fixture_tool_install_is_versioned_repeatable_and_not_system_wide(tmp_path):
+    store=Store(tmp_path/'state.db');body=b'#!/bin/sh\nprintf "fixture-tool 1\\n"\n'
+    manifest={'name':'fixture-tool','version':'1','url':'https://example.invalid/tool','sha256':hashlib.sha256(body).hexdigest(),'executable':'fixture-tool'}
+    def fetch(url,path,*args):path.write_bytes(body)
+    first=install(store,manifest,fetch=fetch);second=install(store,manifest,fetch=fetch)
+    assert first==second and Path(first['path']).is_file()
+    assert str(tmp_path) in first['path']

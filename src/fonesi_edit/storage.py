@@ -1,0 +1,187 @@
+"""Transactional local state. Connections are never shared across worker processes."""
+from contextlib import contextmanager
+from pathlib import Path
+import json
+import sqlite3
+import time
+
+from .domain import canonical, checked_payload, identifier
+
+TERMINAL = {"succeeded", "failed", "canceled"}
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,name TEXT NOT NULL,data TEXT NOT NULL,updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS presets(id TEXT PRIMARY KEY,name TEXT NOT NULL,data TEXT NOT NULL,updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,state TEXT NOT NULL,payload TEXT NOT NULL,
+ result TEXT,error TEXT,progress REAL NOT NULL DEFAULT 0,priority INTEGER NOT NULL DEFAULT 0,
+ attempts INTEGER NOT NULL DEFAULT 0,cancel_requested INTEGER NOT NULL DEFAULT 0,
+ created REAL NOT NULL,updated REAL NOT NULL,heartbeat REAL,depends_on TEXT NOT NULL DEFAULT '[]');
+CREATE INDEX IF NOT EXISTS jobs_pending ON jobs(state,priority,created);
+CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY,label TEXT NOT NULL,path TEXT NOT NULL UNIQUE);
+CREATE TABLE IF NOT EXISTS bindings(id TEXT PRIMARY KEY,profile_id TEXT NOT NULL,platform TEXT NOT NULL,
+ identity TEXT,status TEXT NOT NULL DEFAULT 'unverified',checked REAL,UNIQUE(profile_id,platform));
+CREATE TABLE IF NOT EXISTS secrets(key TEXT PRIMARY KEY,value BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS matrix_history(scope TEXT NOT NULL,combination TEXT NOT NULL,state TEXT NOT NULL,
+ job_id TEXT,created REAL NOT NULL,PRIMARY KEY(scope,combination));
+CREATE TABLE IF NOT EXISTS cache(key TEXT PRIMARY KEY,data TEXT NOT NULL,updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS tool_versions(name TEXT NOT NULL,version TEXT NOT NULL,path TEXT NOT NULL,
+ hash TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(name,version));
+CREATE TABLE IF NOT EXISTS schedules(id TEXT PRIMARY KEY,data TEXT NOT NULL,next_run REAL NOT NULL,last_run REAL);
+"""
+
+
+class Store:
+    def __init__(self, path: Path):
+        self.path = path.resolve()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as conn:
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if version > 1:
+                raise ValueError("Database is newer than this application")
+            conn.executescript(SCHEMA)
+            conn.execute("PRAGMA user_version=1")
+
+    @contextmanager
+    def connect(self):
+        conn = sqlite3.connect(self.path, timeout=15)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=15000")
+        try:
+            yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def backup(self, destination: Path):
+        if destination.exists():
+            raise FileExistsError(destination)
+        with self.connect() as source, sqlite3.connect(destination) as target:
+            source.backup(target)
+
+    def setting(self, key, default=None):
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return json.loads(row[0]) if row else default
+
+    def set_setting(self, key, value):
+        data = canonical(checked_payload(value))
+        with self.connect() as conn:
+            conn.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, data))
+
+    def save_named(self, table, name, data, item_id=None):
+        if table not in {"projects", "presets"}:
+            raise ValueError("Invalid table")
+        item_id = item_id or identifier()
+        data = canonical(checked_payload(data))
+        with self.connect() as conn:
+            conn.execute(f"INSERT INTO {table} VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,data=excluded.data,updated=excluded.updated",
+                         (item_id, name, data, time.time()))
+        return item_id
+
+    def list_named(self, table):
+        if table not in {"projects", "presets"}:
+            raise ValueError("Invalid table")
+        with self.connect() as conn:
+            return [{**dict(row), "data": json.loads(row["data"])} for row in conn.execute(f"SELECT * FROM {table} ORDER BY updated DESC")]
+
+    def submit(self, kind, payload, priority=0, depends_on=()):
+        payload={**payload,'_tools':self.setting('tool_paths',{})}
+        data = canonical(checked_payload(payload))
+        job_id, now = identifier(), time.time()
+        with self.connect() as conn:
+            for dependency in depends_on:
+                if not conn.execute("SELECT 1 FROM jobs WHERE id=?", (dependency,)).fetchone():
+                    raise ValueError("Unknown dependency")
+            conn.execute("INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) VALUES(?,?,'pending',?,?,?,?,?)",
+                         (job_id, kind, data, int(priority), now, now, canonical(list(depends_on))))
+        return job_id
+
+    def job(self, job_id):
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if not row:
+            raise KeyError(job_id)
+        return self._job(row)
+
+    def jobs(self, limit=500):
+        with self.connect() as conn:
+            return [self._job(row) for row in conn.execute("SELECT * FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
+
+    @staticmethod
+    def _job(row):
+        item = dict(row)
+        for key in ("payload", "result", "depends_on"):
+            item[key] = json.loads(item[key]) if item[key] else None
+        return item
+
+    def claim(self,allowed=None):
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute("SELECT * FROM jobs WHERE state='pending' AND cancel_requested=0 ORDER BY priority DESC,created").fetchall()
+            for row in rows:
+                if allowed is not None and row['kind'] not in allowed:continue
+                deps = json.loads(row["depends_on"])
+                states = [conn.execute("SELECT state FROM jobs WHERE id=?", (d,)).fetchone()[0] for d in deps]
+                if any(s in {"failed", "canceled"} for s in states):
+                    conn.execute("UPDATE jobs SET state='blocked',error='Dependency did not succeed',updated=? WHERE id=?", (time.time(), row["id"]))
+                    continue
+                if any(s != "succeeded" for s in states):
+                    continue
+                conn.execute("UPDATE jobs SET state='running',attempts=attempts+1,heartbeat=?,updated=? WHERE id=?",
+                             (time.time(), time.time(), row["id"]))
+                return self._job(row)
+        return None
+
+    def progress(self, job_id, value):
+        with self.connect() as conn:
+            conn.execute("UPDATE jobs SET progress=?,heartbeat=?,updated=? WHERE id=? AND state='running'",
+                         (max(0, min(0.99, value)), time.time(), time.time(), job_id))
+
+    def heartbeat(self,job_id):
+        with self.connect() as conn:conn.execute("UPDATE jobs SET heartbeat=? WHERE id=? AND state='running'",(time.time(),job_id))
+
+    def finish(self, job_id, result):
+        data = canonical(checked_payload(result))
+        with self.connect() as conn:
+            conn.execute("UPDATE jobs SET state='succeeded',result=?,progress=1,error=NULL,updated=? WHERE id=?", (data, time.time(), job_id))
+            conn.execute("UPDATE matrix_history SET state='succeeded' WHERE job_id=?",(job_id,))
+
+    def fail(self, job_id, message, blocked=False):
+        with self.connect() as conn:
+            row = conn.execute("SELECT cancel_requested FROM jobs WHERE id=?", (job_id,)).fetchone()
+            state = "canceled" if row and row[0] else "blocked" if blocked else "failed"
+            conn.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=?", (state, str(message)[-3000:], time.time(), job_id))
+            conn.execute("UPDATE matrix_history SET state='failed' WHERE job_id=?",(job_id,))
+
+    def cancel(self, job_id):
+        with self.connect() as conn:
+            conn.execute("UPDATE jobs SET cancel_requested=1,state=CASE WHEN state IN ('pending','blocked') THEN 'canceled' ELSE state END,updated=? WHERE id=? AND state NOT IN ('succeeded','failed','canceled')", (time.time(), job_id))
+            row=conn.execute('SELECT state FROM jobs WHERE id=?',(job_id,)).fetchone()
+            if row and row[0]=='canceled':conn.execute("UPDATE matrix_history SET state='failed' WHERE job_id=?",(job_id,))
+
+    def retry(self, job_id):
+        with self.connect() as conn:
+            row=conn.execute('SELECT payload FROM jobs WHERE id=?',(job_id,)).fetchone()
+            data=json.loads(row[0]) if row else {}
+            if data.get('matrix_scope'):
+                reservation=conn.execute('SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',(data['matrix_scope'],data['matrix_combination'])).fetchone()
+                if reservation and reservation['job_id']!=job_id and reservation['state'] in {'reserved','succeeded'}:raise ValueError('Combination already reserved by a different job')
+                conn.execute("UPDATE matrix_history SET state='reserved',job_id=? WHERE scope=? AND combination=?",(job_id,data['matrix_scope'],data['matrix_combination']))
+            conn.execute("UPDATE jobs SET state='pending',error=NULL,cancel_requested=0,progress=0,updated=? WHERE id=? AND state IN ('failed','blocked','canceled')", (time.time(), job_id))
+
+    def recover(self, stale_seconds=60):
+        with self.connect() as conn:
+            return conn.execute("UPDATE jobs SET state='pending',error='Recovered orphaned worker; output will be reconciled',updated=? WHERE state='running' AND COALESCE(heartbeat,0)<?", (time.time(), time.time() - stale_seconds)).rowcount
+
+    def cached(self, key):
+        with self.connect() as conn:
+            row = conn.execute("SELECT data FROM cache WHERE key=?", (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def cache(self, key, value):
+        with self.connect() as conn:
+            conn.execute("INSERT INTO cache VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,updated=excluded.updated", (key, canonical(checked_payload(value)), time.time()))

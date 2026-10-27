@@ -1,0 +1,133 @@
+"""User-owned, versioned tool installations with TLS and digest verification."""
+from pathlib import Path,PurePosixPath
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
+import zipfile
+
+from .domain import fingerprint,atomic_json
+from .prototypes.tools import check_tool,scan_tools
+
+
+class SecureRedirect(HTTPRedirectHandler):
+    def redirect_request(self,req,fp,code,msg,headers,newurl):
+        if not newurl.startswith('https://'):raise PermissionError('Refusing a non-HTTPS artifact redirect')
+        return super().redirect_request(req,fp,code,msg,headers,newurl)
+
+
+def download_verified(url,destination,sha256,progress=lambda p:None,cancel=None):
+    if not url.startswith('https://') or not re.fullmatch('[a-fA-F0-9]{64}',sha256):raise ValueError('HTTPS and SHA256 are required')
+    digest=hashlib.sha256();size=0
+    with build_opener(SecureRedirect()).open(Request(url,headers={'User-Agent':'FonesiEdit/0.1'}),timeout=30) as response, destination.open('xb') as output:
+        length=int(response.headers.get('Content-Length',0))
+        while True:
+            if cancel and cancel.is_set():raise RuntimeError('Canceled')
+            block=response.read(1024*1024)
+            if not block:break
+            size+=len(block)
+            if size>2*1024**3:raise ValueError('Artifact exceeds 2 GiB budget')
+            digest.update(block);output.write(block)
+            if length:progress(min(.8,size/length*.8))
+    if digest.hexdigest().lower()!=sha256.lower():raise ValueError('Artifact SHA256 mismatch; installation not activated')
+
+
+def extract_zip(archive,destination):
+    with zipfile.ZipFile(archive) as package:
+        if sum(item.file_size for item in package.infolist())>4*1024**3:raise ValueError('Archive exceeds extraction budget')
+        for item in package.infolist():
+            path=PurePosixPath(item.filename.replace('\\','/'))
+            if path.is_absolute() or '..' in path.parts or ':' in path.parts[0] or (item.external_attr>>16)&0o170000==0o120000:raise ValueError('Unsafe archive path/link')
+        package.extractall(destination)
+
+
+def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_verified):
+    name,version=manifest['name'],manifest['version']
+    if not re.fullmatch('[A-Za-z0-9_.-]+',name) or not re.fullmatch('[A-Za-z0-9_.-]+',version):raise ValueError('Invalid tool/version')
+    if not re.fullmatch('[A-Za-z0-9_.-]+',manifest['executable']) or manifest['executable'] in {'.','..'}:raise ValueError('Executable must be a simple filename')
+    root=store.path.parent/'tools'/name;root.mkdir(parents=True,exist_ok=True)
+    final=root/version
+    if final.exists():
+        receipt=json.loads((final/'receipt.json').read_text());path=Path(receipt['path'])
+        if fingerprint(path)!=receipt['hash']:raise ValueError('Existing installation was modified')
+    else:
+      with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
+        stage=Path(temp);archive=stage/'artifact'
+        fetch(manifest['url'],archive,manifest['sha256'],progress,cancel)
+        if fingerprint(archive).lower()!=manifest['sha256'].lower():raise ValueError('Artifact SHA256 mismatch')
+        unpack=stage/'unpacked';unpack.mkdir()
+        if manifest.get('archive')=='zip':extract_zip(archive,unpack)
+        else:shutil.copyfile(archive,unpack/manifest['executable'])
+        matches=list(unpack.rglob(manifest['executable']))
+        if len(matches)!=1:raise ValueError('Tool executable is missing or ambiguous')
+        executable=matches[0]
+        if os.name!='nt':executable.chmod(executable.stat().st_mode|0o100)
+        status=check_tool(name,str(executable))
+        if status.status!='ready':raise ValueError('Downloaded tool failed its startup/version check')
+        relative=executable.relative_to(unpack);os.rename(unpack,final);target=final/relative
+        receipt={'name':name,'version':version,'path':str(target),'hash':fingerprint(target),'artifact_sha256':manifest['sha256']}
+        if name=='ffmpeg':
+            companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
+            if companion.is_file():receipt['ffprobe']=str(companion)
+        atomic_json(final/'receipt.json',receipt)
+    with store.connect() as conn:
+        conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
+        conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',(name,version,receipt['path'],receipt['hash']))
+    overrides=store.setting('tool_paths',{});overrides[name]=receipt['path'];store.set_setting('tool_paths',overrides);progress(1)
+    if receipt.get('ffprobe'):overrides['ffprobe']=receipt['ffprobe'];store.set_setting('tool_paths',overrides)
+    return receipt
+
+
+def rollback(store,name,version):
+    with store.connect() as conn:row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
+    if not row or fingerprint(Path(row['path']))!=row['hash']:raise ValueError('Rollback version unavailable/modified')
+    with store.connect() as conn:
+        conn.execute('UPDATE tool_versions SET active=(version=?) WHERE name=?',(version,name))
+    overrides=store.setting('tool_paths',{});overrides[name]=row['path'];store.set_setting('tool_paths',overrides)
+
+
+def resolve_manifest(name):
+    if name=='node' and os.name=='nt':
+        with urlopen('https://nodejs.org/dist/index.json',timeout=20) as response:releases=json.load(response)
+        release=next(r['version'] for r in releases if r.get('lts') and int(r['version'].split('.')[0].lstrip('v'))>=20)
+        artifact=f'node-{release}-win-x64.zip';base=f'https://nodejs.org/dist/{release}/'
+        with urlopen(base+'SHASUMS256.txt',timeout=20) as response:lines=response.read(200000).decode().splitlines()
+        sha=next((line.split()[0] for line in lines if line.split()[-1]==artifact),None)
+        if not sha:raise ValueError('Official Node checksum missing')
+        return {'name':'node','version':release,'url':base+artifact,'sha256':sha,'archive':'zip','executable':'node.exe'}
+    if name=='ffmpeg' and os.name=='nt':
+        url='https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+        with urlopen(url+'.sha256',timeout=20) as response:text=response.read(4096).decode()
+        sha=re.search(r'\b[a-fA-F0-9]{64}\b',text)
+        if not sha:raise ValueError('Could not verify the official build checksum manifest')
+        return {'name':'ffmpeg','version':sha.group()[:16],'url':url,'sha256':sha.group(),'archive':'zip','executable':'ffmpeg.exe'}
+    if name=='yt-dlp':
+        from importlib.metadata import version
+        release=version('yt-dlp');asset='yt-dlp.exe' if os.name=='nt' else 'yt-dlp'
+        base=f'https://github.com/yt-dlp/yt-dlp/releases/download/{release}/'
+        with urlopen(base+'SHA2-256SUMS',timeout=20) as response:lines=response.read(100000).decode().splitlines()
+        sha=next((line.split()[0] for line in lines if line.split()[-1].lstrip('*')==asset),None)
+        if not sha:raise ValueError('Artifact checksum missing')
+        return {'name':name,'version':release,'url':base+asset,'sha256':sha,'executable':asset}
+    raise ValueError('Thành phần gói kèm hoặc hệ thống; chọn bản sẵn có hay manifest đã xác minh. Không tự tải artifact không có checksum.')
+
+
+def install_chrome(store,progress=lambda n:None,cancel=None):
+    if os.name!='nt':raise PermissionError('Chrome installer proof is Windows-only')
+    with tempfile.TemporaryDirectory(prefix='chrome-',dir=store.path.parent) as folder:
+        target=Path(folder)/'chrome-installer.exe'
+        with urlopen('https://dl.google.com/chrome/install/latest/chrome_installer.exe',timeout=30) as response,target.open('xb') as stream:
+            shutil.copyfileobj(response,stream)
+        script="""$s=Get-AuthenticodeSignature -LiteralPath $env:FONESI_INSTALLER_PATH; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'Google (LLC|Inc)'){exit 2}"""
+        env={**os.environ,'FONESI_INSTALLER_PATH':str(target)}
+        result=subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',script],env=env,capture_output=True,timeout=30)
+        if result.returncode:raise PermissionError('Chrome installer signature/publisher not verified')
+        if cancel and cancel.is_set():raise RuntimeError('Canceled')
+        subprocess.run([str(target)],check=True,timeout=600)
+    status=next(t for t in scan_tools() if t.name=='Google Chrome')
+    if status.status!='ready':raise RuntimeError('Installer đã mở; cần hoàn thành bước Windows rồi quét lại')
+    progress(1);return status.to_dict()

@@ -1,6 +1,6 @@
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
-Phiên bản: 1.1 — 27/10/2026. Trạng thái: P01 hoàn tất thiết kế; P02 đã có prototype CPU/Linux, còn cổng bị chặn; chưa có bản sản phẩm. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
+Phiên bản: 1.1 — 27/10/2026. Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
 
 Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_SPEC.md](EDITOR_SPEC.md), [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Tài liệu kèm theo: [thiết kế kỹ thuật](TECHNICAL_DESIGN.md), [đối chiếu yêu cầu](REQUIREMENTS_TRACEABILITY.md), [ma trận nền tảng](PLATFORM_SUPPORT_MATRIX.md).
 
@@ -12,20 +12,22 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 | --- | --- | --- | --- |
 | P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
 | P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Chưa qua cổng — xem phases/P02_RESULTS.md |
-| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Chưa bắt đầu |
-| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Chưa bắt đầu |
-| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Chưa bắt đầu |
-| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | Chưa bắt đầu |
-| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | Chưa bắt đầu |
-| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | Chưa bắt đầu |
-| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | Chưa bắt đầu |
-| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | Chưa bắt đầu |
-| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | Chưa bắt đầu |
-| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | Chưa bắt đầu |
+| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Có code / QA local; xem CURRENT_STATUS.md |
+| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Có code / QA local; xem CURRENT_STATUS.md |
+| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Có code / QA local; xem CURRENT_STATUS.md |
+| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | Có code / QA local; xem CURRENT_STATUS.md |
+| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | Có code / QA local; xem CURRENT_STATUS.md |
+| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | Có code / QA local; xem CURRENT_STATUS.md |
+| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | Có code / QA local; xem CURRENT_STATUS.md |
+| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | Có code / QA local; xem CURRENT_STATUS.md |
+| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | Có code / QA local; xem CURRENT_STATUS.md |
+| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | Có code / QA local; xem CURRENT_STATUS.md |
 
 Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 khi biết engine, mức hỗ trợ nguồn, máy mục tiêu và rủi ro đóng gói.
 
 ## 2. Quy tắc điều hành
+
+**Điều chỉnh theo chỉ đạo tiếp tục của người dùng:** triển khai liên tục các phần độc lập qua P03–P12 bằng nền CPU/Qt đã kiểm chứng. Các cổng live network/API/Windows/Chrome/GPU còn thiếu được giữ mở riêng; không chặn code không phụ thuộc và không đánh dấu nghiệm thu bên ngoài là đã đạt.
 
 - Mỗi đầu việc có ID, phạm vi, phụ thuộc, hiện vật bàn giao và bằng chứng hoàn thành. Không chọn checklist trước khi thực hiện.
 - Trạng thái: chưa bắt đầu / đang làm / bị chặn / cần sửa / hoàn tất có bằng chứng. Một connector có điều kiện không đồng nghĩa toàn phase hoàn tất.

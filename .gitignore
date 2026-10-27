@@ -16,3 +16,5 @@ cookies*.txt
 *.part
 *.log
 FonesiP02.spec
+FonesiEdit.spec
+fonesi-native-host.spec

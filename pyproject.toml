@@ -9,8 +9,11 @@ description = "Phase 2 technical prototype for the Fonesi Edit desktop applicati
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "PySide6==6.8.3",
-  "yt-dlp>=2025.1.1",
+  "yt-dlp[default]>=2025.1.1",
   "gallery-dl>=1.28,<2",
+  "pysubs2>=1.7,<2",
+  "psutil>=6,<8",
+  "fonttools>=4.50,<5",
 ]
 
 [dependency-groups]
@@ -18,9 +21,13 @@ dev = ["pytest>=8,<10", "pyinstaller>=6.11,<7"]
 
 [project.scripts]
 fonesi-prototype = "fonesi_edit.prototypes.cli:main"
+fonesi-edit = "fonesi_edit.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fonesi_edit"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"extension" = "fonesi_edit/resources/extension"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
