@@ -1,4 +1,4 @@
-name: Phase 2 technical verification
+name: Desktop verification
 
 on:
   push:
@@ -10,10 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  local-media-proof:
-    name: P02 / ${{ matrix.os }}
+  desktop-proof:
+    name: Desktop / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -37,44 +37,36 @@ jobs:
         run: |
           choco install ffmpeg --version=7.1.1 --yes --no-progress
           if ($LASTEXITCODE -ne 0) { throw 'FFmpeg install failed' }
-          ffmpeg -version
       - name: Install exact locked dependencies
         run: uv sync --locked
       - name: Check phase references
         run: uv run python scripts/check_plan.py
-      - name: Meaningful local checks
+      - name: Local regression suite
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run pytest -q --junitxml=p02-tests.xml
-      - name: Render fresh synthetic evidence
-        run: uv run python scripts/run_p02_local.py
-      - name: Build Windows proof
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/build_windows.ps1
-      - name: Run packaged Windows UI proof
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          $video = Get-ChildItem .local -Recurse -Filter result.mp4 | Select-Object -First 1
-          if (-not $video) { throw 'Missing generated media proof' }
-          $image = Join-Path $PWD '.local/p02-packaged-ui.png'
-          $args = @('--smoke', '--source', $video.FullName, '--screenshot', $image)
-          $process = Start-Process -FilePath 'dist/FonesiP02/FonesiP02.exe' -ArgumentList $args -PassThru
-          if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged proof timed out' }
-          if ($process.ExitCode -ne 0) { throw "Packaged proof exit $($process.ExitCode)" }
-          if (-not (Test-Path $image)) { throw 'Packaged proof did not produce a screenshot' }
-      - name: Test evidence only; never browser profiles or credentials
+        run: uv run pytest -q --junitxml=desktop-tests.xml
+      - name: Build production desktop and native host
+        run: uv run python scripts/build_desktop.py --native-host
+      - name: Exercise packaged application and workers
+        run: uv run python scripts/verify_packaged.py --folder .local/packaged-ci
+      - name: Upload synthetic proof only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: p02-evidence-${{ runner.os }}
+          name: desktop-evidence-${{ runner.os }}
           retention-days: 3
           include-hidden-files: true
           path: |
-            p02-tests.xml
-            .local/p02-*/evidence.json
-            .local/p02-*/*/frame.png
-            .local/p02-packaged-ui.png
+            desktop-tests.xml
+            .local/packaged-ci/proof.json
+            .local/packaged-ci/frame-*.png
+            .local/packaged-ci/desktop.png
+            dist/FonesiEdit/build-info.json
+            dist/FonesiEdit/ffmpeg-build.txt
+      - name: Keep Windows development build for review
+        if: success() && runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: FonesiEdit-Windows-development
+          retention-days: 7
+          path: dist/FonesiEdit/

@@ -15,10 +15,10 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P09 | Lazy matrix, W/K/history/reservations/CSV/rows | Solver constraints lớn, thao tác tất cả kiểu khóa |
 | P10 | Workflow/watch/schedule, metrics/admission/tools | Installer/auth/driver Windows thực tế |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
-| P12 | Script/build app + native host, Linux build đã tạo | Frozen-worker proof cuối và Windows packaged acceptance |
+| P12 | Script/build app + native host, Linux build đã tạo | Linux frozen-worker proof đã qua; Windows packaged acceptance còn mở |
 
 Chạy `uv run fonesi-edit`. Bản CLI/prototype cũ vẫn giữ để hồi quy. Runtime, browser profiles, video và API keys không được commit.
 
-Checkpoint local gần nhất: 65 tests qua; số cuối và artifacts sẽ ghi trong verification report. Mock transport dùng cho test cache/quota không phải dịch live. HTTP fixture nội bộ không phải bằng chứng tải YouTube/Facebook.
+Kiểm chứng cuối: **92 tests qua, 0 fail/error/skip**; binary Linux chạy 4 job thật (batch/ma trận song ngữ, tải video/ảnh localhost), rename/undo, mở UI và giải mã frame Qt. 36 file source khớp hash của bundle. Xem [báo cáo](LOCAL_VERIFICATION.md), [evidence JSON](evidence/desktop-verification.json) và [phần đã có/còn mở theo 95 nhóm](IMPLEMENTATION_COVERAGE.md).
 
-Các mục đang tiếp tục rà soát trước khi đóng bản phát triển: độ chính xác các control inspector/timeline, job concurrency/recovery, readiness khi tool/module được gói, frozen worker, và ghi nhận blocker thay vì báo thành công giả. Giọng AI/ASR/OCR/tracking vẫn nằm ngoài phạm vi bản hiện tại.
+CI Windows/Linux đã có build production/native host, proof từ binary và artifact phát triển; chưa xác nhận CI Windows đã thành công. Mạng xã hội nguyên kênh, API dịch thật, Chrome Windows/GPU/HiDPI/audio máy thật vẫn cần kiểm chứng riêng. Những tùy chọn nâng cao chưa hoàn tất tiếp tục được ghi trong coverage, không tự đổi thành đã đạt hoặc loại khỏi phạm vi. Giọng AI/ASR/OCR/tracking thuộc giai đoạn sau.

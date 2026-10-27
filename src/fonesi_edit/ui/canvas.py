@@ -1,6 +1,8 @@
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QGraphicsView
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QGraphicsView, QInputDialog
+
+_FONT_FAMILIES={}
 
 
 class Overlay(QGraphicsObject):
@@ -23,7 +25,12 @@ class Overlay(QGraphicsObject):
     def paint(self, painter, option, widget=None):
         rect, layer = self.boundingRect(), self.layer
         if layer.kind in {'text', 'subtitle'}:
-            font = QFont(layer.style.get('font_family', 'Arial'))
+            family=layer.style.get('font_family','Arial');font_path=layer.style.get('font_file')
+            if font_path:
+                if font_path not in _FONT_FAMILIES:
+                    key=QFontDatabase.addApplicationFont(font_path);_FONT_FAMILIES[font_path]=QFontDatabase.applicationFontFamilies(key) if key>=0 else []
+                if _FONT_FAMILIES[font_path] and family not in _FONT_FAMILIES[font_path]:family=_FONT_FAMILIES[font_path][0]
+            font = QFont(family)
             font.setPixelSize(int(layer.style.get('font_size', 32)))
             font.setBold(layer.style.get('bold', False))
             font.setItalic(layer.style.get('italic', False))
@@ -56,6 +63,7 @@ class Overlay(QGraphicsObject):
         self.begin()
         self.origin = event.scenePos()
         self.original = self.layer.x, self.layer.y, self.layer.width, self.layer.height, self.layer.rotation
+        self.companions={item:(item.layer.x,item.layer.y) for item in self.scene().items() if isinstance(item,Overlay) and item is not self and not item.layer.locked and (item.isSelected() or self.layer.group and item.layer.group==self.layer.group)}
         local = event.pos()
         self.mode = 'resize' if (local - self.boundingRect().bottomRight()).manhattanLength() < 25 else 'rotate' if local.y() < 15 and abs(local.x() - self.boundingRect().width() / 2) < 15 else 'move'
 
@@ -71,6 +79,8 @@ class Overlay(QGraphicsObject):
                 if abs(ny - 0.5) < 0.01: ny = 0.5
             self.layer.x, self.layer.y = min(1, max(0, nx)), min(1, max(0, ny))
             self.setPos(self.layer.x * self.cw, self.layer.y * self.ch)
+            for item,(sx,sy) in self.companions.items():
+                item.layer.x=max(0,min(1,sx+self.layer.x-x));item.layer.y=max(0,min(1,sy+self.layer.y-y));item.setPos(item.layer.x*self.cw,item.layer.y*self.ch)
         elif self.mode == 'resize':
             self.prepareGeometryChange()
             self.layer.width = max(0.02, w + delta.x() / self.cw)
@@ -88,6 +98,12 @@ class Overlay(QGraphicsObject):
             self.mode = None
             self.commit('Kéo/biến đổi đối tượng')
 
+    def mouseDoubleClickEvent(self,event):
+        if self.layer.kind=='text' and not self.layer.locked:
+            text,ok=QInputDialog.getMultiLineText(None,'Sửa chữ trực tiếp','Nội dung',self.layer.text)
+            if ok:self.begin();self.layer.text=text;self.commit('Sửa chữ trên preview')
+        else:super().mouseDoubleClickEvent(event)
+
 
 class Canvas(QGraphicsView):
     selected = Signal(str)
@@ -101,6 +117,7 @@ class Canvas(QGraphicsView):
         self.setMinimumSize(400, 250)
         self.scene().selectionChanged.connect(self.selection)
         self.zoom = 1
+        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
 
     def rebuild(self, frame=None,reference=False):
         selected = self.editor.selected_id
@@ -124,7 +141,7 @@ class Canvas(QGraphicsView):
             item = Overlay(layer, c.width, c.height, self.editor.begin, self.editor.commit)
             item.setZValue(index + 1)
             self.scene().addItem(item)
-            if layer.id == selected:
+            if layer.id in self.editor.selected_ids or layer.id==selected:
                 item.setSelected(True)
         self.scene().blockSignals(False)
         self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
@@ -132,8 +149,7 @@ class Canvas(QGraphicsView):
 
     def selection(self):
         items = [item for item in self.scene().selectedItems() if isinstance(item, Overlay)]
-        if items:
-            self.selected.emit(items[0].layer.id)
+        self.editor.select_ids([item.layer.id for item in items])
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

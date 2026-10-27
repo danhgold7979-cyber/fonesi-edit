@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "fonesi-edit"
 version = "0.0.1"
-description = "Phase 2 technical prototype for the Fonesi Edit desktop application"
+description = "Personal desktop media downloader, subtitle editor, batch compositor and scene matrix"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "PySide6==6.8.3",

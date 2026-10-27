@@ -1,7 +1,25 @@
 from functools import lru_cache
 from pathlib import Path
 import os
-from fontTools.ttLib import TTFont
+from fontTools.ttLib import TTFont,TTCollection
+
+
+@lru_cache(maxsize=1024)
+def font_faces(path):
+    path=Path(path)
+    collection=TTCollection(path,lazy=True) if path.suffix.lower() in {'.ttc','.otc'} else None
+    fonts=collection.fonts if collection else [TTFont(path,lazy=True)]
+    try:return [{'family':font['name'].getDebugName(1) or path.stem,'style':font['name'].getDebugName(2) or 'Regular','path':str(path),'index':i} for i,font in enumerate(fonts)]
+    finally:
+        if collection:collection.close()
+        else:fonts[0].close()
+
+
+def open_font(path,style=None):
+    style=style or {};faces=font_faces(str(path));family=style.get('font_family','').casefold()
+    matches=[face for face in faces if face['family'].casefold()==family] or faces
+    face=next((face for face in matches if ('bold' in face['style'].lower())==bool(style.get('bold'))),matches[0])
+    return TTFont(path,lazy=True,fontNumber=face['index'] if Path(path).suffix.lower() in {'.ttc','.otc'} else -1)
 
 
 def font_roots():
@@ -15,12 +33,9 @@ def font_catalog(extra=''):
     result=[]
     for root in [*font_roots(),*([Path(extra)] if extra else [])]:
         for path in root.rglob('*'):
-            if path.suffix.lower() not in {'.ttf','.otf'}:continue
+            if path.suffix.lower() not in {'.ttf','.otf','.ttc','.otc'}:continue
             try:
-                with TTFont(path,lazy=True) as font:
-                    name=font['name'].getDebugName(1) or path.stem
-                    style=font['name'].getDebugName(2) or 'Regular'
-                result.append({'family':name,'style':style,'path':str(path)})
+                result.extend(font_faces(str(path)))
             except Exception:continue
             if len(result)>=3000:return result
     return result
@@ -42,7 +57,7 @@ def resolve_font(style):
     return find_font()
 
 
-def missing_glyphs(path,text):
-    with TTFont(path,lazy=True) as font:
+def missing_glyphs(path,text,style=None):
+    with open_font(path,style) as font:
         cmap=font.getBestCmap() or {}
         return sorted({ch for ch in text if not ch.isspace() and ord(ch) not in cmap})

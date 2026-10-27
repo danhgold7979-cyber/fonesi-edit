@@ -30,8 +30,8 @@ class Editor(QWidget):
 
     def __init__(self,host):
         super().__init__();self.host=host
-        self.composition=Composition();self.selected_id=None;self.frame=None;self._before=None;self._loading=False
-        self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
+        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
+        self.waveforms={};self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
         actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
                  ('Vùng che',lambda:self.add_layer('mask')),('Nhân bản',self.duplicate),('Xóa layer',self.delete_layer),
@@ -39,13 +39,19 @@ class Editor(QWidget):
         for label,callback in actions:
             action=toolbar.addAction(label);action.triggered.connect(lambda checked=False,callback=callback:callback())
         toolbar.addAction('Đầu ra',lambda:self.output_dialog());toolbar.addAction('Âm thanh',lambda:self.audio_dialog())
+        extra=QPushButton('Thao tác thêm ▾');menu=QMenu(extra)
+        for name,callback in [('Sửa clip',self.clip_dialog),('Đặt In',self.mark_in),('Đặt Out',self.mark_out),('Áp dụng In/Out',self.trim_in_out),('Xóa clip và dồn sau',self.ripple_delete),('Nhóm layer',self.group),('Bỏ nhóm',self.ungroup),('Căn giữa ngang',lambda:self.align('x')),('Căn giữa dọc',lambda:self.align('y')),('Phân bố ngang',lambda:self.distribute('x')),('Phân bố dọc',lambda:self.distribute('y')),('Copy kiểu',self.copy_style),('Dán kiểu',self.paste_style),('Khóa / mở chọn',self.lock_selected),('Ẩn / hiện chọn',self.hide_selected),('Preview có âm thanh',lambda:self.host.playback_preview(self.composition))]:
+            action=menu.addAction(name);action.triggered.connect(lambda checked=False,callback=callback:callback())
+        extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
         split=QSplitter();layout.addWidget(split,1)
         assets=QWidget();left=QVBoxLayout(assets);self.clips=QListWidget();self.layers=QListWidget()
         self.clips.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.layers.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         left.addWidget(QLabel('Media'));left.addWidget(self.clips);left.addWidget(QLabel('Layers'));left.addWidget(self.layers)
-        self.layers.currentRowChanged.connect(self.select_row)
+        self.layers.itemSelectionChanged.connect(self.list_selection)
+        self.clips.itemDoubleClicked.connect(lambda item:self.clip_dialog())
         layer_buttons=QHBoxLayout();left.addLayout(layer_buttons)
         for label,delta in [('Lên',1),('Xuống',-1)]:
             b=QPushButton(label);b.clicked.connect(lambda _,d=delta:self.reorder(d));layer_buttons.addWidget(b)
@@ -127,22 +133,52 @@ class Editor(QWidget):
 
     def refresh(self):
         self._loading=True
+        clip_ids={self.clips.item(i.row()).data(Qt.ItemDataRole.UserRole) for i in self.clips.selectedIndexes()}
         self.clips.clear()
-        for c in self.composition.clips:self.clips.addItem(Path(c.path).name)
+        for c in self.composition.clips:
+            self.clips.addItem(Path(c.path).name);item=self.clips.item(self.clips.count()-1);item.setData(Qt.ItemDataRole.UserRole,c.id);item.setSelected(c.id in clip_ids)
+        if self.clips.count() and not self.clips.selectedItems():self.clips.setCurrentRow(0)
         self.layers.clear()
         for layer in self.composition.layers:self.layers.addItem(('🔒 ' if layer.locked else '')+layer.name)
         selected=next((i for i,x in enumerate(self.composition.layers) if x.id==self.selected_id),-1)
-        self.layers.setCurrentRow(selected)
+        self.selected_ids.intersection_update(l.id for l in self.composition.layers)
+        if self.selected_id:self.selected_ids.add(self.selected_id)
+        for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
         self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
+        self.load_waveforms()
+
+    def load_waveforms(self):
+        if not hasattr(self.host,'background'):return
+        from ..waveform import waveform
+        paths={c.path for c in self.composition.clips}|{a['path'] for a in self.composition.audio}
+        for path in paths:
+            if path in self.waveforms or not Path(path).is_file():continue
+            self.waveforms[path]={}
+            def work(progress,cancel,path=path):
+                try:return path,waveform(path,Path(self.host.workspace.name)/'waveforms',cancel)
+                except (ValueError,RuntimeError,OSError):return path,{}
+            def done(data):self.waveforms[data[0]]=data[1];self.timeline.rebuild()
+            self.host.background(work,done)
 
     def select_row(self,index):
         if self._loading:return
         self.select_id(self.composition.layers[index].id if 0<=index<len(self.composition.layers) else '')
 
     def select_id(self,layer_id):
+        self.select_ids([layer_id] if layer_id else [])
+
+    def list_selection(self):
+        if self._loading:return
+        self.select_ids([self.composition.layers[i.row()].id for i in self.layers.selectedIndexes()]);self.canvas.rebuild()
+
+    def select_ids(self,layer_ids):
+        layer_id=layer_ids[0] if layer_ids else None;self.selected_ids=set(layer_ids)
         self.selected_id=layer_id;self._loading=True;self.load_fields();self._loading=False
-        index=next((i for i,l in enumerate(self.composition.layers) if l.id==layer_id),-1)
-        self.layers.blockSignals(True);self.layers.setCurrentRow(index);self.layers.blockSignals(False)
+        self.layers.blockSignals(True)
+        for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
+        self.layers.blockSignals(False)
+
+    def selected_layers(self):return [l for l in self.composition.layers if l.id in (self.selected_ids|{self.selected_id})]
 
     def load_fields(self):
         layer=self.layer()
@@ -168,7 +204,9 @@ class Editor(QWidget):
         value=widget.value() if kind=='number' else widget.isChecked() if kind=='bool' else widget.currentText() if kind=='choice' else widget.currentFont().family() if kind=='font' else widget.text()
         if key=='end' and value==0:value=None
         self.begin()
-        if '.' in key:parent,name=key.split('.');getattr(layer,parent)[name]=value
+        if '.' in key:
+            parent,name=key.split('.');getattr(layer,parent)[name]=value
+            if key=='style.font_family':layer.style.pop('font_file',None)
         else:setattr(layer,key,value)
         self.commit('Đổi '+key)
 
@@ -195,16 +233,17 @@ class Editor(QWidget):
             if not path:return
         self.begin();layer=Layer(kind=kind,name={'text':'Chữ','image':'Logo','mask':'Vùng che'}[kind],path=path)
         if kind=='mask':layer.y=.75;layer.width=.8;layer.height=.12;layer.style={'mode':'blur','radius':10}
-        layer.clip_ids=self.scope_ids();self.composition.layers.append(layer);self.selected_id=layer.id;self.commit('Thêm layer')
+        layer.clip_ids=self.scope_ids();self.composition.layers.append(layer);self.selected_id=layer.id;self.selected_ids={layer.id};self.commit('Thêm layer')
 
     def duplicate(self):
         if self.layer():
             self.begin();copy=deepcopy(self.layer());copy.id=identifier();copy.name+=' copy';copy.x=min(.95,copy.x+.02)
-            self.composition.layers.append(copy);self.selected_id=copy.id;self.commit('Nhân bản')
+            self.composition.layers.append(copy);self.selected_id=copy.id;self.selected_ids={copy.id};self.commit('Nhân bản')
 
     def delete_layer(self):
-        if self.layer() and not self.layer().locked:
-            self.begin();self.composition.layers=[l for l in self.composition.layers if l.id!=self.selected_id];self.selected_id=None;self.commit('Xóa layer')
+        ids={l.id for l in self.selected_layers() if not l.locked}
+        if ids:
+            self.begin();self.composition.layers=[l for l in self.composition.layers if l.id not in ids];self.selected_id=None;self.selected_ids=set();self.commit('Xóa layer')
 
     def reorder(self,delta):
         index=next((i for i,l in enumerate(self.composition.layers) if l.id==self.selected_id),-1)
@@ -218,12 +257,79 @@ class Editor(QWidget):
             if offset<t<offset+length:
                 self.begin();cut=clip.start+(t-offset)*clip.speed
                 right=replace(clip,id=identifier(),start=cut,offset=t);clip.end=cut
+                for layer in self.composition.layers:
+                    if clip.id in layer.clip_ids:layer.clip_ids.append(right.id)
                 self.composition.clips.insert(self.composition.clips.index(clip)+1,right);self.commit('Chia clip');return
+
+    def group(self):
+        layers=[l for l in self.selected_layers() if not l.locked]
+        if len(layers)<2:return
+        self.begin();key=identifier()
+        for layer in layers:layer.group=key
+        self.commit('Nhóm layer')
+    def ungroup(self):
+        self.begin()
+        for layer in self.selected_layers():
+            if not layer.locked:layer.group=None
+        self.commit('Bỏ nhóm')
+    def align(self,axis):
+        self.begin()
+        for layer in self.selected_layers():
+            if not layer.locked:setattr(layer,axis,(1-getattr(layer,'width' if axis=='x' else 'height'))/2)
+        self.commit('Căn giữa')
+    def distribute(self,axis):
+        layers=sorted([l for l in self.selected_layers() if not l.locked],key=lambda l:getattr(l,axis))
+        if len(layers)<3:return
+        self.begin();first,last=getattr(layers[0],axis),getattr(layers[-1],axis)
+        for i,layer in enumerate(layers):setattr(layer,axis,first+(last-first)*i/(len(layers)-1))
+        self.commit('Phân bố layer')
+    def copy_style(self):
+        if self.layer():self.style_clipboard=deepcopy(self.layer().style)
+    def paste_style(self):
+        if not hasattr(self,'style_clipboard'):return
+        self.begin()
+        for layer in self.selected_layers():
+            if not layer.locked:layer.style=deepcopy(self.style_clipboard)
+        self.commit('Dán kiểu')
+    def lock_selected(self):
+        self.begin();layers=self.selected_layers();value=not all(l.locked for l in layers)
+        for layer in layers:layer.locked=value
+        self.commit('Khóa/mở layer')
+    def hide_selected(self):
+        self.begin();layers=[l for l in self.selected_layers() if not l.locked];value=not any(l.visible for l in layers)
+        for layer in layers:layer.visible=value
+        self.commit('Ẩn/hiện layer')
+    def mark_in(self):self.in_point=self.timeline.playhead;self.host.message(f'In: {self.in_point:.3f}s')
+    def mark_out(self):self.out_point=self.timeline.playhead;self.host.message(f'Out: {self.out_point:.3f}s')
+    def trim_in_out(self):
+        if self.in_point is None or self.out_point is None or self.out_point<=self.in_point:self.host.message('Đặt In trước Out trong một clip');return
+        for clip,offset,length in clip_positions(self.composition):
+            if offset<=self.in_point<self.out_point<=offset+length:
+                self.begin();start=clip.start;clip.start=start+(self.in_point-offset)*clip.speed;clip.end=start+(self.out_point-offset)*clip.speed;clip.freeze=0;self.composition.duration_target=None;self.commit('Cắt In/Out');return
+        self.host.message('In/Out phải nằm trong cùng một clip; chia clip trước khi cắt qua nhiều cảnh')
+    def ripple_delete(self):
+        indices={i.row() for i in self.clips.selectedIndexes()}
+        if not indices:return
+        positions=clip_positions(self.composition);ids={self.composition.clips[i].id for i in indices};shift=0;self.begin()
+        for clip,offset,length in positions:
+            if clip.id in ids:shift+=length-self.composition.transition
+            elif clip.offset is not None:clip.offset=max(0,offset-shift)
+        self.composition.clips=[c for c in self.composition.clips if c.id not in ids]
+        self.composition.layers=[l for l in self.composition.layers if not l.clip_ids or any(cid not in ids for cid in l.clip_ids)]
+        for layer in self.composition.layers:layer.clip_ids=[cid for cid in layer.clip_ids if cid not in ids]
+        self.composition.duration_target=None;self.commit('Xóa clip và dồn sau')
+
+    def clip_dialog(self):
+        if not self.composition.clips:return
+        from .dialogs import ClipDialog
+        ClipDialog(self,max(0,self.clips.currentRow())).exec()
 
     def choose_font(self):
         if not self.layer():return
-        path,_=QFileDialog.getOpenFileName(self,'Font riêng',filter='Font (*.ttf *.otf)')
-        if path:self.begin();self.layer().style['font_file']=path;self.commit('Font riêng')
+        path,_=QFileDialog.getOpenFileName(self,'Font riêng',filter='Font (*.ttf *.otf *.ttc *.otc)')
+        if path:
+            from ..fonts import font_faces
+            faces=font_faces(path);self.begin();self.layer().style.update({'font_file':path,'font_family':faces[0]['family']});self.commit('Font riêng')
 
     def choose_color(self):
         if not self.layer():return

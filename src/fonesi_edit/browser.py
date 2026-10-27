@@ -53,6 +53,29 @@ def profiles(store):
     with store.connect() as c:return [dict(r) for r in c.execute('SELECT * FROM profiles ORDER BY label')]
 
 
+def rename_profile(store,key,label):
+    if not label.strip() or len(label)>80:raise ValueError('Tên hồ sơ cần 1–80 ký tự')
+    with store.connect() as c:
+        row=c.execute('SELECT path FROM profiles WHERE id=?',(key,)).fetchone()
+        if not row:raise ValueError('Unknown profile')
+        from .domain import atomic_json
+        marker=Path(row['path'])/'fonesi-profile.json';data=json.loads(marker.read_text(encoding='utf-8'));data['label']=label.strip();atomic_json(marker,data)
+        c.execute('UPDATE profiles SET label=? WHERE id=?',(label.strip(),key))
+
+
+def forget_session(store,binding_id):
+    with store.connect() as c:
+        c.execute('DELETE FROM secrets WHERE key=?',('session:'+binding_id,))
+        c.execute("UPDATE bindings SET status='login_required',checked=? WHERE id=?",(time.time(),binding_id))
+
+
+def revoke_pairing(store,profile_id):
+    with store.connect() as c:
+        rows=c.execute("SELECT key,value FROM settings WHERE key LIKE 'bridge:%' OR key LIKE 'pair:%'").fetchall()
+        for row in rows:
+            if json.loads(row['value']).get('profile_id')==profile_id:c.execute('DELETE FROM settings WHERE key=?',(row['key'],))
+
+
 def bindings(store):
     with store.connect() as c:
         return [dict(r) for r in c.execute('SELECT bindings.*,profiles.label FROM bindings JOIN profiles ON profiles.id=bindings.profile_id ORDER BY platform,label')]
@@ -75,17 +98,21 @@ def login(store,profile_id,platform,chrome=None):
 
 
 def pairing_code(store,profile_id):
+    with store.connect() as c:
+        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():raise ValueError('Unknown profile')
     code=secrets.token_urlsafe(18)
     store.set_setting('pair:'+hashlib.sha256(code.encode()).hexdigest(),{'profile_id':profile_id,'expires':time.time()+300})
     return code
 
 
 def pair(store,code):
-    key='pair:'+hashlib.sha256(code.encode()).hexdigest();data=store.setting(key)
-    if not data or data['expires']<time.time():raise PermissionError('Pairing code expired/invalid')
-    token=secrets.token_urlsafe(32)
-    store.set_setting('bridge:'+hashlib.sha256(token.encode()).hexdigest(),{'profile_id':data['profile_id']})
-    with store.connect() as c:c.execute('DELETE FROM settings WHERE key=?',(key,))
+    key='pair:'+hashlib.sha256(code.encode()).hexdigest()
+    with store.connect() as c:
+        c.execute('BEGIN IMMEDIATE');row=c.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone();data=json.loads(row[0]) if row else None
+        if not data or data['expires']<time.time():raise PermissionError('Pairing code expired/invalid')
+        token=secrets.token_urlsafe(32)
+        c.execute('INSERT INTO settings VALUES(?,?)',('bridge:'+hashlib.sha256(token.encode()).hexdigest(),canonical({'profile_id':data['profile_id']})))
+        c.execute('DELETE FROM settings WHERE key=?',(key,))
     return token
 
 

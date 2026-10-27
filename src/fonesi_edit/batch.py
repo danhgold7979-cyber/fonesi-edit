@@ -3,8 +3,9 @@ from pathlib import Path
 import hashlib
 import math
 import re
+import random
 
-from .domain import Clip,Composition,canonical
+from .domain import Clip,Composition,Layer,canonical,identifier
 from .prototypes.media import probe
 from .render import audio_duration
 
@@ -12,6 +13,61 @@ VIDEO_EXTENSIONS={'.mp4','.mkv','.mov','.webm','.avi','.m4v','.flv','.ts'}
 
 
 def natural_key(value):return [int(p) if p.isdigit() else p.casefold() for p in re.split(r'(\d+)',str(value))]
+
+
+def configured_clip(path,info,composition,clip_id):
+    settings=composition.adjustments.get('batch_video',{})
+    if not 0<=float(settings.get('random_flip',0))<=1:raise ValueError('Xác suất lật phải từ 0 tới 1')
+    rng=random.Random(f'{composition.seed}:{clip_id}')
+    flip=bool(settings.get('flip',False))
+    if rng.random()<float(settings.get('random_flip',0)):flip=not flip
+    rotation=float(settings.get('rotation',0))
+    if settings.get('random_rotate'):
+        lower,upper=float(settings.get('rotation_min',-5)),float(settings.get('rotation_max',5))
+        if not -360<=lower<=upper<=360:raise ValueError('Khoảng random rotation không hợp lệ')
+        rotation+=rng.uniform(lower,upper)
+    clip=Clip(str(Path(path).resolve()),id=clip_id,start=float(settings.get('trim_head',0)),end=info.duration-float(settings.get('trim_tail',0)),source_duration=info.duration,speed=float(settings.get('speed',1)),flip=flip,rotation=rotation,volume=float(settings.get('volume',1)))
+    clip.validate();return clip
+
+
+def source_subtitle(path, languages=('vi','zh','en'), channel=None):
+    path=Path(path);channel=Path(channel) if channel else path.parent.parent if path.parent.name.casefold()=='videos' else path.parent
+    candidates=[path.with_suffix(ext) for ext in ('.srt','.vtt','.ass') if path.with_suffix(ext).is_file()]
+    media_id=path.stem.rsplit('__',1)[-1]
+    for folder in [path.parent,channel/'subtitles']:
+        if folder.is_dir():candidates.extend(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in {'.srt','.vtt','.ass'} and (p.stem==path.stem or p.stem.startswith(path.stem+'.') or p.stem==media_id or p.stem.startswith(media_id+'.')))
+    candidates=list(dict.fromkeys(candidates))
+    def rank(item):
+        lang=item.stem.split('.')[-1]
+        return next((i for i,value in enumerate(languages) if lang==value or lang.startswith(value+'-')),len(languages)),{'.srt':0,'.vtt':1,'.ass':2}[item.suffix.lower()]
+    candidates.sort(key=rank)
+    if len(candidates)==1 or len(candidates)>1 and rank(candidates[0])<rank(candidates[1]):return str(candidates[0]),[]
+    return None,['Nhiều file sub cùng tên; cần chọn' if candidates else 'Không có sub phù hợp']
+
+
+def bind_source_subtitles(composition, channel=None):
+    """Reuse subtitle layout, never the previous video's cue file."""
+    templates=[layer for layer in composition.layers if layer.kind=='subtitle']
+    if not templates and composition.adjustments.get('bilingual_subtitles'):
+        size=float(composition.subtitle_style.get('font_size',32))
+        for role,y,size in [('source',.67,max(8,size*.75)),('target',.82,size)]:
+            templates.append(Layer(kind='subtitle',id='builtin-subtitle-'+role,name='Sub '+role,x=.1,y=y,width=.8,height=.14,style={**composition.subtitle_style,'font_size':size,'subtitle_role':role}))
+    composition.layers=[layer for layer in composition.layers if layer.kind!='subtitle'];warnings=[]
+    for clip in composition.clips:
+        clip.subtitles=None
+        for template in templates or [None]:
+            role=template.style.get('subtitle_role','target') if template else 'target'
+            languages=template.style.get('subtitle_languages') if template else None
+            if not languages:languages=composition.adjustments.get('source_subtitle_languages',['zh','en']) if role=='source' else composition.adjustments.get('subtitle_languages',['vi','zh','en'])
+            source,notes=source_subtitle(clip.path,languages,channel)
+            warnings.extend(f'{Path(clip.path).name} ({role}): {note}' for note in notes)
+            if source and template:
+                layer=deepcopy(template);layer.id=hashlib.sha256(f'{template.id}:{clip.id}:{source}'.encode()).hexdigest()[:32];layer.path=source;layer.text='';layer.clip_ids=[clip.id]
+                composition.layers.append(layer)
+            elif source:clip.subtitles=source
+        source_paths={layer.path for layer in composition.layers if clip.id in layer.clip_ids and layer.style.get('subtitle_role')=='source'}
+        if any(layer.path in source_paths for layer in composition.layers if clip.id in layer.clip_ids and layer.style.get('subtitle_role')=='target'):warnings.append(f'{Path(clip.path).name}: chưa có bản dịch riêng; chờ auto dịch hoặc chỉ chèn track gốc')
+    return warnings
 
 
 def scan_folders(root:Path):
@@ -45,6 +101,8 @@ def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximu
             clip=deepcopy(original);clip.id=hashlib.sha256(f'{original.id}:{len(c.clips)}'.encode()).hexdigest()[:32]
             if remaining<natural[0]:clip.end=clip.start+remaining*clip.speed
             c.clips.append(clip);remaining-=min(remaining,natural[0])
+        for layer in c.layers:
+            if original.id in layer.clip_ids:layer.clip_ids=[cid for cid in layer.clip_ids if cid!=original.id]+[clip.id for clip in c.clips]
         c.transition=0
     elif len(c.clips)==1 and policy=='freeze' and natural[0]<target:c.clips[0].freeze=target-natural[0]
     else:
@@ -74,26 +132,12 @@ def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=
             path=Path(source);info=probe(path);c=deepcopy(preset)
             for layer in c.layers:layer.clip_ids=[]
             clip_id=hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:32]
-            c.clips=[Clip(str(path.resolve()),end=info.duration,source_duration=info.duration,id=clip_id)]
-            candidates=[path.with_suffix(ext) for ext in ('.srt','.vtt','.ass') if path.with_suffix(ext).is_file()]
-            subfolder=channel/'subtitles'
-            if not candidates and subfolder.is_dir():
-                media_id=path.stem.rsplit('__',1)[-1]
-                candidates=[p for p in subfolder.glob('*') if p.suffix in {'.srt','.vtt','.ass'} and (p.stem==path.stem or p.stem==media_id or p.stem.startswith(media_id+'.'))]
-                languages=c.adjustments.get('subtitle_languages',['vi','zh','en'])
-                def sub_rank(item):
-                    lang=item.stem.split('.')[-1]
-                    return next((i for i,value in enumerate(languages) if lang==value or lang.startswith(value+'-')),len(languages)),{'.srt':0,'.vtt':1,'.ass':2}[item.suffix]
-                candidates.sort(key=sub_rank)
-                if candidates and (len(candidates)==1 or sub_rank(candidates[0])<sub_rank(candidates[1])):candidates=candidates[:1]
-            warnings=[]
-            if len(candidates)==1:c.clips[0].subtitles=str(candidates[0])
-            elif len(candidates)>1:warnings.append('Nhiều file sub cùng tên; cần chọn')
-            else:warnings.append('Không có sub phù hợp')
+            c.clips=[configured_clip(path,info,c,clip_id)]
             if audio_path:
                 c.audio=[{'path':str(Path(audio_path).resolve()),'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
                 c=fit_duration(c,audio_duration(audio_path),policy,minimum,maximum)
             elif c.duration_target:c=fit_duration(c,c.duration_target,policy,minimum,maximum)
+            warnings=bind_source_subtitles(c,channel)
             key=hashlib.sha256(canonical(c.to_dict()).encode()).hexdigest()[:10]
             output=output_root/(path.stem[:120]+'_'+key+'.mp4')
             plans.append({'source':str(path),'output':str(output),'composition':c.to_dict(),'warnings':warnings})

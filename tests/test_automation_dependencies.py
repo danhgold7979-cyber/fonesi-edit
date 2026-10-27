@@ -26,6 +26,7 @@ def test_low_resources_stop_admission_without_fake_gpu():
     assert recommended_parallel(data)==0
     data['ram_available']=8*1024**3
     assert recommended_parallel(data,'quiet')==1 and recommended_parallel(data,'balanced')==2
+    data['cpu_percent']=99;assert recommended_parallel(data)==0
 
 
 def test_archive_traversal_and_bad_hash_never_activate(tmp_path):
@@ -48,3 +49,20 @@ def test_verified_fixture_tool_install_is_versioned_repeatable_and_not_system_wi
     first=install(store,manifest,fetch=fetch);second=install(store,manifest,fetch=fetch)
     assert first==second and Path(first['path']).is_file()
     assert str(tmp_path) in first['path']
+    original=Path(first['path']);original.write_bytes(b'broken, must remain untouched')
+    repaired=install(store,manifest,fetch=fetch)
+    assert repaired['path']!=first['path'] and original.read_bytes()==b'broken, must remain untouched'
+    assert Path(repaired['path']).read_bytes()==body
+
+
+def test_download_workflow_translates_subtitle_layers_once_then_waits_for_translation(tmp_path):
+    from fonesi_edit.domain import Layer
+    f=create_fixture(tmp_path/'channel/videos',duration=.5);source=f['source'];sub=source.with_suffix('.srt');sub.write_text('1\n00:00:00,000 --> 00:00:00,400\nSource\n')
+    store=Store(tmp_path/'state.db');preset=Composition(layers=[Layer(kind='subtitle',path='stale.srt')])
+    download=store.submit('download',{'workflow':{'preset':preset.to_dict(),'translate':True,'language':'vi'}})
+    store.finish(download,{'files':[{'kind':'video','path':str(source)}]})
+    auto=Automation(store);auto.completed_downloads();auto.completed_downloads()
+    assert len(store.jobs())==3
+    render=next(j for j in store.jobs() if j['kind']=='render');translation=next(j for j in store.jobs() if j['kind']=='translate')
+    assert render['payload']['composition']['layers'][0]['path']==translation['payload']['output']
+    assert translation['id'] in render['depends_on']

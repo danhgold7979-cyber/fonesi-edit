@@ -36,10 +36,15 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if version > 1:
+            if version > 2:
                 raise ValueError("Database is newer than this application")
+            if version==1:
+                backup=self.path.with_name(self.path.stem+'.before-v2-'+identifier()[:8]+'.db')
+                with sqlite3.connect(backup) as target:conn.backup(target)
             conn.executescript(SCHEMA)
-            conn.execute("PRAGMA user_version=1")
+            columns={r[1] for r in conn.execute('PRAGMA table_info(jobs)')}
+            if 'started' not in columns:conn.execute('ALTER TABLE jobs ADD COLUMN started REAL')
+            conn.execute("PRAGMA user_version=2")
 
     @contextmanager
     def connect(self):
@@ -89,6 +94,7 @@ class Store:
             return [{**dict(row), "data": json.loads(row["data"])} for row in conn.execute(f"SELECT * FROM {table} ORDER BY updated DESC")]
 
     def submit(self, kind, payload, priority=0, depends_on=()):
+        if kind not in {'render','scan','download','translate'}:raise ValueError('Unknown job kind')
         payload={**payload,'_tools':self.setting('tool_paths',{})}
         data = canonical(checked_payload(payload))
         job_id, now = identifier(), time.time()
@@ -121,6 +127,10 @@ class Store:
     def claim(self,allowed=None):
         with self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            for blocked in conn.execute("SELECT id,depends_on FROM jobs WHERE state='blocked' AND error LIKE 'Dependency%'").fetchall():
+                deps=json.loads(blocked['depends_on'])
+                if deps and all(conn.execute('SELECT state FROM jobs WHERE id=?',(key,)).fetchone()[0]=='succeeded' for key in deps):
+                    conn.execute("UPDATE jobs SET state='pending',error=NULL WHERE id=?",(blocked['id'],))
             rows = conn.execute("SELECT * FROM jobs WHERE state='pending' AND cancel_requested=0 ORDER BY priority DESC,created").fetchall()
             for row in rows:
                 if allowed is not None and row['kind'] not in allowed:continue
@@ -129,10 +139,12 @@ class Store:
                 if any(s in {"failed", "canceled"} for s in states):
                     conn.execute("UPDATE jobs SET state='blocked',error='Dependency did not succeed',updated=? WHERE id=?", (time.time(), row["id"]))
                     continue
+                if any(s=='blocked' for s in states):
+                    conn.execute("UPDATE jobs SET state='blocked',error='Dependency waiting for configuration' WHERE id=?",(row['id'],));continue
                 if any(s != "succeeded" for s in states):
                     continue
-                conn.execute("UPDATE jobs SET state='running',attempts=attempts+1,heartbeat=?,updated=? WHERE id=?",
-                             (time.time(), time.time(), row["id"]))
+                conn.execute("UPDATE jobs SET state='running',attempts=attempts+1,heartbeat=?,updated=?,started=? WHERE id=?",
+                             (time.time(), time.time(),time.time(), row["id"]))
                 return self._job(row)
         return None
 
@@ -147,6 +159,9 @@ class Store:
     def finish(self, job_id, result):
         data = canonical(checked_payload(result))
         with self.connect() as conn:
+            canceled=conn.execute('SELECT cancel_requested FROM jobs WHERE id=?',(job_id,)).fetchone()
+            if canceled and canceled[0]:
+                result={**result,'warnings':[*result.get('warnings',[]),'Cancellation arrived after validated output; preserved artifact']};data=canonical(checked_payload(result))
             conn.execute("UPDATE jobs SET state='succeeded',result=?,progress=1,error=NULL,updated=? WHERE id=?", (data, time.time(), job_id))
             conn.execute("UPDATE matrix_history SET state='succeeded' WHERE job_id=?",(job_id,))
 
@@ -165,17 +180,22 @@ class Store:
 
     def retry(self, job_id):
         with self.connect() as conn:
-            row=conn.execute('SELECT payload FROM jobs WHERE id=?',(job_id,)).fetchone()
-            data=json.loads(row[0]) if row else {}
+            conn.execute('BEGIN IMMEDIATE')
+            row=conn.execute('SELECT payload,state FROM jobs WHERE id=?',(job_id,)).fetchone()
+            if not row or row['state'] not in {'failed','blocked','canceled'}:return
+            data=json.loads(row['payload'])
             if data.get('matrix_scope'):
                 reservation=conn.execute('SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',(data['matrix_scope'],data['matrix_combination'])).fetchone()
                 if reservation and reservation['job_id']!=job_id and reservation['state'] in {'reserved','succeeded'}:raise ValueError('Combination already reserved by a different job')
                 conn.execute("UPDATE matrix_history SET state='reserved',job_id=? WHERE scope=? AND combination=?",(job_id,data['matrix_scope'],data['matrix_combination']))
             conn.execute("UPDATE jobs SET state='pending',error=NULL,cancel_requested=0,progress=0,updated=? WHERE id=? AND state IN ('failed','blocked','canceled')", (time.time(), job_id))
 
-    def recover(self, stale_seconds=60):
+    def recover(self, stale_seconds=60,exclude=()):
         with self.connect() as conn:
-            return conn.execute("UPDATE jobs SET state='pending',error='Recovered orphaned worker; output will be reconciled',updated=? WHERE state='running' AND COALESCE(heartbeat,0)<?", (time.time(), time.time() - stale_seconds)).rowcount
+            exclude=list(exclude);suffix=' AND id NOT IN ('+','.join('?' for _ in exclude)+')' if exclude else ''
+            count=conn.execute("UPDATE jobs SET state=CASE WHEN cancel_requested=1 THEN 'canceled' ELSE 'pending' END,error='Recovered orphaned worker; output will be reconciled',updated=? WHERE state='running' AND COALESCE(heartbeat,0)<?"+suffix, (time.time(), time.time() - stale_seconds,*exclude)).rowcount
+            conn.execute("UPDATE matrix_history SET state='failed' WHERE job_id IN (SELECT id FROM jobs WHERE state='canceled')")
+            return count
 
     def cached(self, key):
         with self.connect() as conn:

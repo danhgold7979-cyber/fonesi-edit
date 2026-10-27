@@ -21,7 +21,7 @@ from .jobs import Scheduler
 from .automation import Automation,metrics,recommended_parallel
 from .prototypes.tools import configure_tools
 from .prototypes.media import extract_frame,probe
-from .render import reference_frame
+from .render import reference_frame,render_composition
 from .ui.tasks import Task
 from .ui.editor import Editor
 from .ui.pages import DownloadsPage,SubtitlesPage,BatchPage,MatrixPage,QueuePage,SettingsPage
@@ -52,7 +52,9 @@ class MainWindow(QMainWindow):
         self.overview=QListWidget();ov.addWidget(self.overview,1);ov.addWidget(QLabel('Các thao tác auto chạy theo preset. Thiếu API/tài khoản không chặn edit media cục bộ.'))
         self.editor=Editor(self);self.downloads=DownloadsPage(self);self.subtitles=SubtitlesPage(self);self.batch=BatchPage(self);self.matrix=MatrixPage(self);self.queue=QueuePage(self);self.settings=SettingsPage(self)
         for page,label in [(overview,'Tổng quan'),(self.downloads,'Tải nội dung'),(self.subtitles,'Phụ đề'),(self.editor,'Editor / preset'),(self.batch,'Edit hàng loạt'),(self.matrix,'Ghép ma trận'),(self.queue,'Hàng đợi'),(self.settings,'Cài đặt')]:self.nav.addTab(page,label)
-        self.progress=QProgressBar();self.progress.setRange(0,100);layout.addWidget(self.progress);layout.addWidget(self.status);self.setCentralWidget(root)
+        self.progress=QProgressBar();self.progress.setRange(0,100);layout.addWidget(self.progress)
+        self.cancel_preparation=QPushButton('Hủy tác vụ chuẩn bị / preview');self.cancel_preparation.clicked.connect(lambda:[task.cancel.set() for task in self.tasks]);layout.addWidget(self.cancel_preparation)
+        layout.addWidget(self.status);self.setCentralWidget(root)
         self.editor.render_requested.connect(self.guard(self.enqueue_render))
         self.autosave_timer=QTimer(self);self.autosave_timer.setSingleShot(True);self.autosave_timer.setInterval(700);self.autosave_timer.timeout.connect(self.guard(self.autosave))
         self.editor.changed.connect(lambda:self.autosave_timer.start() if not self._restoring else None)
@@ -78,6 +80,7 @@ class MainWindow(QMainWindow):
         task.progress.connect(lambda p:self.progress.setValue(round(p*100)),Qt.ConnectionType.QueuedConnection)
         def finished():
             self.tasks.remove(task)
+            if not self.tasks:self.progress.setRange(0,100);self.progress.setValue(100);self.progress.setFormat('Chuẩn bị hoàn tất')
             self.start_pending()
         task.finished.connect(finished)
         self.pending_tasks.append(task);self.start_pending();return task
@@ -95,6 +98,13 @@ class MainWindow(QMainWindow):
     def tick(self):
         try:
             self.scheduler.tick();self.queue.refresh()
+            self.cancel_preparation.setEnabled(bool(self.tasks))
+            active=[task for task in self.tasks if task.started is not None]
+            if active:
+                elapsed=max(time.monotonic()-task.started for task in active);ratios=[task.ratio for task in active]
+                self.progress.setRange(0,100 if any(ratios) else 0)
+                self.progress.setFormat(f'Chuẩn bị: {len(active)} việc • {elapsed:.0f}s • %p%' if any(ratios) else f'Chuẩn bị: {len(active)} việc • {elapsed:.0f}s')
+            else:self.progress.setRange(0,100);self.progress.setFormat('%p%')
             sample=metrics(self.data);recommended=recommended_parallel(sample,self.store.setting('resource_profile','balanced'))
             gpu='; '.join(f"{g['name']} {g['percent']:.0f}% / VRAM {g['used_mib']:.0f}/{g['total_mib']:.0f} MiB / {g['temperature']:.0f}°C" for g in sample['gpu']) if sample['gpu'] else 'GPU/VRAM: chưa đọc được'
             self.machine.setText(f"CPU {sample['cpu_percent']:.0f}% • RAM trống {sample['ram_available']/1024**3:.1f}/{sample['ram_total']/1024**3:.1f} GiB • Đĩa trống {sample['disk_free']/1024**3:.1f} GiB • Gợi ý tối đa {recommended} worker • {gpu}")
@@ -149,6 +159,22 @@ class MainWindow(QMainWindow):
             locked=[deepcopy(l) for l in self.editor.composition.layers if l.locked];ids={l.id for l in locked};c.layers=[l for l in c.layers if l.id not in ids]+locked
             self.editor.begin();self.editor.composition=c;self.editor.commit('Nạp preset')
 
+    def export_preset(self):
+        path,_=QFileDialog.getSaveFileName(self,'Xuất preset',filter='Fonesi preset (*.fonesipreset)')
+        if not path:return
+        comp=Composition.from_dict(self.editor.composition.to_dict());comp.clips=[]
+        for layer in comp.layers:layer.clip_ids=[]
+        atomic_json(Path(path),{'schema_version':1,'name':Path(path).stem,'composition':comp.to_dict()});self.message('Đã xuất preset; logo/font/audio vẫn tham chiếu đường dẫn, không sao chép tệp riêng')
+
+    def import_preset(self):
+        path,_=QFileDialog.getOpenFileName(self,'Nhập preset',filter='Fonesi preset (*.fonesipreset *.json)')
+        if not path:return
+        data=json.loads(Path(path).read_text(encoding='utf-8'))
+        if data.get('schema_version')!=1:raise ValueError('Preset schema không hỗ trợ')
+        comp=Composition.from_dict(data['composition']);comp.clips=[]
+        for layer in comp.layers:layer.clip_ids=[]
+        self.store.save_named('presets',str(data.get('name',Path(path).stem))[:120],comp.to_dict());self.message('Đã nhập preset; dùng Nạp preset và kiểm tra các tài nguyên đi kèm')
+
     def relink(self):
         root=QFileDialog.getExistingDirectory(self,'Folder media mới')
         if not root:return
@@ -182,19 +208,41 @@ class MainWindow(QMainWindow):
             self.editor.canvas.rebuild(frame,reference=True);self.message('Frame từ compositor xuất. Bấm Esc hoặc sửa thuộc tính để quay lại bố cục kéo thả.')
         self.background(lambda p,c:reference_frame(snapshot,folder,second,c),done)
 
+    def playback_preview(self,comp):
+        snapshot=Composition.from_dict(comp.to_dict());snapshot.encoder='cpu';snapshot.quality=26
+        output=Path(self.workspace.name)/('playback-'+uuid4().hex+'.mp4')
+        def done(result):
+            self.editor.player.setSource(QUrl.fromLocalFile(result['output']));self.editor.views.setCurrentIndex(1);self.editor.player.play();self.message('Đang phát bản dựng đã kiểm tra, gồm layer và âm thanh. Thay đổi sau đó cần tạo lại preview.')
+        self.message('Đang dựng preview có âm thanh; có thể hủy tác vụ chuẩn bị.')
+        self.background(lambda progress,cancel:render_composition(snapshot,output,progress,cancel),done)
+
     def preview_composition(self,comp):
         self.editor.begin();self.editor.composition=comp;self.editor.commit('Preview kế hoạch');self.load_editor_frame();self.nav.setCurrentWidget(self.editor)
+
+    def relink_renamed(self,mapping):
+        comp=Composition.from_dict(self.editor.composition.to_dict())
+        for clip in comp.clips:clip.path=mapping.get(clip.path,clip.path);clip.subtitles=mapping.get(clip.subtitles,clip.subtitles)
+        for layer in comp.layers:layer.path=mapping.get(layer.path,layer.path)
+        for track in comp.audio:track['path']=mapping.get(track['path'],track['path'])
+        self.editor.undo.clear();self.editor.set_composition(comp);self.autosave();self.load_editor_frame()
 
     def shortcuts(self):
         menu=self.menuBar().addMenu('Thao tác');keys={'Mở project':('Ctrl+O',self.open_project),'Lưu project':('Ctrl+S',self.save_project),
             'Cài đặt':('Ctrl+,',lambda:self.nav.setCurrentWidget(self.settings)), 'Undo':('Ctrl+Z',self.editor.undo.undo),'Redo':('Ctrl+Shift+Z',self.editor.undo.redo),
             'Thêm video':('Ctrl+Shift+O',self.editor.add_video),'Nhân bản':('Ctrl+D',self.editor.duplicate),'Split':('Ctrl+B',self.editor.split),
-            'Đưa vào hàng đợi':('Ctrl+Return',self.editor.request_render),'Phát/dừng':('Space',self.editor.toggle_play),'Marker':('M',self.add_marker)}
+            'Đưa vào hàng đợi':('Ctrl+Return',self.editor.request_render),'Phát/dừng':('Space',self.editor.toggle_play),'Marker':('M',self.add_marker),
+            'Đặt In':('I',self.editor.mark_in),'Đặt Out':('O',self.editor.mark_out),'Nhóm layer':('Ctrl+G',self.editor.group),'Bỏ nhóm':('Ctrl+Shift+G',self.editor.ungroup),
+            'Khóa layer':('Ctrl+L',self.editor.lock_selected),'Quét công cụ':('F5',lambda:self.settings.scan()),'Trợ giúp':('F1',self.help)}
+        keys.update({'Nhập preset':('',self.import_preset),'Xuất preset':('',self.export_preset)})
         remap=self.store.setting('shortcuts',{})
         for name,(default,callback) in keys.items():
             action=QAction(name,self);action.setShortcut(QKeySequence(remap.get(name,default)))
-            def invoke(_checked=False,callback=callback):
-                if isinstance(QApplication.focusWidget(),(QLineEdit,QPlainTextEdit,QTextEdit)) and callback not in {self.save_project,self.open_project}:return
+            def invoke(_checked=False,callback=callback,name=name):
+                focused=QApplication.focusWidget()
+                if isinstance(focused,(QLineEdit,QPlainTextEdit,QTextEdit)) and name in {'Undo','Redo','Nhân bản','Split','Đưa vào hàng đợi','Phát/dừng','Marker','Đặt In','Đặt Out','Nhóm layer','Bỏ nhóm','Khóa layer'}:
+                    if name=='Undo':focused.undo()
+                    elif name=='Redo':focused.redo()
+                    return
                 self.guard(callback)()
             action.triggered.connect(invoke);menu.addAction(action);self.actions[name]=action
         configure=menu.addAction('Đổi phím tắt');configure.triggered.connect(self.guard(self.edit_shortcuts))
@@ -211,10 +259,16 @@ class MainWindow(QMainWindow):
         self.store.set_setting('shortcuts',changed)
 
     def add_marker(self):self.editor.timeline.markers.append(self.editor.timeline.playhead);self.editor.timeline.rebuild()
+    def help(self):
+        from .paths import resource_directory
+        from PySide6.QtGui import QDesktopServices
+        path=Path(sys.executable).parent/'USER_GUIDE.md' if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]/'docs/USER_GUIDE.md'
+        if path.is_file():QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:self.message('Hướng dẫn: github.com/danhgold7979-cyber/fonesi-edit/blob/main/docs/USER_GUIDE.md')
     def exit_app(self):self.force_close=True;self.close()
     def closeEvent(self,event):
         if not self.force_close and self.store.setting('background',False) and self.tray.isSystemTrayAvailable():self.hide();event.ignore();return
-        if not self._shutdown:self.autosave();self.scheduler.shutdown();self.automation.stop();self._shutdown=True
+        if not self._shutdown:self.subtitles.persist();self.autosave();self.scheduler.shutdown();self.automation.stop();self._shutdown=True
         for task in self.tasks:task.cancel.set()
         for task in list(self.pending_tasks):self.pending_tasks.remove(task);self.tasks.remove(task);task.deleteLater()
         if self.tasks or self.scheduler.active:
@@ -223,6 +277,10 @@ class MainWindow(QMainWindow):
 
 
 def main(argv=None):
+    arguments=list(argv if argv is not None else sys.argv[1:])
+    if arguments[:1]==['--verify']:
+        from .verification import main as verify_main
+        return verify_main(arguments[1:])
     if '--worker' in (argv or sys.argv[1:]):
         from .worker import main as worker_main
         args=list(argv or sys.argv[1:]);args.remove('--worker');return worker_main(args)
@@ -234,9 +292,15 @@ def main(argv=None):
     if args.source:window.editor.open_media(args.source);window.nav.setCurrentWidget(window.editor)
     if args.smoke:
         app.setQuitOnLastWindowClosed(False)
+        decoded=[0];started=time.monotonic();playing=[False]
+        window.editor.video.videoSink().videoFrameChanged.connect(lambda frame:decoded.__setitem__(0,decoded[0]+1) if frame.isValid() else None)
         def finish():
             if window.tasks:QTimer.singleShot(100,finish);return
+            if args.source and window.editor.composition.clips and not decoded[0] and time.monotonic()-started<12:
+                if not playing[0]:window.editor.player.play();playing[0]=True
+                QTimer.singleShot(100,finish);return
             failed=bool(window.failures) or bool(args.source and not window.editor.composition.clips)
+            if args.source and not decoded[0]:failed=True
             if args.screenshot:
                 args.screenshot.parent.mkdir(parents=True,exist_ok=True)
                 if not window.grab().save(str(args.screenshot)):failed=True

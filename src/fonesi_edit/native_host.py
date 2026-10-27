@@ -25,23 +25,30 @@ def handle(store,message):
     raise ValueError('Unknown bridge message')
 
 
-def register_host(executable:Path):
+def register_host(executable:Path,data=None):
     if os.name!='nt':raise PermissionError('Native host registration is Windows-only')
     if not executable.is_file() or executable.suffix.lower()!='.exe':raise ValueError('Choose the packaged fonesi-native-host.exe')
-    root=data_directory();root.mkdir(parents=True,exist_ok=True)
+    root=Path(data or data_directory()).resolve();root.mkdir(parents=True,exist_ok=True)
     path=root/'native-host.json'
     path.write_text(json.dumps({'name':'com.fonesi.bridge','description':'Fonesi user-consented Chrome session bridge',
         'path':str(executable.resolve()),'type':'stdio','allowed_origins':['chrome-extension://'+extension_id()+'/']},indent=2),encoding='utf-8')
     import winreg
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER,r'Software\Google\Chrome\NativeMessagingHosts\com.fonesi.bridge') as key:
         winreg.SetValueEx(key,'',0,winreg.REG_SZ,str(path))
+        winreg.SetValueEx(key,'DataDirectory',0,winreg.REG_SZ,str(root))
     return path
 
 
 def main():
     origin='chrome-extension://'+extension_id()+'/'
     if origin not in sys.argv[1:]:return 2
-    store=Store(data_directory()/'state.db')
+    root=data_directory()
+    if os.name=='nt':
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,r'Software\Google\Chrome\NativeMessagingHosts\com.fonesi.bridge') as key:root=Path(winreg.QueryValueEx(key,'DataDirectory')[0])
+        except FileNotFoundError:pass
+    store=Store(root/'state.db')
     incoming,outgoing=sys.stdin.buffer,sys.stdout.buffer
     while True:
         header=incoming.read(4)

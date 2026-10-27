@@ -1,6 +1,6 @@
 # Fonesi Edit — Đối chiếu yêu cầu với đầu việc và nghiệm thu
 
-Trạng thái chung: toàn bộ các hàng dưới đây là yêu cầu chưa triển khai. Có mapping không đồng nghĩa đã code/test. Khi làm, mỗi hàng cần thêm trạng thái thực tế, commit/phiên bản, đầu vào, bằng chứng và lỗi còn lại.
+Bảng dưới lưu tiêu chí nghiệm thu và mapping của 95 nhóm yêu cầu, không phải bảng tất cả đã đạt. Code, bằng chứng local và các phần còn mở được cập nhật tại [đối chiếu triển khai](IMPLEMENTATION_COVERAGE.md) và [trạng thái](CURRENT_STATUS.md).
 
 Nguồn: PR = [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md); ED = [EDITOR_SPEC.md](EDITOR_SPEC.md); SB = [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Mã Pxx-yy tham chiếu [kế hoạch](IMPLEMENTATION_PLAN.md). Các hàng nhóm phải kiểm tra đủ thuộc tính trong section nguồn, không lấy một ví dụ qua là cả nhóm xong.
 
@@ -137,7 +137,7 @@ Nguồn: PR = [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md); ED = [EDITOR_S
 | FLOW-22 | Phiên hết hạn/OTP/CAPTCHA: chờ đúng nick, login thật, kiểm tra và resume | P05, P10–P11 |
 | FLOW-23 | Export project/preset/log và dọn cache không lộ hoặc xóa dữ liệu phiên Chrome | P03, P10–P12 |
 
-Không có FLOW nào đã chạy ở bước soạn tài liệu. Số test/mẫu/đầu vào và kết quả thực tế được ghi sau khi triển khai.
+Bằng chứng hiện tại dùng media synthetic và HTTP localhost: xem [báo cáo local](LOCAL_VERIFICATION.md). FLOW có nguồn live/API/Chrome/GPU/Windows chỉ được đánh đạt sau thử đúng môi trường; test transport giả không thay bằng chứng dịch thật.
 
 ## 8. Tích hợp sau, không tính là thiếu của bản hiện tại
 

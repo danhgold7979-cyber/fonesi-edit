@@ -7,11 +7,26 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
 import zipfile
 
 from .domain import fingerprint,atomic_json
 from .prototypes.tools import check_tool,scan_tools
+
+
+def statuses(store):
+    from .prototypes.tools import ToolStatus
+    overrides=store.setting('tool_paths',{})
+    result=scan_tools(overrides)
+    for i,item in enumerate(result):
+        if item.name in {'yt-dlp','gallery-dl'} and item.name not in overrides:
+            if item.name=='yt-dlp':
+                from yt_dlp.version import __version__
+            else:
+                from gallery_dl.version import __version__
+            result[i]=ToolStatus(item.name,'Gói kèm module Python','ready',__version__,'Backend đang dùng module đã khóa trong ứng dụng')
+    return result
 
 
 class SecureRedirect(HTTPRedirectHandler):
@@ -52,9 +67,14 @@ def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_ver
     root=store.path.parent/'tools'/name;root.mkdir(parents=True,exist_ok=True)
     final=root/version
     if final.exists():
-        receipt=json.loads((final/'receipt.json').read_text());path=Path(receipt['path'])
-        if fingerprint(path)!=receipt['hash']:raise ValueError('Existing installation was modified')
-    else:
+        try:
+            receipt=json.loads((final/'receipt.json').read_text());path=Path(receipt['path'])
+            intact=path.is_file() and fingerprint(path)==receipt['hash'] and check_tool(name,str(path)).status=='ready'
+        except (OSError,ValueError,KeyError):intact=False
+        if not intact:
+            # Preserve the old folder, including binaries referenced by immutable jobs.
+            version=version+'.repair.'+str(time.time_ns());final=root/version
+    if not final.exists():
       with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
         stage=Path(temp);archive=stage/'artifact'
         fetch(manifest['url'],archive,manifest['sha256'],progress,cancel)
@@ -69,7 +89,7 @@ def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_ver
         status=check_tool(name,str(executable))
         if status.status!='ready':raise ValueError('Downloaded tool failed its startup/version check')
         relative=executable.relative_to(unpack);os.rename(unpack,final);target=final/relative
-        receipt={'name':name,'version':version,'path':str(target),'hash':fingerprint(target),'artifact_sha256':manifest['sha256']}
+        receipt={'name':name,'version':version,'upstream_version':manifest['version'],'path':str(target),'hash':fingerprint(target),'artifact_sha256':manifest['sha256']}
         if name=='ffmpeg':
             companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
             if companion.is_file():receipt['ffprobe']=str(companion)

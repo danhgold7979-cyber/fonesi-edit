@@ -36,7 +36,7 @@ def metrics(path):
 
 
 def recommended_parallel(data,profile='balanced'):
-    if data['ram_available']<512*1024**2 or data['disk_free']<256*1024**2:return 0
+    if data['ram_available']<1024**3 or data['disk_free']<256*1024**2 or data.get('cpu_percent',0)>=97:return 0
     cap=1 if profile=='quiet' else 2 if profile=='balanced' else max(1,data['cores']-1)
     return max(1,min(cap,max(1,int(data['ram_available']/(2*1024**3))),max(1,data['cores']//2)))
 
@@ -102,9 +102,12 @@ class Automation:
                 for plan in plans:
                     deps=[job['id']];c=Composition.from_dict(plan['composition'])
                     language=workflow.get('language','vi')
-                    existing_language=Path(c.clips[0].subtitles).stem.split('.')[-1] if c.clips[0].subtitles else ''
-                    if workflow.get('translate') and c.clips[0].subtitles and not (existing_language==language or existing_language.startswith(language+'-')):
-                        source=Path(c.clips[0].subtitles);output=source.with_name(source.stem+'.'+workflow.get('language','vi')+'.srt')
-                        translation=submit_once(self.store,'translate',{'source':str(source),'output':str(output),'source_language':'auto','target_language':workflow.get('language','vi'),'config':workflow.get('translation',{})},job['id']+':translate:'+str(path),deps)
-                        deps=[translation];c.clips[0].subtitles=str(output)
+                    refs=[(clip,'subtitles') for clip in c.clips if clip.subtitles]+[(layer,'path') for layer in c.layers if layer.kind=='subtitle' and layer.path and layer.style.get('subtitle_role')!='source']
+                    for ref,field in refs:
+                        source=Path(getattr(ref,field));existing_language=source.stem.split('.')[-1]
+                        if workflow.get('translate') and not (existing_language==language or existing_language.startswith(language+'-')):
+                            output=source.with_name(source.stem+'.'+language+'.srt')
+                            translation=submit_once(self.store,'translate',{'source':str(source),'output':str(output),'source_language':'auto','target_language':language,'config':workflow.get('translation',{})},job['id']+':translate:'+str(source),[job['id']])
+                            if translation not in deps:deps.append(translation)
+                            setattr(ref,field,str(output))
                     plan['composition']=c.to_dict();submit_once(self.store,'render',plan,job['id']+':render:'+str(path),deps)

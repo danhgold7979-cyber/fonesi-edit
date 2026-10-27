@@ -12,11 +12,12 @@ import shutil
 import subprocess
 import tempfile
 import time
+import random
 
 import pysubs2
 from fontTools.ttLib import TTFont
 from .domain import Composition,atomic_json,canonical,fingerprint
-from .fonts import resolve_font,missing_glyphs
+from .fonts import resolve_font,missing_glyphs,open_font
 from .motion import transforms
 from .prototypes.media import probe,run_checked,_publish,MediaError,extract_frame
 from .prototypes.tools import locate_tool
@@ -54,8 +55,8 @@ def _color(value,alpha=0):
     value=value or '#ffffff';return pysubs2.Color(int(value[1:3],16),int(value[3:5],16),int(value[5:7],16),int(alpha))
 
 
-def _wrap(text,width,font_path,size,spacing=0):
-    with TTFont(font_path,lazy=True) as font:
+def _wrap(text,width,font_path,size,spacing=0,style=None):
+    with open_font(font_path,style) as font:
         cmap=font.getBestCmap() or {};metrics=font['hmtx'].metrics;units=font['head'].unitsPerEm
         lines=[]
         for paragraph in text.split('\n'):
@@ -71,10 +72,11 @@ def _wrap(text,width,font_path,size,spacing=0):
 def _ass_text(stage,layer,composition,duration,index):
     style=layer.style;path=resolve_font(style);font_target=stage/('font-'+hashlib.sha256(str(path).encode()).hexdigest()[:8]+path.suffix)
     if not font_target.exists():shutil.copyfile(path,font_target)
-    with TTFont(path,lazy=True) as font:
+    with open_font(path,style) as font:
         family=font['name'].getDebugName(1) or style.get('font_family','Arial')
         line_ratio=(font['hhea'].ascent-font['hhea'].descent+font['hhea'].lineGap)/font['head'].unitsPerEm
-    missing=missing_glyphs(path,layer.text)
+    caption_segments=getattr(layer,'_caption_segments',None)
+    missing=missing_glyphs(path,'\n'.join(segment[2] for segment in caption_segments) if caption_segments else layer.text,style)
     if missing:raise FileNotFoundError('Font thiếu ký tự: '+''.join(missing[:12])+'; hãy chọn font phù hợp')
     doc=pysubs2.SSAFile();doc.info.update({'PlayResX':str(composition.width),'PlayResY':str(composition.height),'WrapStyle':'2'})
     font_size=float(style.get('font_size',32));ass=pysubs2.SSAStyle(fontname=family,fontsize=font_size,
@@ -85,35 +87,36 @@ def _ass_text(stage,layer,composition,duration,index):
         borderstyle=1,alignment=pysubs2.Alignment.TOP_LEFT,marginl=0,marginr=0,marginv=0)
     doc.styles['Default']=ass
     padding=max(0,float(style.get('padding',0)))
-    text=_wrap(layer.text,max(10,layer.width*composition.width-2*padding),path,font_size,float(style.get('spacing',0)))
-    lines=[line.replace('\\',r'\\').replace('{',r'\{').replace('}',r'\}') for line in text.split('\n')]
-    line_height=font_size*line_ratio+float(style.get('line_spacing',0))
     move=transforms(layer,composition.width,composition.height,composition.seed,duration)
-    start,end=layer.start,min(duration,layer.end if layer.end is not None else duration)
-    animated=bool(layer.keyframes) or layer.motion.get('preset','fixed')!='fixed' or layer.motion.get('fade_in') or layer.motion.get('fade_out') or layer.motion.get('rotate_speed')
-    step=1/composition.fps if animated else max(.01,end-start)
-    t=start
-    if (end-start)/step>300000:raise ValueError('Layer quá dài cho chế độ motion hiện tại; chia project')
-    align=style.get('align','left');anchor={'left':7,'center':8,'right':9}.get(align,7)
-    while t<end-.0001:
-        left=move['x'].value(t)*composition.width;top=move['y'].value(t)*composition.height
-        x=left+padding
-        if anchor==8:x=left+layer.width*composition.width/2
-        elif anchor==9:x=left+layer.width*composition.width-padding
-        cx=left+layer.width*composition.width/2;cy=top+layer.height*composition.height/2
-        opacity=max(0,min(1,move['opacity'].value(t)));scale=max(.01,move['scale'].value(t))*100
-        common=f'\\org({cx:.3f},{cy:.3f})\\frz{-move["rotation"].value(t):.3f}\\fscx{scale:.3f}\\fscy{scale:.3f}\\alpha&H{round((1-opacity)*255):02X}&'
-        if style.get('background'):
-            width=layer.width*composition.width;height=layer.height*composition.height;radius=min(max(0,float(style.get('corner_radius',0))),width/2,height/2)
-            drawing=f'm {radius:.2f} 0 l {width-radius:.2f} 0 b {width:.2f} 0 {width:.2f} 0 {width:.2f} {radius:.2f} l {width:.2f} {height-radius:.2f} b {width:.2f} {height:.2f} {width:.2f} {height:.2f} {width-radius:.2f} {height:.2f} l {radius:.2f} {height:.2f} b 0 {height:.2f} 0 {height:.2f} 0 {height-radius:.2f} l 0 {radius:.2f} b 0 0 0 0 {radius:.2f} 0'
-            color=style['background'];bgr=color[5:7]+color[3:5]+color[1:3]
-            tags=f'{{\\an7\\pos({left:.3f},{top:.3f}){common}\\bord0\\shad0\\1c&H{bgr}&\\p1}}'
-            doc.events.append(pysubs2.SSAEvent(start=round(t*1000),end=round(min(end,t+step)*1000),layer=0,text=tags+drawing+r'{\p0}'))
-        for line_index,line in enumerate(lines):
-            y=top+padding+line_index*line_height*scale/100
-            tags=f'{{\\an{anchor}\\pos({x:.3f},{y:.3f}){common}}}'
-            doc.events.append(pysubs2.SSAEvent(start=round(t*1000),end=round(min(end,t+step)*1000),layer=1,text=tags+line))
-        t+=step
+    for segment_start,segment_end,segment_text in caption_segments if caption_segments is not None else [(layer.start,layer.end if layer.end is not None else duration,layer.text)]:
+        text=_wrap(segment_text,max(10,layer.width*composition.width-2*padding),path,font_size,float(style.get('spacing',0)),style)
+        lines=[line.replace('\\',r'\\').replace('{',r'\{').replace('}',r'\}') for line in text.split('\n')]
+        line_height=font_size*line_ratio+float(style.get('line_spacing',0))
+        start,end=segment_start,min(duration,segment_end)
+        animated=bool(layer.keyframes) or layer.motion.get('preset','fixed')!='fixed' or layer.motion.get('fade_in') or layer.motion.get('fade_out') or layer.motion.get('rotate_speed')
+        step=1/composition.fps if animated else max(.01,end-start)
+        t=start
+        if (end-start)/step>300000:raise ValueError('Layer quá dài cho chế độ motion hiện tại; chia project')
+        align=style.get('align','left');anchor={'left':7,'center':8,'right':9}.get(align,7)
+        while t<end-.0001:
+            left=move['x'].value(t)*composition.width;top=move['y'].value(t)*composition.height
+            x=left+padding
+            if anchor==8:x=left+layer.width*composition.width/2
+            elif anchor==9:x=left+layer.width*composition.width-padding
+            cx=left+layer.width*composition.width/2;cy=top+layer.height*composition.height/2
+            opacity=max(0,min(1,move['opacity'].value(t)));scale=max(.01,move['scale'].value(t))*100
+            common=f'\\org({cx:.3f},{cy:.3f})\\frz{-move["rotation"].value(t):.3f}\\fscx{scale:.3f}\\fscy{scale:.3f}\\alpha&H{round((1-opacity)*255):02X}&'
+            if style.get('background'):
+                width=layer.width*composition.width;height=layer.height*composition.height;radius=min(max(0,float(style.get('corner_radius',0))),width/2,height/2)
+                drawing=f'm {radius:.2f} 0 l {width-radius:.2f} 0 b {width:.2f} 0 {width:.2f} 0 {width:.2f} {radius:.2f} l {width:.2f} {height-radius:.2f} b {width:.2f} {height:.2f} {width:.2f} {height:.2f} {width-radius:.2f} {height:.2f} l {radius:.2f} {height:.2f} b 0 {height:.2f} 0 {height:.2f} 0 {height-radius:.2f} l 0 {radius:.2f} b 0 0 0 0 {radius:.2f} 0'
+                color=style['background'];bgr=color[5:7]+color[3:5]+color[1:3]
+                tags=f'{{\\an7\\pos({left:.3f},{top:.3f}){common}\\bord0\\shad0\\1c&H{bgr}&\\p1}}'
+                doc.events.append(pysubs2.SSAEvent(start=round(t*1000),end=round(min(end,t+step)*1000),layer=0,text=tags+drawing+r'{\p0}'))
+            for line_index,line in enumerate(lines):
+                y=top+padding+line_index*line_height*scale/100
+                tags=f'{{\\an{anchor}\\pos({x:.3f},{y:.3f}){common}}}'
+                doc.events.append(pysubs2.SSAEvent(start=round(t*1000),end=round(min(end,t+step)*1000),layer=1,text=tags+line))
+            t+=step
     name=f'layer-{index}.ass';doc.save(str(stage/name),encoding='utf-8');return name
 
 
@@ -143,17 +146,27 @@ def compile_graph(c:Composition,stage:Path):
         graph.append(f'[{idx}:v]'+','.join(vf)+f'[v{i}]')
         if c.fit=='blur':
             # Real blurred background from the same segment, with a fitted foreground.
-            graph[-1]=f'[{idx}:v]trim=start={clip.start}:end={end},setpts=(PTS-STARTPTS)/{clip.speed},fps={c.fps},settb=AVTB,split[bg{i}][fg{i}]'
+            freeze=f',tpad=stop_mode=clone:stop_duration={clip.freeze}' if clip.freeze else ''
+            transforms_source=','.join(vf[:next(j for j,v in enumerate(vf) if v.startswith('scale='))])
+            graph[-1]=f'[{idx}:v]{transforms_source},split[bg{i}][fg{i}]'
             graph += [f'[bg{i}]scale={c.width}:{c.height}:force_original_aspect_ratio=increase,crop={c.width}:{c.height},boxblur=20:1[bgblur{i}]',
                       f'[fg{i}]scale={c.width}:{c.height}:force_original_aspect_ratio=decrease[fgfit{i}]',
                       f'[bgblur{i}][fgfit{i}]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v{i}]']
-        if info.audio_codec and not c.mute_original:
+        if info.audio_codec and not c.mute_original and not any(track.get('solo') and not track.get('mute') for track in c.audio):
             graph.append(f'[{idx}:a]atrim=start={clip.start}:end={end},asetpts=PTS-STARTPTS,{atempo(clip.speed)},volume={clip.volume},aresample=48000,aformat=channel_layouts=stereo,apad,atrim=duration={duration}[a{i}]')
         else:graph.append(f'anullsrc=r=48000:cl=stereo,atrim=duration={duration}[a{i}]')
-        segments.append((f'v{i}',f'a{i}',duration))
+        video_label=f'v{i}'
+        settings=c.adjustments.get('batch_video',{})
+        if settings.get('random_zoom'):
+            lower,upper=float(settings.get('zoom_min',1)),float(settings.get('zoom_max',1.1))
+            if not 1<=lower<=upper<=2:raise ValueError('Random zoom phải trong khoảng 1–2')
+            rng=random.Random(f'{c.seed}:{clip.id}:zoom');phase=rng.uniform(0,6.28);period=rng.uniform(3,8)
+            zoom=f'({lower}+({upper}-{lower})*(sin(t*2*PI/{period}+{phase})+1)/2)'
+            graph.append(f"[v{i}]scale=w='ceil({c.width}*{zoom}/2)*2':h='ceil({c.height}*{zoom}/2)*2':eval=frame,crop={c.width}:{c.height}:(iw-ow)/2:(ih-oh)/2[zoom{i}]")
+            video_label=f'zoom{i}'
+        segments.append((video_label,f'a{i}',duration))
         clip_ranges[clip.id]=(offset,duration)
         if clip.subtitles:
-            from fractions import Fraction
             raw=[Cue(q.start_ms,q.end_ms,q.text) for q in read_captions(Path(clip.subtitles))]
             mapped_cues.extend(map_trimmed_cues(raw,round(clip.start*1000),round(end*1000),Fraction(str(clip.speed)),round(offset*1000)))
         cursor=offset+duration-(c.transition if i<len(c.clips)-1 else 0)
@@ -174,6 +187,27 @@ def compile_graph(c:Composition,stage:Path):
         graph.append(f'[{video}]eq='+':'.join(f'{k}={v}' for k,v in eq.items())+'[adjusted]');video='adjusted'
     layers=[]
     for layer in c.layers:
+        if layer.kind=='subtitle' and layer.path:
+            if layer.style.get('subtitle_role')=='target' and any(other.kind=='subtitle' and other.style.get('subtitle_role')=='source' and other.path==layer.path and other.clip_ids==layer.clip_ids for other in c.layers):continue
+            caption_source=read_captions(Path(layer.path))
+            scopes=[clip for clip in c.clips if clip.id in layer.clip_ids] if layer.clip_ids else [None]
+            for clip in scopes:
+                if clip is not None:
+                    offset,length=clip_ranges[clip.id]
+                    raw=[Cue(q.start_ms,q.end_ms,q.text) for q in caption_source]
+                    end=clip.end if clip.end is not None else probe(Path(clip.path)).duration
+                    mapped=map_trimmed_cues(raw,round(clip.start*1000),round(end*1000),Fraction(str(clip.speed)),round(offset*1000))
+                else:mapped=[Cue(q.start_ms+round(layer.start*1000),q.end_ms+round(layer.start*1000),q.text) for q in caption_source]
+                copy=deepcopy(layer);copy.path=None;copy.clip_ids=[]
+                copy.start=(offset if clip is not None else 0)+layer.start
+                copy.end=min(total,(offset+length if clip is not None else total),copy.start+layer.end-layer.start if layer.end is not None else total)
+                shift=layer.start if clip is not None else 0
+                copy._caption_segments=[(max(copy.start,q.start_ms/1000+shift),min(copy.end,q.end_ms/1000+shift),q.text) for q in mapped if min(copy.end,q.end_ms/1000+shift)>max(copy.start,q.start_ms/1000+shift)]
+                if clip is not None and not layer.motion.get('relative_time'):
+                    copy.keyframes={key:[{'time':p['time']+offset,'value':p['value']} for p in points] for key,points in layer.keyframes.items()}
+                if copy._caption_segments:layers.append(copy)
+            continue
+        if layer.kind in {'text','subtitle'} and not layer.text:continue
         if not layer.clip_ids:layers.append(layer);continue
         for clip_id in layer.clip_ids:
             if clip_id not in clip_ranges:continue
@@ -227,22 +261,28 @@ def compile_graph(c:Composition,stage:Path):
         from .domain import Layer
         doc=pysubs2.SSAFile();doc.info.update({'PlayResX':str(c.width),'PlayResY':str(c.height)})
         style=c.subtitle_style;path=resolve_font(style);shutil.copyfile(path,stage/'sub-font.ttf')
-        with TTFont(path,lazy=True) as font:family=font['name'].getDebugName(1) or 'Arial'
+        with open_font(path,style) as font:family=font['name'].getDebugName(1) or 'Arial'
         doc.styles['Default']=pysubs2.SSAStyle(fontname=family,fontsize=style.get('font_size',32),primarycolor=_color(style.get('color','#ffffff')),outlinecolor=_color(style.get('outline_color','#000000')),outline=style.get('outline',2),alignment=pysubs2.Alignment.BOTTOM_CENTER,marginv=style.get('margin',35))
         for cue in mapped_cues:doc.events.append(pysubs2.SSAEvent(start=cue.start_ms,end=cue.end_ms,text=cue.text.replace('\n',r'\N')))
         doc.save(str(stage/'captions.ass'),encoding='utf-8');graph.append(f'[{video}]subtitles=filename=captions.ass:fontsdir=.[subbed]');video='subbed'
     mix=[audio];modes=['original']
+    solo=any(track.get('solo') and not track.get('mute') for track in c.audio)
     for i,track in enumerate(c.audio):
-        path=Path(track['path']).resolve();audio_duration(path)
-        if track.get('mute'):continue
-        if track.get('loop'):args+=['-stream_loop','-1']
+        if track.get('mute') or solo and not track.get('solo'):continue
+        path=Path(track['path']).resolve();source_duration=audio_duration(path)
+        if track.get('loop') and not track.get('trim_end'):args+=['-stream_loop','-1']
         args+=['-i',str(path)];idx=inputs;inputs+=1
         start=max(0,float(track.get('trim_start',0)));offset=max(0,float(track.get('offset',0)));gain=float(track.get('volume',.2))
+        end=float(track.get('trim_end') or source_duration)
+        if not 0<=start<end<=source_duration+.001:raise ValueError('Audio trim nằm ngoài nguồn')
         if not 0<=gain<=4:raise ValueError('Audio volume must be 0–4')
-        filters=[f'atrim=start={start}', 'asetpts=PTS-STARTPTS',f'volume={gain}', 'aresample=48000','aformat=channel_layouts=stereo']
+        filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''), 'asetpts=PTS-STARTPTS',f'volume={gain}', 'aresample=48000','aformat=channel_layouts=stereo']
+        if track.get('loop') and track.get('trim_end'):
+            if end-start>600:raise ValueError('Đoạn âm thanh lặp sau trim giới hạn 10 phút để giữ RAM')
+            filters.append(f'aloop=loop=-1:size={round((end-start)*48000)}')
         fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
         if fi>0:filters.append(f'afade=t=in:d={fi}')
-        if fo>0:filters.append(f'afade=t=out:st={max(0,total-offset-fo)}:d={fo}')
+        if fo>0:filters.append(f'afade=t=out:st={max(0,min(total-offset,total if track.get("loop") else end-start)-fo)}:d={fo}')
         filters += [f'adelay={round(offset*1000)}:all=1','apad',f'atrim=duration={total}']
         graph.append(f'[{idx}:a]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
     music=[i for i,mode in enumerate(modes) if mode=='music']
@@ -279,8 +319,9 @@ def render_composition(composition,destination,progress=lambda n:None,cancel=Non
     if not ffmpeg:raise FileNotFoundError('FFmpeg missing')
     with tempfile.TemporaryDirectory(prefix='.fonesi-render-',dir=destination.parent) as directory:
         stage=Path(directory);inputs,graph,duration=compile_graph(composition,stage)
+        (stage/'graph.txt').write_text(graph,encoding='utf-8')
         quality=['-crf',str(composition.quality),'-preset','veryfast'] if encoder=='libx264' else ['-cq',str(composition.quality),'-preset','p4'] if encoder=='h264_nvenc' else ['-global_quality',str(composition.quality)] if encoder=='h264_qsv' else ['-qp_i',str(composition.quality),'-qp_p',str(composition.quality)]
-        command=[ffmpeg,'-v','warning','-hide_banner','-nostdin','-n',*inputs,'-filter_complex_threads','1','-filter_complex',graph,'-map','[outv]','-map','[outa]',
+        command=[ffmpeg,'-v','warning','-hide_banner','-nostdin','-n',*inputs,'-filter_complex_threads','1','-filter_complex_script','graph.txt','-map','[outv]','-map','[outa]',
             '-c:v',encoder,'-threads','2',*quality,'-c:a','aac','-t',f'{duration:.8f}','-movflags','+faststart','-progress','pipe:1','-nostats','output.mp4']
         with (stage/'progress').open('w') as log,(stage/'errors').open('w+') as errors:
             process=subprocess.Popen(command,cwd=stage,stdout=log,stderr=errors)

@@ -2,32 +2,34 @@
 
 Ứng dụng desktop dùng cá nhân để tải ảnh/video theo kênh, tải và dịch phụ đề, edit hàng loạt và ghép video theo ma trận cảnh/góc quay.
 
-Repository có đặc tả, kế hoạch 12 phase và mã **prototype P02** chạy bằng Python/Qt/FFmpeg. P01 đã hoàn tất thiết kế. P02 đã kiểm chứng CPU/Linux nhưng còn các cổng live source, dịch, Windows/Chrome/GPU; chưa có bản sản phẩm hoàn chỉnh.
+Repository có master plan 12 phase và ứng dụng Python/Qt/FFmpeg đang phát triển: 8 tab, project, phụ đề, editor, batch, ma trận, hàng đợi, tự động hóa và cài đặt. [Trạng thái hiện tại](docs/CURRENT_STATUS.md) phân biệt code đã có, kiểm tra local và nghiệm thu còn mở; chưa coi mọi nền tảng/Windows/GPU đã được xác nhận.
 
-## Chạy prototype
+## Chạy ứng dụng
 
-Máy phát triển cần Python 3.12, uv, FFmpeg và ffprobe. Công cụ tự cài cho người dùng cuối thuộc các phase sau; prototype hiện quét/trỏ/kiểm tra bản đã có.
+Máy phát triển cần Python 3.12, uv, FFmpeg và ffprobe:
 
 ```bash
 uv sync --locked
-uv run python scripts/check_plan.py
-uv run pytest -q
-uv run fonesi-prototype scan
-uv run python scripts/run_p02_local.py
-uv run fonesi-prototype ui
+uv run fonesi-edit
 ```
 
-GUI hiện có mở video cục bộ, kéo vị trí chữ và chỉnh X/Y/cỡ/tốc độ, chọn SRT/logo/font, render CPU thật có blur và giữ audio, progress/cancel, playback, tool scan/path override và Chrome profile proof. Các tab đều ghi rõ giới hạn prototype; chưa có batch/ma trận/auth session bridge hoàn chỉnh.
+Đọc [hướng dẫn sử dụng](docs/USER_GUIDE.md). Bộ tải yt-dlp/gallery-dl được khóa và gói cùng app. Google Chrome thật và Node tùy quy trình; Settings quét, chọn đường dẫn, tải/cài bản có xác minh và rollback công cụ app quản lý. Không lưu cookie/API key vào Git hay project.
 
-Trên Linux không có display:
+## Kiểm tra và đóng gói
 
 ```bash
-QT_QPA_PLATFORM=offscreen uv run fonesi-prototype ui --smoke
+uv run python scripts/check_plan.py
+uv run pytest -q
+uv run fonesi-edit --verify .local/proof-new-run
+uv run python scripts/build_desktop.py --native-host
+uv run python scripts/verify_packaged.py
 ```
 
-Trên Windows, kiểm chứng bằng `scripts/verify_windows.ps1 -OpenUi`; build proof bằng `scripts/build_windows.ps1`. Những script này cần được chạy trên Windows để có kết quả, không thể coi build Linux là Windows đã đạt.
+Trên Linux không có display, thêm `QT_QPA_PLATFORM=offscreen` trước lệnh GUI/test. `--verify` chạy batch/ma trận/render và tải video/ảnh qua HTTP localhost bằng dữ liệu synthetic, không cần tài khoản hay API trả phí. Mỗi lần dùng thư mục mới; kết quả nằm trong `proof.json`.
 
-Ảnh, video synthetic và log được sinh trong `.local/`, không đưa vào Git. Mỗi lần `run_p02_local.py` tạo thư mục mới. Không đặt cookie/API key vào repository; adapter dịch chỉ gọi API khi cấu hình `FONESI_GOOGLE_TRANSLATE_API_KEY` hợp lệ.
+Windows: `scripts/build_windows.ps1` tạo `dist/FonesiEdit/FonesiEdit.exe` và native host. CI chạy trên Linux/Windows, kiểm tra cả binary và giữ artifact Windows để review khi các bước thành công. Chưa có bằng chứng CI thành công trong phiên cloud nếu chưa đọc được kết quả Actions. Các bản thử P02 và script kiểm chứng cũ vẫn giữ cho hồi quy kỹ thuật.
+
+Ảnh/video thử, database, bản đóng gói và browser profiles không commit. Nền tảng mục tiêu đầu tiên là Windows; cần kiểm tra Chrome thật, quyền tài khoản, encoder GPU và trải nghiệm trực tiếp trên máy mục tiêu.
 
 ## Kế hoạch và trạng thái
 

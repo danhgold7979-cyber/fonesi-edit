@@ -75,6 +75,8 @@ def execute_download_job(store,job,progress,cancel):
         'extract_flat':'in_playlist' if job['kind']=='scan' else False,'lazy_playlist':True}
     runtime=locate_tool('node')
     if runtime:options['js_runtimes']={'node':{'path':runtime}}
+    ffmpeg=locate_tool('ffmpeg')
+    if ffmpeg:options['ffmpeg_location']=str(Path(ffmpeg).parent)
     if payload.get('rate_limit'):options['ratelimit']=int(payload['rate_limit'])
     if payload.get('date_after') or payload.get('date_before'):
         from yt_dlp.utils import DateRange
@@ -119,7 +121,8 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
         user=data.get('user') or data.get('author') or {}
         if not isinstance(user,dict):user={'name':str(user)}
         label=user.get('name') or user.get('username') or data.get('username') or payload.get('channel','channel')
-        uid=user.get('id') or data.get('user_id') or 'source'
+        import hashlib
+        uid=user.get('id') or data.get('user_id') or hashlib.sha256(payload['url'].encode()).hexdigest()[:12]
         data['_fonesi_channel']=safe_name(label)+'__'+safe_name(uid)
         ext=str(data.get('extension','')).lower()
         data['_fonesi_kind']='videos' if ext in {'mp4','webm','mov','mkv','m4v'} else 'images'

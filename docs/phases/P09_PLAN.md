@@ -7,3 +7,5 @@
 3. History/reservation SQLite và job creation nguyên tử; failed/retry/cancel không ghi success giả.
 4. Bảng ma trận edit/khóa/revalidate, preview row và CSV; cùng duration planner/render P08.
 5. Test toàn bộ tập nhỏ, constraints W/K, seed, history và bất khả thi, concurrent reservation, render integration.
+
+Vòng MAT-02: preview đổi tên thật CnGm trong folder cảnh, journal/hash/two-stage no-overwrite và hoàn tác bằng mapping; mặc định vẫn tên logic. Chặn tệp đang được queue dùng, cập nhật liên kết project đang mở, không theo symlink. Thử xung đột/rollback/undo và giữ nguyên bytes/timestamp nguồn.

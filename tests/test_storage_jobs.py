@@ -71,3 +71,28 @@ def test_composition_round_trip_and_invalid_keyframes():
     composition.layers[0].keyframes = {'x': [{'time': 2, 'value': 1}, {'time': 1, 'value': 0}]}
     with pytest.raises(ValueError):
         composition.validate()
+
+
+def test_same_queue_cannot_be_managed_by_two_schedulers(tmp_path):
+    store=Store(tmp_path/'state.db');first=Scheduler(store)
+    with pytest.raises(RuntimeError):Scheduler(store)
+    first.shutdown();second=Scheduler(store);second.shutdown()
+
+
+def test_v1_migration_backs_up_data_before_altering_jobs(tmp_path):
+    from fonesi_edit.storage import SCHEMA
+    path=tmp_path/'state.db'
+    with sqlite3.connect(path) as conn:
+        conn.executescript(SCHEMA);conn.execute('PRAGMA user_version=1');conn.execute('INSERT INTO settings VALUES(?,?)',('keep','42'))
+    store=Store(path);assert store.setting('keep')==42
+    backup=next(tmp_path.glob('state.before-v2-*.db'))
+    with sqlite3.connect(backup) as conn:
+        assert conn.execute('PRAGMA user_version').fetchone()[0]==1
+        assert 'started' not in {r[1] for r in conn.execute('PRAGMA table_info(jobs)')}
+
+
+def test_orphan_recovered_after_startup_and_live_worker_can_be_excluded(tmp_path):
+    store=Store(tmp_path/'state.db');job=store.submit('scan',{});store.claim();scheduler=Scheduler(store);scheduler.paused=True
+    with store.connect() as conn:conn.execute('UPDATE jobs SET heartbeat=0 WHERE id=?',(job,))
+    assert store.recover(exclude=[job])==0
+    scheduler.tick();assert store.job(job)['state']=='pending';scheduler.shutdown()

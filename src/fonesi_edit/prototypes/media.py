@@ -104,7 +104,8 @@ def find_font() -> Path:
 def _publish(staged: Path, destination: Path):
     # Atomic no-replace: a competing writer cannot cause source/output overwrite.
     try:
-        os.link(staged, destination)
+        if os.name=='nt':os.rename(staged,destination)  # Windows rename is atomic and refuses existing destinations, including exFAT.
+        else:os.link(staged, destination)
     except FileExistsError:
         raise FileExistsError(f"Đầu ra đã tồn tại: {destination}") from None
     except OSError as exc:

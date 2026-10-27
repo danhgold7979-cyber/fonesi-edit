@@ -52,3 +52,22 @@ def test_real_generic_download_and_second_run_preserves_file(tmp_path,monkeypatc
         assert images['count']==1 and images['files'][0]['kind']=='images'
         assert Path(images['files'][0]['path']).is_file()
     finally:server.shutdown();server.server_close();thread.join(timeout=3)
+
+
+def test_pairing_code_is_consumed_once_under_concurrent_requests(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    store=Store(tmp_path/'state.db');profile=create_profile(store,'A');code=pairing_code(store,profile)
+    def attempt():
+        try:pair(store,code);return True
+        except PermissionError:return False
+    with ThreadPoolExecutor(max_workers=2) as pool:assert sorted(pool.map(lambda _:attempt(),range(2)))==[False,True]
+
+
+def test_revoking_one_profile_does_not_revoke_the_other(tmp_path):
+    import hashlib
+    from fonesi_edit.browser import revoke_pairing
+    store=Store(tmp_path/'state.db');a=create_profile(store,'A');b=create_profile(store,'B');ta=pair(store,pairing_code(store,a));tb=pair(store,pairing_code(store,b))
+    revoke_pairing(store,a)
+    assert store.setting('bridge:'+hashlib.sha256(ta.encode()).hexdigest()) is None
+    assert store.setting('bridge:'+hashlib.sha256(tb.encode()).hexdigest())['profile_id']==b
+    with pytest.raises(PermissionError,match='paired'):receive_session(store,ta,'Facebook',[])

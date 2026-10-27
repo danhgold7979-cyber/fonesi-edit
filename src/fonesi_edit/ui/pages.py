@@ -8,13 +8,13 @@ import json
 import os
 import time
 
-from PySide6.QtCore import Qt,QAbstractTableModel,QModelIndex
+from PySide6.QtCore import Qt,QAbstractTableModel,QModelIndex,QTimer
 from PySide6.QtGui import QColor,QDesktopServices
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPushButton,QLabel,QLineEdit,QPlainTextEdit,
     QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QFileDialog,QTableWidget,QTableWidgetItem,QTableView,QTreeWidget,
-    QTreeWidgetItem,QHeaderView,QTabWidget,QInputDialog,QApplication,QMessageBox,QToolBar)
+    QTreeWidgetItem,QHeaderView,QTabWidget,QInputDialog,QApplication,QMessageBox,QToolBar,QDialog,QDialogButtonBox)
 
-from ..domain import Composition,Clip,canonical,atomic_json
+from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,batch_plan,enqueue_batch
 from ..matrix import scan_scenes,generate,history,combination,valid_against,row_composition,enqueue_rows
@@ -23,7 +23,7 @@ from ..downloads import platform_for
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
-from ..dependencies import resolve_manifest,install,install_chrome,rollback
+from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses
 from ..automation import metrics,recommended_parallel
 
 
@@ -60,6 +60,8 @@ class DownloadsPage(QWidget):
         self.sub=QCheckBox('Tải phụ đề nếu có');self.sub.setChecked(True);form.addRow(self.sub)
         self.auto=QCheckBox('Sau tải: edit theo preset editor hiện tại');form.addRow(self.auto)
         self.translate=QCheckBox('Tự dịch sub trước edit (cần provider được cấu hình)');form.addRow(self.translate)
+        self.target_language=QComboBox();self.target_language.setEditable(True);self.target_language.addItems(['vi','en','zh','ja','ko','fr','de','es']);form.addRow('Ngôn ngữ dịch đích',self.target_language)
+        self.bilingual=QCheckBox('Giữ sub gốc và bản dịch thành hai layer');form.addRow(self.bilingual)
         buttons(layout,host,[('Làm mới tài khoản',self.refresh_accounts),('Quét danh sách',lambda:self.submit('scan')),('Tải hàng loạt',lambda:self.submit('download')),('Xem kết quả quét',self.show_scan),('Đặt lịch',self.schedule)])
         self.result=QPlainTextEdit();self.result.setReadOnly(True);layout.addWidget(self.result,1);self.last_scan=None;self.refresh_accounts()
 
@@ -83,7 +85,10 @@ class DownloadsPage(QWidget):
             for key,field in [('date_after',self.after),('date_before',self.before)]:
                 if field.text():
                     import datetime;datetime.datetime.strptime(field.text(),'%Y%m%d');p[key]=field.text()
-            if self.auto.isChecked():p['workflow']={'preset':self.host.editor.composition.to_dict(),'translate':self.translate.isChecked(),'language':'vi','translation':self.host.store.setting('translation',{})}
+            if self.auto.isChecked():
+                preset=self.host.editor.composition.to_dict()
+                if self.bilingual.isChecked():preset['adjustments']['bilingual_subtitles']=True
+                p['workflow']={'preset':preset,'translate':self.translate.isChecked(),'language':self.target_language.currentText(),'translation':self.host.store.setting('translation',{})}
             yield p
 
     def submit(self,kind):
@@ -111,22 +116,41 @@ class DownloadsPage(QWidget):
 class SubtitlesPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;self.captions=[];self.last_job=None;layout=QVBoxLayout(self)
-        buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),('Thêm câu',self.add),('Tách câu',self.split),('Gộp câu chọn',self.merge),('Gắn vào clip',self.attach)])
+        buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),('Thêm câu',self.add),('Tách câu',self.split),('Gộp câu chọn',self.merge),('Tìm/thay',self.find_replace),('Dịch thời gian',self.shift),('Gắn vào clip',self.attach)])
         row=QHBoxLayout();layout.addLayout(row);self.source=QComboBox();self.source.setEditable(True);self.source.addItems(['auto','zh','en','vi','ja','ko']);row.addWidget(self.source)
         self.target=QComboBox();self.target.setEditable(True);self.target.addItems(['vi','en','zh','ja','ko','fr','de','es']);row.addWidget(self.target)
+        self.bilingual=QCheckBox('Song ngữ gốc + dịch');row.addWidget(self.bilingual)
         b=QPushButton('Dịch qua hàng đợi');b.clicked.connect(host.guard(self.translate));row.addWidget(b)
+        b=QPushButton('Chỉ dịch câu chọn');b.clicked.connect(host.guard(lambda:self.translate(True)));row.addWidget(b)
         b=QPushButton('Nạp kết quả dịch');b.clicked.connect(host.guard(self.load_translation));row.addWidget(b)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(['Bắt đầu s','Kết thúc s','Bản gốc','Bản dịch / nội dung','Khóa'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch);self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows);layout.addWidget(self.table,1)
         self.warning=QLabel();self.warning.setWordWrap(True);layout.addWidget(self.warning)
+        self.draft=QTimer(self);self.draft.setSingleShot(True);self.draft.setInterval(500);self.draft.timeout.connect(host.guard(self.persist))
+        self.table.itemChanged.connect(lambda item:self.draft.start())
+        draft=host.store.setting('subtitle_draft')
+        if draft:
+            self.table.blockSignals(True);self.captions=[];self.table.setRowCount(len(draft['rows']))
+            for row,values in enumerate(draft['rows']):
+                self.captions.append(Caption(0,1,values[3],values[2],values[4],values[5]))
+                for col in range(4):self.table.setItem(row,col,QTableWidgetItem(values[col]))
+                check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if values[4] else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
+            self.table.blockSignals(False);self.source.setCurrentText(draft['source']);self.target.setCurrentText(draft['target']);self.bilingual.setChecked(draft.get('bilingual',False))
 
     def refresh(self):
+        self.table.blockSignals(True);self.table.setUpdatesEnabled(False)
         self.table.setRowCount(len(self.captions))
         for row,c in enumerate(self.captions):
             for col,value in enumerate((f'{c.start_ms/1000:.3f}',f'{c.end_ms/1000:.3f}',c.source_text or c.text,c.text)):
                 self.table.setItem(row,col,QTableWidgetItem(value))
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if c.locked else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
         self.warning.setText('\n'.join(caption_warnings(self.captions)[:10]))
+        self.table.setUpdatesEnabled(True);self.table.blockSignals(False);self.draft.start()
+
+    def persist(self):
+        rows=[]
+        for row,cue in enumerate(self.captions):rows.append([*[self.table.item(row,col).text() if self.table.item(row,col) else '' for col in range(4)],self.table.item(row,4).checkState()==Qt.CheckState.Checked,cue.id])
+        self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),'target':self.target.currentText(),'bilingual':self.bilingual.isChecked()})
 
     def collect(self):
         result=[]
@@ -136,7 +160,8 @@ class SubtitlesPage(QWidget):
 
     def open(self):
         path,_=QFileDialog.getOpenFileName(self,'Mở phụ đề',filter='Sub (*.srt *.vtt *.ass)')
-        if path:self.captions=read_captions(Path(path));self.refresh()
+        if path:self.host.background(lambda p,c:read_captions(Path(path)),self.loaded)
+    def loaded(self,captions):self.captions=captions;self.refresh()
 
     def save(self):
         self.captions=self.collect();path,_=QFileDialog.getSaveFileName(self,'Xuất sub',filter='SRT (*.srt);;ASS (*.ass);;VTT (*.vtt)')
@@ -162,14 +187,33 @@ class SubtitlesPage(QWidget):
     def attach(self):
         captions=self.collect();editor=self.host.editor
         if not editor.composition.clips:raise ValueError('Chọn video trong editor trước')
+        if not captions:raise ValueError('Chưa có câu phụ đề')
+        bilingual=self.bilingual.isChecked()
+        if bilingual and not any(c.source_text and c.source_text!=c.text for c in captions):raise ValueError('Chưa có bản gốc khác bản dịch; dịch/nhập bản gốc trước khi bật song ngữ')
         key=hashlib.sha256(canonical([asdict(c) for c in captions]).encode()).hexdigest()[:20];path=self.host.data/'subtitles'/(key+'.srt')
         if not path.exists():write_captions(path,captions)
-        index=max(0,editor.clips.currentRow());editor.begin();editor.composition.clips[index].subtitles=str(path);editor.commit('Gắn sub')
+        original_path=path.with_name(key+'.source.srt')
+        if bilingual and not original_path.exists():write_captions(original_path,[Caption(c.start_ms,c.end_ms,c.source_text or c.text) for c in captions])
+        index=max(0,editor.clips.currentRow());clip=editor.composition.clips[index];editor.begin();clip.subtitles=None
+        for role,sub_path,language in [('target',path,self.target.currentText()),*([('source',original_path,self.source.currentText())] if bilingual else [])]:
+            existing=next((layer for layer in editor.composition.layers if layer.kind=='subtitle' and clip.id in layer.clip_ids and layer.style.get('subtitle_role','target')==role),None)
+            if existing:existing.path=str(sub_path);existing.text=(captions[0].source_text if role=='source' else captions[0].text) if captions else ''
+            else:
+                existing=Layer(kind='subtitle',name='Sub gốc' if role=='source' else 'Sub dịch',path=str(sub_path),text=(captions[0].source_text if role=='source' else captions[0].text) if captions else '',x=.1,y=.66 if role=='source' else .82,width=.8,height=.14,style={**deepcopy(editor.composition.subtitle_style),'subtitle_role':role,'font_size':24 if role=='source' else 32},clip_ids=[clip.id]);editor.composition.layers.append(existing)
+            if language!='auto':existing.style['subtitle_languages']=[language]
+            if role=='target':selected=existing.id
+        if not bilingual:editor.composition.layers=[layer for layer in editor.composition.layers if not (layer.kind=='subtitle' and clip.id in layer.clip_ids and layer.style.get('subtitle_role')=='source')]
+        editor.composition.adjustments['bilingual_subtitles']=bilingual;editor.selected_id=selected;editor.selected_ids={selected};editor.commit('Gắn sub');self.host.nav.setCurrentWidget(editor)
         self.host.message('Đã gắn sub; video nguồn giữ nguyên')
 
-    def translate(self):
+    def translate(self,selected_only=False):
         captions=self.collect()
         if not captions:raise ValueError('Chưa có cue')
+        self.translation_snapshot={c.id:asdict(c) for c in captions}
+        if selected_only:
+            selected={i.row() for i in self.table.selectedIndexes()}
+            if not selected:raise ValueError('Chọn câu cần dịch')
+            captions=[c for i,c in enumerate(captions) if i in selected]
         output=self.host.data/'subtitles'/('translation-'+str(time.time_ns())+'.srt')
         self.last_job=self.host.store.submit('translate',{'captions':[asdict(c) for c in captions],'source_language':self.source.currentText(),'target_language':self.target.currentText(),'config':self.host.store.setting('translation',{}),'output':str(output)})
         self.host.message('Đã đưa bản chụp sub vào hàng đợi; không tự ghi đè các sửa tay tiếp theo')
@@ -178,7 +222,26 @@ class SubtitlesPage(QWidget):
         if not self.last_job:return
         job=self.host.store.job(self.last_job)
         if job['state']!='succeeded':raise ValueError(job['error'] or 'Tác vụ chưa hoàn thành')
-        self.captions=[Caption(**c) for c in job['result']['captions']];self.refresh()
+        current=self.collect();results={c['id']:Caption(**c) for c in job['result']['captions']};changed=0
+        for i,cue in enumerate(current):
+            if cue.id in results and not cue.locked and asdict(cue)==getattr(self,'translation_snapshot',{}).get(cue.id):current[i]=results[cue.id];changed+=1
+        self.captions=current;self.refresh();self.host.message(f'Đã nạp {changed} câu; giữ các câu đã sửa/khóa sau khi gửi dịch')
+
+    def shift(self):
+        cues=self.collect();value,ok=QInputDialog.getDouble(self,'Dịch thời gian','Số giây (+ trễ, − sớm)',0,-100000,100000,3)
+        if ok:
+            delta=round(value*1000)
+            if any(c.start_ms+delta<0 for c in cues):raise ValueError('Offset làm cue bắt đầu trước 0')
+            for cue in cues:cue.start_ms+=delta;cue.end_ms+=delta
+            self.captions=cues;self.refresh()
+    def find_replace(self):
+        cues=self.collect();find,ok=QInputDialog.getText(self,'Tìm/thay','Nội dung cần tìm')
+        if not ok or not find:return
+        replacement,ok=QInputDialog.getText(self,'Tìm/thay','Thay bằng')
+        if not ok:return
+        for cue in cues:
+            if not cue.locked:cue.text=cue.text.replace(find,replacement)
+        self.captions=cues;self.refresh()
 
 
 class BatchPage(QWidget):
@@ -266,7 +329,7 @@ class MatrixPage(QWidget):
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
         self.allocation=QComboBox();self.allocation.addItems(['proportional','equal']);form.addRow('Chia thời lượng',self.allocation)
-        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue)])
+        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
@@ -305,7 +368,8 @@ class MatrixPage(QWidget):
         if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
         if not self.output.text():raise ValueError('Chọn thư mục xuất')
         rows=deepcopy(self.model.rows);preset=deepcopy(self.host.editor.composition);scope=self.scope();root=Path(self.output.text());audio=self.audio.text() or None;allocation=self.allocation.currentText()
-        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
+        w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
+        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,window=w,different=k,compare_window=compare),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
         if path:
@@ -313,12 +377,42 @@ class MatrixPage(QWidget):
                 writer=csv.writer(stream);writer.writerow(['Video',*[f'C{i+1}' for i in range(len(self.scenes))],'Formula'])
                 for i,row in enumerate(self.model.rows):writer.writerow([i+1,*[f'G{a.index}' for a in row],'+'.join(f'C{a.scene}G{a.index}' for a in row)])
 
+    def rename_preview(self):
+        if not self.scenes:raise ValueError('Quét cảnh trước')
+        from ..renaming import scene_rename_plan,apply_rename
+        operations=scene_rename_plan(self.scenes)
+        if not operations:raise ValueError('Tên C/G đã đúng')
+        dialog=QDialog(self);dialog.setWindowTitle('Đổi tên thật • video và sub đi kèm');dialog.resize(1000,500);layout=QVBoxLayout(dialog)
+        note=QLabel('Kiểm tra ánh xạ trước khi đổi tên. Giữ nguyên nội dung; lưu journal để hoàn tác. Không đổi tên khi queue đang dùng nguồn.');note.setWordWrap(True);layout.addWidget(note)
+        table=QTableWidget(len(operations),2);table.setHorizontalHeaderLabels(['Tên hiện tại','Tên mới']);table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        for row,op in enumerate(operations):table.setItem(row,0,QTableWidgetItem(op['source']));table.setItem(row,1,QTableWidgetItem(op['target']))
+        layout.addWidget(table);controls=QDialogButtonBox(QDialogButtonBox.StandardButton.Apply|QDialogButtonBox.StandardButton.Cancel);controls.button(QDialogButtonBox.StandardButton.Apply).setText('Đổi tên theo bảng');controls.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(dialog.accept);controls.rejected.connect(dialog.reject);layout.addWidget(controls)
+        if dialog.exec()==QDialog.DialogCode.Accepted:
+            root=Path(self.folder.text()).resolve();self.rename_run(lambda cancel:apply_rename(root,operations,cancel),operations)
+
+    def rename_run(self,function,operations):
+        paths={p for op in operations for p in (op['source'],op['target'])}
+        for job in self.host.store.jobs(100000):
+            if job['state'] in {'pending','running','blocked'} and any(clip.get('path') in paths for clip in job['payload'].get('composition',{}).get('clips',[])):raise ValueError('Nguồn còn được queue dùng; hủy/hoàn tất các job đó trước khi đổi tên')
+        paused=self.host.scheduler.paused;self.host.scheduler.paused=True
+        def done(result):
+            self.host.relink_renamed(result['mapping']);self.scenes=[];self.model.replace([],[]);self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
+        task=self.host.background(lambda progress,cancel:function(cancel),done)
+        task.finished.connect(lambda:setattr(self.host.scheduler,'paused',paused))
+
+    def undo_rename(self):
+        from ..renaming import undo_rename,recover_rename
+        path,_=QFileDialog.getOpenFileName(self,'Chọn journal trong .fonesi-renames',str(Path(self.folder.text())/'.fonesi-renames'),'JSON (*.json)')
+        if not path:return
+        data=json.loads(Path(path).read_text(encoding='utf-8'));function=undo_rename if data.get('state')=='completed' else recover_rename
+        self.rename_run(lambda cancel:function(Path(path),cancel),data['operations'])
+
 
 class QueuePage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;layout=QVBoxLayout(self)
-        buttons(layout,host,[('Tạm dừng / tiếp tục hàng đợi',self.pause),('Hủy việc chọn',self.cancel),('Thử lại việc chọn',self.retry),('Mở kết quả',self.open_result),('Chi tiết',self.detail)])
-        self.table=QTableWidget(0,7);self.table.setHorizontalHeaderLabels(['Job','Loại','Trạng thái','Tiến độ','Đã tạo','ETA ước tính','Lỗi / kết quả'])
+        buttons(layout,host,[('Tạm dừng / tiếp tục hàng đợi',self.pause),('Hủy việc chọn',self.cancel),('Thử lại việc chọn',self.retry),('Ưu tiên lên',lambda:self.priority(10)),('Ưu tiên xuống',lambda:self.priority(-10)),('Mở kết quả',self.open_result),('Chi tiết',self.detail)])
+        self.table=QTableWidget(0,7);self.table.setHorizontalHeaderLabels(['Job','Loại','Trạng thái','Tiến độ','Đã chạy','ETA ước tính','Lỗi / kết quả'])
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.table.horizontalHeader().setStretchLastSection(True);layout.addWidget(self.table,1)
         self.details=QPlainTextEdit();self.details.setReadOnly(True);self.details.setMaximumHeight(130);layout.addWidget(self.details)
@@ -326,8 +420,10 @@ class QueuePage(QWidget):
     def refresh(self):
         selected=set(self.selected());jobs=self.host.store.jobs();self.table.setRowCount(len(jobs))
         for row,job in enumerate(jobs):
-            elapsed=max(0,time.time()-job['created']);p=job['progress'];eta=f'{elapsed*(1-p)/p:.0f}s' if .05<p<1 and job['state']=='running' else '—'
-            values=[job['id'][:10],job['kind'],job['state'],f'{p*100:.1f}%',f'{elapsed:.0f}s',eta,job['error'] or ((job['result'] or {}).get('output',''))]
+            elapsed=max(0,(time.time() if job['state']=='running' else job['updated'])-(job['started'] or job['updated']));p=job['progress'];eta=f'{elapsed*(1-p)/p:.0f}s' if .05<p<1 and job['state']=='running' else '—'
+            status=job['state']+(' • cảnh báo' if (job['result'] or {}).get('warnings') else '')
+            progress='Đang chạy / chưa biết tổng' if job['state']=='running' and p==0 else f'{p*100:.1f}%'
+            values=[job['id'][:10],job['kind'],status,progress,f'{elapsed:.0f}s',eta,job['error'] or ((job['result'] or {}).get('output',''))]
             for col,value in enumerate(values):
                 item=QTableWidgetItem(str(value))
                 if col==0:item.setData(Qt.ItemDataRole.UserRole,job['id'])
@@ -338,6 +434,9 @@ class QueuePage(QWidget):
         for key in self.selected():self.host.store.cancel(key)
     def retry(self):
         for key in self.selected():self.host.store.retry(key)
+    def priority(self,delta):
+        with self.host.store.connect() as c:
+            for key in self.selected():c.execute("UPDATE jobs SET priority=priority+? WHERE id=? AND state='pending'",(delta,key))
     def open_result(self):
         from PySide6.QtCore import QUrl
         for key in self.selected():
@@ -355,7 +454,7 @@ class SettingsPage(QWidget):
         note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note);tabs.addTab(tools,'Công cụ')
         chrome=QWidget();box=QVBoxLayout(chrome);form=QFormLayout();box.addLayout(form)
         self.profile=QComboBox();form.addRow('Hồ sơ Chrome',self.profile);self.platform=QComboBox();self.platform.addItems(PLATFORMS);form.addRow('Nền tảng',self.platform)
-        buttons(box,host,[('Tạo hồ sơ',self.create_profile),('Mở đăng nhập thật',self.login),('Tạo / copy mã ghép',self.pair),('Làm mới trạng thái',self.refresh_profiles),('Đăng ký native host',self.register),('Mở thư mục extension',self.extension),('Tài khoản mặc định',self.default)])
+        buttons(box,host,[('Tạo hồ sơ',self.create_profile),('Đổi tên hồ sơ',self.rename_profile),('Mở đăng nhập thật',self.login),('Tạo / copy mã ghép',self.pair),('Thu hồi ghép extension',self.revoke_pairing),('Làm mới trạng thái',self.refresh_profiles),('Đăng ký native host',self.register),('Mở thư mục extension',self.extension),('Tài khoản mặc định',self.default),('Quên phiên trong app',self.forget_session)])
         self.accounts=QTableWidget(0,4);self.accounts.setHorizontalHeaderLabels(['Nền tảng','Hồ sơ','Danh tính xác định được','Phiên / bridge']);box.addWidget(self.accounts,1)
         label=QLabel('Một hồ sơ dùng nhiều nền tảng; nick thứ hai cùng nền tảng dùng hồ sơ khác. Website login, snapshot phiên và khả năng connector dùng phiên là các bước riêng.');label.setWordWrap(True);box.addWidget(label);tabs.addTab(chrome,'Chrome / tài khoản')
         provider=QWidget();form=QFormLayout(provider);self.provider=QComboBox();self.provider.addItems(['google','libre']);form.addRow('Bộ dịch',self.provider)
@@ -365,12 +464,17 @@ class SettingsPage(QWidget):
         save=QPushButton('Lưu cấu hình dịch');save.clicked.connect(host.guard(self.save_provider));form.addRow(save);tabs.addTab(provider,'Dịch / chi phí')
         resources=QWidget();form=QFormLayout(resources);self.resource_profile=QComboBox();self.resource_profile.addItems(['quiet','balanced','max']);self.resource_profile.setCurrentText(host.store.setting('resource_profile','balanced'));form.addRow('Profile tài nguyên',self.resource_profile)
         self.parallel=QSpinBox();self.parallel.setRange(1,16);self.parallel.setValue(host.store.setting('parallel',2));form.addRow('Tối đa worker',self.parallel)
+        self.job_limits={};limits=host.store.setting('job_limits',{'scan':2,'download':2,'render':1,'translate':1})
+        for key,label in [('scan','Quét song song'),('download','Tải song song'),('render','Edit/render song song'),('translate','Dịch song song')]:
+            field=QSpinBox();field.setRange(1,16);field.setValue(limits.get(key,1));self.job_limits[key]=field;form.addRow(label,field)
+        suggestion=QPushButton('Điền gợi ý theo máy hiện tại');suggestion.clicked.connect(host.guard(self.suggest_resources));form.addRow(suggestion)
+        hint=QLabel('Số từng loại còn chịu giới hạn tổng. CPU quá cao, RAM/đĩa quá thấp sẽ ngừng nhận thêm việc; việc đang chạy được giữ.');hint.setWordWrap(True);form.addRow(hint)
         self.background=QCheckBox('Đóng cửa sổ thì tiếp tục chạy nền (nếu có system tray)');self.background.setChecked(host.store.setting('background',False));form.addRow(self.background)
         save=QPushButton('Lưu tài nguyên');save.clicked.connect(host.guard(self.save_resources));form.addRow(save)
         disable=QPushButton('Tắt tất cả watcher/lịch');disable.clicked.connect(host.guard(self.clear_auto));form.addRow(disable);tabs.addTab(resources,'Tự động / máy')
         self.refresh_profiles();self.scan();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
 
-    def scan(self):self.host.background(lambda p,c:scan_tools(self.host.store.setting('tool_paths',{})),self.scanned)
+    def scan(self):self.host.background(lambda p,c:statuses(self.host.store),self.scanned)
     def scanned(self,tools):
         self.statuses=tools;self.tools.setRowCount(len(tools))
         for row,item in enumerate(tools):
@@ -381,7 +485,7 @@ class SettingsPage(QWidget):
         return self.tools.item(row,0).text()
     def path(self):
         name=self.selected_tool()
-        if name not in {'ffmpeg','ffprobe','Google Chrome','node'}:raise ValueError('Bộ tải dùng module gói kèm; không tự thay engine bằng binary ngoài chưa kiểm chứng')
+        if name not in {'ffmpeg','ffprobe','Google Chrome','node'}:raise ValueError('Bộ tải dùng module gói kèm. Binary ngoài được chẩn đoán riêng; không tự đổi backend chưa kiểm chứng.')
         path,_=QFileDialog.getOpenFileName(self.host,'Chọn executable')
         if path:
             overrides=self.host.store.setting('tool_paths',{});overrides[name]=path;self.host.store.set_setting('tool_paths',overrides);configure_tools(overrides);self.scan()
@@ -389,7 +493,7 @@ class SettingsPage(QWidget):
     def install_name(self,name):
         if name=='Google Chrome':self.host.background(lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
         elif name=='ffprobe':self.install_name('ffmpeg')
-        elif name in {'gallery-dl'}:raise ValueError('gallery-dl được gói cùng ứng dụng; cập nhật qua bản app đã khóa dependency')
+        elif name in {'gallery-dl','yt-dlp'}:raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
         else:self.host.background(lambda p,c:install(self.host.store,resolve_manifest(name),p,c),lambda _:self.scan())
     def install_missing(self):
         names={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
@@ -403,14 +507,31 @@ class SettingsPage(QWidget):
         version,ok=QInputDialog.getItem(self,'Rollback','Phiên bản',versions,0,False)
         if ok:rollback(self.host.store,name,version);self.scan()
     def refresh_profiles(self):
+        selected=self.profile.currentData()
         self.profile.clear()
         for item in profiles(self.host.store):self.profile.addItem(item['label'],item['id'])
+        index=self.profile.findData(selected)
+        if index>=0:self.profile.setCurrentIndex(index)
         accounts=bindings(self.host.store);self.accounts.setRowCount(len(accounts))
         for row,item in enumerate(accounts):
             for col,value in enumerate((item['platform'],item['label'],item['identity'] or 'chưa xác minh',item['status'])):self.accounts.setItem(row,col,QTableWidgetItem(value))
+            self.accounts.item(row,0).setData(Qt.ItemDataRole.UserRole,item['id'])
     def create_profile(self):
         name,ok=QInputDialog.getText(self,'Hồ sơ Chrome','Tên')
-        if ok:create_profile(self.host.store,name);self.refresh_profiles()
+        if ok:
+            key=create_profile(self.host.store,name);self.refresh_profiles();self.profile.setCurrentIndex(self.profile.findData(key))
+    def rename_profile(self):
+        from ..browser import rename_profile
+        key=self.current_profile();name,ok=QInputDialog.getText(self,'Đổi tên hồ sơ','Tên',text=self.profile.currentText())
+        if ok:rename_profile(self.host.store,key,name);self.refresh_profiles();self.host.downloads.refresh_accounts()
+    def forget_session(self):
+        from ..browser import forget_session
+        row=self.accounts.currentRow()
+        if row<0:raise ValueError('Chọn một liên kết tài khoản trong bảng')
+        forget_session(self.host.store,self.accounts.item(row,0).data(Qt.ItemDataRole.UserRole));self.refresh_profiles();self.host.downloads.refresh_accounts();self.host.message('Đã quên bản phiên trong app. Hồ sơ và đăng nhập trong Chrome được giữ.')
+    def revoke_pairing(self):
+        from ..browser import revoke_pairing
+        revoke_pairing(self.host.store,self.current_profile());self.host.message('Đã thu hồi quyền gửi phiên của extension trong hồ sơ này; ghép lại bằng mã mới khi cần. Không xóa hồ sơ Chrome.')
     def current_profile(self):
         key=self.profile.currentData()
         if not key:raise ValueError('Tạo/chọn hồ sơ trước')
@@ -422,7 +543,7 @@ class SettingsPage(QWidget):
         code=pairing_code(self.host.store,self.current_profile());QApplication.clipboard().setText(code);self.host.message('Mã ghép đã copy, hết hạn sau 5 phút. Dán trong extension của đúng hồ sơ này.')
     def register(self):
         path,_=QFileDialog.getOpenFileName(self,'Chọn fonesi-native-host.exe',filter='EXE (*.exe)')
-        if path:register_host(Path(path));self.host.message('Đã đăng ký native host cho người dùng hiện tại')
+        if path:register_host(Path(path),self.host.data);self.host.message('Đã đăng ký native host cho người dùng hiện tại')
     def extension(self):
         from ..paths import resource_directory
         from PySide6.QtCore import QUrl
@@ -432,7 +553,11 @@ class SettingsPage(QWidget):
     def save_provider(self):
         glossary=json.loads(self.glossary.toPlainText())
         if not isinstance(glossary,dict) or any(not isinstance(k,str) or not isinstance(v,str) for k,v in glossary.items()):raise ValueError('Thuật ngữ phải là object string → string')
-        config={'provider':self.provider.currentText(),'endpoint':self.endpoint.text(),'daily_limit':self.budget.value(),'glossary':glossary};self.host.store.set_setting('translation',config)
+        endpoint=self.endpoint.text()
+        if self.provider.currentText()=='libre':
+            from ..subtitles import translation_endpoint
+            endpoint=translation_endpoint(endpoint)
+        config={'provider':self.provider.currentText(),'endpoint':endpoint,'daily_limit':self.budget.value(),'glossary':glossary};self.host.store.set_setting('translation',config)
         if self.key.text():
             variable='FONESI_GOOGLE_TRANSLATE_API_KEY' if self.provider.currentText()=='google' else 'FONESI_LIBRETRANSLATE_API_KEY'
             os.environ[variable]=self.key.text();self.key.clear()
@@ -441,7 +566,11 @@ class SettingsPage(QWidget):
                 with self.host.store.connect() as c:c.execute('INSERT OR REPLACE INTO secrets VALUES(?,?)',('api:'+variable,protect(os.environ[variable].encode())))
         self.host.message('Đã lưu cấu hình; API key chỉ ở bộ nhớ phiên này trên Linux, dùng DPAPI khi lưu trên Windows')
     def save_resources(self):
-        self.host.store.set_setting('resource_profile',self.resource_profile.currentText());self.host.store.set_setting('parallel',self.parallel.value());self.host.store.set_setting('background',self.background.isChecked());self.host.scheduler.parallel=self.parallel.value();self.host.message('Đã lưu giới hạn tài nguyên')
+        self.host.store.set_setting('resource_profile',self.resource_profile.currentText());self.host.store.set_setting('parallel',self.parallel.value());self.host.store.set_setting('background',self.background.isChecked());self.host.store.set_setting('job_limits',{key:field.value() for key,field in self.job_limits.items()});self.host.scheduler.parallel=self.parallel.value();self.host.message('Đã lưu giới hạn tài nguyên')
+    def suggest_resources(self):
+        data=metrics(self.host.data);recommended=recommended_parallel(data,self.resource_profile.currentText());self.parallel.setValue(max(1,recommended))
+        for key,field in self.job_limits.items():field.setValue(1 if key in {'render','translate'} else max(1,min(3,recommended)))
+        self.host.message(f'Gợi ý hiện tại: tổng {recommended} worker. Kiểm tra rồi bấm Lưu tài nguyên; đây là admission tức thời, chưa phải benchmark máy dài hạn.')
     def clear_auto(self):
         self.host.store.set_setting('watches',[])
         with self.host.store.connect() as c:c.execute('DELETE FROM schedules')

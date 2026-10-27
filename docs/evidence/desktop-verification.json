@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-27",
+  "scope": "development Linux CPU; synthetic media and localhost HTTP",
+  "suite": {
+    "tests": "92",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "23.906"
+  },
+  "frozen": {
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+    "passed": true,
+    "frozen": true,
+    "elapsed_seconds": 8.425,
+    "bilingual_render_verified": true,
+    "rename_undo_verified": true
+  },
+  "jobs": [
+    {
+      "kind": "render",
+      "state": "succeeded",
+      "count": null,
+      "validated": true
+    },
+    {
+      "kind": "render",
+      "state": "succeeded",
+      "count": null,
+      "validated": true
+    },
+    {
+      "kind": "download",
+      "state": "succeeded",
+      "count": 1,
+      "validated": null
+    },
+    {
+      "kind": "download",
+      "state": "succeeded",
+      "count": 1,
+      "validated": null
+    }
+  ],
+  "source_files_verified_against_bundle": 36,
+  "lock_sha256": "065abc9abe105966c2f740141906dd162b90ab156a5a66d4d055a8f4ee131a68",
+  "source_tree_sha256": "3e32bd636ebb94048f031fec0378631622feefe700bd9b538d55259003bc9ea3",
+  "versions": {
+    "fonesi-edit": "0.0.1",
+    "PySide6": "6.8.3",
+    "yt-dlp": "2026.10.26",
+    "gallery-dl": "1.32.18",
+    "pysubs2": "1.9.0",
+    "psutil": "7.2.2",
+    "fonttools": "4.67.0",
+    "pyinstaller": "6.22.3"
+  },
+  "unverified": [
+    "live platforms",
+    "live translation",
+    "Chrome authentication",
+    "GPU",
+    "all requested editor interactions",
+    "Windows desktop acceptance",
+    "physical audio device",
+    "all 95 requirement groups"
+  ]
+}

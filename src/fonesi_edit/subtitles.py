@@ -7,6 +7,7 @@ import os
 import re
 import time
 from urllib.request import Request,urlopen
+from urllib.parse import urlsplit
 
 import pysubs2
 from .domain import canonical,identifier
@@ -55,6 +56,13 @@ def caption_warnings(captions,duration_ms=None):
     return warnings
 
 
+def translation_endpoint(endpoint):
+    value=urlsplit(endpoint)
+    if value.username or value.password or value.query or value.fragment:raise ValueError('Endpoint không được chứa tài khoản, khóa hoặc query; nhập khóa qua trường API riêng')
+    if not value.hostname or (value.scheme!='https' and not (value.scheme=='http' and value.hostname in {'127.0.0.1','localhost','::1'})):raise ValueError('LibreTranslate requires HTTPS or a local service')
+    return endpoint.rstrip('/')
+
+
 def _request_translation(texts,source,target,config):
     provider=config.get('provider','google')
     if provider=='google':
@@ -65,9 +73,7 @@ def _request_translation(texts,source,target,config):
         if source!='auto':body['source']=source
         headers={'Content-Type':'application/json','X-Goog-Api-Key':key}
     elif provider=='libre':
-        url=config.get('endpoint','').rstrip('/')+'/translate'
-        if not url.startswith('https://') and not url.startswith(('http://127.0.0.1:','http://localhost:')):
-            raise ValueError('LibreTranslate requires HTTPS or a local service')
+        url=translation_endpoint(config.get('endpoint',''))+'/translate'
         body={'q':texts,'source':source,'target':target,'format':'text'};headers={'Content-Type':'application/json'}
         key=os.environ.get('FONESI_LIBRETRANSLATE_API_KEY')
         if key:body['api_key']=key
@@ -123,5 +129,10 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
 def execute_translation(store,payload,progress,cancel):
     cues=[Caption(**c) for c in payload['captions']] if 'captions' in payload else read_captions(Path(payload['source']))
     result=translate_captions(store,cues,payload.get('source_language','auto'),payload.get('target_language','vi'),payload.get('config',{}),progress,cancel)
-    output=Path(payload['output']);write_captions(output,result)
-    return {'output':str(output),'captions':[asdict(c) for c in result],'warnings':caption_warnings(result)}
+    output=Path(payload['output']);reused=False
+    if output.exists():
+        expected=[(c.start_ms,c.end_ms,c.text) for c in result]
+        if [(c.start_ms,c.end_ms,c.text) for c in read_captions(output)]!=expected:raise FileExistsError('Tệp sub đã có nội dung khác; không ghi đè: '+output.name)
+        reused=True
+    else:write_captions(output,result)
+    return {'output':str(output),'captions':[asdict(c) for c in result],'warnings':caption_warnings(result),'reused':reused}

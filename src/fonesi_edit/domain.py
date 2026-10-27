@@ -82,6 +82,7 @@ class Clip:
         if not math.isfinite(self.rotation) or not 0 <= self.volume <= 4:
             raise ValueError("Invalid rotation/volume")
         if not math.isfinite(self.freeze) or self.freeze<0:raise ValueError("Freeze duration invalid")
+        if self.offset is not None and (not math.isfinite(self.offset) or self.offset<0):raise ValueError('Clip offset invalid')
 
 
 @dataclass
@@ -168,6 +169,13 @@ class Composition:
             raise ValueError("Duration must be positive")
         for item in [*self.clips, *self.layers]:
             item.validate()
+        for track in self.audio:
+            if not track.get('path') or track.get('mode','music') not in {'main','music','sfx'}:raise ValueError('Invalid audio path/role')
+            for key in ('volume','offset','trim_start','fade_in','fade_out'):
+                value=track.get(key,.2 if key=='volume' else 0)
+                if not isinstance(value,(int,float)) or not math.isfinite(value) or value<0 or key=='volume' and value>4:raise ValueError('Invalid audio '+key)
+            end=track.get('trim_end')
+            if end is not None and (not math.isfinite(end) or end<=track.get('trim_start',0)):raise ValueError('Invalid audio trim end')
         ids = [item.id for item in [*self.clips, *self.layers]]
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate clip/layer IDs")

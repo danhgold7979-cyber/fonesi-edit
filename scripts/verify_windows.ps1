@@ -1,26 +1,22 @@
 param([switch]$OpenUi)
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
-if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    throw "Can uv cho moi truong developer P02. Ban san pham P12 se khong yeu cau uv/Python."
-}
+if ($env:OS -ne 'Windows_NT') { throw 'Run Windows checks on Windows' }
 & uv sync --locked
-if ($LASTEXITCODE -ne 0) { throw "uv sync failed" }
+if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
 & uv run python scripts/check_plan.py
-if ($LASTEXITCODE -ne 0) { throw "Plan validation failed" }
+if ($LASTEXITCODE -ne 0) { throw 'Plan validation failed' }
 & uv run pytest -q
-if ($LASTEXITCODE -ne 0) { throw "Tests failed; do not mark Windows accepted" }
-$proof = Join-Path ".local" ("windows-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-New-Item -ItemType Directory -Path $proof -Force | Out-Null
-& uv run fonesi-prototype scan | Out-File (Join-Path $proof "tools.json") -Encoding utf8
-if ($LASTEXITCODE -ne 0) { throw "Tool scan failed" }
-& uv run fonesi-prototype demo (Join-Path $proof "landscape")
-if ($LASTEXITCODE -ne 0) { throw "Landscape render failed" }
-& uv run fonesi-prototype demo (Join-Path $proof "portrait") --portrait
-if ($LASTEXITCODE -ne 0) { throw "Portrait render failed" }
-if ($OpenUi) {
-    $metadata = Get-Content (Join-Path $proof "landscape/evidence.json") -Raw -Encoding utf8 | ConvertFrom-Json
-    & uv run fonesi-prototype ui --source $metadata.source
-    if ($LASTEXITCODE -ne 0) { throw "UI failed" }
+if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
+$proof = Join-Path '.local' ('windows-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+& uv run fonesi-edit --verify $proof
+if ($LASTEXITCODE -ne 0) { throw 'Source application proof failed' }
+if (Test-Path 'dist/FonesiEdit/FonesiEdit.exe') {
+    & uv run python scripts/verify_packaged.py
+    if ($LASTEXITCODE -ne 0) { throw 'Packaged proof failed' }
 }
-Write-Host "P02 local proof stored in $proof. Chrome/auth/GPU/live translation need separate real checks."
+if ($OpenUi) {
+    & uv run fonesi-edit
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop failed' }
+}
+Write-Host 'Local/source checks finished. Live platforms, translation, Chrome handoff and GPU each require their own evidence.'

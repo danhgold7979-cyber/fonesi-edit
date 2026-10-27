@@ -43,3 +43,13 @@ def test_reservation_atomic_and_worker_commits_validated_output(tmp_path):
         time.sleep(.05)
     assert store.job(ids[0])['state']=='succeeded',store.job(ids[0])['error']
     with store.connect() as c:assert c.execute('SELECT state FROM matrix_history').fetchone()[0]=='succeeded'
+
+
+def test_final_reservation_rechecks_current_history_window_atomically(tmp_path):
+    f=create_fixture(tmp_path/'media',duration=.5);path=str(f['source']);store=Store(tmp_path/'state.db');preset=Composition(width=320,height=180,encoder='cpu')
+    first=[Angle(1,1,path,'a'),Angle(2,1,path,'b')]
+    second=[Angle(1,1,path,'a'),Angle(2,2,path,'c')]
+    enqueue_rows(store,'project',[first],preset,tmp_path/'out')
+    with pytest.raises(ValueError,match='W/K'):enqueue_rows(store,'project',[second],preset,tmp_path/'out',window=1,different=2)
+    assert len(store.jobs())==1 and history(store,'project')==[['a','b']]
+    assert Path(store.jobs()[0]['payload']['output']).name.startswith('video_000001_')

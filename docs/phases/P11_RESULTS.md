@@ -1,5 +1,9 @@
-# P11 — Tích hợp local đang được chốt
+# P11 — Kết quả tích hợp local
 
-Đã nối app production đủ các khu vực, project/autosave/preset, editor/timeline, job UI, sub/cost settings, folder dry-run, ma trận virtualized và browser/tools. Các lượt kiểm tra gần nhất đã qua 62 test toàn suite và 17 test editor/render tích hợp có thêm app save/reopen/worker/output, menu callbacks và mask xoay/feather + ducking/normalization.
+Toàn suite cuối: **92 tests qua, không lỗi/skip**. Đã kiểm tra app save/reopen/worker/output, kéo preview bằng chuột và một drag một undo, undo riêng khi nhập chữ, sub draft/song ngữ/trim-speed/loop, preset deterministic, batch settings/random zoom/flip/rotation, audio solo/duck/normalize, ma trận W/K/reservation, rename/undo/rollback/recovery, khóa scheduler/migration/orphan và tool repair/hash/traversal.
 
-Số tổng cuối, artifact/package proof và các sửa tiếp theo được ghi ở báo cáo verification cuối; không coi con số tại checkpoint là chứng minh mọi hàng 95 requirements. Live nguồn/API/auth và Windows/GPU ngoài môi trường vẫn được giữ mở. P12 chỉ đóng gói code đã có, không tự chuyển các blocker thành pass.
+HTTP localhost thực kiểm tra cả yt-dlp và gallery-dl; fake transport riêng kiểm tra cache/quota/glossary/translation recovery. Không dùng chúng làm bằng chứng hỗ trợ mạng xã hội hoặc chất lượng dịch live. Binary đã chạy các workflow CPU chính và giải mã frame Qt trong smoke; xem [báo cáo local](../LOCAL_VERIFICATION.md), [evidence](../evidence/desktop-verification.json), [đối chiếu triển khai](../IMPLEMENTATION_COVERAGE.md).
+
+Những sửa đáng chú ý: sub template không giữ nhầm cue/video cũ; nhiều cue dùng chung ASS track; clip split/loop giữ phạm vi sub; W/K được kiểm tra trong transaction enqueue; retry không đổi thành công thành reserved; orphan được phục hồi sau startup; nick/profile không đổi khi refresh; FFmpeg gói không nạp libavcodec của Qt; nguồn đổi tên giữ bytes và journal.
+
+Các mục nâng cao còn phải code/kiểm chứng vẫn ở coverage/master; Windows/live API/Chrome/nguồn/GPU có cổng riêng. 92 tests không chứng minh toàn bộ 95 nhóm đã hoàn tất.

@@ -6,7 +6,7 @@ import math
 import random
 import time
 
-from .batch import VIDEO_EXTENSIONS,natural_key,fit_duration
+from .batch import VIDEO_EXTENSIONS,natural_key,fit_duration,bind_source_subtitles,configured_clip
 from .domain import Clip,Composition,canonical,fingerprint,identifier,checked_payload
 from .prototypes.media import probe
 from .render import audio_duration
@@ -21,7 +21,7 @@ class Angle:
 
 
 def scan_scenes(root:Path,selected=None):
-    directories=sorted([p for p in root.iterdir() if p.is_dir() and not p.name.startswith('.') and not p.name.casefold().endswith(' edit')],key=lambda p:natural_key(p.name))
+    directories=sorted([p for p in root.iterdir() if p.is_dir() and not p.is_symlink() and not p.is_junction() and not p.name.startswith('.') and not p.name.casefold().endswith(' edit')],key=lambda p:natural_key(p.name))
     scenes=[]
     for directory in directories:
         if selected is not None and str(directory) not in selected:continue
@@ -97,27 +97,38 @@ def history(store,scope):
 
 def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,maximum=2):
     c=deepcopy(preset);c.clips=[]
+    c.seed=int(hashlib.sha256(f'{preset.seed}:{combination(row)}'.encode()).hexdigest()[:8],16)%2147483647
     for angle in row:
-        info=probe(Path(angle.path));c.clips.append(Clip(angle.path,end=info.duration,source_duration=info.duration,id=hashlib.sha256(f'{angle.scene}:{angle.hash}'.encode()).hexdigest()[:32]))
+        info=probe(Path(angle.path));c.clips.append(configured_clip(angle.path,info,c,hashlib.sha256(f'{angle.scene}:{angle.hash}'.encode()).hexdigest()[:32]))
+    for layer in c.layers:layer.clip_ids=[]
     if audio:
         c.audio=[{'path':str(Path(audio).resolve()),'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
         c=fit_duration(c,audio_duration(audio),minimum=minimum,maximum=maximum,allocation=allocation)
+    bind_source_subtitles(c)
     return c
 
 
-def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2):
+def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False):
     jobs=[];plans=[]
     for row in rows:
         comp=row_composition(row,preset,audio,allocation,minimum,maximum)
         key=combination(row);digest=hashlib.sha256(key.encode()).hexdigest()[:12]
         payload={'composition':comp.to_dict(),'output':str(Path(output_root)/f'video_{digest}.mp4'),'matrix_scope':scope,'matrix_combination':key}
-        plans.append((identifier(),key,canonical(checked_payload(payload))))
+        payload['_tools']=store.setting('tool_paths',{})
+        plans.append((identifier(),key,payload))
     with store.connect() as conn:
         conn.execute('BEGIN IMMEDIATE')
+        import json
+        previous=[json.loads(r[0]) for r in conn.execute("SELECT combination FROM matrix_history WHERE scope=? AND state IN ('reserved','succeeded') ORDER BY created",(scope,))]
+        sequence=conn.execute('SELECT COUNT(*) FROM matrix_history WHERE scope=?',(scope,)).fetchone()[0]
         for job_id,key,data in plans:
             existing=conn.execute('SELECT state FROM matrix_history WHERE scope=? AND combination=?',(scope,key)).fetchone()
             if existing and existing[0] in {'reserved','succeeded'}:raise ValueError('Tổ hợp đã được dùng/đặt chỗ; hãy sinh lại')
+            values=json.loads(key)
+            if not valid_against(values,previous,window,different,compare_window):raise ValueError('Lịch sử vừa thay đổi hoặc hàng vi phạm W/K; hãy sinh lại ma trận')
+            previous.append(values);sequence+=1
+            output=Path(data['output']);data['output']=str(output.with_name(f'video_{sequence:06d}_'+output.name.removeprefix('video_')))
             now=time.time()
-            conn.execute("INSERT INTO jobs(id,kind,state,payload,created,updated) VALUES(?,'render','pending',?,?,?)",(job_id,data,now,now))
+            conn.execute("INSERT INTO jobs(id,kind,state,payload,created,updated) VALUES(?,'render','pending',?,?,?)",(job_id,canonical(checked_payload(data)),now,now))
             conn.execute("INSERT INTO matrix_history VALUES(?,?,'reserved',?,?) ON CONFLICT(scope,combination) DO UPDATE SET state='reserved',job_id=excluded.job_id,created=excluded.created",(scope,key,job_id,now));jobs.append(job_id)
     return jobs
