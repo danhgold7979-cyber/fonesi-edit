@@ -1,6 +1,6 @@
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
-Phiên bản: 1.1 — 27/10/2026. Trạng thái: đã soạn kế hoạch, chưa bắt đầu code ứng dụng. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
+Phiên bản: 1.1 — 27/10/2026. Trạng thái: P01 hoàn tất thiết kế; P02 bắt đầu mẫu kiểm chứng, chưa có bản sản phẩm. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
 
 Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_SPEC.md](EDITOR_SPEC.md), [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Tài liệu kèm theo: [thiết kế kỹ thuật](TECHNICAL_DESIGN.md), [đối chiếu yêu cầu](REQUIREMENTS_TRACEABILITY.md), [ma trận nền tảng](PLATFORM_SUPPORT_MATRIX.md).
 
@@ -10,8 +10,8 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 
 | Phase | Kết quả chính | Phụ thuộc để hoàn tất | Trạng thái |
 | --- | --- | --- | --- |
-| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Chưa bắt đầu |
-| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Chưa bắt đầu |
+| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
+| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Đang làm — xem phases/P02_PLAN.md |
 | P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Chưa bắt đầu |
 | P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Chưa bắt đầu |
 | P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Chưa bắt đầu |
@@ -40,14 +40,14 @@ Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 
 
 **Mục tiêu:** chuyển danh sách chức năng thành màn hình, dữ liệu và tình huống code được.
 
-- [ ] P01-01: đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.
-- [ ] P01-02: wireframe bảy khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.
-- [ ] P01-03: luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.
-- [ ] P01-04: preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.
-- [ ] P01-05: định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.
-- [ ] P01-06: corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.
-- [ ] P01-07: hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.
-- [ ] P01-08: wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.
+- [x] P01-01: đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.
+- [x] P01-02: wireframe bảy khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.
+- [x] P01-03: luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.
+- [x] P01-04: preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.
+- [x] P01-05: định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.
+- [x] P01-06: corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.
+- [x] P01-07: hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.
+- [x] P01-08: wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.
 
 **Bàn giao:** wireframe, luồng, hợp đồng bản đầu, bảng truy vết đủ phạm vi.
 
