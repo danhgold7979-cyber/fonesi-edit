@@ -1,6 +1,6 @@
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
-Phiên bản: 1.1 — 27/10/2026. Trạng thái: P01 hoàn tất thiết kế; P02 bắt đầu mẫu kiểm chứng, chưa có bản sản phẩm. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
+Phiên bản: 1.1 — 27/10/2026. Trạng thái: P01 hoàn tất thiết kế; P02 đã có prototype CPU/Linux, còn cổng bị chặn; chưa có bản sản phẩm. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
 
 Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_SPEC.md](EDITOR_SPEC.md), [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Tài liệu kèm theo: [thiết kế kỹ thuật](TECHNICAL_DESIGN.md), [đối chiếu yêu cầu](REQUIREMENTS_TRACEABILITY.md), [ma trận nền tảng](PLATFORM_SUPPORT_MATRIX.md).
 
@@ -11,7 +11,7 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 | Phase | Kết quả chính | Phụ thuộc để hoàn tất | Trạng thái |
 | --- | --- | --- | --- |
 | P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
-| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Đang làm — xem phases/P02_PLAN.md |
+| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Chưa qua cổng — xem phases/P02_RESULTS.md |
 | P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Chưa bắt đầu |
 | P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Chưa bắt đầu |
 | P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Chưa bắt đầu |

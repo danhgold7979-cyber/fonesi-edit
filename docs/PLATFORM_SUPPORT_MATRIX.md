@@ -6,8 +6,8 @@ Trạng thái: chưa thử trên ứng dụng, chưa có connector được côn
 
 | Nền tảng | Đợt dự kiến | Nội dung cần kiểm chứng | Điểm phải xác minh | Trạng thái |
 | --- | --- | --- | --- | --- |
-| YouTube | A | Kênh/video/Shorts/playlist, sub, thumbnail | Phân trang, sub người đăng/tự động, giới hạn truy cập | Chưa thử |
-| Bilibili | A | Profile/video/nhiều phần, sub nếu có | Trang hồ sơ, chất lượng/auth/vùng, sub từng phần | Chưa thử |
+| YouTube | A | Kênh/video/Shorts/playlist, sub, thumbnail | Phân trang, sub người đăng/tự động, giới hạn truy cập | Live item bị proxy HTTP 403; chưa kiểm chứng |
+| Bilibili | A | Profile/video/nhiều phần, sub nếu có | Trang hồ sơ, chất lượng/auth/vùng, sub từng phần | Live item bị proxy HTTP 403; chưa kiểm chứng |
 | TikTok | B | Profile/video/bài nhiều ảnh | Phân trang, album ảnh, rate limit/auth/sub có sẵn | Chưa thử |
 | Facebook | B | Page/profile, video/Reels/ảnh/album | Quyền xem, tab khác nhau, quét lịch sử, phiên đăng nhập | Chưa thử |
 | Instagram | B | Profile/Reels/video/ảnh/carousel | Quyền xem, phân trang, rate limit, nội dung hỗn hợp | Chưa thử |

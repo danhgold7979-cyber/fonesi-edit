@@ -11,6 +11,7 @@
 5. Thử live public metadata/download có timeout và ghi lỗi cụ thể. Không bắt người dùng đưa tài khoản trong chat; không đọc browser profile cá nhân.
 6. Kiểm tra encoder CPU/GPU bằng encode thật; so font/alpha/frame khi engine hỗ trợ. Ghi unknown/blocked thay vì pass khi chưa có phần cứng.
 7. Ghi version, command, fixture, timings và kết quả ở P02_RESULTS; tách local PASS khỏi live source/translation/Windows/Chrome BLOCKED.
+8. Thêm GitHub Actions Linux/Windows với action SHA đã đọc từ repository chính thức, dependency lock, kiểm tra local và build proof trên Windows. CI chỉ chứng minh phần thực sự chạy; chưa có kết quả thì pending. CI không tự đăng nhập tài khoản nguồn hoặc thay nghiệm thu GPU/máy người dùng.
 
 ## Kiểm tra bắt buộc trước đóng phase
 
