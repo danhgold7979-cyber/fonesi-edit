@@ -197,3 +197,28 @@ def test_manual_scene_durations_preserve_each_clip_and_transition():
     with pytest.raises(ValueError,match='only support speed or trim'):
         fit_duration(Composition(clips=[Clip('only.mp4',end=4)]),4,
                      policy='freeze',allocation='manual',manual_durations=[4])
+
+
+
+def test_batch_sfx_percent_anchor_retargets_each_source_duration(tmp_path):
+    from fonesi_edit.render import compile_graph
+    small=create_fixture(tmp_path/'channel-a/videos',duration=.5)
+    large=create_fixture(tmp_path/'channel-b/videos',duration=1.5)
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu',
+        mute_original=True,audio=[
+            {'path':str(small['source']),'mode':'sfx','volume':1,
+             'placement':'percent','position_pct':50,'offset':0}])
+    plans=batch_plan({
+        str(tmp_path/'channel-a'):[str(small['source'])],
+        str(tmp_path/'channel-b'):[str(large['source'])]},preset)
+    assert len(plans)==2
+    delays={}
+    for i,plan in enumerate(plans):
+        current=Composition.from_dict(plan['composition'])
+        assert current.audio[0]['placement']=='percent'
+        stage=tmp_path/f'graph-{i}';stage.mkdir()
+        _,graph,duration=compile_graph(current,stage)
+        delays[round(duration,1)]=graph
+    assert 'adelay=250:all=1' in delays[.5]
+    assert 'adelay=750:all=1' in delays[1.5]
+    assert preset.audio[0]['position_pct']==50
