@@ -220,7 +220,24 @@ def test_local_gallery_scan_select_and_download_preserves_valid_media(tmp_path,m
         result=execute_download_job(store,{'kind':'download','payload':selected[0]},
                                     lambda _:None,Event())
         assert result['count']==1 and Path(result['files'][0]['path']).is_file()
-        assert Path(result['files'][0]['path']).read_bytes().startswith(b'\x89PNG')
+        image_path=Path(result['files'][0]['path'])
+        assert image_path.read_bytes().startswith(b'\x89PNG')
+
+        # Make the existing good file's timestamp unambiguously older than the
+        # repeat attempt, so a silent overwrite is detected even for identical bytes.
+        import os
+        before_bytes=image_path.read_bytes()
+        before_stat=image_path.stat()
+        old_mtime=max(1,before_stat.st_mtime_ns-60_000_000_000)
+        os.utime(image_path,ns=(before_stat.st_atime_ns,old_mtime))
+        before_stat=image_path.stat()
+
+        repeated=execute_download_job(store,{'kind':'download','payload':selected[0]},
+                                      lambda _:None,Event())
+        assert repeated['count']==1
+        assert Path(repeated['files'][0]['path'])==image_path
+        assert image_path.read_bytes()==before_bytes
+        assert image_path.stat().st_mtime_ns==before_stat.st_mtime_ns
     finally:
         server.shutdown();server.server_close();thread.join(timeout=3)
 
