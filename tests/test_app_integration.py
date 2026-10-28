@@ -1046,6 +1046,7 @@ def test_ui_layout_persists_and_restores_navigation_inspector_and_splitter(tmp_p
     window.editor.splitter.setSizes([220, 680, 320])
     APP.processEvents()
     assert window.persist_ui_layout()
+    saved_size = (window.width(), window.height())
     saved = window.store.setting("ui_layout_v1")
     assert saved["version"] == 1
     assert saved["nav_index"] == 3
@@ -1059,6 +1060,8 @@ def test_ui_layout_persists_and_restores_navigation_inspector_and_splitter(tmp_p
     APP.processEvents()
     assert restored.nav.currentIndex() == 3
     assert restored.editor.inspector.currentIndex() == 1
+    assert abs(restored.width() - saved_size[0]) <= 2
+    assert abs(restored.height() - saved_size[1]) <= 2
     sizes = restored.editor.splitter.sizes()
     assert len(sizes) == 3
     assert all(size > 0 for size in sizes)
