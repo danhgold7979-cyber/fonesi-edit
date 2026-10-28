@@ -97,10 +97,14 @@ def test_editor_shortcuts_yield_to_focused_spinbox(tmp_path, monkeypatch):
     calls=[]
     monkeypatch.setattr(window, 'guard', lambda callback: lambda: calls.append(callback))
     try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
         spin=window.editor.fields['x'][0]
-        spin.setFocus();APP.processEvents()
+        window.activateWindow();APP.processEvents()
+        QTest.mouseClick(spin.lineEdit(), Qt.MouseButton.LeftButton)
+        APP.processEvents()
         focused=QApplication.focusWidget()
-        assert focused is spin or spin.isAncestorOf(focused)
+        assert focused is spin.lineEdit()
         window.actions['Phát/dừng'].trigger()
         window.actions['Marker'].trigger()
         assert calls == []
