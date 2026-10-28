@@ -22,7 +22,7 @@ def test_cache_evicts_old_completed_outputs_without_touching_nonproxy_media(tmp_
     other=root/'my-vacation.mp4';other.write_bytes(b'source owned by user')
     partial=root/'.fonesi-proxy-in-progress.mp4';partial.write_bytes(b'partial')
     nested=root/'nested';nested.mkdir()
-    nested_media=nested/'a'*0 if False else nested/'keep.mp4'
+    nested_media=nested/'keep.mp4'
     nested_media.write_bytes(b'nested content')
     result=evict_proxy_cache(root,50)
     assert result['scanned_bytes']==120
