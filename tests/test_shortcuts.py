@@ -60,3 +60,10 @@ def test_shortcut_remap_rejects_unknown_action_and_non_string_values():
         normalize_shortcut_remap({"Delete everything": "Ctrl+X"}, {"Undo": "Ctrl+Z"})
     with pytest.raises(ValueError, match="phải là chuỗi"):
         normalize_shortcut_remap({"Undo": 7}, {"Undo": "Ctrl+Z"})
+
+
+
+def test_shortcut_remap_rejects_incomplete_sequence():
+    current = {"Undo": "Ctrl+Z"}
+    with pytest.raises(ValueError, match="không hợp lệ"):
+        normalize_shortcut_remap({"Undo": "Ctrl+"}, current)

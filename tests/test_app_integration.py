@@ -92,6 +92,22 @@ def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     finally:close(window)
 
 
+def test_editor_shortcuts_yield_to_focused_spinbox(tmp_path, monkeypatch):
+    window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor)
+    calls=[]
+    monkeypatch.setattr(window, 'guard', lambda callback: lambda: calls.append(callback))
+    try:
+        spin=window.editor.fields['x'][0]
+        spin.setFocus();APP.processEvents()
+        focused=QApplication.focusWidget()
+        assert focused is spin or spin.isAncestorOf(focused)
+        window.actions['Phát/dừng'].trigger()
+        window.actions['Marker'].trigger()
+        assert calls == []
+    finally:
+        close(window)
+
+
 def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp_path):
     from PySide6.QtCore import Qt
     window=MainWindow(tmp_path/'state')
