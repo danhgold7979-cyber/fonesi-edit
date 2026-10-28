@@ -99,6 +99,7 @@ def test_editor_shortcuts_yield_to_focused_spinbox(tmp_path, monkeypatch):
     try:
         from PySide6.QtCore import Qt
         from PySide6.QtTest import QTest
+        window.editor.add_layer('text')  # Inspector fields are disabled until a layer is selected.
         spin=window.editor.fields['x'][0]
         window.activateWindow();APP.processEvents()
         QTest.mouseClick(spin.lineEdit(), Qt.MouseButton.LeftButton)
