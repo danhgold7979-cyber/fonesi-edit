@@ -9,10 +9,7 @@ from .storage import Store
 
 
 _SENSITIVE_ASSIGNMENT = re.compile(
-    r"(?i)\b(password|passwd|pwd|cookie|cookies|api[_-]?key|access[_-]?token|"
-    r"refresh[_-]?token|session[_-]?cookie|session[_-]?token|client[_-]?secret|"
-    r"secret|authorization|x-api-key|bearer[_-]?token|auth[_-]?token|private[_-]?key|"
-    r"csrf[_-]?token)\b(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&]+)"
+    r"""(?i)\b(password|passwd|pwd|cookie|cookies|api[_-]?key|access[_-]?token|refresh[_-]?token|session[_-]?cookie|session[_-]?token|client[_-]?secret|secret|authorization|x-api-key|bearer[_-]?token|auth[_-]?token|private[_-]?key|csrf[_-]?token)\b(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&]+)"""
 )
 _BEARER_CREDENTIAL = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
 
