@@ -105,7 +105,12 @@ def test_editor_shortcuts_yield_to_focused_spinbox(tmp_path, monkeypatch):
         QTest.mouseClick(spin.lineEdit(), Qt.MouseButton.LeftButton)
         APP.processEvents()
         focused=QApplication.focusWidget()
-        assert focused is spin.lineEdit()
+        from fonesi_edit.app import shortcut_focus_policy
+        policy, target = shortcut_focus_policy(focused)
+        # Qt may report the composite spin box or its embedded line edit
+        # depending on platform/style; both must resolve to the same control.
+        assert policy == 'control'
+        assert target is spin
         window.actions['Phát/dừng'].trigger()
         window.actions['Marker'].trigger()
         assert calls == []
