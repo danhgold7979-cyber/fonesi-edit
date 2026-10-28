@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 
-from PySide6.QtCore import Qt,QTimer,QUrl
+from PySide6.QtCore import Qt,QTimer,QUrl,QByteArray
 from PySide6.QtGui import QAction,QKeySequence,QDesktopServices
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QTabWidget,QLabel,QPushButton,
     QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle,
@@ -137,11 +137,63 @@ class MainWindow(QMainWindow):
         self.autosave_timer=QTimer(self);self.autosave_timer.setSingleShot(True);self.autosave_timer.setInterval(700);self.autosave_timer.timeout.connect(self.guard(self.autosave))
         self.editor.changed.connect(lambda:self.autosave_timer.start() if not self._restoring else None)
         self.clock=QTimer(self);self.clock.setInterval(350);self.clock.timeout.connect(self.tick);self.clock.start()
-        self.actions={};self.shortcuts();self.restore();self.automation.start()
+        self.actions={};self.shortcuts();self.restore();self.restore_ui_layout();self.automation.start()
         self.tray=QSystemTrayIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon),self)
         if QSystemTrayIcon.isSystemTrayAvailable():
             menu=QMenu();show=menu.addAction('Mở Fonesi Edit');show.triggered.connect(self.showNormal)
             quit_action=menu.addAction('Thoát hoàn toàn');quit_action.triggered.connect(self.exit_app);self.tray.setContextMenu(menu);self.tray.show()
+
+    def restore_ui_layout(self):
+        """Restore versioned window/editor layout settings; ignore corrupt or stale values."""
+        layout=self.store.setting('ui_layout_v1',{})
+        if not isinstance(layout,dict) or layout.get('version')!=1:
+            return False
+        restored=False
+        geometry=layout.get('geometry')
+        if isinstance(geometry,str) and 0 < len(geometry) <= 16384:
+            try:
+                restored=bool(self.restoreGeometry(QByteArray.fromBase64(geometry.encode('ascii')))) or restored
+            except (ValueError,TypeError,UnicodeError):
+                pass
+        state=layout.get('state')
+        if isinstance(state,str) and 0 < len(state) <= 16384:
+            try:
+                self.restoreState(QByteArray.fromBase64(state.encode('ascii')))
+            except (ValueError,TypeError,UnicodeError):
+                pass
+        nav_index=layout.get('nav_index',0)
+        if isinstance(nav_index,int) and not isinstance(nav_index,bool) and 0 <= nav_index < self.nav.count():
+            self.nav.setCurrentIndex(nav_index)
+            restored=True
+        inspector_index=layout.get('inspector_tab',0)
+        if (isinstance(inspector_index,int) and not isinstance(inspector_index,bool)
+                and 0 <= inspector_index < self.editor.inspector.count()):
+            self.editor.inspector.setCurrentIndex(inspector_index)
+            restored=True
+        sizes=layout.get('editor_splitter_sizes')
+        if (isinstance(sizes,list) and len(sizes)==self.editor.splitter.count()
+                and all(isinstance(value,int) and not isinstance(value,bool) and 0 <= value <= 10000 for value in sizes)
+                and sum(sizes)>0):
+            self.editor.splitter.setSizes(sizes)
+            restored=True
+        return restored
+
+    def persist_ui_layout(self):
+        """Save only UI arrangement; project content remains in project/autosave storage."""
+        try:
+            layout={
+                'version':1,
+                'geometry':bytes(self.saveGeometry().toBase64()).decode('ascii'),
+                'state':bytes(self.saveState().toBase64()).decode('ascii'),
+                'nav_index':self.nav.currentIndex(),
+                'inspector_tab':self.editor.inspector.currentIndex(),
+                'editor_splitter_sizes':[int(value) for value in self.editor.splitter.sizes()],
+            }
+            self.store.set_setting('ui_layout_v1',layout)
+            return True
+        except (OSError,RuntimeError,ValueError,TypeError,sqlite3.Error) as exc:
+            self.message(f'Không lưu được bố cục giao diện: {exc}')
+            return False
 
     def guard(self,callback):
         def wrapped(*args):
@@ -474,7 +526,9 @@ class MainWindow(QMainWindow):
     def exit_app(self):self.force_close=True;self.close()
     def closeEvent(self,event):
         if not self.force_close and self.store.setting('background',False) and self.tray.isSystemTrayAvailable():self.hide();event.ignore();return
-        if not self._shutdown:self.subtitles.persist();self.autosave();self.scheduler.shutdown();self.automation.stop();self._shutdown=True
+        if not self._shutdown:
+            self.persist_ui_layout()
+            self.subtitles.persist();self.autosave();self.scheduler.shutdown();self.automation.stop();self._shutdown=True
         for task in self.tasks:task.cancel.set()
         for task in list(self.pending_tasks):self.pending_tasks.remove(task);self.tasks.remove(task);task.deleteLater()
         if self.tasks or self.scheduler.active:
