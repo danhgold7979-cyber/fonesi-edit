@@ -307,3 +307,33 @@ def test_matrix_ui_angle_usage_summary_labels_planned_not_rendered(tmp_path):
         assert 'C1: G1=1' in window.matrix.summary.text()
     finally:
         close(window)
+
+
+
+def test_matrix_edit_updates_formula_and_non_angle_columns_cannot_be_locked(tmp_path):
+    from PySide6.QtCore import Qt
+    from fonesi_edit.matrix import Angle
+    window=MainWindow(tmp_path/'state')
+    try:
+        scene=[[Angle(1,1,'/fake/a.mp4','a'),Angle(1,2,'/fake/b.mp4','b')],
+               [Angle(2,1,'/fake/c.mp4','c')]]
+        page=window.matrix
+        page.model.replace(scene,[[scene[0][0],scene[1][0]]])
+        formula=page.model.index(0,len(scene)+1)
+        assert page.model.data(formula)=='C1G1+C2G1'
+        updates=[]
+        page.model.dataChanged.connect(lambda start,end: updates.append(
+            (start.column(),end.column())))
+        assert page.model.setData(page.model.index(0,1),'G2')
+        assert page.model.data(formula)=='C1G2+C2G1'
+        assert updates==[(1,len(scene)+1)]
+        assert not page.model.setData(formula,'G1')
+        page.model.locked.add((0,1))
+        assert not page.model.setData(page.model.index(0,1),'G1')
+        assert page.model.data(formula)=='C1G2+C2G1'
+        page.model.locked.clear()
+        page.table.setCurrentIndex(formula)
+        page.lock()
+        assert not page.model.locked
+    finally:
+        close(window)
