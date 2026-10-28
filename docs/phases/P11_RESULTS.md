@@ -13,3 +13,8 @@ Các mục nâng cao còn phải code/kiểm chứng vẫn ở coverage/master; 
 Đã cập nhật `scripts/check_plan.py` để phát hiện mất hoặc trùng nhóm trong 95 yêu cầu, thiếu tên/nguồn/task/tiêu chí nghiệm thu và task không có trong master. Bổ sung `tests/test_plan_contract.py` kiểm tra bản gốc và các trường hợp tài liệu bị thiếu/mapping sai. Đây là kiểm tra **tài liệu truy vết**, không đánh dấu 95 nhóm chức năng đã nghiệm thu. Bộ test P11 mới nhất cần kết quả CI riêng; khi chưa có run PASS thì chưa được ghi cả phase P11 thành công.
 
 **Kết quả kiểm thử P11 validator trên nhánh tổng:** commit `eaed54fa54c0013959c2f552a3d9f8e9676189ff`; [CI 40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919) PASS — 143 tests Linux, 142 Windows + 1 skipped fixture POSIX, packaged proof cả hai hệ PASS. Đã phát hiện/sửa lỗi import trong test mới trước run thành công. Chỉ nghiệm thu validator tài liệu/luồng kiểm thử synthetic, không nghiệm thu toàn bộ 95 nhóm hay live platform.
+
+
+## Regression tích hợp P04/P10 — 28/10/2026
+
+[CI 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) PASS 195 Linux, 194 Windows + 1 skipped POSIX fixture. Source suites và frozen app proof trên cả hai hệ kiểm tra proxy/cache, rendered In–Out loop, thumbnail source FFmpeg, cache quota/protected/symlink và Qt Settings/preview integration. Không phải nghiệm thu đầy đủ 95 nhóm hoặc chứng nhận PC Windows/GPU/Chrome/live source.
