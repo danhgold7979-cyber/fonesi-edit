@@ -26,6 +26,53 @@ def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolera
     return axis(x, width), axis(y, height)
 
 
+def snap_layer_to_peers(x, y, width, height, peers, *, enabled=True, tolerance=.012):
+    """Snap a normalized rectangle to nearby peer edge/centre guides.
+
+    Peer rectangles are (x, y, width, height). Callers exclude self, selected
+    companions, hidden layers and locked layers before passing the peer list.
+    """
+    values = (x, y, width, height, tolerance)
+    if not all(isinstance(value, (int, float)) and not isinstance(value, bool)
+               and math.isfinite(float(value)) for value in values):
+        raise ValueError("Snap geometry must be finite numbers")
+    if width < 0 or height < 0 or tolerance < 0:
+        raise ValueError("Snap dimensions and tolerance must be non-negative")
+    x = max(0.0, min(max(0.0, 1.0 - width), float(x)))
+    y = max(0.0, min(max(0.0, 1.0 - height), float(y)))
+    if not enabled:
+        return x, y
+
+    rectangles = list(peers)
+
+    def nearest_axis(position, span, axis):
+        moving_guides = (0.0, span / 2.0, span)
+        candidates = []
+        for peer in rectangles:
+            if len(peer) != 4:
+                raise ValueError("Peer rectangles must contain x, y, width and height")
+            px, py, pw, ph = peer
+            if not all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                       and math.isfinite(float(value)) for value in peer):
+                raise ValueError("Peer geometry must be finite numbers")
+            if pw < 0 or ph < 0 or px < 0 or py < 0 or px + pw > 1 or py + ph > 1:
+                continue
+            peer_start, peer_span = (px, pw) if axis == 0 else (py, ph)
+            peer_guides = (peer_start, peer_start + peer_span / 2.0, peer_start + peer_span)
+            for moving_offset in moving_guides:
+                for peer_guide in peer_guides:
+                    target = peer_guide - moving_offset
+                    if 0.0 <= target <= max(0.0, 1.0 - span):
+                        distance = abs(target - position)
+                        if distance <= tolerance:
+                            candidates.append((distance, target))
+        if not candidates:
+            return position
+        return min(candidates, key=lambda candidate: (candidate[0], candidate[1]))[1]
+
+    return nearest_axis(x, width, 0), nearest_axis(y, height, 1)
+
+
 def constrained_group_delta(rectangles, dx, dy):
     """Clamp a group translation against its *original* union of rectangles."""
     if not rectangles:
@@ -182,7 +229,18 @@ class Overlay(QGraphicsObject):
             grid = bool(view and view.editor.composition.adjustments.get('canvas_grid', False))
             desired_x, desired_y = snap_layer_position(
                 x + dx, y + dy, w, h, enabled=not disabled, grid=grid)
-            # A single bounded delta keeps companion spacing unchanged.
+            peer_rectangles = [
+                (item.layer.x, item.layer.y, item.layer.width, item.layer.height)
+                for item in self.scene().items()
+                if isinstance(item, Overlay) and item is not self
+                and item not in self.companions and not item.isSelected()
+                and item.layer.visible and not item.layer.locked
+                and not (self.layer.group and item.layer.group == self.layer.group)
+            ]
+            desired_x, desired_y = snap_layer_to_peers(
+                desired_x, desired_y, w, h, peer_rectangles,
+                enabled=not disabled)
+            # One bounded delta preserves the relative positions of companions.
             dx, dy = constrained_group_delta(original_bounds, desired_x - x, desired_y - y)
             self.layer.x, self.layer.y = x + dx, y + dy
             self.setPos(self.layer.x * self.cw, self.layer.y * self.ch)
