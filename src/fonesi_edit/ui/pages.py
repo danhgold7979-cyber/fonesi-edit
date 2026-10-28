@@ -447,13 +447,25 @@ class MatrixModel(QAbstractTableModel):
         if 0<index.column()<=len(self.scenes) and (index.row(),index.column()) not in self.locked:flags|=Qt.ItemFlag.ItemIsEditable
         return flags
     def setData(self,index,value,role=Qt.ItemDataRole.EditRole):
-        if role!=Qt.ItemDataRole.EditRole:return False
+        if (role!=Qt.ItemDataRole.EditRole or not index.isValid()
+                or not (0<=index.row()<len(self.rows))
+                or not (1<=index.column()<=len(self.scenes))
+                or (index.row(),index.column()) in self.locked):
+            return False
         try:
-            number=int(str(value).upper().removeprefix('G'));angle=next(a for a in self.scenes[index.column()-1] if a.index==number)
-            old=self.rows[index.row()][index.column()-1];self.rows[index.row()][index.column()-1]=angle
-            if not self.page.valid_rows():self.rows[index.row()][index.column()-1]=old;raise ValueError('Thay góc vi phạm unique/W/K/history')
-            self.dataChanged.emit(index,index);return True
-        except (ValueError,StopIteration) as exc:self.page.host.message(str(exc));return False
+            number=int(str(value).upper().removeprefix('G'))
+            angle=next(a for a in self.scenes[index.column()-1] if a.index==number)
+            old=self.rows[index.row()][index.column()-1]
+            self.rows[index.row()][index.column()-1]=angle
+            if not self.page.valid_rows():
+                self.rows[index.row()][index.column()-1]=old
+                raise ValueError('Thay góc vi phạm unique/W/K/history')
+            # Formula column depends on every scene cell: refresh together.
+            self.dataChanged.emit(index,self.index(index.row(),len(self.scenes)+1))
+            return True
+        except (ValueError,StopIteration) as exc:
+            self.page.host.message(str(exc))
+            return False
     def replace(self,scenes,rows):
         self.beginResetModel();self.scenes=scenes;self.rows=rows;self.locked=set();self.endResetModel()
 
@@ -537,6 +549,8 @@ class MatrixPage(QWidget):
 
     def lock(self):
         for index in self.table.selectedIndexes():
+            if not index.isValid() or not (1<=index.column()<=len(self.model.scenes)):
+                continue
             key=index.row(),index.column()
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
