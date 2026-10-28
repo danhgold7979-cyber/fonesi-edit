@@ -35,3 +35,17 @@
 ## 5. Cổng còn mở trong P05
 
 Quét nhiều trang nguyên kênh và checkpoint, cây chọn từng bài, ảnh album/carousel theo đúng thứ tự, nâng chất lượng/bổ sung sub chỉ thiếu, account mismatch/OTP khi session live, giới hạn rate/region, mạng/Chrome Windows và bảng capability cho 10 nền tảng đều chưa đủ bằng chứng. Các yêu cầu này phải được giữ nguyên trong traceability và các vòng triển khai tiếp, không tự chuyển sang “giai đoạn sau”. Không tạo public release khi cổng bắt buộc chưa qua.
+
+## 6. Vòng triển khai kế tiếp — Scan → chọn mục → download từng mục (28/10/2026)
+
+Đối chiếu thêm `IMPLEMENTATION_PLAN.md` P05-01/P05-02/P05-03/P05-04/P05-10, `PRODUCT_REQUIREMENTS.md` mục 3.2/3.3, `REQUIREMENTS_TRACEABILITY.md` SRC-01/SRC-03/SRC-04/SRC-06, `ui/pages.py`, `downloads.py`, `storage.py` và test integration. Hiện UI chỉ hiển thị JSON sau scan; người dùng không có cây checkbox/chọn từng mục, dù đặc tả yêu cầu.
+
+**Phạm vi có thể kiểm thử hoàn toàn offline:**
+
+1. Kết quả scan từ yt-dlp/gallery-dl trả thêm `url` có thể download khi metadata thực cung cấp URL HTTP(S) hợp lệ. Không ghi URL chứa userinfo, token, signed query hoặc fragment vào job result; item không thể chọn được phải có lý do cụ thể. Đừng tự suy luận quét toàn bộ nguồn hoặc tự chế ID/URL.
+2. DownloadsPage có bảng/cây mục đã quét, checkbox chọn tất cả/bỏ chọn, thể hiện trạng thái scan incomplete/unknown; không tự tích mục không có URL hợp lệ, không đánh dấu scan complete nếu provider không biết tổng.
+3. Nút `Tải mục đã chọn` tạo *mỗi mục một job download*, kế thừa snapshot `folder/engine/media/account_ref/expected_identity` của chính scan job; không lấy tài khoản mặc định mới hoặc URL không thuộc nền tảng source khi đã gắn account. Chặn tài khoản/URL sai trước khi enqueue; không mặc định chuyển sang public hoặc lặng lẽ tải toàn kênh.
+4. Không thay đổi cơ chế no-overwrite, validation, cancel/retry; job/queue hiện có thực thi tải từng URL và output được kiểm tra. Test Qt offscreen + HTTP localhost cho scan hình/video → chọn một mục → enqueue/download → file thật, và trường hợp signed URL bị từ chối.
+5. Chạy `check_plan`, full tests và frozen proof CI Linux/Windows; ghi P05_RESULTS và coverage/status sau khi có bằng chứng. Khi scan nhiều trang/live account chưa thử, vẫn ghi PENDING.
+
+**Cổng lát cắt:** đường chọn từ scan dùng được, mỗi item chọn có một job với snapshot/account đúng; không lưu URL có query nhạy cảm từ kết quả scan; không khẳng định quét hết kênh. **Cổng mở:** multi-page checkpoint/continuation theo provider, sắp xếp và lọc nâng cao, toàn bộ nền tảng live, album tập hợp và Chrome bridge thực.
