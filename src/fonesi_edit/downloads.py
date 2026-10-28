@@ -106,6 +106,7 @@ def selected_download_payloads(scan_job, indices):
     if not indices or len(set(indices)) != len(indices):
         raise ValueError('Chọn ít nhất một mục không trùng lặp')
     requests = []
+    seen_urls = set()
     for index in indices:
         if type(index) is not int or not 0 <= index < len(entries):
             raise ValueError('Chỉ số nội dung quét không hợp lệ')
@@ -115,6 +116,9 @@ def selected_download_payloads(scan_job, indices):
         url = selectable_scan_url(item.get('url'))
         if not url or item.get('selectable') is False:
             raise ValueError('Mục đã chọn không có URL tải lại an toàn')
+        if url in seen_urls:
+            raise ValueError('URL lặp lại trong các mục đã chọn')
+        seen_urls.add(url)
         item_platform = platform_for(url)
         if original.get('account_ref') and item_platform != source_platform:
             raise PermissionError('Không chuyển phiên tài khoản sang host khác từ kết quả quét')
