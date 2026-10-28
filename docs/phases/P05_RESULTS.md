@@ -26,3 +26,10 @@ Triển khai trên **một nhánh tích hợp** `develop/fonesi-full`, không t�
 - The dedicated repeat-image slice [run 40735733292](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40735733292) also passed: 413 Linux / 412 Windows + 1 intentional skip, packaged proof both systems.
 - Still open: provider pagination/checkpoint, live platform corpus, Chrome/session handoff on a real account, region/permission behavior and Windows user-machine acceptance. P05 is not fully closed.
 
+## P05-03 — Scan result search/filter/sort (28/10/2026)
+
+- Added case-insensitive title/ID search (never URL), media-kind and selectable-state filters, and stable source/title/kind sorting.
+- The 200-row page is now based on the filtered view; selection remains keyed to original scan indices and persists when selected items are temporarily hidden by a filter. Download-selected still validates original URLs, duplicate state, adapter and account snapshot.
+- CI [run 40738678506](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40738678506) **PASS**: 422 Linux / 421 Windows + 1 intentional POSIX-fixture skip; packaged proof passed on both runners.
+- Provider pagination/checkpoint, advanced metadata filters, huge bulk-selection UX, live platform corpus and real Chrome/session acceptance remain open.
+

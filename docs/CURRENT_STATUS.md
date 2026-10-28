@@ -8,7 +8,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain/SQLite/snapshots/worker; backup có integrity/no-overwrite, credential alias checks và error redaction; CI Linux/Windows pass | Soak/crash/power-loss, filesystem không hỗ trợ hard link, installer và nghiệm thu máy Windows người dùng |
 | P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, async thumbnail strip, validated source proxy; peer snap + viewport guides; normalized crop + ratio-lock/anchor tests; Save As + Ctrl+Shift+S; focus-aware Ctrl+A/C/V/X layer clipboard; Escape cancels active drag; latest slices CI Linux/Windows + frozen proof PASS | Rotation metadata/VFR/mixed FPS, HiDPI/4K/seek/audio-sync/long timeline, remaining shortcut/customization cases, remaining P04 tasks and real Windows user-machine acceptance |
-| P05 | yt-dlp/gallery-dl, profile/binding và bridge; scan→cây checkbox/phân trang 200 hàng; selected-download giữ adapter/account snapshot; URL signed/duplicate protection; strict URL/engine/media/limit validation; CookieJar transport fixture; repeated gallery image no-overwrite | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn/filter-sort, region/permission và Windows user-machine acceptance |
+| P05 | yt-dlp/gallery-dl, profile/binding and bridge; scan→checkbox tree/200-row UI pagination; title/ID search, media/selectable filters and stable sorting; selected download preserves adapter/account snapshot; signed/duplicate URL protection; strict URL/engine/media/limit validation; CookieJar transport fixture; repeated gallery-image no-overwrite | Provider pagination/checkpoint, live 10-platform coverage, real Chrome/session identity, region/permission, advanced metadata filters, huge bulk UI and Windows user-machine acceptance |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
 | P08 | Batch nhiều folder local/khử trùng, filter FFprobe duration/short-edge, chọn/đảo/chặn stale; audio mapping/duration solver; SFX giây/%/scene/video **và repeat count/interval FFmpeg + AudioDialog**, music loop crossfade FFmpeg; CI Linux/Windows + frozen PASS | Trigger SFX tùy ý/playlist, metadata codec/FPS/bitrate, corpus lớn/ETA, meter/solo realtime, Windows audio/installer máy đích |
@@ -116,4 +116,10 @@ CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 - Added strict downloader payload type checks before destination creation, a localhost CookieJar test that requires the cookie header, and repeat gallery image tests for unchanged path/content/mtime.
 - CI [40736655575](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40736655575) **PASS**: 421 Linux / 420 Windows + 1 intentional skip; packaged proof passed on both runners.
 - Provider pagination/checkpoint, live platform coverage, real Chrome/session handoff, account/region/permission and user Windows acceptance remain open.
+
+## P05 update — scan result search/filter/sort (28/10/2026)
+
+- Added title/ID search, media-kind and selectable-state filters, and stable source/title/kind sorting. Filtering does not clear selections on hidden pages, and downloads still reference the original scan indices and account snapshot.
+- CI [40738678506](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40738678506) **PASS**: 422 Linux / 421 Windows + 1 intentional skip; packaged proof passed on both runners.
+- Provider-side pagination/checkpoint, live platform/Chrome session, advanced metadata filtering, huge bulk-selection and real Windows acceptance remain open.
 
