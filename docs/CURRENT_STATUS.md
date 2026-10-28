@@ -12,7 +12,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
 | P08 | Folder dry-run, output kênh, duration solver/loop/freeze và audio shared/by_name/ordered/random theo seed, UI chọn audio folder; source/packaged CI Linux/Windows PASS | SFX theo cảnh/phần trăm, music crossfade/solo/meter realtime, corpus lớn, Windows user audio |
-| P09 | Lazy matrix, W/K/history/reservations/CSV/rows | Solver constraints lớn, thao tác tất cả kiểu khóa |
+| P09 | Lazy matrix, W/K/history/lock, **regenerate một hàng** không đổi hàng khác, thống kê usage, formula sync; **weights/manual seconds** và speed bounds từ UI đến render; CI/frozen Linux/Windows PASS | Stress solver ma trận lớn, reorder cảnh/locks nâng cao và Windows/exFAT thực |
 | P10 | Workflow/watch/schedule, metrics/admission/tools | Installer/auth/driver Windows thực tế |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
 | P12 | Script/build app + native host; frozen proof Linux/Windows CI đã đạt | Cài đặt/rollback, máy Windows người dùng, Chrome/GPU/HiDPI/audio và nghiệm thu release còn mở |
@@ -36,3 +36,7 @@ CI P02: [run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/acti
 ## Cập nhật P08: âm thanh theo video (28/10/2026)
 
 [CI 40642781347](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40642781347) PASS: **166 test Linux, 165 test Windows + 1 skip**, binary packaged proof hai hệ PASS. Thêm policy một audio chung/trùng tên/theo danh sách/ngẫu nhiên seed có dry-run mapping và audio track thật được FFprobe kiểm trước; không thay preset, không ghi đè nguồn. SFX/music crossfade/meters và thử nghiệm Windows trên máy người dùng vẫn mở. Xem [P08_RESULTS](phases/P08_RESULTS.md).
+
+## P09 — Kết quả nâng cấp ma trận (28/10/2026)
+
+[CI 40645339209](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40645339209) PASS **180 Linux / 179 Windows + 1 skip**, packaged proof hai hệ đạt. Đã code tạo lại riêng hàng không vi phạm W/K/history/lock, thống kê tần suất góc, ô nhập thời lượng cảnh theo weights hoặc số giây nhập tay, speed bounds trong Matrix UI, truyền chính xác đến solver và render. Chưa khép cổng Windows/exFAT thực tế, reorder cảnh UI và solver quy mô lớn. Chi tiết [P09_RESULTS](phases/P09_RESULTS.md).

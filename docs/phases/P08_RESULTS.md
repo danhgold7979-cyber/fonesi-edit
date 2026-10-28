@@ -16,3 +16,7 @@ Vòng tích hợp thêm video defaults riêng cho lô/ma trận (trim/speed/flip
 **Bằng chứng:** [GitHub Actions run 40642781347](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40642781347) PASS: **Linux 166 tests**, **Windows 165 tests + 1 skip** (fixture POSIX-only), packaged application/native-host/frozen proof Linux và Windows đều PASS. Đây là test offline có tạo media synthetic và chạy FFmpeg thật; không phải nghiệm thu loa/audio realtime trên máy sử dụng.
 
 **Còn mở P08:** ghép audio theo playlist nhập tay nhiều nguồn hơn một folder, SFX placement theo cảnh/% thời lượng, meter/clipping realtime, music loop crossfade, nghe solo độc lập, ước lượng dung lượng/ETA với corpus lớn, benchmark và trải nghiệm Windows máy người dùng. Không đánh dấu toàn bộ P08 hoàn tất.
+
+## P08/P09 — duration solver: số giây cảnh nhập tay
+
+Bổ sung `allocation='manual'` và `manual_durations` vào `fit_duration` dùng chung: số giây từng cảnh dương/hữu hạn, tổng sau transition đúng target, giới hạn speed/trim được kiểm trước render; lệnh thiếu hoặc không khả thi báo lỗi, không rơi vào proportional. Vừa có option `weights` vừa có `manual` ở Matrix UI, không thay Batch mặc định. [CI 40645339209](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40645339209) PASS Linux/Windows và frozen proof. SFX theo cảnh/audio timeline nâng cao vẫn mở.

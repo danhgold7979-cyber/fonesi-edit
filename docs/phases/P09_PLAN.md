@@ -41,7 +41,7 @@ Kiểm tra trực tiếp trong MatrixModel: thay G ở một ô hiện chỉ ph�
 
 ### P09-05 — Trọng số thời lượng theo từng cảnh trong UI
 
-Master `P09-05`/MAT-06 yêu cầu chia đều, tỷ lệ, trọng số hoặc nhập tay. Backend `fit_duration` đã giải trọng số chuẩn, nhưng MatrixPage chỉ có 2 lựa chọn tỷ lệ/đều; `row_composition` chưa chuyển `weights` tới solver. Thêm chế độ `weights` trong UI và ô nhập vector cho từng cảnh, kiểm tra số lượng bằng số scene, số hữu hạn và dương; chuyển snapshot vào `row_composition` và `enqueue_rows` để preview và render cùng duration solver. Test offline giá trị hợp lệ/thất bại với 2 cảnh và audio fixture thật, giữ tự động phân đoạn an toàn. **Nhập tay thời lượng giây/cảnh** là cổng riêng nếu chưa làm; không tự nhận là đã xong P09-05.
+Master `P09-05`/MAT-06 yêu cầu chia đều, tỷ lệ, trọng số hoặc nhập tay. Backend `fit_duration` đã giải trọng số chuẩn, nhưng MatrixPage chỉ có 2 lựa chọn tỷ lệ/đều; `row_composition` chưa chuyển `weights` tới solver. Thêm chế độ `weights` trong UI và ô nhập vector cho từng cảnh, kiểm tra số lượng bằng số scene, số hữu hạn và dương; chuyển snapshot vào `row_composition` và `enqueue_rows` để preview và render cùng duration solver. Test offline giá trị hợp lệ/thất bại với 2 cảnh và audio fixture thật, giữ tự động phân đoạn an toàn. Bản vòng sau đã bổ sung nhập tay thời lượng giây/cảnh; tiêu chí và bằng chứng ở phần 5.
 
 ### P09-05 — Nhập thời lượng giây cho từng cảnh
 
@@ -50,3 +50,14 @@ Bổ sung tùy chọn `manual` riêng với `weights`: vector thời lượng (g
 ### P09-05 — Giới hạn speed cùng UI với thời lượng từng cảnh
 
 `MatrixPage` chưa có min/max speed riêng dù solver hỗ trợ. Thêm hai spinbox 0.1–10 giống BatchPage; preview/queued render truyền cùng snapshot giới hạn vào `row_composition` và `enqueue_rows`. Kiểm tra min lớn hơn max trong worker (solver báo không khả thi). Test UI và output theo giới hạn. Mặc định 0.5–2 giữ tương thích.
+
+## 5. Kết quả nghiệm thu lát cắt P09-04/P09-05
+
+- [x] Chỉ thay hàng chọn; lock, W/K của toàn bộ chuỗi và history giữ đúng; nếu không tìm được trong budget không tự nới.
+- [x] UI background kiểm tra cảnh/hàng/lock/setting/history thay đổi trước khi apply; test Qt offscreen và cancel.
+- [x] Chỉnh sửa ô cập nhật formula, chỉ cột góc được khóa; bảng thống kê góc có cả tần suất 0.
+- [x] Weighted và manual seconds per-scene, min/max speed trong UI, preview/render dùng cùng duration solver và audio target; FFmpeg output thật được test.
+- [x] [CI 40645339209](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40645339209) source tests Linux/Windows và frozen proof đều PASS.
+- [ ] Nghiệm thu hoàn chỉnh toàn P09 cần scene reorder UI, corpus lớn, UX nhiều tổ hợp/locks nâng cao và Windows/exFAT/power-loss trên máy người dùng.
+
+Đây là **lát cắt đạt theo kiểm thử offline/CI**, không phải đóng toàn bộ phase. Theo `IMPLEMENTATION_PLAN.md`, không thay checklist P09-[01…06] thành hoàn tất khi vẫn thiếu cổng trên.
