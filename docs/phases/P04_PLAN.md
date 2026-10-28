@@ -77,3 +77,17 @@ Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ t�
 **Kiểm tra:** `uv run python scripts/check_plan.py`, `uv run pytest -q`, sau đó CI source + frozen proof Linux/Windows. Không ghi pass cho đến khi đọc kết quả của commit mới.
 
 **Không thuộc lát cắt:** crop bằng tay nắm và preview/export crop parity; các mục này tiếp tục mở trong coverage/master cho phase kế tiếp.
+
+
+## 9. P04-02 — Crop thủ công theo nguồn video (28/10/2026)
+
+**Đối chiếu trước code:** `EDITOR_SPEC.md` yêu cầu khung crop có tay nắm, tỷ lệ khóa và xác nhận/hủy; `REQUIREMENTS_TRACEABILITY.md` ED-02/ED-16 yêu cầu crop có thể lặp lại ở các độ phân giải. Hiện `Clip` chỉ có trim/speed/flip/rotation, `ClipDialog` chưa lưu vùng crop và `compile_graph` chỉ có fit/crop toàn khung.
+
+**Phạm vi lát cắt:**
+1. Thêm vùng crop chuẩn hóa theo nguồn video `x/y/width/height` (0–1), mặc định toàn khung để giữ tương thích project cũ. Validate hữu hạn, dương, không vượt khung; không thay đổi đường trim/time map.
+2. Thêm `CropDialog` với frame nguồn thật, lớp phủ tối bên ngoài vùng crop, tay nắm 8 cạnh/góc, kéo cả vùng, lưới căn chỉnh và checkbox khóa tỷ lệ theo tỷ lệ pixel của crop hiện tại. Hủy không sửa project; OK chỉ cập nhật bản nháp ClipDialog.
+3. Thêm filter FFmpeg crop trước flip/rotate/fit, đổi vùng chuẩn hóa sang pixel theo kích thước nguồn đã probe, bảo đảm tọa độ/kích thước chẵn an toàn cho yuv420p. Giữ output size, audio, subtitle timing và nguồn nguyên vẹn.
+4. Thêm test domain cho crop thiếu/biên/sai, helper hình học cho kéo/resize/khóa tỷ lệ, UI round-trip/cancel và render thật có crop. Project cũ không có trường crop phải tiếp tục load.
+5. Chạy check-plan, toàn bộ pytest, build + frozen proof Linux/Windows. Chỉ ghi kết quả sau khi CI hoàn tất.
+
+**Ngoài phạm vi lát cắt:** crop từng layer ảnh/logo và crop export preview parity cho mọi tổ hợp rotation/VFR; nếu còn thiếu sẽ ghi rõ ở coverage thay vì đánh dấu ED-02/ED-16 đã hoàn tất.
