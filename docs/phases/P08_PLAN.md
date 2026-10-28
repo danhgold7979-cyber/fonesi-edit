@@ -57,3 +57,12 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 5. Unit tests ranh giới và các mốc có transition, trim, duration; test FFmpeg render SFX từ audio fixture ở giây chỉ định (đo sự xuất hiện âm thanh bằng PCM); Qt offscreen dialog round-trip/invalid. Cần pass check_plan, suite Linux/Windows và frozen proof. Cổng ngoài vẫn mở: music crossfade, SFX repeat/multiple-placement UI nâng cao, kiểm chứng hệ loa Windows/HiDPI, realtime meter.
 
 **Nghiệm thu lát cắt:** một track SFX có thể chọn mốc tuyệt đối, theo %, trước cuối video, sau đầu cảnh hoặc trước cuối cảnh; onset đúng sau thay đổi speed/transition; output thực có âm đúng vị trí, config sai báo lỗi, không thay đổi các track cũ. CI hai hệ phải đạt. Không suy ra đã hoàn tất mọi lựa chọn âm thanh P08.
+
+## Vòng P08-01 — Lọc và chọn file hàng loạt trong BatchPage (28/10/2026)
+
+**Rà lại phạm vi:** master P08-01/P08-02, PRODUCT_REQUIREMENTS mục 5 yêu cầu cây checkbox, tìm kiếm/lọc, chọn tất cả/bỏ chọn/đảo chọn. BatchPage đã có cây checkbox và chỉ lấy tệp được chọn để batch_plan nhưng không có tìm/lọc hoặc nút thao tác nhanh. Điểm nguy hiểm: danh sách đã chọn có thể đổi sau khi lập kế hoạch mà `self.plans` vẫn lưu kế hoạch cũ.
+
+1. Thêm tìm theo tên file/kênh, lọc theo đuôi video, điều khiển chọn/bỏ/đảo **các mục đang hiển thị**. Lọc chỉ ẩn/hiện, tuyệt đối không xóa nguồn hoặc tự thay checkbox của file không hiển thị.
+2. Sau chỉnh checkbox/scan folder mới phải hủy kế hoạch dry-run cũ và yêu cầu người dùng bấm Lập kế hoạch lại trước Preview/Chạy toàn bộ. Hiển thị số file đang được chọn / tổng; không âm thầm chạy kế hoạch stale.
+3. Parent checkbox vẫn giữ Qt tristate theo con; chỉ thao tác lên leaf file khi chọn hiển thị; test Qt offscreen gồm search, extension filter, chọn/đảo, file ẩn vẫn giữ trạng thái và invalidation của plan.
+4. CI Linux/Windows full suite, frozen proof và ghi kết quả P08_RESULTS/COVERAGE sau khi PASS. Bộ lọc theo metadata độ dài/độ phân giải và phân trang nguồn rất lớn vẫn còn mở, không gắn đủ P08-01.
