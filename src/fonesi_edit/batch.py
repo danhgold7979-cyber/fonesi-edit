@@ -87,6 +87,30 @@ def scan_folders(root:Path):
     return groups
 
 
+
+def scan_multiple_folders(roots):
+    """Merge channel-aware recursive scans without duplicating overlapping files."""
+    roots=list(roots)
+    if not roots:
+        raise ValueError('Chọn ít nhất một thư mục nguồn để quét')
+    combined={}
+    seen_roots=set()
+    seen_files=set()
+    for value in roots:
+        root=Path(value).expanduser().resolve()
+        if root in seen_roots:
+            continue
+        seen_roots.add(root)
+        for channel,paths in scan_folders(root).items():
+            for value in paths:
+                path=Path(value).resolve()
+                if path in seen_files:
+                    continue
+                seen_files.add(path)
+                combined.setdefault(channel,[]).append(str(path))
+    return combined
+
+
 def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximum=2,allocation='proportional',weights=None,manual_durations=None):
     if not math.isfinite(target) or target<=0 or not .1<=minimum<=maximum<=10:raise ValueError('Invalid target/speed bounds')
     if policy not in {'speed','trim','loop','freeze'}:
