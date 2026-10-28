@@ -36,3 +36,16 @@ Nền hiện có: Qt/PySide6, canvas/inspector, lựa chọn nhiều layer, undo
 ## 5. Phạm vi còn mở, không tự đổi thành PASS
 
 Crop bằng tay nắm và tương tác đủ chín điểm neo, proxy chất lượng, timeline thumbnail strip, preview loop đoạn, mọi phím tắt, benchmark trên Windows/HiDPI và đối chiếu từng hiệu ứng với exporter còn phải theo dõi trong `IMPLEMENTATION_COVERAGE.md`. Tiếp tục mã P05–P12 theo master plan sau khi phần P04 có test mà không chờ live platform/API/GPU không liên quan.
+
+## 6. Vòng triển khai tiếp — ED-17/18: thumbnail timeline và loop đoạn (28/10/2026)
+
+Đã đối chiếu lại master `IMPLEMENTATION_PLAN.md` P04-05/P04-06, `EDITOR_SPEC.md` mục timeline/preview, `REQUIREMENTS_TRACEABILITY.md`, `ui/editor.py`, `ui/timeline.py`, `app.py` (playback preview dựng qua compositor), `prototypes/media.py`, `waveform.py` và tests. `P04_RESULTS`/coverage xác nhận thumbnail strip và preview loop đoạn vẫn mở.
+
+**Lát cắt triển khai:**
+
+1. Loop In–Out có bật/tắt trong Editor, chỉ thực hiện seek vòng khi player đang phát **bản preview đã render bằng chính compositor** của composition hiện tại. Không đưa người dùng tới thời điểm sai của file nguồn nếu clip đã trim/speed/transition. Kiểm tra In/Out dương, `out > in`, nằm trong độ dài composition; không thay đổi nguồn, project hay output. Preview sau chỉnh sửa được đánh dấu stale; yêu cầu dựng lại, không chạy loop âm thầm trên bản cũ.
+2. Timeline thumbnail là tính năng tùy chọn, checkbox menu bật/tắt lưu trong `Composition.adjustments`. Khi bật, tạo tối đa một số frame/clip (3) qua FFmpeg, theo `clip.start/end`, chỉ với file nguồn local; scale nhỏ, cache theo path/stat/trim/speed, publish atomic, kiểm tra đầu ra, cancel/time budget. Tạo trong task nền, chỉ xếp tối đa số clip đang hiển thị để tránh queue vô hạn; không thay đổi input media hoặc FFmpeg output graph.
+3. Timeline vẽ các thumbnail lên clip row từ cache; không truy cập FFmpeg trên UI thread. Khi trim/nguồn thay đổi, cache identity thay đổi. Làm rõ đây là source thumbnail trước transform/compositor, **không** gọi là preview/export parity.
+4. Test unit giới hạn loop, thumbnail time-map/identity, PNG thật/không đổi nguồn, Qt offscreen thumbnail tiles/toggle undo và không tạo thumbnail khi tắt. CI full regressions + frozen proof Linux/Windows, chỉ ghi PASS phần có evidence.
+
+**Cổng còn mở:** proxy Nhanh/Cân bằng/Cao và cancellation/invalidation đủ chiến lược, long timeline 4K/HiDPI trên máy người dùng, audio/video sync trong các trường hợp VFR và crop handles/safe areas chưa đủ.
