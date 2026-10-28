@@ -1082,3 +1082,47 @@ def test_ui_layout_restore_ignores_corrupt_or_out_of_range_settings(tmp_path):
     assert len(window.editor.splitter.sizes()) == 3
     close(window)
 
+def test_editor_global_shortcuts_are_suppressed_only_during_ime_preedit(tmp_path, monkeypatch):
+    from PySide6.QtGui import QInputMethodEvent
+    window = MainWindow(tmp_path / "state")
+    window.show()
+    window.nav.setCurrentWidget(window.editor)
+    window.editor.add_layer("text")
+    field = window.editor.fields["text"][0]
+    field.setFocus()
+    APP.processEvents()
+    calls = []
+    monkeypatch.setattr(window, "guard", lambda callback: lambda: calls.append(callback))
+    try:
+        APP.sendEvent(field, QInputMethodEvent("拼音", []))
+        assert window.ime_composition_active(field)
+        window.actions["Cài đặt"].trigger()
+        assert calls == []
+
+        APP.sendEvent(field, QInputMethodEvent("", []))
+        assert not window.ime_composition_active(field)
+        window.actions["Cài đặt"].trigger()
+        assert len(calls) == 1
+    finally:
+        close(window)
+
+
+def test_ime_preedit_state_clears_when_focus_leaves_composing_widget(tmp_path):
+    from PySide6.QtGui import QInputMethodEvent
+    window = MainWindow(tmp_path / "state")
+    window.show()
+    window.nav.setCurrentWidget(window.editor)
+    window.editor.add_layer("text")
+    field = window.editor.fields["text"][0]
+    field.setFocus()
+    APP.processEvents()
+    try:
+        APP.sendEvent(field, QInputMethodEvent("拼音", []))
+        assert window.ime_composition_active(field)
+        window.property_search.setFocus()
+        APP.processEvents()
+        assert window._ime_composing_widget is None
+        assert not window.ime_composition_active(field)
+    finally:
+        close(window)
+
