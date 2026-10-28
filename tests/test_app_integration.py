@@ -1130,3 +1130,74 @@ def test_ime_preedit_state_clears_when_focus_leaves_composing_widget(tmp_path):
     finally:
         close(window)
 
+def test_scan_search_filter_sort_preserves_original_selection_and_safe_urls(tmp_path):
+    from PySide6.QtCore import Qt
+    window = MainWindow(tmp_path / "state")
+    window.scheduler.paused = True
+    try:
+        payload = {
+            "url": "https://example.test/gallery",
+            "folder": str(tmp_path / "output"),
+            "engine": "gallery",
+            "media": "both",
+        }
+        scan_id = window.store.submit("scan", payload)
+        window.store.claim(allowed={"scan"})
+        items = [
+            {"id": "z1", "title": "Zebra cover", "kind": "images", "engine": "gallery",
+             "url": "https://example.test/media/z.png", "selectable": True},
+            {"id": "a2", "title": "Alpha trailer", "kind": "video", "engine": "video",
+             "url": "https://example.test/media/a.mp4", "selectable": True},
+            {"id": "a3", "title": "Alpha still", "kind": "images", "engine": "gallery",
+             "url": "https://example.test/media/a.png", "selectable": True},
+            {"id": "dup", "title": "Alpha duplicate", "kind": "images", "engine": "gallery",
+             "url": "https://example.test/media/a.png", "selectable": True},
+            {"id": "bad", "title": "Hidden unsafe", "kind": "images", "engine": "gallery",
+             "url": None, "selectable": False, "reason": "No safe URL"},
+        ]
+        window.store.finish(scan_id, {
+            "platform": "Generic", "items": items, "count": len(items), "complete": None
+        })
+        downloads = window.downloads
+        downloads.scan_page_size = 2
+        downloads.show_scan()
+
+        downloads.scan_search.setText("alpha")
+        APP.processEvents()
+        root = downloads.scan_tree.topLevelItem(0)
+        assert root.childCount() == 2
+        assert [root.child(i).data(0, Qt.ItemDataRole.UserRole) for i in range(2)] == [1, 2]
+        root.child(0).setCheckState(0, Qt.CheckState.Checked)  # original index 1
+
+        downloads.scan_kind_filter.setCurrentIndex(downloads.scan_kind_filter.findData("images"))
+        APP.processEvents()
+        root = downloads.scan_tree.topLevelItem(0)
+        assert [root.child(i).data(0, Qt.ItemDataRole.UserRole) for i in range(root.childCount())] == [2, 3]
+        assert len(downloads.scan_selected[scan_id]) == 1  # hidden selected video is retained
+
+        downloads.scan_kind_filter.setCurrentIndex(downloads.scan_kind_filter.findData("unselectable"))
+        APP.processEvents()
+        root = downloads.scan_tree.topLevelItem(0)
+        assert root.childCount() == 1
+        assert root.child(0).data(0, Qt.ItemDataRole.UserRole) == 3
+        assert not (root.child(0).flags() & Qt.ItemFlag.ItemIsUserCheckable)
+        assert "URL trùng" in root.child(0).text(2)
+
+        downloads.scan_search.clear()
+        downloads.scan_kind_filter.setCurrentIndex(downloads.scan_kind_filter.findData("all"))
+        downloads.scan_sort.setCurrentIndex(downloads.scan_sort.findData("title"))
+        APP.processEvents()
+        root = downloads.scan_tree.topLevelItem(0)
+        assert [root.child(i).data(0, Qt.ItemDataRole.UserRole) for i in range(root.childCount())] == [3, 2]
+        downloads.change_scan_page(1)
+        root = downloads.scan_tree.topLevelItem(0)
+        assert root.child(0).data(0, Qt.ItemDataRole.UserRole) == 1
+        assert root.child(0).checkState(0) == Qt.CheckState.Checked
+        downloads.download_selected()
+        jobs = [job for job in window.store.jobs() if job["kind"] == "download"]
+        assert len(jobs) == 1
+        assert jobs[0]["payload"]["url"] == "https://example.test/media/a.mp4"
+        assert jobs[0]["payload"]["engine"] == "video"
+    finally:
+        close(window)
+
