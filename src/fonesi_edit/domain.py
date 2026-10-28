@@ -191,6 +191,20 @@ class Composition:
                 if not isinstance(value,(int,float)) or not math.isfinite(value) or value<0 or key=='volume' and value>4:raise ValueError('Invalid audio '+key)
             end=track.get('trim_end')
             if end is not None and (not math.isfinite(end) or end<=track.get('trim_start',0)):raise ValueError('Invalid audio trim end')
+            placement=track.get('placement','absolute')
+            if placement not in {'absolute','percent','video_end','scene_start','scene_end'}:
+                raise ValueError('Invalid SFX placement')
+            if placement!='absolute' and track.get('mode','music')!='sfx':
+                raise ValueError('Relative placement is only available for SFX')
+            if placement=='percent':
+                position=track.get('position_pct')
+                if (type(position) not in (int,float) or not math.isfinite(position)
+                        or not 0<=position<=100):
+                    raise ValueError('SFX position percentage must be in 0–100')
+            if placement in {'scene_start','scene_end'}:
+                number=track.get('scene_index')
+                if type(number) is not int or not 1<=number<=len(self.clips):
+                    raise ValueError('SFX scene index must reference an existing clip (1-based)')
         ids = [item.id for item in [*self.clips, *self.layers]]
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate clip/layer IDs")
