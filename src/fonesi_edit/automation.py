@@ -18,9 +18,13 @@ _GPU={'data':None,'checked':0,'busy':False}
 def update_gpu():
     try:
         executable=shutil.which('nvidia-smi')
-        if not executable:return
+        if not executable:
+            _GPU['data']=None
+            return
         result=subprocess.run([executable,'--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=2)
-        if result.returncode:return
+        if result.returncode:
+            _GPU['data']=None
+            return
         rows=list(csv.reader(result.stdout.splitlines()))
         _GPU['data']=[{'name':r[0].strip(),'percent':float(r[1]),'used_mib':float(r[2]),'total_mib':float(r[3]),'temperature':float(r[4])} for r in rows if len(r)==5]
     except (OSError,ValueError,subprocess.TimeoutExpired):_GPU['data']=None
@@ -36,6 +40,8 @@ def metrics(path):
 
 
 def recommended_parallel(data,profile='balanced'):
+    if profile not in {'quiet','balanced','max'}:
+        raise ValueError('Unknown resource profile; choose quiet, balanced or max')
     if data['ram_available']<1024**3 or data['disk_free']<256*1024**2 or data.get('cpu_percent',0)>=97:return 0
     cap=1 if profile=='quiet' else 2 if profile=='balanced' else max(1,data['cores']-1)
     return max(1,min(cap,max(1,int(data['ram_available']/(2*1024**3))),max(1,data['cores']//2)))
@@ -61,7 +67,9 @@ class Automation:
     def loop(self):
         while not self.stop_event.wait(3):
             try:self.tick()
-            except Exception as exc:self.errors=(self.errors+[str(exc)[-400:]])[-20:]
+            except Exception as exc:
+                from .worker import sanitize_error_message
+                self.errors=(self.errors+[sanitize_error_message(exc,limit=400)])[-20:]
     def tick(self):
         self.watch();self.schedules();self.completed_downloads()
     def watch(self):
