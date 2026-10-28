@@ -152,13 +152,13 @@ class MainWindow(QMainWindow):
         geometry=layout.get('geometry')
         if isinstance(geometry,str) and 0 < len(geometry) <= 16384:
             try:
-                restored=bool(self.restoreGeometry(QByteArray.fromBase64(geometry.encode('ascii')))) or restored
+                restored=bool(self.restoreGeometry(QByteArray.fromBase64(QByteArray(geometry.encode('ascii'))))) or restored
             except (ValueError,TypeError,UnicodeError):
                 pass
         state=layout.get('state')
         if isinstance(state,str) and 0 < len(state) <= 16384:
             try:
-                self.restoreState(QByteArray.fromBase64(state.encode('ascii')))
+                self.restoreState(QByteArray.fromBase64(QByteArray(state.encode('ascii'))))
             except (ValueError,TypeError,UnicodeError):
                 pass
         nav_index=layout.get('nav_index',0)
