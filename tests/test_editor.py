@@ -88,7 +88,8 @@ def test_canvas_snap_uses_layer_centre_and_supports_alt_override():
     assert snap_layer_position(.396,.405,.2,.2,enabled=False)==(.396,.405)
     assert snap_layer_position(.054,.749,.2,.2)==(.05,.75)
     # The grid snaps on the same normalized basis as canvas coordinates.
-    assert snap_layer_position(.101,.301,.2,.2,grid=True)==(.1,.3)
+    grid_x, grid_y = snap_layer_position(.101,.301,.2,.2,grid=True)
+    assert abs(grid_x-.1)<1e-9 and abs(grid_y-.3)<1e-9
 
 
 def test_group_translation_clamps_original_union_not_member_positions():
