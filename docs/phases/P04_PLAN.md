@@ -112,3 +112,8 @@ Phạm vi giao diện tiếp theo: hiển thị frame nguồn, overlay ngoài v�
 5. Chạy `scripts/check_plan.py`, toàn bộ pytest, build và frozen proof Linux/Windows; chỉ ghi kết quả sau CI.
 
 **Ngoài phạm vi:** remap theo từng workspace/profile, tổ hợp nhiều bước và các phím tùy biến theo thiết bị. Không đổi phím mặc định nếu không cần thiết.
+
+
+### Kết quả P04-02/P04-03 — Crop source (28/10/2026)
+
+CI [40686663256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40686663256) PASS: 262 Linux, 261 Windows + 1 skip; packaged proof hai hệ PASS. Test có crop geometry/pixel bounds, render FFmpeg thật, preview pixel, drag Qt, cancel và Undo. Tách riêng các cổng crop ratio/rotation metadata/VFR/HiDPI/4K/Windows máy người dùng; không đánh dấu hoàn tất toàn bộ P04.

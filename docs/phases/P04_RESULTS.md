@@ -18,3 +18,14 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 **CI xác nhận:** [run 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637), Linux **195 passed**, Windows **194 passed + 1 skipped** (POSIX fixture); cả hai build app/native host và frozen proof localhost/render/Qt đạt.
 
 **Cổng còn mở:** crop handles/chín anchor đầy đủ, HiDPI/4K/VFR/seek/audio-sync/timeline dài trên Windows người dùng, parity mọi hiệu ứng, shortcut focus/IME. Đây là lát cắt đạt CI offline, **không phải P04 nghiệm thu toàn bộ**.
+
+
+## P04-02/P04-03 — Crop model, FFmpeg pipeline and interactive source crop (28/10/2026)
+
+- [x] Clip stores normalized crop coordinates; old project payloads default to full-frame crop.
+- [x] Domain validation rejects non-finite, non-positive and out-of-frame crop rectangles.
+- [x] FFmpeg converts normalized source coordinates into even-pixel crop geometry before flip/rotation/fit; real export retains requested output dimensions.
+- [x] CropDialog shows a real source frame, darkens only the area outside the crop, draws a thirds grid and eight handles, supports dragging the crop, reset/center, ratio-lock control, and Cancel/Accept flow back to ClipDialog.
+- [x] Crop values commit through the existing editor snapshot, so Undo restores the prior crop.
+- [x] CI [run 40686663256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40686663256) PASS: **262 tests Linux; 261 Windows + 1 POSIX-only skip**. Both runners passed production desktop/native-host build and frozen packaged proof. Added tests cover legacy project compatibility, invalid crop bounds, odd-dimension even-pixel geometry, FFmpeg filter order and real render, crop preview pixels, Qt drag, cancel and Undo.
+- [ ] Still open: full handle/ratio-lock edge-case matrix, rotated-metadata/VFR/HiDPI/4K and long-timeline testing on real Windows user machines. This is evidence for the crop slice only, not completion of all P04 tasks.
