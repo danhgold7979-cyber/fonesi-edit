@@ -81,3 +81,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40726135615](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40726135615) **PASS**: 398 Linux tests; 397 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: custom arbitrary numeric spacing beyond presets, guide priority in dense overlaps, HiDPI and real Windows acceptance. This increment does not mark all of P04 complete.
 
+## P04-02 — Custom numeric grid spacing (28/10/2026)
+
+- Added a custom percentage option (1–50%) alongside 5%, 10%, and 20% presets. The custom value persists in the existing project adjustment, supports Undo/Redo, and appears in the menu when active.
+- Grid drawing now uses the same normalized step as snapping, including non-divisor values such as 7%; unsupported or invalid values safely fall back to 5%.
+- CI [run 40728076508](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40728076508) **PASS**: 403 Linux tests; 402 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: dense-overlap guide priority, physical Windows/HiDPI/4K acceptance, and the remaining P04/P12 gates. This increment does not mark all of P04 complete.
+
