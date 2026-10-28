@@ -95,3 +95,13 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 3. Gắn revision token cho callback metadata; thay folder hoặc quét lại vô hiệu hóa metadata, callback cũ không được ghi đè. Trong lúc bộ lọc chưa áp dụng xong hoặc khoảng giây sai, không cho tạo dry-run mới như thể đã lọc xong.
 4. Test media thật/corrupt qua FFprobe, Qt offscreen với duration/resolution, source đổi/callback ngoài thứ tự, checkbox và invalid interval; chạy check_plan, full suite, CI Linux/Windows + packaged proof.
 5. Chỉ nghiệm thu lát cắt khi cả hai hệ PASS; nghiệm thu P08 toàn diện vẫn mở cho corpus rất lớn/hiệu năng, metadata chuyên sâu, music crossfade, meter/solo, packaging Windows và live sources.
+
+## P08-04 — Nhạc nền lặp có crossfade thực trong FFmpeg (28/10/2026)
+
+**Đối chiếu master:** P08-03 (track/gain/fade/loop), P08-04 (nhạc lặp chuyển tiếp), P08-06 (audio crossfade và time map), `PRODUCT_REQUIREMENTS.md` §6; render hiện đang `-stream_loop` hoặc `aloop`, có thể sinh điểm nối cứng không mượt. Không nhầm với `acrossfade` giữa các clip video vốn đã có.
+
+1. Trường tùy chọn `loop_crossfade` (giây, mặc định 0) **chỉ** cho track `mode=music` + `loop=true`; validate hữu hạn, khoảng 0–10, và độ dài mẫu phải đủ để xfade; 0 giữ hành vi cũ.
+2. FFmpeg compositor tạo số lần lặp hữu hạn theo timeline đầu ra/offset và chiều dài mẫu, dùng `asplit` và nối `acrossfade` tại mỗi điểm lặp. Không tự đổi sang lặp cứng nếu cấu hình vượt giới hạn; chỉ apply volume/gain/fade/delay **sau** khi nối để không tạo fade ở mọi bản sao.
+3. AudioDialog thêm ô crossfade ở cuối bảng, giữ nguyên chỉ số/cấu trúc các ô cũ; round-trip đúng preset, hiển thị lỗi nếu nhập vào main/SFX hoặc không bật loop.
+4. Regression: domain rejects NaN/negative/nonmusic/bounds, compile_graph chứa xfade, render FFmpeg video+audio thật và GUI round-trip; full CI Linux/Windows/frozen proof.
+5. Cổng chưa khép: metre/clipping realtime, SFX nhiều-trigger trong UI, playlist dài, benchmark nhạc dài/corpus, loa thực trên Windows/installer. Không ghi PASS trước khi CI hoàn tất.
