@@ -106,28 +106,9 @@ class Store:
         finally:
             conn.close()
 
-    @staticmethod
-    def _backup_connection(source, destination: Path):
-        destination = Path(destination)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
-            raise FileExistsError(destination)
-        fd, temporary = tempfile.mkstemp(prefix=".fonesi-backup-", suffix=".db", dir=destination.parent)
-        os.close(fd)
-        try:
-            with sqlite3.connect(temporary) as target:
-                source.backup(target)
-                integrity = target.execute("PRAGMA integrity_check").fetchone()[0]
-                if integrity != "ok":
-                    raise sqlite3.DatabaseError("Backup integrity check failed")
-            # Exclusive creation keeps a concurrent writer from being overwritten.
-            os.link(temporary, destination)
-        finally:
-            Path(temporary).unlink(missing_ok=True)
-
     def backup(self, destination: Path):
         with self.connect() as source:
-            self._backup_connection(source, destination)
+            return _backup_connection(source, destination)
 
     def setting(self, key, default=None):
         with self.connect() as conn:
