@@ -156,3 +156,16 @@ Tách điều kiện dispatch editor shortcut thành helper thuần, để test 
 6. Run plan validation, focused tests, full suite and frozen Linux/Windows proof. Keep real IME and Windows keyboard acceptance separate.
 
 **Safety:** no source files are deleted or changed; cut only removes layers from the project model. No project schema change and no new dependency.
+
+## 16. P04-02 — Cancel an in-progress canvas drag with Escape (28/10/2026)
+
+**Gap:** the canvas currently rebuilds on Escape, but an in-progress drag mutates the composition model before mouse release. Escape must restore the pre-gesture snapshot rather than merely redraw the mutated state.
+
+**Implementation slice:**
+1. Add an editor cancellation path that restores the pending `_before` composition snapshot without pushing an undo command or invalidating the rendered preview fingerprint.
+2. On canvas Escape, cancel the active gesture, clear peer-snap guide overlays, and rebuild the canvas. When no edit is pending, preserve the existing Escape behavior.
+3. Ensure a later mouse release after cancellation cannot commit the cancelled gesture.
+4. Add a Qt mouse-drag regression: move a layer, press Escape before release, release the mouse, then assert the original geometry and unchanged undo count.
+5. Run full source suite and Linux/Windows packaged proof; keep OS-level focus/IME acceptance separate.
+
+**Safety:** cancel restores the exact pre-gesture model snapshot; it does not modify source media, project files, or export output.
