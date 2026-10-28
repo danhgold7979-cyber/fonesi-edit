@@ -179,3 +179,21 @@ def test_backup_publication_failure_does_not_leave_a_partial_backup(tmp_path, mo
     assert not destination.exists()
     assert list(destination.parent.glob(".fonesi-backup-*.tmp")) == []
 
+
+
+@pytest.mark.parametrize("blocked,expected",[(False,"failed"),(True,"blocked")])
+def test_storage_failure_boundary_redacts_secrets_from_sqlite(tmp_path, blocked, expected):
+    store=Store(tmp_path/'state.db')
+    job=store.submit('scan',{'url':'https://example.test/source'})
+    store.claim()
+    error=('HTTP 403 https://example.test/video?token=private-query&signature=private-sign '
+           'Authorization: Bearer private-bearer api-key=private-api')
+    store.fail(job,error,blocked=blocked)
+    row=store.job(job)
+    assert row['state']==expected
+    assert 'HTTP 403' in row['error']
+    for secret in ['private-query','private-sign','private-bearer','private-api']:
+        assert secret not in row['error']
+    with store.connect() as conn:
+        persisted=conn.execute('SELECT error FROM jobs WHERE id=?',(job,)).fetchone()[0]
+    assert persisted==row['error']
