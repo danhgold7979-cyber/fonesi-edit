@@ -170,7 +170,7 @@ Tách điều kiện dispatch editor shortcut thành helper thuần, để test 
 
 **Safety:** cancel restores the exact pre-gesture model snapshot; it does not modify source media, project files, or export output.
 
-## 16. P04-07 — Shortcut focus completeness and layer clipboard invariants (28/10/2026)
+## 17. P04-07 — Shortcut focus completeness and layer clipboard invariants (28/10/2026)
 
 **Baseline verified before changes:** CI run [40721462280](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40721462280) passed 362 Linux tests and 361 Windows tests plus one intentional POSIX-fixture skip; plan validation, production app/native-host builds and frozen packaged proof passed on both runners.
 

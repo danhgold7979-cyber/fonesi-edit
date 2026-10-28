@@ -59,3 +59,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - When a text editor has focus, the same actions route to the native widget's select-all/copy/paste/cut methods rather than operating on layers. The layer list retains list selection semantics and supports layer clipboard actions.
 - CI [run 40721462280](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40721462280) **PASS**: 362 Linux tests; 361 Windows tests + 1 intentional POSIX-fixture skip. Production app/native host and frozen proof passed on both systems.
 - Remaining: real OS IME/keyboard testing, advanced multi-step shortcut customization, dense peer-guide priorities, and the remaining P04/P12 acceptance gates. These slices do not mark the whole phase complete.
+
+## P04-02 — Escape cancels active canvas drags (28/10/2026)
+
+- Escape now restores the exact pre-gesture composition snapshot while a canvas drag is active, clears peer snap guides and avoids creating an Undo entry for the cancelled gesture.
+- A subsequent mouse release cannot commit the cancelled drag. The rendered preview fingerprint is retained because the composition has returned to its original state.
+- CI [run 40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40723004092) **PASS**: 363 Linux tests; 362 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both systems.
+- This verifies the synthetic Qt drag regression; physical keyboard/focus and real Windows/HiDPI acceptance remain open.
