@@ -49,3 +49,7 @@ Quét nhiều trang nguyên kênh và checkpoint, cây chọn từng bài, ảnh
 5. Chạy `check_plan`, full tests và frozen proof CI Linux/Windows; ghi P05_RESULTS và coverage/status sau khi có bằng chứng. Khi scan nhiều trang/live account chưa thử, vẫn ghi PENDING.
 
 **Cổng lát cắt:** đường chọn từ scan dùng được, mỗi item chọn có một job với snapshot/account đúng; không lưu URL có query nhạy cảm từ kết quả scan; không khẳng định quét hết kênh. **Cổng mở:** multi-page checkpoint/continuation theo provider, sắp xếp và lọc nâng cao, toàn bộ nền tảng live, album tập hợp và Chrome bridge thực.
+
+### P05-03 — Kiểm soát danh sách scan lớn trong UI
+
+Bảng Qt ban đầu tải mọi mục cùng lúc, gây nguy cơ treo UI khi scan hàng nghìn/hàng chục nghìn mục. Triển khai phân trang hiển thị (ví dụ 200 mục/trang), lưu các chỉ số đã tick trên nhiều trang trong phiên làm việc, báo số mục đã chọn và trang; chuyển lần quét không lẫn selection. Cần test dữ liệu synthetic trên nhiều trang, chọn chéo trang và tạo đủ job đúng snapshot, không bỏ mục ngoài màn hình hoặc nạp hàng nghìn item vào cây cùng lúc. Phân trang hiển thị **không phải** checkpoint quét ở provider; checkpoint live vẫn còn mở.
