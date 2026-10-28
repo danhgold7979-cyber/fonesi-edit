@@ -112,6 +112,30 @@ def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,histo
 
 
 
+
+def angle_usage(scenes, rows):
+    """Count planned uses for every selectable angle, including zero-use angles.
+
+    This is a *planned-matrix* summary, not evidence of successful exports.
+    """
+    if any(len(row) != len(scenes) for row in rows):
+        raise ValueError('Invalid matrix row length')
+    result = []
+    for scene_index, scene in enumerate(scenes):
+        counts = {angle.hash: 0 for angle in scene}
+        for row in rows:
+            digest = row[scene_index].hash
+            if digest not in counts:
+                raise ValueError('Matrix contains an angle absent from current scene')
+            counts[digest] += 1
+        result.append([
+            {'scene': scene_index+1, 'angle': angle.index,
+             'hash': angle.hash, 'uses': counts[angle.hash]}
+            for angle in scene
+        ])
+    return result
+
+
 def matrix_rows_valid(rows, history=(), window=0, different=0, compare_window=False):
     """Check unique combinations and every forward W/K constraint in row order."""
     if window < 0 or different < 0:
