@@ -60,6 +60,31 @@ def selectable_scan_url(value):
         return None
 
 
+
+def scan_video_item_url(entry, source_url=None, *, single=False):
+    """Resolve a stable page URL from yt-dlp scan metadata without probing live."""
+    candidates = [entry.get('webpage_url'), entry.get('original_url')]
+    if entry.get('_type') in {'url','url_transparent'}:
+        candidates.append(entry.get('url'))
+    if single:
+        candidates.append(source_url)
+    for candidate in candidates:
+        safe = selectable_scan_url(candidate)
+        if safe:
+            return safe
+    # yt-dlp playlist flat entries may only expose extractor + stable ID.
+    # Generate a canonical watch URL *only* for known video ID formats.
+    source_id = entry.get('id')
+    key = entry.get('ie_key')
+    if key in {'Youtube', 'YoutubeIE'} and isinstance(source_id, str):
+        if re.fullmatch(r'[A-Za-z0-9_-]{11}', source_id):
+            return f'https://www.youtube.com/watch?v={source_id}'
+    if key in {'BiliBili', 'Bilibili', 'BiliBiliIE'} and isinstance(source_id, str):
+        if re.fullmatch(r'BV[A-Za-z0-9]{10}', source_id):
+            return f'https://www.bilibili.com/video/{source_id}'
+    return None
+
+
 def selected_download_payloads(scan_job, indices):
     """Turn verified scan row indices into individual frozen download requests.
 
@@ -193,13 +218,7 @@ def execute_download_job(store,job,progress,cancel):
                 if cancel.is_set():raise RuntimeError('Canceled')
                 if not entry:continue
                 item={k:entry.get(k) for k in ('id','title','duration','upload_date')}
-                candidates=[entry.get('webpage_url'),entry.get('original_url')]
-                if entry.get('_type') in {'url','url_transparent'}:
-                    candidates.append(entry.get('url'))
-                elif entry is info:
-                    candidates.append(url)
-                item['url']=next((safe for candidate in candidates
-                    if (safe:=selectable_scan_url(candidate))),None)
+                item['url']=scan_video_item_url(entry,url,single=entry is info)
                 item['kind']='video'
                 item['selectable']=bool(item['url'])
                 if not item['selectable']:
