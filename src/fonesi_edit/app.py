@@ -149,10 +149,14 @@ class MainWindow(QMainWindow):
         if not isinstance(layout,dict) or layout.get('version')!=1:
             return False
         restored=False
+        self._ui_geometry_restored=False
         geometry=layout.get('geometry')
         if isinstance(geometry,str) and 0 < len(geometry) <= 16384:
             try:
-                restored=bool(self.restoreGeometry(QByteArray.fromBase64(QByteArray(geometry.encode('ascii'))))) or restored
+                self._ui_geometry_restored=bool(
+                    self.restoreGeometry(QByteArray.fromBase64(QByteArray(geometry.encode('ascii'))))
+                )
+                restored=self._ui_geometry_restored or restored
             except (ValueError,TypeError,UnicodeError):
                 pass
         state=layout.get('state')
