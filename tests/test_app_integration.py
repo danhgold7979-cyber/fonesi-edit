@@ -123,6 +123,7 @@ def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp
         assert root.child(1).checkState(0)!=Qt.CheckState.Checked
         root.child(0).setCheckState(0,Qt.CheckState.Unchecked)
         window.downloads.download_selected()
+        window.downloads.download_selected()  # same scan row must not enqueue twice
         requests=[job for job in window.store.jobs() if job['kind']=='download']
         assert len(requests)==1
         assert requests[0]['payload']['url']=='https://example.test/media/c.png'
