@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
+from ..batch import scan_folders,scan_multiple_folders,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
@@ -377,7 +377,9 @@ class SubtitlesPage(QWidget):
 class BatchPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
-        self.folder=file_row(form,'Thư mục cha',host,True);self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
+        self.folder=file_row(form,'Thư mục gốc (tùy chọn nếu có nhiều folder)',host,True)
+        self.extra_roots=QPlainTextEdit();self.extra_roots.setPlaceholderText('Các folder nguồn bổ sung, mỗi dòng một đường dẫn');self.extra_roots.setMaximumHeight(90);form.addRow('Folder nguồn bổ sung',self.extra_roots)
+        self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
         self.audio_folder=file_row(form,'Thư mục nhiều audio (khi ghép riêng)',host,True)
         self.audio_mode=QComboBox()
         for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random')]:
@@ -387,7 +389,7 @@ class BatchPage(QWidget):
         self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min',self.minimum)
         self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max',self.maximum)
         self.mute=QCheckBox('Tắt tiếng gốc');form.addRow(self.mute)
-        buttons(layout,host,[('Quét folder',self.scan),('Lập kế hoạch / dry-run',self.plan),('Preview đầu ra đầu tiên',self.preview),('Chạy toàn bộ',self.enqueue),('Theo dõi folder tự động',self.watch)])
+        buttons(layout,host,[('Thêm folder nguồn',self.add_scan_root),('Quét folder',self.scan),('Lập kế hoạch / dry-run',self.plan),('Preview đầu ra đầu tiên',self.preview),('Chạy toàn bộ',self.enqueue),('Theo dõi folder tự động',self.watch)])
         filter_row=QHBoxLayout();layout.addLayout(filter_row)
         self.search=QLineEdit();self.search.setPlaceholderText('Tìm video hoặc kênh, không thay checkbox')
         filter_row.addWidget(self.search,1)
@@ -402,6 +404,7 @@ class BatchPage(QWidget):
         self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
         for field in (self.folder,self.audio,self.audio_folder):
             field.textChanged.connect(lambda _:self.invalidate_plan())
+        self.extra_roots.textChanged.connect(self.invalidate_plan)
         for combo in (self.audio_mode,self.policy):
             combo.currentIndexChanged.connect(lambda _:self.invalidate_plan())
         for spin in (self.minimum,self.maximum):
@@ -415,8 +418,20 @@ class BatchPage(QWidget):
             self.plans=[]
             self.summary.setText('Đã thay đổi nguồn hoặc preset: bản dry-run cũ bị hủy. Hãy lập kế hoạch lại trước khi preview/render.')
 
+    def add_scan_root(self):
+        path=QFileDialog.getExistingDirectory(self,'Thêm thư mục nguồn')
+        if not path:return
+        existing=[line.strip() for line in self.extra_roots.toPlainText().splitlines() if line.strip()]
+        if path not in existing:
+            self.extra_roots.setPlainText('\n'.join([*existing,path]))
+
     def scan(self):
-        self.host.background(lambda p,c:scan_folders(Path(self.folder.text())),self.scanned)
+        roots=[value for value in [self.folder.text().strip(),
+             *[line.strip() for line in self.extra_roots.toPlainText().splitlines()]]
+             if value]
+        if not roots:raise ValueError('Chọn ít nhất một thư mục nguồn để quét')
+        self.invalidate_plan()
+        self.host.background(lambda p,c:scan_multiple_folders(roots),self.scanned)
     def scanned(self,groups):
         self.invalidate_plan()
         self.groups=groups
