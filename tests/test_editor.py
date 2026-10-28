@@ -411,3 +411,38 @@ def test_select_all_layers_selects_every_layer_in_canvas():
         editor.close()
         host.workspace.cleanup()
 
+def test_escape_cancels_canvas_drag_and_mouse_release_does_not_commit():
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import Qt, QPoint, QPointF
+    host = Host()
+    editor = Editor(host)
+    try:
+        layer = Layer(x=.1, y=.2, width=.2, height=.15)
+        editor.set_composition(Composition(layers=[layer]))
+        editor.select_id(layer.id)
+        editor.resize(1300, 850)
+        editor.show()
+        editor.canvas.setFocus()
+        APP.processEvents()
+
+        start = editor.canvas.mapFromScene(QPointF(.17 * 1280, .27 * 720))
+        end = start + QPoint(55, 30)
+        QTest.mousePress(editor.canvas.viewport(), Qt.MouseButton.LeftButton,
+                         Qt.KeyboardModifier.NoModifier, start)
+        QTest.mouseMove(editor.canvas.viewport(), end, 20)
+        APP.processEvents()
+        assert editor.composition.layers[0].x > .1
+
+        QTest.keyClick(editor.canvas, Qt.Key.Key_Escape)
+        APP.processEvents()
+        QTest.mouseRelease(editor.canvas.viewport(), Qt.MouseButton.LeftButton,
+                           Qt.KeyboardModifier.NoModifier, end)
+        APP.processEvents()
+
+        assert editor.composition.layers[0].x == pytest.approx(.1)
+        assert editor.composition.layers[0].y == pytest.approx(.2)
+        assert editor.undo.count() == 0
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+

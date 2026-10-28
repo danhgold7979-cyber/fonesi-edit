@@ -384,7 +384,10 @@ class Canvas(QGraphicsView):
 
     def keyPressEvent(self, event):
         mapping = {Qt.Key.Key_Left: (-1,0), Qt.Key.Key_Right:(1,0),Qt.Key.Key_Up:(0,-1),Qt.Key.Key_Down:(0,1)}
-        if event.key()==Qt.Key.Key_Escape:self.rebuild()
+        if event.key()==Qt.Key.Key_Escape:
+            self.set_peer_snap_guides(None, None)
+            if not self.editor.cancel_pending_edit():
+                self.rebuild()
         elif event.key() in mapping and self.editor.layer() and not self.editor.layer().locked:
             self.editor.begin()
             dx, dy = mapping[event.key()]

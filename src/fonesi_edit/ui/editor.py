@@ -176,6 +176,18 @@ class Editor(QWidget):
         if before and before!=after:self.undo.push(Snapshot(self,before,after,name))
         else:self.refresh()
 
+    def cancel_pending_edit(self):
+        if self._before is None:
+            return False
+        snapshot = self._before
+        self._before = None
+        self.composition = Composition.from_dict(snapshot)
+        self.composition_fingerprint = canonical(self.composition.to_dict())
+        # Refresh the model/view without invalidating a rendered preview that
+        # still matches the restored pre-gesture composition.
+        self.refresh()
+        return True
+
     def set_composition(self,composition):
         self.preview_fingerprint=None
         self.composition=composition
