@@ -1,5 +1,5 @@
 """Transactional local state. Connections are never shared across worker processes."""
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 import json
 import os
@@ -45,11 +45,11 @@ def _backup_connection(source: sqlite3.Connection, destination: Path) -> Path:
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
-        with sqlite3.connect(temporary) as target:
+        with closing(sqlite3.connect(temporary)) as target:
             source.backup(target)
             target.commit()
 
-        with sqlite3.connect(temporary) as check:
+        with closing(sqlite3.connect(temporary)) as check:
             row = check.execute("PRAGMA integrity_check").fetchone()
             if not row or row[0] != "ok":
                 detail = row[0] if row else "no result"
