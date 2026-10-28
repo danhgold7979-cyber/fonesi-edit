@@ -87,14 +87,18 @@ def scan_folders(root:Path):
     return groups
 
 
-def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximum=2,allocation='proportional',weights=None):
+def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximum=2,allocation='proportional',weights=None,manual_durations=None):
     if not math.isfinite(target) or target<=0 or not .1<=minimum<=maximum<=10:raise ValueError('Invalid target/speed bounds')
     if policy not in {'speed','trim','loop','freeze'}:
         raise ValueError('Unsupported duration policy')
-    if allocation not in {'proportional','equal','weights'}:
+    if allocation not in {'proportional','equal','weights','manual'}:
         raise ValueError('Unsupported duration allocation')
     if allocation=='weights' and weights is None:
         raise ValueError('Manual duration weights must be provided')
+    if allocation=='manual' and manual_durations is None:
+        raise ValueError('Explicit scene durations must be provided')
+    if allocation=='manual' and policy not in {'speed','trim'}:
+        raise ValueError('Manual durations only support speed or trim policy')
     c=deepcopy(composition)
     if not c.clips:raise ValueError('No clips')
     if policy in {'loop','freeze'} and len(c.clips)!=1:
@@ -121,14 +125,26 @@ def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximu
         upper=[(clip.end-clip.start)/minimum for clip in c.clips]
         if policy=='trim':lower=[1/c.fps]*len(c.clips);upper=natural
         if desired<sum(lower)-.001 or desired>sum(upper)+.001:raise ValueError(f'Không khớp được mà giữ đủ cảnh: cần {desired:.2f}s, khoảng hợp lệ {sum(lower):.2f}–{sum(upper):.2f}s')
-        weights=list(weights) if weights is not None else [1]*len(natural) if allocation=='equal' else natural
-        if len(weights)!=len(c.clips) or any(w<=0 or not math.isfinite(w) for w in weights):raise ValueError('Scene weights must be positive and match scene count')
-        lo,hi=0,max(upper)/min(weights)*2
-        for _ in range(100):
-            mid=(lo+hi)/2;durations=[max(a,min(b,mid*w)) for a,b,w in zip(lower,upper,weights)]
-            if sum(durations)<desired:lo=mid
-            else:hi=mid
-        durations=[max(a,min(b,(lo+hi)/2*w)) for a,b,w in zip(lower,upper,weights)]
+        if allocation=='manual':
+            durations=list(manual_durations)
+            if (len(durations)!=len(c.clips)
+                    or any(type(value) not in (int,float)
+                        or not math.isfinite(value) or value<=0 for value in durations)):
+                raise ValueError('Scene durations must be positive finite numbers matching scene count')
+            if abs(sum(durations)-desired)>.001:
+                raise ValueError('Manual scene durations must sum to target including transition overlap')
+            if any(value<minimum_duration-.001 or value>maximum_duration+.001
+                   for value,minimum_duration,maximum_duration in zip(durations,lower,upper)):
+                raise ValueError('Manual scene duration exceeds trim/speed bounds')
+        else:
+            weights=list(weights) if weights is not None else [1]*len(natural) if allocation=='equal' else natural
+            if len(weights)!=len(c.clips) or any(w<=0 or not math.isfinite(w) for w in weights):raise ValueError('Scene weights must be positive and match scene count')
+            lo,hi=0,max(upper)/min(weights)*2
+            for _ in range(100):
+                mid=(lo+hi)/2;durations=[max(a,min(b,mid*w)) for a,b,w in zip(lower,upper,weights)]
+                if sum(durations)<desired:lo=mid
+                else:hi=mid
+            durations=[max(a,min(b,(lo+hi)/2*w)) for a,b,w in zip(lower,upper,weights)]
         for clip,duration in zip(c.clips,durations):
             if policy=='trim':clip.end=clip.start+duration*clip.speed
             else:clip.speed=(clip.end-clip.start)/duration

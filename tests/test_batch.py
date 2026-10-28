@@ -172,3 +172,28 @@ def test_batch_audio_mapping_rejects_missing_ambiguous_and_unsupported_modes(tmp
     (folder/'bad.wav').write_bytes(b'not a valid sound')
     with pytest.raises(ValueError,match='không có track hợp lệ'):
         batch_plan(groups,preset,audio_mode='random',audio_folder=folder)
+
+
+def test_manual_scene_durations_preserve_each_clip_and_transition():
+    c=Composition(clips=[Clip('first.mp4',end=4),Clip('second.mp4',end=6)],transition=.2)
+    result=fit_duration(c,5.8,minimum=.5,maximum=2,allocation='manual',
+                        manual_durations=[2,4])
+    actual=[(clip.end-clip.start)/clip.speed for clip in result.clips]
+    assert all(abs(a-b)<.001 for a,b in zip(actual,[2,4]))
+    assert abs(sum(actual)-result.transition-5.8)<.001
+    assert c.clips[0].speed==1 and c.clips[1].speed==1
+    trim=fit_duration(c,5.8,policy='trim',allocation='manual',
+                      manual_durations=[2,4])
+    assert [clip.end for clip in trim.clips]==[2,4]
+    for args,message in [
+        ({'manual_durations':None},'Explicit scene durations'),
+        ({'manual_durations':[2]},'Scene durations'),
+        ({'manual_durations':[float("nan"),4]},'Scene durations'),
+        ({'manual_durations':[1,5]},'Manual scene duration exceeds'),
+        ({'manual_durations':[2,4.5]},'sum to target'),
+    ]:
+        with pytest.raises(ValueError,match=message):
+            fit_duration(c,5.8,minimum=.5,maximum=2,allocation='manual',**args)
+    with pytest.raises(ValueError,match='only support speed or trim'):
+        fit_duration(Composition(clips=[Clip('only.mp4',end=4)]),4,
+                     policy='freeze',allocation='manual',manual_durations=[4])

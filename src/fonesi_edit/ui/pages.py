@@ -480,8 +480,9 @@ class MatrixPage(QWidget):
         self.different=QSpinBox();self.different.setRange(0,1000);form.addRow('K — số cảnh khác tối thiểu',self.different)
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
-        self.allocation=QComboBox();self.allocation.addItems(['proportional','equal','weights']);form.addRow('Chia thời lượng',self.allocation)
+        self.allocation=QComboBox();self.allocation.addItems(['proportional','equal','weights','manual']);form.addRow('Chia thời lượng',self.allocation)
         self.scene_weights=QLineEdit();self.scene_weights.setPlaceholderText('Trọng số từng cảnh, ví dụ: 1,2,1');form.addRow('Trọng số cảnh (nếu chọn weights)',self.scene_weights)
+        self.scene_durations=QLineEdit();self.scene_durations.setPlaceholderText('Thời lượng mỗi cảnh (s), ví dụ: 2.5,4,3');form.addRow('Giây/cảnh (nếu chọn manual)',self.scene_durations)
         buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
@@ -583,19 +584,35 @@ class MatrixPage(QWidget):
             raise ValueError('Mọi trọng số cảnh phải dương và hữu hạn')
         return weights
 
+    def duration_scene_lengths(self):
+        if self.allocation.currentText()!='manual':
+            return None
+        values=[part.strip() for part in self.scene_durations.text().split(',')]
+        if not values or any(not part for part in values):
+            raise ValueError('Nhập thời lượng giây cho mỗi cảnh, phân cách bằng dấu phẩy')
+        try:
+            lengths=[float(part) for part in values]
+        except ValueError:
+            raise ValueError('Thời lượng cảnh phải là số, dùng dấu chấm thập phân') from None
+        if len(lengths)!=len(self.model.scenes):
+            raise ValueError('Số thời lượng phải bằng số cảnh trong ma trận')
+        if any(not math.isfinite(value) or value<=0 for value in lengths):
+            raise ValueError('Mỗi thời lượng cảnh phải dương và hữu hạn')
+        return lengths
+
     def preview(self):
         row=self.table.currentIndex().row()
         if row<0:raise ValueError('Chọn một hàng')
         preset=deepcopy(self.host.editor.composition);angles=self.model.rows[row];audio=self.audio.text() or None;allocation=self.allocation.currentText()
-        weights=self.duration_weights()
-        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,weights=weights),self.host.preview_composition)
+        weights=self.duration_weights();durations=self.duration_scene_lengths()
+        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,weights=weights,manual_durations=durations),self.host.preview_composition)
     def enqueue(self):
         if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
         if not self.output.text():raise ValueError('Chọn thư mục xuất')
         rows=deepcopy(self.model.rows);preset=deepcopy(self.host.editor.composition);scope=self.scope();root=Path(self.output.text());audio=self.audio.text() or None;allocation=self.allocation.currentText()
-        weights=self.duration_weights()
+        weights=self.duration_weights();durations=self.duration_scene_lengths()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
-        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,window=w,different=k,compare_window=compare,weights=weights),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
+        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,window=w,different=k,compare_window=compare,weights=weights,manual_durations=durations),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
         if path:

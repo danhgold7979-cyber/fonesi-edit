@@ -190,3 +190,21 @@ def test_matrix_audio_duration_weights_follow_real_ffprobe_and_snapshot(tmp_path
     assert abs(queued_lengths[0]/queued_lengths[1]-1/3)<.01
     with pytest.raises(ValueError,match='Manual duration weights'):
         row_composition(row,preset,clip,allocation='weights')
+
+
+def test_matrix_manual_scene_durations_without_audio_and_explicit_audio_mismatch(tmp_path):
+    from fonesi_edit.matrix import row_composition
+    fixture=create_fixture(tmp_path/'media',duration=1)
+    source=str(fixture['source'])
+    angles=[Angle(1,1,source,'clip-a'),Angle(2,1,source,'clip-b')]
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+    comp=row_composition(angles,preset,allocation='manual',
+                         minimum=.1,maximum=10,manual_durations=[.25,.75])
+    actual=[(clip.end-clip.start)/clip.speed for clip in comp.clips]
+    assert all(abs(a-b)<.002 for a,b in zip(actual,[.25,.75]))
+    assert abs(comp.duration_target-1)<.002
+    with pytest.raises(ValueError,match='sum to target'):
+        row_composition(angles,preset,source,allocation='manual',
+                        minimum=.1,maximum=10,manual_durations=[.2,.3])
+    with pytest.raises(ValueError,match='Weighted scenes require'):
+        row_composition(angles,preset,allocation='weights',weights=[1,2])

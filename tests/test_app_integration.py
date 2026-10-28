@@ -363,3 +363,24 @@ def test_matrix_weights_ui_validates_all_scenes_without_silent_fallback(tmp_path
         assert page.duration_weights() is None
     finally:
         close(window)
+
+
+def test_matrix_manual_durations_ui_rejects_missing_and_nonnumeric_values(tmp_path):
+    from fonesi_edit.matrix import Angle
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.matrix
+        scenes=[[Angle(1,1,'a','a')],[Angle(2,1,'b','b')]]
+        page.model.replace(scenes,[[scenes[0][0],scenes[1][0]]])
+        page.allocation.setCurrentText('manual')
+        page.scene_durations.setText('0.25,0.75')
+        assert page.duration_scene_lengths()==[.25,.75]
+        for value in ('', '1', '1,0', '-1,2', 'nan,2', '1,inf', 'one,two'):
+            page.scene_durations.setText(value)
+            with pytest.raises(ValueError):
+                page.duration_scene_lengths()
+        page.allocation.setCurrentText('proportional')
+        assert page.duration_scene_lengths() is None
+    finally:
+        close(window)
