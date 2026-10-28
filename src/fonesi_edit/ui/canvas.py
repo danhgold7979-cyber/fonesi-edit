@@ -26,12 +26,8 @@ def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolera
     return axis(x, width), axis(y, height)
 
 
-def snap_layer_to_peers(x, y, width, height, peers, *, enabled=True, tolerance=.012):
-    """Snap a normalized rectangle to nearby peer edge/centre guides.
-
-    Peer rectangles are (x, y, width, height). Callers exclude self, selected
-    companions, hidden layers and locked layers before passing the peer list.
-    """
+def snap_layer_to_peers_with_guides(x, y, width, height, peers, *, enabled=True, tolerance=.012):
+    """Snap to nearby peer guides and return their normalized X/Y guide positions."""
     values = (x, y, width, height, tolerance)
     if not all(isinstance(value, (int, float)) and not isinstance(value, bool)
                and math.isfinite(float(value)) for value in values):
@@ -41,7 +37,7 @@ def snap_layer_to_peers(x, y, width, height, peers, *, enabled=True, tolerance=.
     x = max(0.0, min(max(0.0, 1.0 - width), float(x)))
     y = max(0.0, min(max(0.0, 1.0 - height), float(y)))
     if not enabled:
-        return x, y
+        return x, y, None, None
 
     rectangles = list(peers)
 
@@ -65,12 +61,22 @@ def snap_layer_to_peers(x, y, width, height, peers, *, enabled=True, tolerance=.
                     if 0.0 <= target <= max(0.0, 1.0 - span):
                         distance = abs(target - position)
                         if distance <= tolerance:
-                            candidates.append((distance, target))
+                            candidates.append((distance, target, peer_guide))
         if not candidates:
-            return position
-        return min(candidates, key=lambda candidate: (candidate[0], candidate[1]))[1]
+            return position, None
+        _, target, guide = min(candidates, key=lambda candidate: (candidate[0], candidate[1], candidate[2]))
+        return target, guide
 
-    return nearest_axis(x, width, 0), nearest_axis(y, height, 1)
+    snapped_x, vertical_guide = nearest_axis(x, width, 0)
+    snapped_y, horizontal_guide = nearest_axis(y, height, 1)
+    return snapped_x, snapped_y, vertical_guide, horizontal_guide
+
+
+def snap_layer_to_peers(x, y, width, height, peers, *, enabled=True, tolerance=.012):
+    """Compatibility helper returning only the snapped normalized position."""
+    snapped_x, snapped_y, _, _ = snap_layer_to_peers_with_guides(
+        x, y, width, height, peers, enabled=enabled, tolerance=tolerance)
+    return snapped_x, snapped_y
 
 
 def constrained_group_delta(rectangles, dx, dy):
@@ -237,9 +243,11 @@ class Overlay(QGraphicsObject):
                 and item.layer.visible and not item.layer.locked
                 and not (self.layer.group and item.layer.group == self.layer.group)
             ]
-            desired_x, desired_y = snap_layer_to_peers(
+            desired_x, desired_y, vertical_guide, horizontal_guide = snap_layer_to_peers_with_guides(
                 desired_x, desired_y, w, h, peer_rectangles,
                 enabled=not disabled)
+            if view:
+                view.set_peer_snap_guides(vertical_guide, horizontal_guide)
             # One bounded delta preserves the relative positions of companions.
             dx, dy = constrained_group_delta(original_bounds, desired_x - x, desired_y - y)
             self.layer.x, self.layer.y = x + dx, y + dy
@@ -266,6 +274,9 @@ class Overlay(QGraphicsObject):
         super().mouseReleaseEvent(event)
         if self.mode:
             self.mode = None
+            view = next((view for view in self.scene().views() if isinstance(view, Canvas)), None)
+            if view:
+                view.set_peer_snap_guides(None, None)
             self.commit('Kéo/biến đổi đối tượng')
 
     def mouseDoubleClickEvent(self,event):
@@ -287,9 +298,11 @@ class Canvas(QGraphicsView):
         self.setMinimumSize(400, 250)
         self.scene().selectionChanged.connect(self.selection)
         self.zoom = 1
+        self._peer_snap_guides = (None, None)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
 
     def rebuild(self, frame=None,reference=False):
+        self.set_peer_snap_guides(None, None)
         selected = self.editor.selected_id
         self.scene().blockSignals(True)
         self.scene().clear()
@@ -326,6 +339,31 @@ class Canvas(QGraphicsView):
         self.scene().blockSignals(False)
         self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.scale(self.zoom, self.zoom)
+
+    def set_peer_snap_guides(self, vertical, horizontal):
+        guides = (vertical, horizontal)
+        if guides != self._peer_snap_guides:
+            self._peer_snap_guides = guides
+            self.viewport().update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        vertical, horizontal = self._peer_snap_guides
+        if vertical is None and horizontal is None:
+            return
+        painter = QPainter(self.viewport())
+        pen = QPen(QColor('#35d6e8'), 1, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        width = self.editor.composition.width
+        height = self.editor.composition.height
+        if vertical is not None:
+            x = self.mapFromScene(QPointF(vertical * width, 0)).x()
+            painter.drawLine(x, 0, x, self.viewport().height())
+        if horizontal is not None:
+            y = self.mapFromScene(QPointF(0, horizontal * height)).y()
+            painter.drawLine(0, y, self.viewport().width(), y)
+        painter.end()
 
     def selection(self):
         items = [item for item in self.scene().selectedItems() if isinstance(item, Overlay)]
