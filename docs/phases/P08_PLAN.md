@@ -43,3 +43,17 @@
 ## P08/P09 tích hợp — duration manual per-scene (28/10/2026)
 
 Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào solver chung `fit_duration`. Chỉ thay đổi khi caller chọn chế độ thủ công; mặc định speed/proportional/equal/weights không đổi. Validate dương/hữu hạn/số scene, tổng cảnh kể cả transition khớp target, tốc độ theo min/max hoặc trim không vượt nguồn; không fallback sang thuật toán chia tỉ lệ. Bổ sung unit regression và CI packaged. UI cung cấp vector thời lượng giây trong ma trận, không tự sinh độ dài không có nguồn. Chưa coi là đánh giá performance/loudness Windows.
+
+## Vòng P08-04 tiếp theo — SFX placement trên timeline (28/10/2026)
+
+**Rà soát master:** `docs/IMPLEMENTATION_PLAN.md` P08-03/P08-04/P08-06/P08-07; `PRODUCT_REQUIREMENTS.md` mục 6 (SFX theo thời điểm tuyệt đối/đầu/cuối video/cảnh/% thời lượng); `docs/IMPLEMENTATION_COVERAGE.md` AUD-03…AUD-06; `src/fonesi_edit/domain.py`, `render.py`, `ui/dialogs.py`, test render và app integration. Pipeline hiện nhận `offset` tuyệt đối; chưa có clip-relative/percent placement và chưa có UI cho các mode.
+
+**Thiết kế:**
+
+1. Bổ sung thuộc tính tùy chọn chỉ cho SFX: `placement` ∈ `absolute,percent,video_end,scene_start,scene_end`; `position_pct` 0..100 cho `percent`; `scene_index` 1-based cho scene modes. `offset` là giây sau mốc với `absolute/percent/scene_start`, hoặc số giây **trước** mốc với `video_end/scene_end` (không âm). Trường mặc định không có `placement` tiếp tục là offset tuyệt đối như bản cũ. Không áp dụng placement cho main/music.
+2. Domain validate value types, finite range, clip index và required parameters. Chặn scene index sai và placement dẫn đến start trước video hoặc từ thời điểm video kết thúc trở đi. Không fallback về offset 0 khi cấu hình sai.
+3. Compositor tính clip ranges sau speed/trim/freeze/transition và resolve SFX onset từ **timeline đầu ra thật**, thay vì lấy thời gian media gốc. FFmpeg adelay theo onset, cắt cuối theo total, giữ gain/fade/mute/solo/limiter hiện tại.
+4. AudioDialog chọn mode + % + scene index, giữ trạng thái round-trip khi sửa track; GUI validation trong apply. Các field chỉ được ghi vào track SFX khi mode phù hợp. Không ảnh hưởng audio chính/nhạc.
+5. Unit tests ranh giới và các mốc có transition, trim, duration; test FFmpeg render SFX từ audio fixture ở giây chỉ định (đo sự xuất hiện âm thanh bằng PCM); Qt offscreen dialog round-trip/invalid. Cần pass check_plan, suite Linux/Windows và frozen proof. Cổng ngoài vẫn mở: music crossfade, SFX repeat/multiple-placement UI nâng cao, kiểm chứng hệ loa Windows/HiDPI, realtime meter.
+
+**Nghiệm thu lát cắt:** một track SFX có thể chọn mốc tuyệt đối, theo %, trước cuối video, sau đầu cảnh hoặc trước cuối cảnh; onset đúng sau thay đổi speed/transition; output thực có âm đúng vị trí, config sai báo lỗi, không thay đổi các track cũ. CI hai hệ phải đạt. Không suy ra đã hoàn tất mọi lựa chọn âm thanh P08.
