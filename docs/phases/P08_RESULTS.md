@@ -33,3 +33,9 @@ Triển khai vào **cùng mã nguồn/compositor** Fonesi Edit:
 **Bằng chứng:** [CI 40655116611](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40655116611) PASS **219 test Linux / 218 test Windows + 1 skipped POSIX-only**, build app/native host và frozen packaged proof trên hai hệ. Artifact `FonesiEdit-Windows-development` là binary nội bộ, không phải installer đã ký/Release.
 
 **Còn mở:** music loop crossfade, sound effect nhiều mốc một lần trong UI, meter/clipping nghe realtime, duration/resolution filter từ metadata và corpus lớn, ước tính dung lượng/ETA, áp dụng toàn diện trên Windows máy người dùng. P08 chưa đủ cổng nghiệm thu cuối.
+
+## P08-01 — Quét nhiều folder gốc, loại trùng và hủy kết quả quét cũ (28/10/2026)
+
+Đã code `scan_multiple_folders` hợp nhất các root được chọn bằng path đã resolve, giữ nhóm channel đúng thư mục, tự bỏ file trùng khi root trùng hoặc chồng cha/con; vẫn bỏ thư mục ` edit`, cache, symlink và file không phải video theo `scan_folders`. BatchPage có ô thư mục gốc + danh sách folder bổ sung mỗi dòng, nút chọn folder, chạy cùng worker. Khi sửa danh sách folder, các checkbox/nhóm cũ bị xóa và phải quét lại; khi quét mới bắt đầu, xóa lựa chọn cũ trước khi chạy; kết quả callback từ lần quét cũ bị bỏ theo scan revision, không ghi đè danh sách mới. Các thay đổi này không chạm/xóa media gốc.
+
+**Kiểm thử:** multi-root + nested overlap/duplicate + bỏ output/cache + Qt GUI quét 2 nguồn + invalidation và callback đến sai thứ tự. [CI 40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) **PASS 222 tests Linux, 221 tests Windows +1 skip POSIX-only**, packaged/native-host/frozen proof hai hệ PASS. Đây là quét thư mục **local**, không chứng minh kết nối mạng xã hội đã scan đủ kênh. P08-01 vẫn mở filter duration/resolution, hàng trăm nghìn file và sức chịu tải thực.

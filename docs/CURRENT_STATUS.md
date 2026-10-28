@@ -11,7 +11,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
-| P08 | Folder/batch dry-run/snapshot, audio mapping/solver; **SFX mốc %/đầu-cuối cảnh/cuối video qua AudioDialog tới FFmpeg**, tìm/lọc/chọn/đảo video, tự hủy stale plan; CI Linux/Windows + frozen PASS | Music crossfade, SFX repeat nâng cao, meter/solo, metadata filters và corpus lớn, Windows user audio |
+| P08 | Batch nhiều folder local khử trùng nguồn, tìm/lọc/chọn/đảo và chặn stale scan/plan; audio mapping/solver, **SFX %/đầu-cuối cảnh/cuối video AudioDialog→FFmpeg**; CI Linux/Windows + frozen PASS | Music crossfade, SFX repeat nâng cao, meter/solo, duration/resolution metadata filters/corpus lớn, Windows user audio |
 | P09 | Lazy matrix, W/K/history/lock, **regenerate một hàng** không đổi hàng khác, thống kê usage, formula sync; **weights/manual seconds** và speed bounds từ UI đến render; CI/frozen Linux/Windows PASS | Stress solver ma trận lớn, reorder cảnh/locks nâng cao và Windows/exFAT thực |
 | P10 | Workflow/watch/schedule và resources; Settings quota proxy cache/janitor nền an toàn, bảo vệ file QMediaPlayer đang phát; CI/frozen PASS | Task Scheduler, GPU/VRAM/driver thật, cache khác/installer và Windows/ACL/soak |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
@@ -48,3 +48,7 @@ CI [40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 ## P03/P08 — Cập nhật test 28/10/2026
 
 P03: job error được lọc ở worker **và tại SQLite Store.fail**, test failed/blocked; [CI 40652053745](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40652053745) PASS. P08: AudioDialog có SFX mốc theo phần trăm/cảnh/cuối video và FFmpeg export audio đúng mốc; BatchPage lọc/chọn video và hủy snapshot cũ khi UI/preset đổi. [CI 40655116611](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40655116611) PASS **219 Linux /218 Windows +1 skip**, frozen app/native host proof đạt hai hệ. Chưa phát hành chính thức; live account/Windows PC/installer/GPU và crossfade/meters nâng cao vẫn mở.
+
+## P08-01 — Quét nhiều folder local
+
+[CI 40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) PASS **222 tests Linux, 221 Windows +1 skip**, Linux/Windows production app/native host và frozen proof PASS. BatchPage quét nhiều folder, hợp nhất nhóm/kênh và khử source trùng khi folder chồng nhau; sửa root/hủy scan làm vô hiệu hóa lựa chọn cũ, background callback kết thúc muộn không được ghi đè. P08 vẫn chưa hoàn tất filter duration/resolution, music crossfade/meter/hiệu năng corpus, nghiệm thu Windows thực. Xem [P08_RESULTS](phases/P08_RESULTS.md).

@@ -78,3 +78,10 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 ## P08-01 — Quét nhiều thư mục gốc, không trùng nguồn (28/10/2026)
 
 Đối chiếu `IMPLEMENTATION_PLAN.md` P08-01 và PRODUCT_REQUIREMENTS §5: có yêu cầu nhiều folder/đệ quy, tự loại output/cache/symlink. `scan_folders(root)` đã hỗ trợ một thư mục gốc nhưng BatchPage hiện chỉ có một ô. Bổ sung hàm `scan_multiple_folders(roots)` hợp nhất channel chính xác theo đường dẫn đã resolve, loại file trùng khi gốc trùng/cha-con chồng nhau. Giữ nguyên thứ tự root đã chọn, trong từng root vẫn natural-sort video, không đọc/xóa/chỉnh tệp nguồn. Phải từ chối gốc rỗng/không tồn tại, không fallback sang folder mặc định. BatchPage thêm danh sách đường dẫn root mỗi dòng và nút chọn folder để chèn, rồi scan trong background như trước; đổi danh sách root làm invalidation dry-run. Test unit với folder trùng/nested và tệp trong ` edit`/cache bị bỏ, cùng Qt offscreen kiểm tra lựa chọn và không render bản kế hoạch stale. CI frozen Linux/Windows theo hợp đồng. **Đây chưa là nghiệm thu đủ lọc duration/resolution hay corpus lớn.**
+
+### Bằng chứng P08-01 multi-root
+
+- [x] Nhiều folder gốc và file chồng root/cha-con được quét/merge có khử trùng, giữ nhóm kênh; tệp trong output/cache bị bỏ.
+- [x] GUI thêm folder và nhập nhiều đường dẫn, đổi folder/hủy scan cũ không được dùng lựa chọn/plan đã cũ; callback out-of-order bị bỏ.
+- [x] Test backend + Qt offscreen + packaged CI Linux/Windows [40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) PASS: 222 Linux, 221 Windows + 1 skip.
+- [ ] Filter metadata duration/resolution và corpus quy mô lớn còn mở, P08 chưa đủ điều kiện nghiệm thu toàn phase.
