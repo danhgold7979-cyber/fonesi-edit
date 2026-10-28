@@ -331,6 +331,8 @@ class Editor(QWidget):
                     self.host.message('Đã nạp proxy nguồn local; bản xuất vẫn dùng tệp gốc.')
             if error and self.composition.adjustments.get('playback_proxy_quality')==quality:
                 self.host.message('Không tạo được proxy nguồn: '+error)
+            if self.composition.adjustments.get('playback_proxy_quality','off')!='off':
+                self.load_proxy()  # Selected clip may have changed while encoding.
         self.host.background(work,done)
 
     def select_row(self,index):
