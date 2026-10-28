@@ -517,3 +517,45 @@ def test_audio_dialog_non_sfx_track_cannot_apply_relative_anchor(tmp_path,monkey
         assert window.editor.composition.audio[0].get('placement') is None
     finally:
         close(window)
+
+
+
+def test_batch_search_format_and_visible_only_selection_keep_hidden_choices(tmp_path):
+    from PySide6.QtCore import Qt
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        group_a=str(tmp_path/'a-channel')
+        group_b=str(tmp_path/'b-channel')
+        first=str(tmp_path/'a-channel'/'first.mp4')
+        second=str(tmp_path/'a-channel'/'second.mkv')
+        third=str(tmp_path/'b-channel'/'third.mp4')
+        page.scanned({group_a:[first,second],group_b:[third]})
+        assert len(page.selected()[group_a])==2
+        assert len(page.selected()[group_b])==1
+        page.plans=[{'output':'stale'}]
+        page.search.setText('second')
+        assert page.tree.topLevelItem(0).child(0).isHidden()
+        assert not page.tree.topLevelItem(0).child(1).isHidden()
+        assert page.tree.topLevelItem(1).isHidden()
+        assert len(page.plans)==1  # Filtering alone must not change the plan.
+        page.check_visible('none')
+        assert page.plans==[]  # Checkbox changes invalidate the old plan.
+        chosen=page.selected()
+        assert chosen[group_a]==[first] and chosen[group_b]==[third]
+        page.search.clear()
+        page.format_filter.setCurrentIndex(page.format_filter.findData('.mp4'))
+        assert not page.tree.topLevelItem(0).child(0).isHidden()
+        assert page.tree.topLevelItem(0).child(1).isHidden()
+        page.check_visible('invert')
+        assert page.selected()=={}  # Only the two visible .mp4 files were toggled.
+        page.format_filter.setCurrentIndex(0)
+        page.check_visible('all')
+        assert set(page.selected()[group_a])=={first,second}
+        assert page.selected()[group_b]==[third]
+        page.plans=[{'output':'stale-again'}]
+        page.scanned({group_b:[third]})
+        assert page.plans==[] and page.tree.topLevelItemCount()==1
+        assert '1/1 video' in page.summary.text()
+    finally:
+        close(window)
