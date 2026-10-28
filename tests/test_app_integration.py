@@ -90,3 +90,51 @@ def test_undo_while_editing_text_uses_the_input_history(tmp_path):
         field.insert(' mới');window.actions['Undo'].trigger()
         assert field.text()=='Gốc' and len(window.editor.composition.layers)==1
     finally:close(window)
+
+
+def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp_path):
+    from PySide6.QtCore import Qt
+    window=MainWindow(tmp_path/'state')
+    try:
+        payload={'url':'https://example.test/channel','folder':str(tmp_path/'downloads'),
+                 'engine':'gallery','media':'images','limit':0,'subtitles':False}
+        scan_id=window.store.submit('scan',payload)
+        window.store.claim(allowed={'scan'})
+        result={'platform':'Generic','complete':None,'items':[
+            {'id':'image-A','kind':'images','title':'Ảnh A',
+             'url':'https://example.test/media/a.png','selectable':True},
+            {'id':'image-B','kind':'images','title':'Ảnh có URL ký',
+             'url':None,'selectable':False,'reason':'URL tạm không thể tải lại'},
+            {'id':'image-C','kind':'images','title':'Ảnh C',
+             'url':'https://example.test/media/c.png','selectable':True},
+        ],'count':3}
+        window.store.finish(scan_id,result)
+        window.downloads.show_scan()
+        tree=window.downloads.scan_tree
+        root=tree.topLevelItem(0)
+        assert root.childCount()==3
+        assert 'chưa rõ' in window.downloads.scan_note.text()
+        assert root.child(1).flags() & Qt.ItemFlag.ItemIsEnabled == 0
+        window.downloads.check_scan_items(True)
+        assert root.child(0).checkState(0)==Qt.CheckState.Checked
+        assert root.child(2).checkState(0)==Qt.CheckState.Checked
+        assert root.child(1).checkState(0)!=Qt.CheckState.Checked
+        root.child(0).setCheckState(0,Qt.CheckState.Unchecked)
+        window.downloads.download_selected()
+        requests=[job for job in window.store.jobs() if job['kind']=='download']
+        assert len(requests)==1
+        assert requests[0]['payload']['url']=='https://example.test/media/c.png'
+        assert requests[0]['payload']['engine']=='gallery'
+        assert requests[0]['payload']['folder']==payload['folder']
+        assert requests[0]['payload']['limit']==1
+        assert window.store.job(scan_id)['result']==result
+    finally:
+        close(window)
+
+    reopened=MainWindow(tmp_path/'state')
+    try:
+        reopened.downloads.show_scan()
+        assert reopened.downloads.scan_tree.topLevelItem(0).childCount()==3
+        assert reopened.downloads.scans.currentData()==scan_id
+    finally:
+        close(reopened)
