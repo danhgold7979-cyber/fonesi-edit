@@ -114,6 +114,7 @@ def test_editor_shortcuts_yield_to_focused_spinbox(tmp_path, monkeypatch):
         assert target is spin
         window.actions['Phát/dừng'].trigger()
         window.actions['Marker'].trigger()
+        window.actions['Thêm video'].trigger()
         assert calls == []
     finally:
         close(window)
@@ -933,6 +934,104 @@ def test_canvas_layer_clipboard_shortcuts_and_native_text_routing(tmp_path):
         field.setText('select all')
         window.actions['Select all'].trigger()
         assert field.selectedText() == 'select all'
+    finally:
+        close(window)
+
+def test_add_video_shortcut_yields_to_text_editor_focus(tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QLineEdit
+    window = MainWindow(tmp_path / 'state')
+    calls = []
+    monkeypatch.setattr(window, 'guard', lambda callback: lambda: calls.append(callback))
+    try:
+        window.show()
+        window.nav.setCurrentWidget(window.editor)
+        field = QLineEdit(window)
+        field.setGeometry(10, 10, 220, 28)
+        field.setText('Keep typing')
+        field.show()
+        window.activateWindow()
+        field.setFocus()
+        APP.processEvents()
+        assert QApplication.focusWidget() is field
+        window.actions['Thêm video'].trigger()
+        assert calls == []
+    finally:
+        close(window)
+
+
+def test_layer_clipboard_preserves_group_metadata_and_undo_is_atomic(tmp_path):
+    fixture = create_fixture(tmp_path / 'media', duration=0.5)
+    source = Path(fixture['source'])
+    source_bytes = source.read_bytes()
+    clip = Clip(str(source), end=0.5, source_duration=0.5, id='clip-1')
+    style = {'font_size': 32, 'color': '#ffffff', 'outline': 2, 'outline_color': '#000000'}
+    first = Layer(
+        name='Group A', text='Layer A', x=0.98, y=0.98, width=0.30, height=0.30,
+        style=dict(style), keyframes={'x': [{'time': 0.0, 'value': 0.98}]},
+        clip_ids=[clip.id], group='source-group',
+    )
+    second = Layer(
+        name='Group B', text='Layer B', x=0.95, y=0.95, width=0.25, height=0.25,
+        style=dict(style), keyframes={'y': [{'time': 0.0, 'value': 0.95}]},
+        clip_ids=[clip.id], group='source-group',
+    )
+    unrelated = Layer(name='Unrelated', text='Keep unchanged', group='unrelated-group')
+    window = MainWindow(tmp_path / 'state')
+    try:
+        window.editor.set_composition(Composition(clips=[clip], layers=[first, second, unrelated]))
+        window.editor.select_ids([first.id, second.id])
+        APP.clipboard().setText('external clipboard sentinel')
+        window.editor.copy_layers()
+        assert APP.clipboard().text() == 'external clipboard sentinel'
+        assert len(window.editor.composition.layers) == 3
+
+        window.editor.paste_layers()
+        layers = window.editor.composition.layers
+        assert len(layers) == 5
+        copies = layers[3:]
+        assert all(copy.id not in {first.id, second.id, unrelated.id} for copy in copies)
+        assert len({copy.id for copy in copies}) == 2
+        assert copies[0].group == copies[1].group
+        assert copies[0].group not in {None, 'source-group'}
+        assert layers[2].group == 'unrelated-group'
+        for original, copied in zip((first, second), copies):
+            assert copied.kind == original.kind
+            assert copied.text == original.text
+            assert copied.style == original.style
+            assert copied.keyframes == original.keyframes
+            assert copied.clip_ids == original.clip_ids
+            assert 0 <= copied.x <= 1 - copied.width
+            assert 0 <= copied.y <= 1 - copied.height
+        assert source.read_bytes() == source_bytes
+
+        window.editor.undo.undo()
+        assert [layer.id for layer in window.editor.composition.layers] == [first.id, second.id, unrelated.id]
+        window.editor.undo.redo()
+        assert len(window.editor.composition.layers) == 5
+    finally:
+        close(window)
+
+
+def test_cut_removes_only_unlocked_layers_and_preserves_source_media(tmp_path):
+    fixture = create_fixture(tmp_path / 'media', duration=0.5)
+    source = Path(fixture['source'])
+    source_bytes = source.read_bytes()
+    clip = Clip(str(source), end=0.5, source_duration=0.5, id='clip-locked-test')
+    editable = Layer(name='Editable', text='Remove from composition', clip_ids=[clip.id], group='g')
+    locked = Layer(name='Locked', text='Keep in composition', locked=True, clip_ids=[clip.id], group='g')
+    window = MainWindow(tmp_path / 'state')
+    try:
+        window.editor.set_composition(Composition(clips=[clip], layers=[editable, locked]))
+        window.editor.select_ids([editable.id, locked.id])
+        window.editor.cut_layers()
+        assert [layer.id for layer in window.editor.composition.layers] == [locked.id]
+        assert source.exists() and source.read_bytes() == source_bytes
+
+        window.editor.undo.undo()
+        assert [layer.id for layer in window.editor.composition.layers] == [editable.id, locked.id]
+        window.editor.undo.redo()
+        assert [layer.id for layer in window.editor.composition.layers] == [locked.id]
+        assert source.exists() and source.read_bytes() == source_bytes
     finally:
         close(window)
 
