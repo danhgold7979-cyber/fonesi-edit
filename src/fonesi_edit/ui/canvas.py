@@ -239,7 +239,8 @@ class Overlay(QGraphicsObject):
             adjustments = view.editor.composition.adjustments if view else {}
             grid = bool(adjustments.get('canvas_grid', False))
             grid_step = adjustments.get('canvas_grid_spacing', .05)
-            if grid_step not in {.05, .1, .2}:
+            if (not isinstance(grid_step, (int, float)) or isinstance(grid_step, bool)
+                    or not math.isfinite(float(grid_step)) or not .01 <= float(grid_step) <= .5):
                 grid_step = .05
             desired_x, desired_y = snap_layer_position(
                 x + dx, y + dy, w, h, enabled=not disabled, grid=grid,
@@ -330,16 +331,18 @@ class Canvas(QGraphicsView):
             grid_pen = QPen(QColor('#46516b'), 1, Qt.PenStyle.DotLine)
             grid_pen.setCosmetic(True)
             grid_step = c.adjustments.get('canvas_grid_spacing', .05)
-            if grid_step not in {.05, .1, .2}:
+            if (not isinstance(grid_step, (int, float)) or isinstance(grid_step, bool)
+                    or not math.isfinite(float(grid_step)) or not .01 <= float(grid_step) <= .5):
                 grid_step = .05
-            divisions = int(round(1.0 / grid_step))
-            for tick in range(1, divisions):
-                x = c.width * tick / divisions
-                y = c.height * tick / divisions
+            tick = 1
+            while tick * grid_step < 1.0 - 1e-9:
+                x = c.width * tick * grid_step
+                y = c.height * tick * grid_step
                 vertical = self.scene().addLine(x, 0, x, c.height, grid_pen)
                 horizontal = self.scene().addLine(0, y, c.width, y, grid_pen)
                 vertical.setZValue(.2)
                 horizontal.setZValue(.2)
+                tick += 1
         safe = self.scene().addRect(c.width * .05, c.height * .05, c.width * .9, c.height * .9, QPen(QColor('#667088'), 1, Qt.PenStyle.DashLine))
         safe.setZValue(10000)
         for index, layer in enumerate(c.layers):
