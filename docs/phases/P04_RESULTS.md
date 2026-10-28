@@ -74,3 +74,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40724751585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40724751585) **PASS**: 386 Linux tests; 385 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: physical Windows/HiDPI/4K acceptance, rotated metadata, VFR/mixed FPS, and complete preview/export parity. This test slice does not mark all of P04 complete.
 
+## P04-02 — Configurable canvas grid spacing (28/10/2026)
+
+- Added persisted 5%, 10%, and 20% grid spacing presets in the existing editor menu. The canvas overlay and grid snapping share the same spacing; unknown stored values safely fall back to 5%.
+- Grid visibility and spacing use the existing project adjustment/undo path. Grid lines remain editor-only and do not become project layers or enter the FFmpeg render graph.
+- CI [run 40726135615](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40726135615) **PASS**: 398 Linux tests; 397 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: custom arbitrary numeric spacing beyond presets, guide priority in dense overlaps, HiDPI and real Windows acceptance. This increment does not mark all of P04 complete.
+
