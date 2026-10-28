@@ -79,3 +79,10 @@ P03: job error được lọc ở worker **và tại SQLite Store.fail**, test f
 ## P04 update — Escape drag cancellation (28/10/2026)
 
 CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40723004092) passed **363 Linux tests / 362 Windows tests + 1 intentional skip**; production desktop/native host and frozen proof passed on both runners. Escape cancellation restores the pre-drag snapshot and avoids a spurious Undo command. Physical keyboard/IME and real Windows/HiDPI acceptance remain open.
+
+## P04 update — configurable canvas grid spacing (28/10/2026)
+
+- Added persisted grid presets at 5%, 10%, and 20%; drawing and snap calculations use the same step.
+- CI [40726135615](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40726135615) **PASS**: 398 Linux tests / 397 Windows tests + 1 intentional POSIX-fixture skip; packaged proof passed on both runners.
+- Arbitrary custom numeric steps, dense-overlap guide priority, physical Windows/HiDPI and other P04/P12 acceptance gates remain open.
+
