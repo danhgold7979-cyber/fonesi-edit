@@ -505,3 +505,53 @@ def test_crop_ratio_locked_side_keeps_opposite_edge_and_centres_other_axis(handl
         assert y == pytest.approx(value)
         assert x + width / 2 == pytest.approx(0.4)
 
+@pytest.mark.parametrize("handle,start,current", [
+    ("left", (.2, .35), (.1, .35)),
+    ("right", (.6, .35), (.7, .35)),
+    ("top", (.4, .2), (.4, .1)),
+    ("bottom", (.4, .5), (.4, .6)),
+    ("left_top", (.2, .2), (.1, .1)),
+    ("left_bottom", (.2, .5), (.1, .6)),
+    ("right_top", (.6, .2), (.7, .1)),
+    ("right_bottom", (.6, .5), (.7, .6)),
+])
+def test_crop_ratio_lock_preserves_normalized_ratio_for_every_handle(handle, start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    initial = (.2, .2, .4, .3)
+    result = crop_drag_rect(initial, handle, start, current, ratio_locked=True)
+    x, y, width, height = result
+    assert width / height == pytest.approx(initial[2] / initial[3], abs=1e-9)
+    assert 0 <= x <= 1 and 0 <= y <= 1
+    assert 0 < width <= 1 and 0 < height <= 1
+    assert x + width <= 1 + 1e-9
+    assert y + height <= 1 + 1e-9
+
+
+@pytest.mark.parametrize("handle,start,current", [
+    ("right_bottom", (.9, .9), (1.0, 1.0)),
+    ("left_top", (.5, .5), (0.0, 0.0)),
+    ("right", (.9, .7), (1.0, .7)),
+    ("bottom", (.7, .9), (.7, 1.0)),
+])
+def test_ratio_locked_crop_handles_clamp_at_source_boundaries(handle, start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    initial = (.5, .5, .4, .4)
+    x, y, width, height = crop_drag_rect(
+        initial, handle, start, current, ratio_locked=True
+    )
+    assert x >= 0 and y >= 0 and width > 0 and height > 0
+    assert x + width <= 1 + 1e-9 and y + height <= 1 + 1e-9
+    assert width / height == pytest.approx(initial[2] / initial[3], abs=1e-9)
+
+
+def test_free_ratio_crop_edge_resize_keeps_orthogonal_dimension():
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    initial = (.2, .2, .4, .3)
+    x, y, width, height = crop_drag_rect(
+        initial, "right", (.6, .35), (.7, .35), ratio_locked=False
+    )
+    assert x == pytest.approx(.2)
+    assert y == pytest.approx(.2)
+    assert width == pytest.approx(.5)
+    assert height == pytest.approx(.3)
+
