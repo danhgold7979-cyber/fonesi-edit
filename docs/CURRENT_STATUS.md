@@ -7,13 +7,13 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P01 | Thiết kế, luồng, contracts, traceability | Cập nhật theo thay đổi đã được chấp thuận |
 | P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain/SQLite/snapshots/worker; backup có integrity/no-overwrite, credential alias checks và error redaction; CI Linux/Windows pass | Soak/crash/power-loss, filesystem không hỗ trợ hard link, installer và nghiệm thu máy Windows người dùng |
-| P04 | Canvas/inspector/timeline/undo/project và phím tắt nền | Hoàn thiện chi tiết tương tác/parity mọi trường hợp |
+| P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, thumbnail source strip async, validated source proxy 3 mức; CI Linux/Windows frozen PASS | Crop/9 anchor, VFR/HiDPI/4K/seek/timeline dài, đầy đủ shortcut và máy Windows user |
 | P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
 | P08 | Folder dry-run, output kênh, duration solver/loop/freeze và audio shared/by_name/ordered/random theo seed, UI chọn audio folder; source/packaged CI Linux/Windows PASS | SFX theo cảnh/phần trăm, music crossfade/solo/meter realtime, corpus lớn, Windows user audio |
 | P09 | Lazy matrix, W/K/history/lock, **regenerate một hàng** không đổi hàng khác, thống kê usage, formula sync; **weights/manual seconds** và speed bounds từ UI đến render; CI/frozen Linux/Windows PASS | Stress solver ma trận lớn, reorder cảnh/locks nâng cao và Windows/exFAT thực |
-| P10 | Workflow/watch/schedule, metrics/admission/tools | Installer/auth/driver Windows thực tế |
+| P10 | Workflow/watch/schedule và resources; Settings quota proxy cache/janitor nền an toàn, bảo vệ file QMediaPlayer đang phát; CI/frozen PASS | Task Scheduler, GPU/VRAM/driver thật, cache khác/installer và Windows/ACL/soak |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
 | P12 | Script/build app + native host; frozen proof Linux/Windows CI đã đạt | Cài đặt/rollback, máy Windows người dùng, Chrome/GPU/HiDPI/audio và nghiệm thu release còn mở |
 
@@ -40,3 +40,7 @@ CI P02: [run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/acti
 ## P09 — Kết quả nâng cấp ma trận (28/10/2026)
 
 [CI 40645339209](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40645339209) PASS **180 Linux / 179 Windows + 1 skip**, packaged proof hai hệ đạt. Đã code tạo lại riêng hàng không vi phạm W/K/history/lock, thống kê tần suất góc, ô nhập thời lượng cảnh theo weights hoặc số giây nhập tay, speed bounds trong Matrix UI, truyền chính xác đến solver và render. Chưa khép cổng Windows/exFAT thực tế, reorder cảnh UI và solver quy mô lớn. Chi tiết [P09_RESULTS](phases/P09_RESULTS.md).
+
+## Cập nhật P04/P10 ngày 28/10/2026
+
+CI [40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) **PASS 195 test Linux, 194 Windows + 1 skip**, build/frozen proof hai hệ đạt. Loop In–Out, thumbnail/cache source proxy và giới hạn dọn cache đã có code/test; hiệu năng thật, Chrome/live providers, GPU và phát hành Windows chưa được nghiệm thu đầy đủ.
