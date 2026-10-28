@@ -147,3 +147,20 @@ def test_regenerate_row_cancel_and_bad_index_do_not_mutate_rows():
     with pytest.raises(ValueError,match='time budget'):
         regenerate_row(source,rows,0,seconds=0)
     assert rows==[[source[0][0],source[1][0]]]
+
+
+
+def test_planned_angle_usage_includes_unselected_zero_count_angles():
+    from fonesi_edit.matrix import angle_usage
+    source=scenes([3,2])
+    rows=[[source[0][0],source[1][1]],[source[0][0],source[1][0]]]
+    usage=angle_usage(source,rows)
+    assert [(item['angle'],item['uses']) for item in usage[0]]==[(1,2),(2,0),(3,0)]
+    assert [(item['angle'],item['uses']) for item in usage[1]]==[(1,1),(2,1)]
+    assert all(item['hash']==source[i][j].hash for i,group in enumerate(usage)
+               for j,item in enumerate(group))
+    assert sum(item['uses'] for item in usage[0])==len(rows)
+    with pytest.raises(ValueError,match='row length'):
+        angle_usage(source,[[source[0][0]]])
+    with pytest.raises(ValueError,match='absent'):
+        angle_usage(source,[[Angle(1,4,'/invalid','unknown'),source[1][0]]])
