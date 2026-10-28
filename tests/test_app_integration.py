@@ -166,3 +166,49 @@ def test_scan_selection_never_switches_a_stale_account_to_public(tmp_path):
         assert not any(job['kind']=='download' for job in window.store.jobs())
     finally:
         close(window)
+
+
+def test_paginated_scan_preserves_checkbox_selection_across_pages(tmp_path):
+    from PySide6.QtCore import Qt
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        payload={'url':'https://example.test/gallery',
+                 'folder':str(tmp_path/'output'),'engine':'gallery','media':'images'}
+        scan_id=window.store.submit('scan',payload)
+        window.store.claim(allowed={'scan'})
+        urls=['https://example.test/media/a.png',
+              'https://example.test/media/b.png',
+              'https://example.test/media/c.png',
+              'https://example.test/media/a.png',  # duplicate on second page
+              'https://example.test/media/e.png']
+        items=[{'id':str(i),'title':'Image '+str(i),'kind':'images',
+                'engine':'gallery','url':url,'selectable':True}
+               for i,url in enumerate(urls)]
+        window.store.finish(scan_id,{'platform':'Generic','items':items,
+                                     'count':len(items),'complete':None})
+        downloads=window.downloads
+        downloads.scan_page_size=2
+        downloads.show_scan()
+        first=downloads.scan_tree.topLevelItem(0)
+        assert first.childCount()==2
+        first.child(0).setCheckState(0,Qt.CheckState.Checked)
+        downloads.change_scan_page(1)
+        second=downloads.scan_tree.topLevelItem(0)
+        assert second.childCount()==2
+        assert not (second.child(1).flags() & Qt.ItemFlag.ItemIsUserCheckable)
+        second.child(0).setCheckState(0,Qt.CheckState.Checked)
+        downloads.change_scan_page(1)
+        last=downloads.scan_tree.topLevelItem(0)
+        assert last.childCount()==1
+        last.child(0).setCheckState(0,Qt.CheckState.Checked)
+        downloads.change_scan_page(-2)
+        assert downloads.scan_tree.topLevelItem(0).child(0).checkState(0)==Qt.CheckState.Checked
+        assert len(downloads.scan_selected[scan_id])==3
+        assert 'đã chọn 3' in downloads.scan_note.text()
+        downloads.download_selected()
+        jobs=[job for job in window.store.jobs() if job['kind']=='download']
+        assert len(jobs)==3
+        assert {job['payload']['url'] for job in jobs}=={urls[0],urls[2],urls[4]}
+    finally:
+        close(window)
