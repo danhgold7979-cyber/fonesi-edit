@@ -117,3 +117,8 @@ Phạm vi giao diện tiếp theo: hiển thị frame nguồn, overlay ngoài v�
 ### Kết quả P04-02/P04-03 — Crop source (28/10/2026)
 
 CI [40686663256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40686663256) PASS: 262 Linux, 261 Windows + 1 skip; packaged proof hai hệ PASS. Test có crop geometry/pixel bounds, render FFmpeg thật, preview pixel, drag Qt, cancel và Undo. Tách riêng các cổng crop ratio/rotation metadata/VFR/HiDPI/4K/Windows máy người dùng; không đánh dấu hoàn tất toàn bộ P04.
+
+
+## 12. P04-05 — Shortcut remap failure handling (28/10/2026)
+
+Bổ sung bước hardening: JSON người dùng nhập sai phải trả lỗi có kiểm soát, không làm văng slot UI; remap từng phần phải merge với map hiện tại; lưu map đầy đủ trước khi cập nhật QAction để tránh runtime/settings lệch nhau khi storage ghi thất bại. Test helper parser JSON và giữ nguyên hành vi merge/conflict. Chạy full source/packaged CI hai hệ; nếu storage lỗi ngoài các exception dự kiến, giữ nguyên runtime state và ghi blocker.

@@ -58,6 +58,15 @@ def shortcut_focus_policy(focused):
     return "global", None
 
 
+def parse_shortcut_remap_json(text, current):
+    """Parse user-edited shortcut JSON and validate it without mutating current state."""
+    try:
+        changes = json.loads(text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("JSON phím tắt không hợp lệ") from exc
+    return normalize_shortcut_remap(changes, current)
+
+
 def normalize_shortcut_remap(changes, current):
     """Merge partial shortcut edits, normalize them, and reject invalid/conflicting keys."""
     if not isinstance(changes, dict) or set(changes) - set(current):
@@ -356,11 +365,20 @@ class MainWindow(QMainWindow):
         data={name:action.shortcut().toString() for name,action in self.actions.items()}
         text,ok=QInputDialog.getMultiLineText(self,'Phím tắt','JSON tên → phím (để trống để bỏ)',json.dumps(data,ensure_ascii=False,indent=2))
         if not ok:return
-        changed=json.loads(text)
-        normalized = normalize_shortcut_remap(changed, data)
-        for name,value in normalized.items():
+        try:
+            normalized = parse_shortcut_remap_json(text, data)
+        except ValueError as exc:
+            self.message(f"Phím tắt chưa hợp lệ: {exc}")
+            return
+        # Persist the complete merged map before changing runtime QAction state.
+        # A failed write must not leave shortcuts different from the saved settings.
+        try:
+            self.store.set_setting('shortcuts', normalized)
+        except (OSError, RuntimeError, ValueError) as exc:
+            self.message(f"Không lưu được phím tắt: {exc}")
+            return
+        for name, value in normalized.items():
             self.actions[name].setShortcut(QKeySequence(value))
-        self.store.set_setting('shortcuts', normalized)
 
     def add_marker(self):self.editor.timeline.markers.append(self.editor.timeline.playhead);self.editor.timeline.rebuild()
     def help(self):

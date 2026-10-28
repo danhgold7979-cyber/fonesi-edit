@@ -3,7 +3,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QComboBox, QListWidget, QPushButton, QWidget
-from fonesi_edit.app import normalize_shortcut_remap, shortcut_focus_policy
+from fonesi_edit.app import normalize_shortcut_remap, parse_shortcut_remap_json, shortcut_focus_policy
 
 APP = QApplication.instance() or QApplication([])
 
@@ -48,6 +48,19 @@ def test_partial_shortcut_remap_merges_and_normalizes_existing_values():
 def test_shortcut_remap_allows_explicitly_disabling_one_action():
     current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z"}
     assert normalize_shortcut_remap({"Undo": ""}, current) == {"Undo": "", "Redo": "Ctrl+Shift+Z"}
+
+
+@pytest.mark.parametrize("payload", ["{", "[] trailing", "null", "7", '"Ctrl+S"'])
+def test_shortcut_json_parser_rejects_malformed_or_non_object_payloads(payload):
+    with pytest.raises(ValueError, match="JSON phím tắt|Tên thao tác"):
+        parse_shortcut_remap_json(payload, {"Save": "Ctrl+S"})
+
+
+def test_shortcut_json_parser_keeps_partial_updates_merged():
+    current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z", "Save": "Ctrl+S"}
+    assert parse_shortcut_remap_json('{"Undo": "Ctrl+Y"}', current) == {
+        "Undo": "Ctrl+Y", "Redo": "Ctrl+Shift+Z", "Save": "Ctrl+S"
+    }
 
 
 def test_shortcut_remap_rejects_duplicate_after_normalization():
