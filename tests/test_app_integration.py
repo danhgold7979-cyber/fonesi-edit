@@ -1035,3 +1035,49 @@ def test_cut_removes_only_unlocked_layers_and_preserves_source_media(tmp_path):
     finally:
         close(window)
 
+def test_ui_layout_persists_and_restores_navigation_inspector_and_splitter(tmp_path):
+    state = tmp_path / "state"
+    window = MainWindow(state)
+    window.resize(1280, 820)
+    window.show()
+    APP.processEvents()
+    window.nav.setCurrentIndex(3)
+    window.editor.inspector.setCurrentIndex(1)
+    window.editor.splitter.setSizes([220, 680, 320])
+    APP.processEvents()
+    assert window.persist_ui_layout()
+    saved = window.store.setting("ui_layout_v1")
+    assert saved["version"] == 1
+    assert saved["nav_index"] == 3
+    assert saved["inspector_tab"] == 1
+    assert len(saved["editor_splitter_sizes"]) == 3
+    assert saved["geometry"] and saved["state"]
+    close(window)
+
+    restored = MainWindow(state)
+    restored.show()
+    APP.processEvents()
+    assert restored.nav.currentIndex() == 3
+    assert restored.editor.inspector.currentIndex() == 1
+    sizes = restored.editor.splitter.sizes()
+    assert len(sizes) == 3
+    assert all(size > 0 for size in sizes)
+    close(restored)
+
+
+def test_ui_layout_restore_ignores_corrupt_or_out_of_range_settings(tmp_path):
+    window = MainWindow(tmp_path / "state")
+    window.store.set_setting("ui_layout_v1", {
+        "version": 1,
+        "geometry": "not-base64%%% ",
+        "state": 123,
+        "nav_index": 999,
+        "inspector_tab": -2,
+        "editor_splitter_sizes": [10, -1],
+    })
+    assert window.restore_ui_layout() is False
+    assert 0 <= window.nav.currentIndex() < window.nav.count()
+    assert 0 <= window.editor.inspector.currentIndex() < window.editor.inspector.count()
+    assert len(window.editor.splitter.sizes()) == 3
+    close(window)
+
