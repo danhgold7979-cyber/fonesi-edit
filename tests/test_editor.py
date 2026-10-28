@@ -310,3 +310,41 @@ def test_peer_snap_rejects_nonfinite_geometry_and_ignores_out_of_canvas_peers():
         snap_layer_to_peers(float("nan"), .2, .1, .1, [])
     assert snap_layer_to_peers(.603, .303, .1, .1, [(1.2, .4, .2, .2)]) == (.603, .303)
 
+def test_peer_snap_reports_visible_guide_coordinates():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers_with_guides
+    peers = [(0.4, 0.4, 0.2, 0.2)]
+    x, y, vertical, horizontal = snap_layer_to_peers_with_guides(
+        .603, .303, .1, .1, peers
+    )
+    assert (x, y, vertical, horizontal) == pytest.approx((.6, .3, .6, .4))
+    x, y, vertical, horizontal = snap_layer_to_peers_with_guides(
+        .442, .442, .1, .1, peers
+    )
+    assert (x, y, vertical, horizontal) == pytest.approx((.45, .45, .5, .5))
+
+
+def test_peer_snap_guides_are_absent_when_no_snap_occurs_or_alt_is_held():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers_with_guides
+    peers = [(0.4, 0.4, 0.2, 0.2)]
+    assert snap_layer_to_peers_with_guides(.625, .625, .1, .1, peers) == (
+        .625, .625, None, None
+    )
+    x, y, vertical, horizontal = snap_layer_to_peers_with_guides(
+        .603, .303, .1, .1, peers, enabled=False
+    )
+    assert (x, y) == pytest.approx((.603, .303))
+    assert vertical is None and horizontal is None
+
+
+def test_canvas_clears_peer_guides_when_rebuilt():
+    host = Host()
+    editor = Editor(host)
+    try:
+        editor.canvas.set_peer_snap_guides(.5, .4)
+        assert editor.canvas._peer_snap_guides == (.5, .4)
+        editor.canvas.rebuild()
+        assert editor.canvas._peer_snap_guides == (None, None)
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
