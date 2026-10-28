@@ -19,7 +19,7 @@ from ..storage import TERMINAL
 from ..batch import scan_folders,batch_plan,enqueue_batch
 from ..matrix import scan_scenes,generate,history,combination,valid_against,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
-from ..downloads import platform_for
+from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -63,7 +63,15 @@ class DownloadsPage(QWidget):
         self.target_language=QComboBox();self.target_language.setEditable(True);self.target_language.addItems(['vi','en','zh','ja','ko','fr','de','es']);form.addRow('Ngôn ngữ dịch đích',self.target_language)
         self.bilingual=QCheckBox('Giữ sub gốc và bản dịch thành hai layer');form.addRow(self.bilingual)
         buttons(layout,host,[('Làm mới tài khoản',self.refresh_accounts),('Quét danh sách',lambda:self.submit('scan')),('Tải hàng loạt',lambda:self.submit('download')),('Xem kết quả quét',self.show_scan),('Đặt lịch',self.schedule)])
-        self.result=QPlainTextEdit();self.result.setReadOnly(True);layout.addWidget(self.result,1);self.last_scan=None;self.refresh_accounts()
+        selector=QHBoxLayout();layout.addLayout(selector);selector.addWidget(QLabel('Lần quét'))
+        self.scans=QComboBox();selector.addWidget(self.scans,1)
+        self.scans.currentIndexChanged.connect(lambda _:self.load_scan())
+        buttons(layout,host,[('Chọn tất cả mục hợp lệ',lambda:self.check_scan_items(True)),('Bỏ chọn',lambda:self.check_scan_items(False)),('Tải mục đã chọn',self.download_selected)])
+        self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
+        self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
+        self.scan_tree.setMinimumHeight(140);layout.addWidget(self.scan_tree,1)
+        self.result=QPlainTextEdit();self.result.setReadOnly(True);self.result.setMaximumHeight(100);layout.addWidget(self.result)
+        self.last_scan=None;self.refresh_accounts();self.refresh_scans()
 
     def refresh_accounts(self):
         selected=self.account.currentData();self.account.clear();self.account.addItem('Công khai / mặc định từng nền tảng',None)
@@ -96,12 +104,85 @@ class DownloadsPage(QWidget):
         for payload in payloads:
             key=self.host.store.submit(kind,payload)
             if kind=='scan':self.last_scan=key
+        if kind=='scan':self.refresh_scans()
         self.host.message(f'Đã thêm {len(payloads)} tác vụ {kind}');self.host.activate_queue()
 
+    def refresh_scans(self):
+        selected=self.scans.currentData() or self.last_scan
+        self.scans.blockSignals(True);self.scans.clear()
+        for job in self.host.store.jobs(limit=2000):
+            if job['kind']!='scan':continue
+            # Do not expose a potentially signed source URL in the scan chooser.
+            self.scans.addItem(f"{job['state']} • {job['id'][:8]}",job['id'])
+        index=self.scans.findData(selected)
+        if index>=0:self.scans.setCurrentIndex(index)
+        self.scans.blockSignals(False)
+
     def show_scan(self):
-        if not self.last_scan:return
-        job=self.host.store.job(self.last_scan)
-        self.result.setPlainText(json.dumps(job['result'] or {'state':job['state'],'error':job['error']},ensure_ascii=False,indent=2))
+        self.refresh_scans()
+        self.load_scan()
+
+    def load_scan(self):
+        self.scan_tree.clear()
+        job_id=self.scans.currentData()
+        if not job_id:
+            self.scan_note.setText('Chưa có kết quả quét')
+            self.result.clear()
+            return
+        job=self.host.store.job(job_id)
+        if job['state']!='succeeded':
+            self.scan_note.setText(f"Quét {job['state']}; chưa có danh sách xác nhận.")
+            self.result.setPlainText('Lỗi: '+str(job['error'] or 'Chưa có kết quả'))
+            return
+        data=job['result'] or {}
+        items=data.get('items') or []
+        complete=data.get('complete')
+        completeness='đã xác nhận đủ' if complete is True else 'quét một phần' if complete is False else 'chưa rõ đã quét hết'
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục • {completeness}. Chọn từng mục trước khi tải.")
+        self.result.setPlainText('Chỉ tải mục đã đánh dấu; giữ nguyên tài khoản và thư mục từ job quét. Không tự tải lại toàn kênh.')
+        parent=QTreeWidgetItem([f"Job {job_id[:8]}",'Nguồn',completeness])
+        self.scan_tree.addTopLevelItem(parent)
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            selectable=bool(safe) and item.get('selectable') is not False
+            label=str(item.get('title') or item.get('id') or 'Mục không tên')[:160]
+            state='Có thể tải' if selectable else str(item.get('reason') or 'Thiếu URL tải lại an toàn')
+            child=QTreeWidgetItem([label,str(item.get('kind','video')),state])
+            child.setData(0,Qt.ItemDataRole.UserRole,index)
+            if selectable:
+                child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(0,Qt.CheckState.Unchecked)
+            else:
+                child.setFlags(child.flags()&~Qt.ItemFlag.ItemIsEnabled)
+            parent.addChild(child)
+        parent.setExpanded(True)
+
+    def check_scan_items(self,checked):
+        root=self.scan_tree.topLevelItem(0)
+        if root is None:return
+        for index in range(root.childCount()):
+            item=root.child(index)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                item.setCheckState(0,Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+
+    def download_selected(self):
+        job_id=self.scans.currentData()
+        if not job_id:raise ValueError('Chưa chọn một lần quét')
+        job=self.host.store.job(job_id)
+        parent=self.scan_tree.topLevelItem(0)
+        if parent is None:raise ValueError('Hãy xem kết quả quét trước khi chọn')
+        indexes=[parent.child(i).data(0,Qt.ItemDataRole.UserRole)
+            for i in range(parent.childCount())
+            if parent.child(i).flags() & Qt.ItemFlag.ItemIsUserCheckable
+            and parent.child(i).checkState(0)==Qt.CheckState.Checked]
+        requests=selected_download_payloads(job,indexes)
+        account=job['payload'].get('account_ref')
+        if account and account not in {item['id'] for item in bindings(self.host.store)}:
+            raise PermissionError('Tài khoản quét đã bị xóa; không tự chuyển sang công khai')
+        for payload in requests:self.host.store.submit('download',payload)
+        self.host.message(f"Đã thêm {len(requests)} job tải đúng mục đã chọn từ scan {job_id[:8]}")
+        self.host.activate_queue()
 
     def schedule(self):
         payloads=list(self.payloads());minutes,ok=QInputDialog.getInt(self,'Lịch tải','Mỗi bao nhiêu phút?',60,1,100000)
