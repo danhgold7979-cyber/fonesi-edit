@@ -83,3 +83,50 @@ def test_revoking_one_profile_does_not_revoke_the_other(tmp_path):
     assert store.setting('bridge:'+hashlib.sha256(ta.encode()).hexdigest()) is None
     assert store.setting('bridge:'+hashlib.sha256(tb.encode()).hexdigest())['profile_id']==b
     with pytest.raises(PermissionError,match='paired'):receive_session(store,ta,'Facebook',[])
+
+
+@pytest.mark.parametrize('overrides',[
+    {'engine':'unsupported'},
+    {'media':'everything'},
+    {'limit':-2},
+    {'limit':'many'},
+])
+def test_download_options_fail_before_creating_outputs(tmp_path,overrides):
+    from threading import Event
+    store=Store(tmp_path/'state.db')
+    destination=tmp_path/'should-not-exist'
+    payload={'url':'http://127.0.0.1/example.mp4','folder':str(destination),**overrides}
+    with pytest.raises(ValueError):
+        execute_download_job(store,{'kind':'download','payload':payload},lambda _:None,Event())
+    assert not destination.exists()
+
+
+def test_gallery_cookiejar_is_attached_after_extractor_session_exists(tmp_path,monkeypatch):
+    """Exercise real gallery-dl transport with a synthetic cookie, not Chrome/auth."""
+    from http.cookiejar import Cookie,CookieJar
+    from fonesi_edit.downloads import _gallery
+    monkeypatch.setenv('NO_PROXY','127.0.0.1,localhost')
+    media=create_fixture(tmp_path/'served',duration=.5)
+    jar=CookieJar()
+    jar.set_cookie(Cookie(
+        version=0,name='synthetic_session',value='local-only',port=None,
+        port_specified=False,domain='127.0.0.1',domain_specified=False,
+        domain_initial_dot=False,path='/',path_specified=True,secure=False,
+        expires=None,discard=True,comment=None,comment_url=None,rest={},
+        rfc2109=False))
+    class Handler(SimpleHTTPRequestHandler):
+        def log_message(self,*args):pass
+    server=ThreadingHTTPServer(('127.0.0.1',0),
+        partial(Handler,directory=str(media['logo'].parent)))
+    thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+    try:
+        payload={'url':f'http://127.0.0.1:{server.server_port}/logo.png',
+                 'media':'images','limit':0}
+        store=Store(tmp_path/'state.db')
+        result=_gallery(store,{'kind':'download','payload':payload},'Generic',
+                        tmp_path/'Unicode 中文',jar,lambda _:None,Event())
+        assert result['count']==1
+        from pathlib import Path
+        assert Path(result['files'][0]['path']).is_file()
+    finally:
+        server.shutdown();server.server_close();thread.join(timeout=3)
