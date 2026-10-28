@@ -76,3 +76,50 @@ def test_mouse_drag_on_preview_updates_model_and_has_one_undo_step():
     assert editor.composition.layers[0].x>.1 and editor.undo.count()==1
     editor.undo.undo();assert editor.composition.layers[0].x==.1
     editor.close();host.workspace.cleanup()
+
+
+def test_canvas_snap_uses_layer_centre_and_supports_alt_override():
+    from fonesi_edit.ui.canvas import snap_layer_position
+    x, y = snap_layer_position(.396, .405, .2, .2)
+    assert abs(x-.4)<1e-9 and abs(y-.4)<1e-9
+    # Top-left at .5 is not a centred .2-wide layer: no false snap.
+    x, y = snap_layer_position(.488, .4, .2, .2)
+    assert abs(x-.488)<1e-9
+    assert snap_layer_position(.396,.405,.2,.2,enabled=False)==(.396,.405)
+    assert snap_layer_position(.054,.749,.2,.2)==(.05,.75)
+    # The grid snaps on the same normalized basis as canvas coordinates.
+    assert snap_layer_position(.101,.301,.2,.2,grid=True)==(.1,.3)
+
+
+def test_group_translation_clamps_original_union_not_member_positions():
+    from fonesi_edit.ui.canvas import constrained_group_delta
+    bounds=[(.1,.2,.2,.15),(.65,.6,.3,.2)]
+    dx,dy=constrained_group_delta(bounds,.4,.4)
+    assert abs(dx-.05)<1e-9 and abs(dy-.2)<1e-9
+    moved=[(x+dx,y+dy,w,h) for x,y,w,h in bounds]
+    assert abs(moved[1][0]-moved[0][0]-.55)<1e-9
+    assert max(x+w for x,y,w,h in moved)<=1
+    assert max(y+h for x,y,w,h in moved)<=1
+    assert constrained_group_delta(bounds,-.5,-.5)==(-.1,-.2)
+
+
+def test_canvas_grid_is_view_only_project_persistent_and_undoable():
+    from PySide6.QtWidgets import QGraphicsLineItem
+    host=Host();editor=Editor(host)
+    try:
+        assert not editor.composition.adjustments.get('canvas_grid')
+        editor.set_canvas_grid(True)
+        assert editor.grid_action.isChecked()
+        assert editor.composition.adjustments['canvas_grid'] is True
+        assert len([item for item in editor.canvas.scene().items()
+                    if isinstance(item,QGraphicsLineItem)])==38
+        serialized=editor.composition.to_dict()
+        assert Composition.from_dict(serialized).adjustments['canvas_grid'] is True
+        editor.undo.undo()
+        assert not editor.grid_action.isChecked()
+        assert not editor.composition.adjustments.get('canvas_grid')
+        assert editor.undo.count()==1
+        editor.undo.redo()
+        assert editor.grid_action.isChecked()
+    finally:
+        editor.close();host.workspace.cleanup()
