@@ -140,6 +140,7 @@ class MainWindow(QMainWindow):
         self._ime_composing_widget=None
         self._ime_filtered_widgets=[]
         self.actions={};self.shortcuts();self.restore();self.restore_ui_layout()
+        self._install_ime_filters()
         QApplication.instance().installEventFilter(self)
         QApplication.instance().focusChanged.connect(self._on_focus_changed)
         self.automation.start()
@@ -223,6 +224,13 @@ class MainWindow(QMainWindow):
         except RuntimeError:
             return False
 
+    def _install_ime_filters(self):
+        """Install a direct filter on current widgets; also catch widgets created later."""
+        for widget in self.findChildren(QWidget):
+            if widget not in self._ime_filtered_widgets:
+                widget.installEventFilter(self)
+                self._ime_filtered_widgets.append(widget)
+
     def _on_focus_changed(self,old,new):
         if new is not None and hasattr(new,'installEventFilter') and new not in self._ime_filtered_widgets:
             new.installEventFilter(self)
@@ -235,10 +243,9 @@ class MainWindow(QMainWindow):
         composing=self._ime_composing_widget
         if composing is None:
             return False
-        focused=QApplication.focusWidget()
-        if not self._widgets_related(composing,focused):
-            self._ime_composing_widget=None
-            return False
+        # FocusChanged clears stale composition state. Avoid re-querying focus
+        # here: some Qt platform plugins temporarily report no focus widget
+        # while delivering an input-method preedit event.
         return target is None or self._widgets_related(composing,target)
 
     def guard(self,callback):
