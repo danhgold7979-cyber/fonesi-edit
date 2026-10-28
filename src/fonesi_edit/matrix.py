@@ -233,7 +233,7 @@ def history(store,scope):
         return [json.loads(r[0]) for r in conn.execute("SELECT combination FROM matrix_history WHERE scope=? AND state IN ('reserved','succeeded') ORDER BY created",(scope,))]
 
 
-def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,maximum=2):
+def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,maximum=2,weights=None):
     c=deepcopy(preset);c.clips=[]
     c.seed=int(hashlib.sha256(f'{preset.seed}:{combination(row)}'.encode()).hexdigest()[:8],16)%2147483647
     for angle in row:
@@ -241,15 +241,15 @@ def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,m
     for layer in c.layers:layer.clip_ids=[]
     if audio:
         c.audio=[{'path':str(Path(audio).resolve()),'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
-        c=fit_duration(c,audio_duration(audio),minimum=minimum,maximum=maximum,allocation=allocation)
+        c=fit_duration(c,audio_duration(audio),minimum=minimum,maximum=maximum,allocation=allocation,weights=weights)
     bind_source_subtitles(c)
     return c
 
 
-def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False):
+def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None):
     jobs=[];plans=[]
     for row in rows:
-        comp=row_composition(row,preset,audio,allocation,minimum,maximum)
+        comp=row_composition(row,preset,audio,allocation,minimum,maximum,weights=weights)
         key=combination(row);digest=hashlib.sha256(key.encode()).hexdigest()[:12]
         payload={'composition':comp.to_dict(),'output':str(Path(output_root)/f'video_{digest}.mp4'),'matrix_scope':scope,'matrix_combination':key}
         payload['_tools']=store.setting('tool_paths',{})

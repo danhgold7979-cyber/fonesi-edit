@@ -337,3 +337,29 @@ def test_matrix_edit_updates_formula_and_non_angle_columns_cannot_be_locked(tmp_
         assert not page.model.locked
     finally:
         close(window)
+
+
+def test_matrix_weights_ui_validates_all_scenes_without_silent_fallback(tmp_path):
+    from fonesi_edit.matrix import Angle
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.matrix
+        groups=[[Angle(1,1,'/mock/a','A')],[Angle(2,1,'/mock/b','B')]]
+        page.model.replace(groups,[[groups[0][0],groups[1][0]]])
+        assert 'weights' in [page.allocation.itemText(i)
+            for i in range(page.allocation.count())]
+        page.allocation.setCurrentText('weights')
+        page.scene_weights.setText('1,3')
+        assert page.duration_weights()==[1,3]
+        page.scene_weights.setText('1')
+        with pytest.raises(ValueError,match='Số trọng số'):
+            page.duration_weights()
+        for invalid in ('1,0','1,-2','1,nan','1,inf','1,bad'):
+            page.scene_weights.setText(invalid)
+            with pytest.raises(ValueError):
+                page.duration_weights()
+        page.allocation.setCurrentText('equal')
+        assert page.duration_weights() is None
+    finally:
+        close(window)

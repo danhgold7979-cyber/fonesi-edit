@@ -164,3 +164,29 @@ def test_planned_angle_usage_includes_unselected_zero_count_angles():
         angle_usage(source,[[source[0][0]]])
     with pytest.raises(ValueError,match='absent'):
         angle_usage(source,[[Angle(1,4,'/invalid','unknown'),source[1][0]]])
+
+
+def test_matrix_audio_duration_weights_follow_real_ffprobe_and_snapshot(tmp_path):
+    from fonesi_edit.matrix import row_composition
+    from fonesi_edit.domain import Composition
+    fixture=create_fixture(tmp_path/'media',duration=1)
+    clip=str(fixture['source'])
+    row=[Angle(1,1,clip,'scene-one'),Angle(2,1,clip,'scene-two')]
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+    before=preset.to_dict()
+    comp=row_composition(row,preset,clip,allocation='weights',
+                         minimum=.1,maximum=10,weights=[1,3])
+    lengths=[(c.end-c.start)/c.speed for c in comp.clips]
+    assert len(lengths)==2
+    assert abs(lengths[0]/lengths[1]-1/3)<.01
+    assert abs(sum(lengths)-1)<.03
+    assert comp.audio[0]['mode']=='main'
+    assert preset.to_dict()==before
+    store=Store(tmp_path/'state.db')
+    jobs=enqueue_rows(store,'weights-test',[row],preset,tmp_path/'out',clip,
+                      'weights',minimum=.1,maximum=10,weights=[1,3])
+    queued=store.job(jobs[0])['payload']['composition']['clips']
+    queued_lengths=[(c['end']-c['start'])/c['speed'] for c in queued]
+    assert abs(queued_lengths[0]/queued_lengths[1]-1/3)<.01
+    with pytest.raises(ValueError,match='Manual duration weights'):
+        row_composition(row,preset,clip,allocation='weights')
