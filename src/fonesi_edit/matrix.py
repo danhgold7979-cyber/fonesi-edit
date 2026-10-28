@@ -111,6 +111,98 @@ def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,histo
             'reason':None if len(rows)==count else 'Chưa tìm đủ trong budget; không tự nới W/K hoặc kết luận vô nghiệm'}
 
 
+
+def matrix_rows_valid(rows, history=(), window=0, different=0, compare_window=False):
+    """Check unique combinations and every forward W/K constraint in row order."""
+    if window < 0 or different < 0:
+        raise ValueError('Invalid W/K')
+    previous = [list(item) for item in history]
+    used = {canonical(values) for values in previous}
+    for row in rows:
+        key = combination(row)
+        if key in used or not valid_against(row, previous, window, different, compare_window):
+            return False
+        previous.append([angle.hash for angle in row])
+        used.add(key)
+    return True
+
+
+def regenerate_row(scenes, rows, row_index, seed=0, window=0, different=0,
+                   compare_window=False, history=(), locks=None,
+                   seconds=5, cancel=None):
+    """Change exactly one matrix row, preserving locked cells and all other rows.
+
+    Candidate feasibility is checked against *all* rows, not only rows before
+    the changed one. Small spaces are searched exhaustively; a large timed
+    search raises an explicit budget error rather than pretending UNSAT.
+    The input rows and locks are never mutated.
+    """
+    if not scenes or any(not scene for scene in scenes):
+        raise ValueError('Empty matrix scenes')
+    if type(row_index) is not int or not 0 <= row_index < len(rows):
+        raise ValueError('Invalid matrix row index')
+    if window < 0 or not 0 <= different <= len(scenes):
+        raise ValueError('Invalid W/K')
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError('Invalid regeneration time budget')
+    if any(len(row) != len(scenes) for row in rows):
+        raise ValueError('Invalid matrix row length')
+    allowed = [{angle.hash for angle in scene} for scene in scenes]
+    if any(any(angle.hash not in allowed[i] for i, angle in enumerate(row)) for row in rows):
+        raise ValueError('Matrix references a missing angle')
+    if not matrix_rows_valid(rows, history, window, different, compare_window):
+        raise ValueError('Matrix is already invalid against history/W/K; regenerate the matrix')
+    normalized_locks = {}
+    for raw_index, angle_hash in (locks or {}).items():
+        try:
+            index = int(raw_index)
+        except (TypeError, ValueError):
+            raise ValueError('Invalid locked scene index') from None
+        if index < 0 or index >= len(scenes) or index in normalized_locks:
+            raise ValueError('Invalid or duplicated locked scene index')
+        if angle_hash not in allowed[index] or angle_hash != rows[row_index][index].hash:
+            raise ValueError('Locked angle does not match current matrix cell')
+        normalized_locks[index] = angle_hash
+    free = [i for i in range(len(scenes)) if i not in normalized_locks]
+    capacity = math.prod(len(scenes[i]) for i in free)
+    if capacity <= 1:
+        raise ValueError('All angles are locked or no alternative exists')
+    original_key = combination(rows[row_index])
+    # Preserve the result for the same input/seed without polluting Python's
+    # global randomness or relying on process-dependent hash randomization.
+    rng = random.Random(f'{seed}:{row_index}:{original_key}')
+    order = rng.sample(range(capacity), capacity) if capacity <= 10000 else None
+    deadline = time.monotonic() + seconds
+    attempts = 0
+    while attempts < (capacity if order is not None else 100000):
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('Canceled')
+        if time.monotonic() >= deadline:
+            break
+        if order is not None:
+            sample = order[attempts]
+        else:
+            sample = rng.randrange(capacity)
+        attempts += 1
+        proposal = list(rows[row_index])
+        for scene_index in free:
+            scene = scenes[scene_index]
+            proposal[scene_index] = scene[sample % len(scene)]
+            sample //= len(scene)
+        if combination(proposal) == original_key:
+            continue
+        updated = [list(row) for row in rows]
+        updated[row_index] = proposal
+        if matrix_rows_valid(updated, history, window, different, compare_window):
+            return {
+                'row': proposal, 'attempts': attempts, 'capacity': capacity,
+                'exhaustive': order is not None,
+            }
+    if order is not None and attempts >= capacity:
+        raise ValueError('Không có góc thay thế nào đáp ứng khóa ô, lịch sử và W/K')
+    raise RuntimeError('Chưa tìm được góc khác trong ngân sách tìm; không tự nới W/K')
+
+
 def history(store,scope):
     import json
     with store.connect() as conn:
