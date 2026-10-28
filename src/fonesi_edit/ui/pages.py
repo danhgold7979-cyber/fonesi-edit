@@ -376,7 +376,7 @@ class SubtitlesPage(QWidget):
 
 class BatchPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;self._scan_revision=0;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Thư mục gốc (tùy chọn nếu có nhiều folder)',host,True)
         self.extra_roots=QPlainTextEdit();self.extra_roots.setPlaceholderText('Các folder nguồn bổ sung, mỗi dòng một đường dẫn');self.extra_roots.setMaximumHeight(90);form.addRow('Folder nguồn bổ sung',self.extra_roots)
         self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
@@ -402,9 +402,10 @@ class BatchPage(QWidget):
         self.format_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
         self.tree.itemChanged.connect(self.selection_changed)
         self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
-        for field in (self.folder,self.audio,self.audio_folder):
+        self.folder.textChanged.connect(lambda _:self.source_changed())
+        self.extra_roots.textChanged.connect(self.source_changed)
+        for field in (self.audio,self.audio_folder):
             field.textChanged.connect(lambda _:self.invalidate_plan())
-        self.extra_roots.textChanged.connect(self.invalidate_plan)
         for combo in (self.audio_mode,self.policy):
             combo.currentIndexChanged.connect(lambda _:self.invalidate_plan())
         for spin in (self.minimum,self.maximum):
@@ -425,18 +426,26 @@ class BatchPage(QWidget):
         if path not in existing:
             self.extra_roots.setPlainText('\n'.join([*existing,path]))
 
+    def source_changed(self):
+        # Source edits invalidate both pending scans and selections. Editing
+        # audio only invalidates a dry-run, not the separate source scan.
+        self._scan_revision+=1
+        self.invalidate_plan()
+        self.groups={}
+        self.tree.blockSignals(True);self.tree.clear();self.tree.blockSignals(False)
+        self.summary.setText('Danh sách folder đã đổi: cần quét lại nguồn.')
+
     def scan(self):
         roots=[value for value in [self.folder.text().strip(),
              *[line.strip() for line in self.extra_roots.toPlainText().splitlines()]]
              if value]
         if not roots:raise ValueError('Chọn ít nhất một thư mục nguồn để quét')
-        self.invalidate_plan()
-        # Never expose the previous selection when the new scan is pending or
-        # fails: pressing Plan must not accidentally process the old folders.
-        self.groups={}
-        self.tree.blockSignals(True);self.tree.clear();self.tree.blockSignals(False)
+        self.source_changed()
+        revision=self._scan_revision
         self.summary.setText('Đang quét các thư mục nguồn mới; danh sách cũ đã hủy.')
-        self.host.background(lambda p,c:scan_multiple_folders(roots),self.scanned)
+        self.host.background(lambda p,c:scan_multiple_folders(roots),
+            lambda groups:self.scanned(groups) if revision==self._scan_revision
+            else self.host.message('Bỏ kết quả quét cũ vì danh sách folder đã thay đổi'))
     def scanned(self,groups):
         self.invalidate_plan()
         self.groups=groups
