@@ -142,3 +142,27 @@ def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp
         assert reopened.downloads.scans.currentData()==scan_id
     finally:
         close(reopened)
+
+
+def test_scan_selection_never_switches_a_stale_account_to_public(tmp_path):
+    import pytest
+    from fonesi_edit.browser import create_profile,bind
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        profile=create_profile(window.store,'Personal Facebook')
+        facebook_binding=bind(window.store,profile,'Facebook')
+        payload={'url':'https://example.test/channel',
+                 'account_ref':facebook_binding,'expected_identity':'user-A'}
+        scan_id=window.store.submit('scan',payload)
+        window.store.claim(allowed={'scan'})
+        window.store.finish(scan_id,{'platform':'Generic','items':[{
+            'id':'item','kind':'video','url':'https://example.test/clip.mp4',
+            'selectable':True}],'complete':None})
+        window.downloads.show_scan()
+        window.downloads.check_scan_items(True)
+        with pytest.raises(PermissionError,match='khác nền tảng'):
+            window.downloads.download_selected()
+        assert not any(job['kind']=='download' for job in window.store.jobs())
+    finally:
+        close(window)
