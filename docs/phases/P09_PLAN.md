@@ -38,3 +38,7 @@ Cùng lát cắt bổ sung bảng thống kê góc từ **những hàng hiện c
 ### P09-04 — Sửa một ô phải đồng bộ công thức và khóa chỉ áp dụng cho góc
 
 Kiểm tra trực tiếp trong MatrixModel: thay G ở một ô hiện chỉ phát `dataChanged` cho ô đó nên cột công thức C1G1+… có thể hiển thị cũ; thao tác Khóa có thể gắn cờ vào cột video/công thức vốn không phải góc. Sửa để chỉ scene columns (1…N) có thể edit/lock, phát tín hiệu cập nhật ô + công thức; nếu sửa vi phạm W/K/history thì rollback nguyên giá trị và không phát tín hiệu thành công. Test Qt với bảng synthetic và history.
+
+### P09-05 — Trọng số thời lượng theo từng cảnh trong UI
+
+Master `P09-05`/MAT-06 yêu cầu chia đều, tỷ lệ, trọng số hoặc nhập tay. Backend `fit_duration` đã giải trọng số chuẩn, nhưng MatrixPage chỉ có 2 lựa chọn tỷ lệ/đều; `row_composition` chưa chuyển `weights` tới solver. Thêm chế độ `weights` trong UI và ô nhập vector cho từng cảnh, kiểm tra số lượng bằng số scene, số hữu hạn và dương; chuyển snapshot vào `row_composition` và `enqueue_rows` để preview và render cùng duration solver. Test offline giá trị hợp lệ/thất bại với 2 cảnh và audio fixture thật, giữ tự động phân đoạn an toàn. **Nhập tay thời lượng giây/cảnh** là cổng riêng nếu chưa làm; không tự nhận là đã xong P09-05.
