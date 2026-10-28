@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,batch_plan,enqueue_batch
-from ..matrix import scan_scenes,generate,history,combination,valid_against,row_composition,enqueue_rows
+from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
@@ -468,7 +468,7 @@ class MatrixPage(QWidget):
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
         self.allocation=QComboBox();self.allocation.addItems(['proportional','equal']);form.addRow('Chia thời lượng',self.allocation)
-        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
@@ -486,12 +486,51 @@ class MatrixPage(QWidget):
             if not self.output.text():self.output.setText(str(folder.parent/(folder.name+' edit')))
         self.host.background(work,done)
     def valid_rows(self):
-        previous=list(self.old_history);used={canonical(row) for row in previous}
-        for row in self.model.rows:
-            key=combination(row)
-            if key in used or not valid_against(row,previous,self.window.value(),self.different.value(),self.compare.isChecked()):return False
-            previous.append([a.hash for a in row]);used.add(key)
-        return True
+        return matrix_rows_valid(self.model.rows,self.old_history,
+            self.window.value(),self.different.value(),self.compare.isChecked())
+
+    def regenerate(self):
+        selected=self.table.currentIndex()
+        row=selected.row() if selected.isValid() else -1
+        if row<0 or row>=len(self.model.rows):
+            raise ValueError('Chọn một hàng của ma trận để tạo lại')
+        if not self.valid_rows():
+            raise ValueError('Ma trận hiện tại vi phạm history/W/K; sinh lại trước')
+        scenes=[list(scene) for scene in self.model.scenes]
+        current=[list(item) for item in self.model.rows]
+        baseline=[combination(item) for item in current]
+        previous=[list(entry) for entry in self.old_history]
+        scope=self.scope()
+        w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
+        seed=self.seed.value()
+        locked={column-1:current[row][column-1].hash
+                for r,column in self.model.locked
+                if r==row and 1<=column<=len(scenes)}
+        def work(progress,cancel):
+            latest=history(self.host.store,scope)
+            if latest!=previous:
+                raise ValueError('Lịch sử đặt chỗ đã thay đổi; hãy sinh lại ma trận')
+            return regenerate_row(scenes,current,row,seed,w,k,compare,
+                                  latest,locked,seconds=5,cancel=cancel)
+        def done(result):
+            # Async worker must never overwrite edits, locks or constraints
+            # the user changed while regeneration was running.
+            if ([combination(item) for item in self.model.rows]!=baseline
+                    or self.scope()!=scope
+                    or (self.window.value(),self.different.value(),
+                        self.compare.isChecked(),self.seed.value())!=(w,k,compare,seed)
+                    or {column-1:self.model.rows[row][column-1].hash
+                        for r,column in self.model.locked
+                        if r==row and 1<=column<=len(scenes)}!=locked):
+                self.host.message('Ma trận/khóa đã đổi khi đang tạo lại; kết quả cũ bị bỏ')
+                return
+            self.model.rows[row]=result['row']
+            self.model.dataChanged.emit(self.model.index(row,0),
+                self.model.index(row,len(scenes)+1))
+            self.table.selectRow(row)
+            self.summary.setText(f"Đã tạo lại hàng V{row+1:04}; thử {result['attempts']} tổ hợp. Các hàng khác và ô khóa giữ nguyên; W/K đã kiểm tra toàn ma trận.")
+        self.host.background(work,done)
+
     def lock(self):
         for index in self.table.selectedIndexes():
             key=index.row(),index.column()
