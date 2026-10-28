@@ -42,3 +42,7 @@ Kiểm tra trực tiếp trong MatrixModel: thay G ở một ô hiện chỉ ph�
 ### P09-05 — Trọng số thời lượng theo từng cảnh trong UI
 
 Master `P09-05`/MAT-06 yêu cầu chia đều, tỷ lệ, trọng số hoặc nhập tay. Backend `fit_duration` đã giải trọng số chuẩn, nhưng MatrixPage chỉ có 2 lựa chọn tỷ lệ/đều; `row_composition` chưa chuyển `weights` tới solver. Thêm chế độ `weights` trong UI và ô nhập vector cho từng cảnh, kiểm tra số lượng bằng số scene, số hữu hạn và dương; chuyển snapshot vào `row_composition` và `enqueue_rows` để preview và render cùng duration solver. Test offline giá trị hợp lệ/thất bại với 2 cảnh và audio fixture thật, giữ tự động phân đoạn an toàn. **Nhập tay thời lượng giây/cảnh** là cổng riêng nếu chưa làm; không tự nhận là đã xong P09-05.
+
+### P09-05 — Nhập thời lượng giây cho từng cảnh
+
+Bổ sung tùy chọn `manual` riêng với `weights`: vector thời lượng (giây) từng cảnh; tổng thời lượng clip trừ overlap chuyển cảnh phải bằng target audio nếu gắn audio, sai lệch báo rõ, không ép khớp. Nếu không gắn audio, tổng thời lượng từ các cảnh sẽ quyết định mục tiêu video. Chỉ hỗ trợ chính sách speed/trim đã có và kiểm tra giới hạn tốc độ/cắt; không ngầm bỏ cảnh hoặc đổi thành freeze/loop. Cung cấp ô nhập/kiểm tra số cảnh, giá trị hữu hạn dương, test solver (có/không audio), queue snapshot và UI. Đây là phần còn thiếu của P09-05/MAT-06.
