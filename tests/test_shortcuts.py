@@ -32,6 +32,13 @@ def test_shortcut_focus_policy_follows_parent_chain_for_editor_controls():
     assert target is child
 
 
+def test_shortcut_focus_policy_treats_spinbox_internal_line_edit_as_control():
+    spin = QSpinBox()
+    policy, target = shortcut_focus_policy(spin.lineEdit())
+    assert policy == "control"
+    assert target is spin
+
+
 def test_partial_shortcut_remap_merges_and_normalizes_existing_values():
     current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z", "Save": "Ctrl+S"}
     changed = normalize_shortcut_remap({"Undo": "Ctrl+Y"}, current)

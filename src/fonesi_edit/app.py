@@ -38,8 +38,17 @@ _EDITOR_SHORTCUT_ACTIONS = frozenset({
 
 
 def shortcut_focus_policy(focused):
-    """Return (policy, target) for global shortcuts given the active Qt focus widget."""
+    """Classify focus while respecting composite Qt controls such as spin boxes."""
     current = focused
+    # QAbstractSpinBox embeds a QLineEdit named qt_spinbox_lineedit. That child
+    # is an editing surface internally, but keyboard shortcuts must yield to
+    # the owning spin box rather than being routed to a text editor.
+    if isinstance(current, QLineEdit) and current.objectName() == "qt_spinbox_lineedit":
+        parent = current.parentWidget()
+        while parent is not None:
+            if isinstance(parent, QAbstractSpinBox):
+                return "control", parent
+            parent = parent.parentWidget() if hasattr(parent, "parentWidget") else None
     while current is not None:
         if isinstance(current, _TEXT_EDIT_WIDGETS):
             return "text", current
