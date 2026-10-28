@@ -266,14 +266,8 @@ class MainWindow(QMainWindow):
             except OSError:
                 pass
 
-        # Save the active project first so Save As never discards the previous
-        # project record when the user branches to a new file.
-        try:
-            self.autosave()
-        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
-            self.message(f'Không thể lưu project hiện tại trước Save As: {exc}')
-            return
-
+        # Save As branches the current in-memory composition without mutating
+        # the previous project's named record or external file.
         composition = self.editor.composition.to_dict()
         new_id = identifier()
         try:
