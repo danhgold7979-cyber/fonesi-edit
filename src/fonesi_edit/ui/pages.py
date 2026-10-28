@@ -400,6 +400,19 @@ class BatchPage(QWidget):
         self.format_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
         self.tree.itemChanged.connect(self.selection_changed)
         self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        for field in (self.folder,self.audio,self.audio_folder):
+            field.textChanged.connect(lambda _:self.invalidate_plan())
+        for combo in (self.audio_mode,self.policy):
+            combo.currentIndexChanged.connect(lambda _:self.invalidate_plan())
+        for spin in (self.minimum,self.maximum):
+            spin.valueChanged.connect(lambda _:self.invalidate_plan())
+        self.mute.toggled.connect(lambda _:self.invalidate_plan())
+        host.editor.changed.connect(self.invalidate_plan)
+
+    def invalidate_plan(self):
+        if self.plans:
+            self.plans=[]
+            self.summary.setText('Đã thay đổi nguồn hoặc preset: bản dry-run cũ bị hủy. Hãy lập kế hoạch lại trước khi preview/render.')
 
     def scan(self):
         self.host.background(lambda p,c:scan_folders(Path(self.folder.text())),self.scanned)
@@ -468,6 +481,8 @@ class BatchPage(QWidget):
     def plan(self):
         groups=self.selected()
         if not groups:raise ValueError('Quét/chọn folder trước')
+        self.plans=[]
+        self.summary.setText('Đang lập kế hoạch mới; không chạy lại snapshot cũ.')
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
         audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
