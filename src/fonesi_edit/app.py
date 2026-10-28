@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction,QKeySequence,QDesktopServices
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QTabWidget,QLabel,QPushButton,
     QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle)
 
-from .domain import Composition,atomic_json
+from .domain import Composition,atomic_json,canonical
 from .paths import data_directory
 from .storage import Store
 from .jobs import Scheduler
@@ -209,10 +209,21 @@ class MainWindow(QMainWindow):
         self.background(lambda p,c:reference_frame(snapshot,folder,second,c),done)
 
     def playback_preview(self,comp):
+        expected=canonical(comp.to_dict())
         snapshot=Composition.from_dict(comp.to_dict());snapshot.encoder='cpu';snapshot.quality=26
         output=Path(self.workspace.name)/('playback-'+uuid4().hex+'.mp4')
         def done(result):
-            self.editor.player.setSource(QUrl.fromLocalFile(result['output']));self.editor.views.setCurrentIndex(1);self.editor.player.play();self.message('Đang phát bản dựng đã kiểm tra, gồm layer và âm thanh. Thay đổi sau đó cần tạo lại preview.')
+            if canonical(self.editor.composition.to_dict())!=expected:
+                self.message('Composition đã đổi khi dựng preview; bản cũ không được phát. Hãy dựng lại.')
+                return
+            self.editor.player.setSource(QUrl.fromLocalFile(result['output']))
+            self.editor.preview_fingerprint=expected
+            self.editor.views.setCurrentIndex(1)
+            if (self.editor.loop_action.isChecked()
+                    and self.editor.in_point is not None and self.editor.out_point is not None):
+                self.editor.player.setPosition(round(self.editor.in_point*1000))
+            self.editor.player.play()
+            self.message('Preview từ compositor gồm layer/âm thanh; loop In–Out chỉ chạy trên bản này. Thay đổi composition cần dựng lại.')
         self.message('Đang dựng preview có âm thanh; có thể hủy tác vụ chuẩn bị.')
         self.background(lambda progress,cancel:render_composition(snapshot,output,progress,cancel),done)
 
