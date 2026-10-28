@@ -1,5 +1,6 @@
 """Conservative cache janitor; never delete user media or symlink targets."""
 from pathlib import Path
+import re
 
 
 def evict_proxy_cache(directory,max_bytes,protected=()):
@@ -24,8 +25,7 @@ def evict_proxy_cache(directory,max_bytes,protected=()):
     for item in root.iterdir():
         # Ignore partials, other file types, nested folders and symlink files.
         if (item.is_symlink() or not item.is_file()
-                or item.suffix.casefold()!='.mp4'
-                or item.name.startswith('.')):
+                or not re.fullmatch(r'[0-9a-f]{64}\\.mp4',item.name)):
             continue
         info=item.stat()
         files.append((info.st_mtime_ns,item.name,info.st_size,item))
