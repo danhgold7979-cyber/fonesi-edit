@@ -3,7 +3,7 @@ import json
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from pathlib import Path
 import time
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 from fonesi_edit.app import MainWindow
 from fonesi_edit.domain import Composition,Clip,Layer
 from fonesi_edit.prototypes.media import create_fixture,probe
@@ -844,6 +844,7 @@ def test_save_as_creates_independent_file_and_project_record(tmp_path, monkeypat
         assert projects[old_id]['data']['layers'][0]['text'] == 'Original saved version'
         assert projects[window.project_id]['data']['layers'][0]['text'] == 'Save As version'
         assert window.actions['Lưu thành project mới'].shortcut().toString() == 'Ctrl+Shift+S'
+        assert any(button.text() == 'Lưu thành' for button in window.findChildren(QPushButton))
     finally:
         close(window)
 

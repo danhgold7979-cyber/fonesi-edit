@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
         root=QWidget();layout=QVBoxLayout(root)
         title=QLabel('FONESI EDIT');title.setObjectName('brand');layout.addWidget(title)
         toolbar=QHBoxLayout();layout.addLayout(toolbar)
-        for label,callback in [('Project mới',self.new_project),('Mở project',self.open_project),('Lưu project',self.save_project),('Lưu preset',self.save_preset),('Nạp preset',self.load_preset),('Liên kết lại media',self.relink)]:
+        for label,callback in [('Project mới',self.new_project),('Mở project',self.open_project),('Lưu project',self.save_project),('Lưu thành',self.save_project_as),('Lưu preset',self.save_preset),('Nạp preset',self.load_preset),('Liên kết lại media',self.relink)]:
             button=QPushButton(label);button.clicked.connect(self.guard(callback));toolbar.addWidget(button)
         self.nav=QTabWidget();layout.addWidget(self.nav,1)
         overview=QWidget();ov=QVBoxLayout(overview);self.machine=QLabel();self.machine.setWordWrap(True);ov.addWidget(self.machine)
