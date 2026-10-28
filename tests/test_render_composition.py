@@ -96,3 +96,91 @@ def test_output_geometry_requires_even_integer_dimensions_and_integer_fps(change
     with pytest.raises(ValueError):
         Composition(**values).validate()
     Composition(width=320,height=180,fps=25).validate()
+
+
+
+@pytest.mark.parametrize(('placement','extra','expected'),[
+    ('absolute',{'offset':.4},.4),
+    ('percent',{'position_pct':50,'offset':.1},.65),
+    ('video_end',{'offset':.2},.9),
+    ('scene_start',{'scene_index':2,'offset':.1},.4),
+    ('scene_end',{'scene_index':1,'offset':.1},.3),
+])
+def test_sfx_placement_anchors_follow_real_clip_timing(placement,extra,expected,tmp_path):
+    from fonesi_edit.render import compile_graph,audio_timeline_offset
+    media=create_fixture(tmp_path/'media',duration=1)
+    source=str(media['source'])
+    c=Composition(width=320,height=180,fps=25,encoder='cpu',transition=.1,
+                  mute_original=True,clips=[
+                      Clip(source,end=.8,speed=2),
+                      Clip(source,end=.8)],
+                  audio=[{'path':source,'mode':'sfx','placement':placement,**extra}])
+    stage=tmp_path/'graph';stage.mkdir()
+    args,graph,total=compile_graph(c,stage)
+    assert abs(total-1.1)<1e-6
+    assert f'adelay={round(expected*1000)}:all=1' in graph
+    ranges={c.clips[0].id:(0,.4),c.clips[1].id:(.3,.8)}
+    assert abs(audio_timeline_offset(c.audio[0],total,c.clips,ranges)-expected)<1e-6
+
+
+@pytest.mark.parametrize('invalid',[
+    {'placement':'unsupported'},
+    {'placement':'percent'},
+    {'placement':'percent','position_pct':-1},
+    {'placement':'percent','position_pct':101},
+    {'placement':'percent','position_pct':float('nan')},
+    {'placement':'percent','position_pct':True},
+    {'placement':'scene_start'},
+    {'placement':'scene_start','scene_index':0},
+    {'placement':'scene_end','scene_index':2},
+    {'placement':'scene_start','scene_index':1.5},
+])
+def test_invalid_sfx_placement_is_rejected_in_domain(invalid):
+    c=Composition(clips=[Clip('unused.mp4',end=1)],audio=[
+        {'path':'unused.mp4','mode':'sfx',**invalid}])
+    with pytest.raises(ValueError,match='SFX'):
+        c.validate()
+    with pytest.raises(ValueError,match='Relative placement'):
+        Composition(clips=[Clip('a.mp4',end=1)],audio=[
+            {'path':'b.wav','mode':'music','placement':'video_end'}]).validate()
+
+
+def test_sfx_anchor_rejects_out_of_range_onset_without_silent_fallback(tmp_path):
+    from fonesi_edit.render import compile_graph
+    media=create_fixture(tmp_path/'media',duration=1)
+    source=str(media['source'])
+    for placement,extra in [
+        ('video_end',{'offset':0}),
+        ('video_end',{'offset':2}),
+        ('percent',{'position_pct':100}),
+        ('scene_start',{'scene_index':1,'offset':2}),
+        ('scene_end',{'scene_index':1,'offset':2}),
+    ]:
+        c=Composition(width=320,height=180,fps=25,encoder='cpu',
+            clips=[Clip(source,end=1)],audio=[
+                {'path':source,'mode':'sfx','placement':placement,**extra}])
+        folder=tmp_path/(placement+str(len(extra))+'_'+str(extra.get('offset',0)).replace('-','n'))
+        folder.mkdir(exist_ok=True)
+        with pytest.raises(ValueError,match='outside the output timeline'):
+            compile_graph(c,folder)
+
+
+def test_exported_sfx_is_audible_only_after_percent_anchor(tmp_path):
+    from array import array
+    import subprocess
+    from fonesi_edit.prototypes.tools import locate_tool
+    media=create_fixture(tmp_path/'media',duration=1)
+    source=str(media['source'])
+    c=Composition(width=320,height=180,fps=25,encoder='cpu',
+        clips=[Clip(source,end=1)],mute_original=True,audio=[
+            {'path':source,'mode':'sfx','volume':1,'placement':'percent',
+             'position_pct':50,'offset':0}])
+    out=tmp_path/'sfx-at-half.mp4'
+    assert render_composition(c,out)['validated']
+    result=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(out),
+                           '-vn','-ac','1','-ar','48000','-f','s16le','-'],
+                          capture_output=True,check=True)
+    samples=array('h');samples.frombytes(result.stdout)
+    assert len(samples)>40000
+    assert max(abs(value) for value in samples[4800:14400])<20
+    assert max(abs(value) for value in samples[30000:42000])>100
