@@ -69,3 +69,28 @@ def test_bilingual_source_target_files_are_bound_independently(tmp_path):
     assert roles['source'].path==str(source) and roles['target'].path==str(target)
     assert roles['source'].y!=roles['target'].y
     assert render_composition(c,Path(first['output']))['validated']
+
+
+@pytest.mark.parametrize('kwargs',[
+    {'policy':'unknown'},
+    {'allocation':'unknown'},
+    {'allocation':'weights'},
+    {'policy':'loop','target':2},
+    {'policy':'freeze','target':2},
+])
+def test_duration_policy_rejects_unsupported_or_silent_fallback(kwargs):
+    composition=Composition(clips=[Clip('synthetic.mp4',end=4)])
+    options=dict(kwargs)
+    target=options.pop('target',5)
+    with pytest.raises(ValueError):
+        fit_duration(composition,target,**options)
+    assert composition.clips[0].speed==1
+    assert composition.clips[0].end==4
+
+
+@pytest.mark.parametrize('policy',['loop','freeze'])
+def test_multiple_clips_never_silently_convert_loop_or_freeze_to_speed(policy):
+    composition=Composition(clips=[Clip('one.mp4',end=2),Clip('two.mp4',end=2)])
+    with pytest.raises(ValueError,match='exactly one clip'):
+        fit_duration(composition,6,policy=policy)
+    assert [clip.speed for clip in composition.clips]==[1,1]
