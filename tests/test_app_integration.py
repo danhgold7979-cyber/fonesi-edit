@@ -1,4 +1,5 @@
 import os
+import json
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from pathlib import Path
 import time
@@ -811,3 +812,83 @@ def test_sfx_repeat_audio_dialog_round_trip_and_invalid_count(tmp_path,monkeypat
         assert window.editor.composition.audio[0]['repeat_count']==3
     finally:
         close(window)
+
+def test_save_as_creates_independent_file_and_project_record(tmp_path, monkeypatch):
+    window = MainWindow(tmp_path / 'state')
+    old_file = tmp_path / 'first.fonesi'
+    new_file_without_suffix = tmp_path / 'second'
+    try:
+        window.project_file = old_file
+        window.editor.set_composition(Composition(layers=[Layer(text='Original saved version')]))
+        window.save_project()
+        old_id = window.project_id
+        old_payload = json.loads(old_file.read_text(encoding='utf-8'))
+
+        # Make an unsaved edit, then branch it into a new file.
+        window.editor.set_composition(Composition(layers=[Layer(text='Save As version')]))
+        monkeypatch.setattr(
+            'fonesi_edit.app.QFileDialog.getSaveFileName',
+            lambda *args: (str(new_file_without_suffix), 'Fonesi (*.fonesi)'),
+        )
+        window.save_project_as()
+
+        new_file = tmp_path / 'second.fonesi'
+        new_payload = json.loads(new_file.read_text(encoding='utf-8'))
+        assert window.project_file == new_file
+        assert window.project_id != old_id
+        assert new_payload['project_id'] == window.project_id
+        assert new_payload['composition']['layers'][0]['text'] == 'Save As version'
+        # Save As must not rewrite the source file or the source project's DB snapshot.
+        assert json.loads(old_file.read_text(encoding='utf-8')) == old_payload
+        projects = {project['id']: project for project in window.store.list_named('projects')}
+        assert projects[old_id]['data']['layers'][0]['text'] == 'Original saved version'
+        assert projects[window.project_id]['data']['layers'][0]['text'] == 'Save As version'
+        assert window.actions['Lưu thành project mới'].shortcut().toString() == 'Ctrl+Shift+S'
+    finally:
+        close(window)
+
+
+def test_save_as_cancel_does_not_change_active_project(tmp_path, monkeypatch):
+    window = MainWindow(tmp_path / 'state')
+    try:
+        original_file = tmp_path / 'original.fonesi'
+        window.project_file = original_file
+        window.editor.set_composition(Composition(layers=[Layer(text='Keep current')]))
+        window.save_project()
+        original_id = window.project_id
+        original_projects = {project['id'] for project in window.store.list_named('projects')}
+        monkeypatch.setattr(
+            'fonesi_edit.app.QFileDialog.getSaveFileName',
+            lambda *args: ('', ''),
+        )
+        window.save_project_as()
+        assert window.project_file == original_file
+        assert window.project_id == original_id
+        assert {project['id'] for project in window.store.list_named('projects')} == original_projects
+        assert window.editor.composition.layers[0].text == 'Keep current'
+    finally:
+        close(window)
+
+
+def test_save_as_same_path_uses_normal_save_without_new_project_id(tmp_path, monkeypatch):
+    window = MainWindow(tmp_path / 'state')
+    try:
+        current_file = tmp_path / 'current.fonesi'
+        window.project_file = current_file
+        window.editor.set_composition(Composition(layers=[Layer(text='Before')]))
+        window.save_project()
+        original_id = window.project_id
+        window.editor.set_composition(Composition(layers=[Layer(text='Updated')]))
+        monkeypatch.setattr(
+            'fonesi_edit.app.QFileDialog.getSaveFileName',
+            lambda *args: (str(current_file), 'Fonesi (*.fonesi)'),
+        )
+        window.save_project_as()
+        payload = json.loads(current_file.read_text(encoding='utf-8'))
+        assert window.project_id == original_id
+        assert payload['project_id'] == original_id
+        assert payload['composition']['layers'][0]['text'] == 'Updated'
+        assert len(window.store.list_named('projects')) == 1
+    finally:
+        close(window)
+
