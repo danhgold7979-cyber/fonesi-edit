@@ -83,7 +83,10 @@ class Segment(QGraphicsRectItem):
             image=QPixmap(wave['path']);duration=wave['duration'];start=self.item.get('trim_start',0) if self.is_audio else self.item.start
             source_length=self.duration if self.is_audio else self.duration*self.item.speed
             if not image.isNull() and duration>0:
-                rect=self.rect().adjusted(1,2,-1,-2);painter.setOpacity(.7)
+                rect=self.rect().adjusted(1,2,-1,-2)
+                if self.is_clip and self.thumbnail_pixmaps:
+                    rect.setTop(rect.top()+rect.height()*.65)
+                painter.setOpacity(.7)
                 painter.drawPixmap(rect,image,QRectF(image.width()*start/duration,0,max(1,min(image.width()-image.width()*start/duration,image.width()*source_length/duration)),image.height()))
 
 
@@ -169,5 +172,5 @@ class Timeline(QGraphicsView):
 
     def scrollContentsBy(self,dx,dy):
         super().scrollContentsBy(dx,dy)
-        if hasattr(self.editor,'load_thumbnails'):
+        if hasattr(self.editor,'timeline') and self.editor.timeline is self:
             self.editor.load_thumbnails()
