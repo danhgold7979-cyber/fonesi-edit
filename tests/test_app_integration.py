@@ -115,7 +115,8 @@ def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp
         root=tree.topLevelItem(0)
         assert root.childCount()==3
         assert 'chưa rõ' in window.downloads.scan_note.text()
-        assert root.child(1).flags() & Qt.ItemFlag.ItemIsEnabled == 0
+        assert not (root.child(1).flags() & Qt.ItemFlag.ItemIsEnabled)
+        assert not (root.child(1).flags() & Qt.ItemFlag.ItemIsUserCheckable)
         window.downloads.check_scan_items(True)
         assert root.child(0).checkState(0)==Qt.CheckState.Checked
         assert root.child(2).checkState(0)==Qt.CheckState.Checked
