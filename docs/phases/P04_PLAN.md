@@ -142,3 +142,17 @@ Tách điều kiện dispatch editor shortcut thành helper thuần, để test 
 6. Run plan validation, full source suite and frozen Linux/Windows proof. Do not mark Save As accepted until the new CI run passes.
 
 **Failure handling:** do not change the active project pointer until the destination file and Store record have been written. If Store indexing fails after the file was written, keep the prior project active and report that the standalone file exists but internal indexing did not complete. No secrets or media are copied by Save As.
+
+## 15. P04-07 — Canvas copy/paste/cut and focus-aware Select All (28/10/2026)
+
+**Master alignment:** `EDITOR_SPEC.md` §9 documents Ctrl+A/C/V/X with behavior determined by the focused widget. Existing shortcuts already protect Undo/Redo in text fields, but canvas layer clipboard and the remaining focus-aware editing actions are not yet wired.
+
+**Implementation slice:**
+1. Add editor-local layer clipboard for selected layers; copy does not mutate the project or source media.
+2. Paste cloned layers with new IDs and remapped group IDs, a small bounded offset, and preserved clip references/style/keyframes. Keep a copied group internally consistent and unrelated groups unchanged.
+3. Cut copies first, then removes only unlocked selected layers through one existing undo snapshot; locked layers must remain.
+4. Add Select All, Copy, Paste and Cut actions with Ctrl+A/C/V/X. In canvas focus they operate on layers; in text focus the shortcut dispatcher must call the native widget's `selectAll/copy/paste/cut` rather than consuming the keystroke. Controls/list views keep their own selection behavior.
+5. Test copy/paste IDs, group mapping, bounded placement, one-step Undo/Redo, cut respecting locks, and focus routing. Do not use the OS clipboard for serialized project data.
+6. Run plan validation, focused tests, full suite and frozen Linux/Windows proof. Keep real IME and Windows keyboard acceptance separate.
+
+**Safety:** no source files are deleted or changed; cut only removes layers from the project model. No project schema change and no new dependency.
