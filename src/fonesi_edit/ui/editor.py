@@ -179,7 +179,8 @@ class Editor(QWidget):
         self.clips.clear()
         for c in self.composition.clips:
             self.clips.addItem(Path(c.path).name);item=self.clips.item(self.clips.count()-1);item.setData(Qt.ItemDataRole.UserRole,c.id);item.setSelected(c.id in clip_ids)
-        if self.clips.count() and not self.clips.selectedItems():self.clips.setCurrentRow(0)
+        if self.clips.count() and self.clips.currentRow()<0:
+            self.clips.setCurrentRow(0)
         self.layers.clear()
         for layer in self.composition.layers:self.layers.addItem(('🔒 ' if layer.locked else '')+layer.name)
         selected=next((i for i,x in enumerate(self.composition.layers) if x.id==self.selected_id),-1)
@@ -284,6 +285,7 @@ class Editor(QWidget):
         if self._loading or not hasattr(self,'player') or not hasattr(self,'clips'):
             return
         index=self.clips.currentRow()
+        if index<0 and self.composition.clips:index=0
         if not 0<=index<len(self.composition.clips):
             return
         clip=self.composition.clips[index]
@@ -320,6 +322,7 @@ class Editor(QWidget):
             if error:self._proxy_failed.add(identity)
             elif data:self.proxy_cache[identity]=data
             index=self.clips.currentRow()
+            if index<0 and self.composition.clips:index=0
             if (data and 0<=index<len(self.composition.clips)
                     and self.composition.clips[index].path==source
                     and self.composition.adjustments.get('playback_proxy_quality')==quality
