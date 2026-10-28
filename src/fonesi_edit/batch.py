@@ -88,13 +88,23 @@ def scan_folders(root:Path):
 
 def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximum=2,allocation='proportional',weights=None):
     if not math.isfinite(target) or target<=0 or not .1<=minimum<=maximum<=10:raise ValueError('Invalid target/speed bounds')
+    if policy not in {'speed','trim','loop','freeze'}:
+        raise ValueError('Unsupported duration policy')
+    if allocation not in {'proportional','equal','weights'}:
+        raise ValueError('Unsupported duration allocation')
+    if allocation=='weights' and weights is None:
+        raise ValueError('Manual duration weights must be provided')
     c=deepcopy(composition)
     if not c.clips:raise ValueError('No clips')
+    if policy in {'loop','freeze'} and len(c.clips)!=1:
+        raise ValueError('Loop/freeze duration policy supports exactly one clip')
     for clip in c.clips:
         if clip.end is None:clip.end=probe(Path(clip.path)).duration
         clip.offset=None
     overlap=c.transition*(len(c.clips)-1);desired=target+overlap
     natural=[(clip.end-clip.start)/clip.speed for clip in c.clips]
+    if policy in {'loop','freeze'} and target<natural[0]-.001:
+        raise ValueError('Loop/freeze only extends duration; choose trim or speed to shorten')
     if len(c.clips)==1 and policy=='loop' and natural[0]<target:
         original=deepcopy(c.clips[0]);c.clips=[];remaining=target
         while remaining>1/c.fps:
