@@ -555,3 +555,38 @@ def test_free_ratio_crop_edge_resize_keeps_orthogonal_dimension():
     assert width == pytest.approx(.5)
     assert height == pytest.approx(.3)
 
+@pytest.mark.parametrize("start,current", [
+    ((.2, .2), (.6, .5)),
+    ((.8, .8), (.3, .3)),
+    ((.1, .9), (.45, .55)),
+])
+def test_ratio_locked_crop_creation_stays_inside_frame_and_keeps_ratio(start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    initial = (.2, .2, .4, .2)
+    x, y, width, height = crop_drag_rect(
+        initial, "new", start, current, ratio_locked=True
+    )
+    assert x >= 0 and y >= 0 and width >= .01 and height >= .01
+    assert x + width <= 1 + 1e-9 and y + height <= 1 + 1e-9
+    assert width / height == pytest.approx(initial[2] / initial[3], abs=1e-9)
+
+
+def test_crop_move_clamps_without_changing_dimensions_or_ratio():
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    initial = (.2, .25, .4, .2)
+    x, y, width, height = crop_drag_rect(
+        initial, "move", (.4, .35), (1.0, 1.0), ratio_locked=True
+    )
+    assert (x, y, width, height) == pytest.approx((.6, .8, .4, .2))
+
+
+@pytest.mark.parametrize("start_rect,handle,start,current", [
+    ((-.1, .2, .4, .3), "right", (.3, .35), (.4, .35)),
+    ((.2, .2, .4, .3), "bad-handle", (.2, .2), (.3, .3)),
+    ((.2, .2, .4, .3), "right", (float("nan"), .2), (.3, .3)),
+])
+def test_crop_drag_rejects_invalid_start_and_handle(start_rect, handle, start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    with pytest.raises(ValueError):
+        crop_drag_rect(start_rect, handle, start, current, ratio_locked=True)
+
