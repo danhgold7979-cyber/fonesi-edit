@@ -101,7 +101,13 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 **Đối chiếu master:** P08-03 (track/gain/fade/loop), P08-04 (nhạc lặp chuyển tiếp), P08-06 (audio crossfade và time map), `PRODUCT_REQUIREMENTS.md` §6; render hiện đang `-stream_loop` hoặc `aloop`, có thể sinh điểm nối cứng không mượt. Không nhầm với `acrossfade` giữa các clip video vốn đã có.
 
 1. Trường tùy chọn `loop_crossfade` (giây, mặc định 0) **chỉ** cho track `mode=music` + `loop=true`; validate hữu hạn, khoảng 0–10, và độ dài mẫu phải đủ để xfade; 0 giữ hành vi cũ.
-2. FFmpeg compositor tạo số lần lặp hữu hạn theo timeline đầu ra/offset và chiều dài mẫu, dùng `asplit` và nối `acrossfade` tại mỗi điểm lặp. Không tự đổi sang lặp cứng nếu cấu hình vượt giới hạn; chỉ apply volume/gain/fade/delay **sau** khi nối để không tạo fade ở mọi bản sao.
+2. FFmpeg compositor tạo số lần lặp hữu hạn theo timeline đầu ra/offset và chiều dài mẫu, dùng **input FFmpeg riêng cho mỗi vòng lặp** và nối `acrossfade` tại mỗi điểm lặp (không dùng `asplit` do phát hiện assertion trên FFmpeg Windows 7.1.1). Không tự đổi sang lặp cứng nếu cấu hình vượt giới hạn; chỉ apply volume/gain/fade/delay **sau** khi nối để không tạo fade ở mọi bản sao.
 3. AudioDialog thêm ô crossfade ở cuối bảng, giữ nguyên chỉ số/cấu trúc các ô cũ; round-trip đúng preset, hiển thị lỗi nếu nhập vào main/SFX hoặc không bật loop.
 4. Regression: domain rejects NaN/negative/nonmusic/bounds, compile_graph chứa xfade, render FFmpeg video+audio thật và GUI round-trip; full CI Linux/Windows/frozen proof.
 5. Cổng chưa khép: metre/clipping realtime, SFX nhiều-trigger trong UI, playlist dài, benchmark nhạc dài/corpus, loa thực trên Windows/installer. Không ghi PASS trước khi CI hoàn tất.
+
+### Đối chiếu nghiệm thu P08-01/P08-04 lần này
+
+- [x] Metadata FFprobe bất đồng bộ, duration min/max và cạnh ngắn 720/1080/2160 px, xử lý video lỗi và giữ lựa chọn ẩn. Cấu hình khoảng thời lượng sai hoặc chưa quét xong bị chặn trước dry-run. [CI 40658101720](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658101720) PASS 225 Linux, 224 Windows + 1 skip, packaged proof hai hệ.
+- [x] Crossfade loop nhạc chỉ áp dụng music+loop, có validation/giới hạn, AudioDialog round-trip, FFmpeg render thật. Vòng đầu dùng `asplit` làm Windows FFmpeg 7.1.1 báo assertion `best_input >= 0`; thay bằng đầu vào độc lập ở commit `54ab4398`, giữ test render, không tắt assertion. [CI 40659216526](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40659216526) PASS 233 Linux, 232 Windows +1 skip, binary/native-host/frozen proof hai hệ.
+- [ ] Bộ lọc codec/FPS/bitrate, profile rất lớn, benchmark/ETA, SFX đa trigger, meters/solo realtime, playlist nâng cao và nghiệm thu loa/installer Windows máy thực còn mở. Không kết luận toàn phase P08 đạt nghiệm thu người dùng.

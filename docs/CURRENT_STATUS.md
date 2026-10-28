@@ -11,7 +11,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
-| P08 | Batch nhiều folder local khử trùng nguồn, tìm/lọc/chọn/đảo và chặn stale scan/plan; audio mapping/solver, **SFX %/đầu-cuối cảnh/cuối video AudioDialog→FFmpeg**; CI Linux/Windows + frozen PASS | Music crossfade, SFX repeat nâng cao, meter/solo, duration/resolution metadata filters/corpus lớn, Windows user audio |
+| P08 | Batch nhiều root local/khử trùng, lọc tên/đuôi/metadata FFprobe duration và short-edge; chọn/đảo/chặn stale scan/plan; audio mapping/duration solver, SFX mốc %/cảnh/video; **music loop crossfade FFmpeg + AudioDialog**; CI Linux/Windows và frozen PASS | Metadata codec/FPS/bitrate và corpus lớn/ETA, SFX đa trigger, meter/solo realtime, playlist, Windows audio/installer người dùng |
 | P09 | Lazy matrix, W/K/history/lock, **regenerate một hàng** không đổi hàng khác, thống kê usage, formula sync; **weights/manual seconds** và speed bounds từ UI đến render; CI/frozen Linux/Windows PASS | Stress solver ma trận lớn, reorder cảnh/locks nâng cao và Windows/exFAT thực |
 | P10 | Workflow/watch/schedule và resources; Settings quota proxy cache/janitor nền an toàn, bảo vệ file QMediaPlayer đang phát; CI/frozen PASS | Task Scheduler, GPU/VRAM/driver thật, cache khác/installer và Windows/ACL/soak |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
@@ -52,3 +52,9 @@ P03: job error được lọc ở worker **và tại SQLite Store.fail**, test f
 ## P08-01 — Quét nhiều folder local
 
 [CI 40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) PASS **222 tests Linux, 221 Windows +1 skip**, Linux/Windows production app/native host và frozen proof PASS. BatchPage quét nhiều folder, hợp nhất nhóm/kênh và khử source trùng khi folder chồng nhau; sửa root/hủy scan làm vô hiệu hóa lựa chọn cũ, background callback kết thúc muộn không được ghi đè. P08 vẫn chưa hoàn tất filter duration/resolution, music crossfade/meter/hiệu năng corpus, nghiệm thu Windows thực. Xem [P08_RESULTS](phases/P08_RESULTS.md).
+
+## P08 — FFprobe metadata và FFmpeg music crossfade (28/10/2026)
+
+**Metadata filter:** [CI 40658101720](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658101720) PASS **225 Linux /224 Windows +1 skip**, frozen app/native host PASS. Lọc duration và cạnh ngắn ≥720/1080/2160, không bỏ lựa chọn file ẩn, xử lý lỗi từng file, callback nền cũ bị bỏ và chặn dry-run chưa áp dụng filter.
+
+**Nhạc crossfade khi lặp:** [CI 40659216526](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40659216526) PASS **233 Linux /232 Windows +1 skip**, FFmpeg render và frozen packaged proof hai hệ PASS. Sửa lỗi FFmpeg 7.1.1 Windows ở lần chạy trước bằng input riêng cho vòng lặp. Chưa nghiệm thu âm thanh/HiDPI/driver trên PC người dùng, installer ký số, live provider và stress corpus.
