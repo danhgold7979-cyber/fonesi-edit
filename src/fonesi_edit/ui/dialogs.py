@@ -4,6 +4,177 @@ from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QDial
 from PySide6.QtCore import Qt
 from ..batch import fit_duration
 from ..render import audio_duration
+from ..prototypes.media import extract_frame, probe
+
+
+class CropDialog(QDialog):
+    """Interactive crop editor; edits only its local normalized rectangle."""
+
+    def __init__(self, clip, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Crop video nguồn")
+        self.setMinimumSize(720, 520)
+        self.clip = deepcopy(clip)
+        self.info = probe(__import__("pathlib").Path(clip.path))
+        self.rect = [clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height]
+        self.ratio_locked = False
+        self._drag = None
+        self._start_rect = None
+        self._frame_size = (self.info.width, self.info.height)
+        layout = QVBoxLayout(self)
+        self.canvas = QLabel()
+        self.canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.canvas.setMinimumSize(560, 320)
+        self.canvas.setMouseTracking(True)
+        self.canvas.mousePressEvent = self._press
+        self.canvas.mouseMoveEvent = self._move
+        self.canvas.mouseReleaseEvent = self._release
+        layout.addWidget(self.canvas, 1)
+        row = QHBoxLayout()
+        self.lock_ratio = QCheckBox("Khóa tỷ lệ crop")
+        self.lock_ratio.toggled.connect(lambda value: setattr(self, "ratio_locked", value))
+        row.addWidget(self.lock_ratio)
+        for label, callback in (("Toàn khung", self.reset_crop), ("Giữa khung", self.center_crop)):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            row.addWidget(button)
+        self.status = QLabel()
+        row.addWidget(self.status, 1)
+        layout.addLayout(row)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self._load_frame()
+
+    def _load_frame(self):
+        from PySide6.QtGui import QPixmap
+        from PySide6.QtCore import QSize
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory(prefix="fonesi-crop-") as folder:
+            frame = Path(folder) / "source.png"
+            extract_frame(Path(self.clip.path), frame, second=min(self.clip.start, max(0, self.info.duration - .05)))
+            pixmap = QPixmap(str(frame))
+        self._pixmap = pixmap
+        self._paint_crop()
+
+    def _paint_crop(self):
+        from PySide6.QtGui import QPixmap, QPainter, QColor, QPen
+        from PySide6.QtCore import QRectF
+        if self._pixmap.isNull():
+            self.status.setText("Không đọc được frame nguồn")
+            return
+        target = self.canvas.size()
+        scaled = self._pixmap.scaled(target, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        self._display = scaled
+        canvas_pixmap = QPixmap(scaled.size())
+        canvas_pixmap.fill(QColor("#202020"))
+        painter = QPainter(canvas_pixmap)
+        painter.drawPixmap(0, 0, scaled)
+        sx, sy, sw, sh = self.rect
+        x, y, w, h = sx*scaled.width(), sy*scaled.height(), sw*scaled.width(), sh*scaled.height()
+        painter.fillRect(canvas_pixmap.rect(), QColor(0, 0, 0, 145))
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        painter.fillRect(QRectF(x, y, w, h), QColor(0, 0, 0, 0))
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        painter.setPen(QPen(QColor("#40d9ff"), 2))
+        painter.drawRect(QRectF(x, y, w, h))
+        painter.setPen(QPen(QColor("#ffffff"), 1))
+        for fx in (1/3, 2/3):
+            painter.drawLine(int(x+fx*w), int(y), int(x+fx*w), int(y+h))
+            painter.drawLine(int(x), int(y+fx*h), int(x+w), int(y+fx*h))
+        painter.end()
+        self.canvas.setPixmap(canvas_pixmap)
+        self.status.setText(f"x={sx:.3f} y={sy:.3f} w={sw:.3f} h={sh:.3f}")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "_pixmap"):
+            self._paint_crop()
+
+    def _position(self, event):
+        from PySide6.QtCore import QPoint
+        shown = self.canvas.pixmap()
+        if shown is None or shown.isNull():
+            return None
+        offset_x = (self.canvas.width() - shown.width()) / 2
+        offset_y = (self.canvas.height() - shown.height()) / 2
+        x = (event.position().x() - offset_x) / shown.width()
+        y = (event.position().y() - offset_y) / shown.height()
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            return None
+        return x, y
+
+    def _press(self, event):
+        pos = self._position(event)
+        if pos is None:
+            return
+        x, y, w, h = self.rect
+        edges = {"left": abs(pos[0]-x), "right": abs(pos[0]-(x+w)),
+                 "top": abs(pos[1]-y), "bottom": abs(pos[1]-(y+h))}
+        near_x = min(edges["left"], edges["right"]) < .04
+        near_y = min(edges["top"], edges["bottom"]) < .04
+        handle = (("left" if edges["left"] < edges["right"] else "right") if near_x else "") + "_" + (("top" if edges["top"] < edges["bottom"] else "bottom") if near_y else "")
+        if near_x and near_y:
+            self._drag = handle
+        elif near_x:
+            self._drag = "left" if edges["left"] < edges["right"] else "right"
+        elif near_y:
+            self._drag = "top" if edges["top"] < edges["bottom"] else "bottom"
+        elif x <= pos[0] <= x+w and y <= pos[1] <= y+h:
+            self._drag = "move"
+        else:
+            self._drag = "new"
+        self._start = pos
+        self._start_rect = list(self.rect)
+
+    def _move(self, event):
+        if self._drag is None or self._start is None:
+            return
+        pos = self._position(event)
+        if pos is None:
+            return
+        dx, dy = pos[0]-self._start[0], pos[1]-self._start[1]
+        x, y, w, h = self._start_rect
+        if self._drag == "new":
+            x2, y2 = min(self._start[0], pos[0]), min(self._start[1], pos[1])
+            w2, h2 = abs(dx), abs(dy)
+        elif self._drag == "move":
+            x2, y2 = max(0, min(1-w, x+dx)), max(0, min(1-h, y+dy))
+            w2, h2 = w, h
+        else:
+            left, top, right, bottom = x, y, x+w, y+h
+            if "left" in self._drag: left=max(0,min(right-.01,x+dx))
+            if "right" in self._drag: right=max(left+.01,min(1,x+w+dx))
+            if "top" in self._drag: top=max(0,min(bottom-.01,y+dy))
+            if "bottom" in self._drag: bottom=max(top+.01,min(1,y+h+dy))
+            x2, y2, w2, h2 = left, top, right-left, bottom-top
+        if self.ratio_locked:
+            ratio = max(.01, w) * self.info.width / (max(.01, h) * self.info.height)
+            if abs(dx) >= abs(dy):
+                h2 = min(1-y2, w2*self.info.width/(ratio*self.info.height))
+            else:
+                w2 = min(1-x2, h2*ratio*self.info.height/self.info.width)
+        x2=max(0,min(1-.01,x2));y2=max(0,min(1-.01,y2))
+        w2=max(.01,min(1-x2,w2));h2=max(.01,min(1-y2,h2))
+        self.rect=[x2,y2,w2,h2]
+        self._paint_crop()
+
+    def _release(self, event):
+        self._move(event)
+        self._drag = None
+        self._start = None
+        self._start_rect = None
+
+    def reset_crop(self):
+        self.rect=[0.0,0.0,1.0,1.0]
+        self._paint_crop()
+
+    def center_crop(self):
+        x,y,w,h=self.rect
+        self.rect=[(1-w)/2,(1-h)/2,w,h]
+        self._paint_crop()
 
 
 class ClipDialog(QDialog):

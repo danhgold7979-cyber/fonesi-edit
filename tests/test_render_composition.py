@@ -93,6 +93,27 @@ def test_clip_crop_compiles_before_flip_rotation_and_renders(tmp_path):
     assert (probe(output).width, probe(output).height) == (320, 180)
 
 
+def test_crop_dialog_has_preview_controls_and_cancel_preserves_clip(tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QApplication
+    from fonesi_edit.ui.dialogs import CropDialog
+    from fonesi_edit.prototypes.media import MediaInfo
+    app = QApplication.instance()
+    source = tmp_path / "dummy.mp4"
+    source.write_bytes(b"test")
+    clip = Clip(str(source))
+    monkeypatch.setattr("fonesi_edit.ui.dialogs.probe", lambda path: MediaInfo(640, 360, 1, "25/1", "h264", None))
+    from PySide6.QtGui import QPixmap
+    monkeypatch.setattr("fonesi_edit.ui.dialogs.extract_frame", lambda source, dest, second=0: QPixmap(640, 360).save(str(dest)))
+    dialog = CropDialog(clip)
+    before = (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height)
+    dialog.rect = [0.1, 0.1, 0.6, 0.6]
+    dialog.reject()
+    assert (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == before
+    assert dialog.lock_ratio.text() == "Khóa tỷ lệ crop"
+    dialog.reset_crop()
+    assert dialog.rect == [0.0, 0.0, 1.0, 1.0]
+
+
 def test_crossfade_speed_crop_and_reference_use_real_export(tmp_path):
     f=create_fixture(tmp_path/'media',duration=1)
     c=Composition(width=180,height=320,fps=25,encoder='cpu',fit='crop',transition=.1,

@@ -91,3 +91,10 @@ Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ t�
 5. Chạy check-plan, toàn bộ pytest, build + frozen proof Linux/Windows. Chỉ ghi kết quả sau khi CI hoàn tất.
 
 **Ngoài phạm vi lát cắt:** crop từng layer ảnh/logo và crop export preview parity cho mọi tổ hợp rotation/VFR; nếu còn thiếu sẽ ghi rõ ở coverage thay vì đánh dấu ED-02/ED-16 đã hoàn tất.
+
+
+## 10. P04-03 — Interactive crop dialog (28/10/2026)
+
+Crop engine P04-02 đã được đưa vào `Clip` và compositor; CI lần đầu bắt được sai kỳ vọng pixel lẻ và test hard-code kích thước nguồn. Hai lỗi đã được sửa ở các commit test kế tiếp; không được coi crop engine là pass cho đến khi CI mới nhất xác nhận.
+
+Phạm vi giao diện tiếp theo: hiển thị frame nguồn, overlay ngoài vùng crop, kéo vùng/tám cạnh, lưới 3×3, checkbox khóa tỷ lệ, reset và center; thao tác dialog chỉ sửa bản nháp và Cancel không thay đổi project. Sau code phải bổ sung test Qt, chạy `scripts/check_plan.py`, toàn bộ suite và packaged proof Linux/Windows.
