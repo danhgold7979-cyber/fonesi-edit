@@ -1088,6 +1088,7 @@ def test_editor_global_shortcuts_are_suppressed_only_during_ime_preedit(tmp_path
     window.show()
     window.nav.setCurrentWidget(window.editor)
     window.editor.add_layer("text")
+    window.editor.inspector.setCurrentIndex(1)
     field = window.editor.fields["text"][0]
     window.activateWindow()
     field.setFocus()
@@ -1114,6 +1115,7 @@ def test_ime_preedit_state_clears_when_focus_leaves_composing_widget(tmp_path):
     window.show()
     window.nav.setCurrentWidget(window.editor)
     window.editor.add_layer("text")
+    window.editor.inspector.setCurrentIndex(1)
     field = window.editor.fields["text"][0]
     window.activateWindow()
     field.setFocus()
