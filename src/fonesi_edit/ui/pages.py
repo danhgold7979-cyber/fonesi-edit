@@ -142,12 +142,15 @@ class DownloadsPage(QWidget):
         self.result.setPlainText('Chỉ tải mục đã đánh dấu; giữ nguyên tài khoản và thư mục từ job quét. Không tự tải lại toàn kênh.')
         parent=QTreeWidgetItem([f"Job {job_id[:8]}",'Nguồn',completeness])
         self.scan_tree.addTopLevelItem(parent)
+        seen_urls=set()
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            selectable=bool(safe) and item.get('selectable') is not False
+            duplicate=bool(safe) and safe in seen_urls
+            selectable=bool(safe) and item.get('selectable') is not False and not duplicate
+            if safe:seen_urls.add(safe)
             label=str(item.get('title') or item.get('id') or 'Mục không tên')[:160]
-            state='Có thể tải' if selectable else str(item.get('reason') or 'Thiếu URL tải lại an toàn')
+            state='Có thể tải' if selectable else ('URL trùng trong lần quét' if duplicate else str(item.get('reason') or 'Thiếu URL tải lại an toàn'))
             child=QTreeWidgetItem([label,str(item.get('kind','video')),state])
             child.setData(0,Qt.ItemDataRole.UserRole,index)
             if selectable:
