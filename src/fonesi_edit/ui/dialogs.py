@@ -95,10 +95,14 @@ class CropDialog(QDialog):
         painter.drawPixmap(0, 0, scaled)
         sx, sy, sw, sh = self.rect
         x, y, w, h = sx*scaled.width(), sy*scaled.height(), sw*scaled.width(), sh*scaled.height()
-        painter.fillRect(canvas_pixmap.rect(), QColor(0, 0, 0, 145))
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(QRectF(x, y, w, h), QColor(0, 0, 0, 0))
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        # Darken only the four regions outside the crop. Clearing the crop
+        # rectangle would erase the source pixels rather than reveal them.
+        shade = QColor(0, 0, 0, 145)
+        width, height = scaled.width(), scaled.height()
+        painter.fillRect(QRectF(0, 0, width, y), shade)
+        painter.fillRect(QRectF(0, y, x, h), shade)
+        painter.fillRect(QRectF(x + w, y, max(0, width - x - w), h), shade)
+        painter.fillRect(QRectF(0, y + h, width, max(0, height - y - h)), shade)
         painter.setPen(QPen(QColor("#40d9ff"), 2))
         painter.drawRect(QRectF(x, y, w, h))
         painter.setPen(QPen(QColor("#ffffff"), 1))

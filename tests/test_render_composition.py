@@ -102,10 +102,21 @@ def test_crop_dialog_has_preview_controls_and_cancel_preserves_clip(tmp_path, mo
     source.write_bytes(b"test")
     clip = Clip(str(source))
     monkeypatch.setattr("fonesi_edit.ui.dialogs.probe", lambda path: MediaInfo(640, 360, 1, "25/1", "h264", None))
-    from PySide6.QtGui import QPixmap
-    monkeypatch.setattr("fonesi_edit.ui.dialogs.extract_frame", lambda source, dest, second=0: QPixmap(640, 360).save(str(dest)))
+    from PySide6.QtGui import QPixmap, QColor
+    def write_white_frame(source, dest, second=0):
+        pixmap = QPixmap(640, 360)
+        pixmap.fill(QColor("#ffffff"))
+        return pixmap.save(str(dest))
+    monkeypatch.setattr("fonesi_edit.ui.dialogs.extract_frame", write_white_frame)
     dialog = CropDialog(clip)
     before = (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height)
+    dialog.rect = [0.25, 0.25, 0.5, 0.5]
+    dialog._paint_crop()
+    preview = dialog.canvas.pixmap().toImage()
+    inside = preview.pixelColor(preview.width() // 2, preview.height() // 2)
+    outside = preview.pixelColor(2, 2)
+    assert inside.lightness() > 220
+    assert outside.lightness() < 180
     dialog.rect = [0.1, 0.1, 0.6, 0.6]
     dialog.reject()
     assert (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == before
