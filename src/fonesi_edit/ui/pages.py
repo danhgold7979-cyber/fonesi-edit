@@ -67,6 +67,22 @@ class DownloadsPage(QWidget):
         selector=QHBoxLayout();layout.addLayout(selector);selector.addWidget(QLabel('Lần quét'))
         self.scans=QComboBox();selector.addWidget(self.scans,1)
         self.scans.currentIndexChanged.connect(lambda _:self.load_scan())
+        filter_row=QHBoxLayout();layout.addLayout(filter_row)
+        self.scan_search=QLineEdit()
+        self.scan_search.setPlaceholderText('Lọc tiêu đề / ID (không tìm trong URL)')
+        self.scan_search.setClearButtonEnabled(True)
+        self.scan_search.textChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_search,2)
+        self.scan_kind_filter=QComboBox()
+        for label,value in [('Tất cả loại','all'),('Ảnh','images'),('Video','videos'),('Có thể tải','selectable'),('Không thể tải','unselectable')]:
+            self.scan_kind_filter.addItem(label,value)
+        self.scan_kind_filter.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_kind_filter,1)
+        self.scan_sort=QComboBox()
+        for label,value in [('Thứ tự nguồn','source'),('Tên A–Z','title'),('Loại media','kind')]:
+            self.scan_sort.addItem(label,value)
+        self.scan_sort.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_sort,1)
         buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
@@ -145,21 +161,21 @@ class DownloadsPage(QWidget):
         items=data.get('items') or []
         complete=data.get('complete')
         completeness='đã xác nhận đủ' if complete is True else 'quét một phần' if complete is False else 'chưa rõ đã quét hết'
-        last_page=max(0,(len(items)-1)//self.scan_page_size)
+        visible_indexes=self._scan_visible_indexes(items)
+        last_page=max(0,(len(visible_indexes)-1)//self.scan_page_size)
         self.scan_page=max(0,min(self.scan_page,last_page))
-        start=self.scan_page*self.scan_page_size;end=min(len(items),start+self.scan_page_size)
+        start=self.scan_page*self.scan_page_size;end=min(len(visible_indexes),start+self.scan_page_size)
         chosen=self.scan_selected.setdefault(job_id,set())
-        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Chỉ chọn mục được tải.")
-        self.result.setPlainText('Lựa chọn được giữ khi chuyển trang; tài khoản và thư mục lấy từ snapshot quét, không tự quét lại nguồn.')
-        parent=QTreeWidgetItem([f"Job {job_id[:8]} • {start+1 if items else 0}–{end}",'Nguồn',completeness])
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục gốc • hiển thị {len(visible_indexes)} • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Lọc không bỏ chọn mục đang ẩn.")
+        self.result.setPlainText('Lựa chọn được giữ theo chỉ số gốc khi lọc/sắp xếp/chuyển trang; tài khoản và thư mục lấy từ snapshot quét. Tìm kiếm chỉ dùng tiêu đề/ID, không tìm hoặc hiển thị URL.')
+        parent=QTreeWidgetItem([f"Job {job_id[:8]} • hàng hiển thị {start+1 if visible_indexes else 0}–{end}",'Nguồn',completeness])
         self.scan_tree.addTopLevelItem(parent)
         first_by_url={}
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            if safe and safe not in first_by_url:
-                first_by_url[safe]=index
-        for index in range(start,end):
+            if safe and safe not in first_by_url:first_by_url[safe]=index
+        for index in visible_indexes[start:end]:
             item=items[index]
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
@@ -178,6 +194,53 @@ class DownloadsPage(QWidget):
         parent.setExpanded(True)
         self.scan_tree.blockSignals(False)
 
+    @staticmethod
+    def _scan_kind(item):
+        kind=str(item.get('kind','video') if isinstance(item,dict) else 'video').casefold()
+        if kind in {'image','images','photo','photos'}:return 'images'
+        if kind in {'video','videos','clip','clips'}:return 'videos'
+        return kind
+
+    def _scan_visible_indexes(self,items):
+        """Return filtered/sorted source indices; selection always uses original indices."""
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if safe and safe not in first_by_url:first_by_url[safe]=index
+        query=self.scan_search.text().strip().casefold()
+        kind_filter=self.scan_kind_filter.currentData()
+        sort_mode=self.scan_sort.currentData()
+        visible=[]
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            title=str(item.get('title') or '')
+            stable_id=str(item.get('id') or '')
+            if query and query not in title.casefold() and query not in stable_id.casefold():
+                continue
+            kind=self._scan_kind(item)
+            safe=selectable_scan_url(item.get('url'))
+            duplicate=bool(safe) and first_by_url.get(safe)!=index
+            selectable=bool(safe) and item.get('selectable') is not False and not duplicate
+            if kind_filter in {'images','videos'} and kind!=kind_filter:
+                continue
+            if kind_filter=='selectable' and not selectable:
+                continue
+            if kind_filter=='unselectable' and selectable:
+                continue
+            visible.append((index,title.casefold(),kind))
+        if sort_mode=='title':
+            visible.sort(key=lambda value:(value[1],value[0]))
+        elif sort_mode=='kind':
+            visible.sort(key=lambda value:(value[2],value[1],value[0]))
+        else:
+            visible.sort(key=lambda value:value[0])
+        return [index for index,_,_ in visible]
+
+    def reset_scan_filter_page(self):
+        self.scan_page=0
+        self.load_scan()
+
     def remember_scan_choice(self,item,column):
         index=item.data(0,Qt.ItemDataRole.UserRole)
         job_id=self.scans.currentData()
@@ -188,16 +251,18 @@ class DownloadsPage(QWidget):
         job=self.host.store.job(job_id)
         data=job.get('result') or {}
         count=len(data.get('items') or [])
-        total=max(1,(count-1)//self.scan_page_size+1)
+        visible_count=len(self._scan_visible_indexes(data.get('items') or []))
+        total=max(1,(visible_count-1)//self.scan_page_size+1)
         completeness='quét một phần' if data.get('complete') is False else 'chưa rõ đã quét hết' if data.get('complete') is None else 'đã xác nhận đủ'
-        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {count} mục • {completeness} • trang {self.scan_page+1}/{total} • đã chọn {len(chosen)}")
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {count} mục gốc • hiển thị {visible_count} • {completeness} • trang {self.scan_page+1}/{total} • đã chọn {len(chosen)}")
 
     def change_scan_page(self,delta):
         job_id=self.scans.currentData()
         if not job_id:return
         job=self.host.store.job(job_id)
         items=(job.get('result') or {}).get('items') or []
-        maximum=max(0,(len(items)-1)//self.scan_page_size)
+        visible_count=len(self._scan_visible_indexes(items))
+        maximum=max(0,(visible_count-1)//self.scan_page_size)
         target=max(0,min(maximum,self.scan_page+delta))
         if target!=self.scan_page:
             self.scan_page=target
