@@ -138,6 +138,7 @@ class MainWindow(QMainWindow):
         self.editor.changed.connect(lambda:self.autosave_timer.start() if not self._restoring else None)
         self.clock=QTimer(self);self.clock.setInterval(350);self.clock.timeout.connect(self.tick);self.clock.start()
         self._ime_composing_widget=None
+        self._ime_filtered_widgets=[]
         self.actions={};self.shortcuts();self.restore();self.restore_ui_layout()
         QApplication.instance().installEventFilter(self)
         QApplication.instance().focusChanged.connect(self._on_focus_changed)
@@ -223,6 +224,9 @@ class MainWindow(QMainWindow):
             return False
 
     def _on_focus_changed(self,old,new):
+        if new is not None and hasattr(new,'installEventFilter') and new not in self._ime_filtered_widgets:
+            new.installEventFilter(self)
+            self._ime_filtered_widgets.append(new)
         composing=self._ime_composing_widget
         if composing is not None and not self._widgets_related(composing,new):
             self._ime_composing_widget=None
@@ -581,6 +585,10 @@ class MainWindow(QMainWindow):
         app=QApplication.instance()
         if app is not None:
             app.removeEventFilter(self)
+            for widget in self._ime_filtered_widgets:
+                try:widget.removeEventFilter(self)
+                except RuntimeError:pass
+            self._ime_filtered_widgets.clear()
             try:app.focusChanged.disconnect(self._on_focus_changed)
             except (TypeError,RuntimeError):pass
         self.workspace.cleanup();event.accept()
