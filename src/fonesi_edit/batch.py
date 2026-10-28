@@ -10,6 +10,7 @@ from .prototypes.media import probe
 from .render import audio_duration
 
 VIDEO_EXTENSIONS={'.mp4','.mkv','.mov','.webm','.avi','.m4v','.flv','.ts'}
+AUDIO_EXTENSIONS={'.mp3','.m4a','.wav','.flac','.aac','.ogg','.opus','.wma','.mp4','.mov','.mkv'}
 
 
 def natural_key(value):return [int(p) if p.isdigit() else p.casefold() for p in re.split(r'(\d+)',str(value))]
@@ -134,7 +135,73 @@ def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximu
     c.duration_target=target;c.validate();return c
 
 
-def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2):
+
+def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder=None, seed=0):
+    """Pick audio for every selected video without modifying source media.
+
+    Return {resolved video path: (resolved audio path, validated duration)}.
+    Ordering follows selected source order within natural-sorted channels;
+    random is stable for the same source path and project seed.
+    """
+    if mode not in {'shared','by_name','ordered','random'}:
+        raise ValueError('Unknown audio assignment mode')
+    sources=[str(Path(source).resolve()) for channel,paths in sorted(
+        groups.items(),key=lambda pair:natural_key(pair[0])) for source in paths]
+    if mode=='shared':
+        if not audio_path:
+            return {}
+        sound=Path(audio_path).resolve()
+        if not sound.is_file():
+            raise FileNotFoundError('Âm thanh chung không tồn tại: '+sound.name)
+        length=audio_duration(sound)
+        return {source:(str(sound),length) for source in sources}
+    if not audio_folder:
+        raise ValueError('Chọn thư mục audio khi dùng ghép theo tên/danh sách/random')
+    directory=Path(audio_folder).resolve()
+    if not directory.is_dir():
+        raise NotADirectoryError('Thư mục audio không tồn tại: '+str(directory))
+    paths=sorted((p for p in directory.iterdir()
+        if p.is_file() and not p.is_symlink() and p.suffix.casefold() in AUDIO_EXTENSIONS),
+        key=lambda p:natural_key(p.name))
+    if not paths:
+        raise ValueError('Thư mục audio không có tệp phù hợp')
+    # Validate real audio tracks before generating *any* batch plan.
+    durations={}
+    for sound in paths:
+        try:
+            length=audio_duration(sound)
+        except (OSError,ValueError,RuntimeError) as exc:
+            raise ValueError('Tệp audio không có track hợp lệ: '+sound.name) from exc
+        if not math.isfinite(length) or length<=0:
+            raise ValueError('Thời lượng audio không hợp lệ: '+sound.name)
+        durations[str(sound.resolve())]=length
+    selection={}
+    if mode=='by_name':
+        matched={}
+        for sound in paths:
+            matched.setdefault(sound.stem.casefold(),[]).append(sound)
+        for source in sources:
+            found=matched.get(Path(source).stem.casefold(),[])
+            if len(found)!=1:
+                raise ValueError('Ghép theo tên cần đúng một audio: '+Path(source).name)
+            sound=found[0].resolve()
+            selection[source]=(str(sound),durations[str(sound)])
+    elif mode=='ordered':
+        if len(paths)!=len(sources):
+            raise ValueError('Ghép theo danh sách cần số audio bằng số video được chọn')
+        for source,sound in zip(sources,paths,strict=True):
+            sound=sound.resolve()
+            selection[source]=(str(sound),durations[str(sound)])
+    else:
+        for source in sources:
+            number=int(hashlib.sha256(f'{seed}:{source}'.encode()).hexdigest()[:16],16)
+            sound=paths[number%len(paths)].resolve()
+            selection[source]=(str(sound),durations[str(sound)])
+    return selection
+
+
+def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2,audio_mode='shared',audio_folder=None):
+    assignments=batch_audio_assignments(groups,audio_mode,audio_path,audio_folder,preset.seed)
     plans=[]
     for channel,paths in sorted(groups.items(),key=lambda p:natural_key(p[0])):
         channel=Path(channel);output_root=channel.with_name(channel.name+' edit')/'videos'
@@ -143,14 +210,16 @@ def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=
             for layer in c.layers:layer.clip_ids=[]
             clip_id=hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:32]
             c.clips=[configured_clip(path,info,c,clip_id)]
-            if audio_path:
-                c.audio=[{'path':str(Path(audio_path).resolve()),'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
-                c=fit_duration(c,audio_duration(audio_path),policy,minimum,maximum)
+            audio_binding=assignments.get(str(path.resolve()))
+            if audio_binding:
+                sound,length=audio_binding
+                c.audio=[{'path':sound,'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
+                c=fit_duration(c,length,policy,minimum,maximum)
             elif c.duration_target:c=fit_duration(c,c.duration_target,policy,minimum,maximum)
             warnings=bind_source_subtitles(c,channel)
             key=hashlib.sha256(canonical(c.to_dict()).encode()).hexdigest()[:10]
             output=output_root/(path.stem[:120]+'_'+key+'.mp4')
-            plans.append({'source':str(path),'output':str(output),'composition':c.to_dict(),'warnings':warnings})
+            plans.append({'source':str(path),'audio_source':audio_binding[0] if audio_binding else None,'output':str(output),'composition':c.to_dict(),'warnings':warnings})
     return plans
 
 
