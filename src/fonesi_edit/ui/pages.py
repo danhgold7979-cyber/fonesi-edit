@@ -376,7 +376,12 @@ class SubtitlesPage(QWidget):
 class BatchPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;self.groups={};self.plans=[];layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
-        self.folder=file_row(form,'Thư mục cha',host,True);self.audio=file_row(form,'Âm thanh chính (tùy chọn)',host)
+        self.folder=file_row(form,'Thư mục cha',host,True);self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
+        self.audio_folder=file_row(form,'Thư mục nhiều audio (khi ghép riêng)',host,True)
+        self.audio_mode=QComboBox()
+        for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random')]:
+            self.audio_mode.addItem(label,mode)
+        form.addRow('Ghép âm thanh chính',self.audio_mode)
         self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);form.addRow('Cách khớp thời lượng',self.policy)
         self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min',self.minimum)
         self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max',self.maximum)
@@ -404,8 +409,13 @@ class BatchPage(QWidget):
         if not groups:raise ValueError('Quét/chọn folder trước')
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
-        self.host.background(lambda p,c:batch_plan(groups,preset,audio,policy,minimum,maximum),self.planned)
-    def planned(self,plans):self.plans=plans;self.summary.setText(f'{len(plans)} đầu ra. '+ '\n'.join(p['output'] for p in plans[:4]))
+        audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
+        self.host.background(lambda p,c:batch_plan(groups,preset,audio,policy,minimum,maximum,
+                            audio_mode=audio_mode,audio_folder=audio_folder),self.planned)
+    def planned(self,plans):
+        self.plans=plans
+        preview='\n'.join(p['output']+(' • audio: '+Path(p['audio_source']).name if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
+        self.summary.setText(f'{len(plans)} đầu ra. '+preview)
     def preview(self):
         if not self.plans:raise ValueError('Lập kế hoạch trước')
         self.host.preview_composition(Composition.from_dict(self.plans[0]['composition']))
