@@ -1,5 +1,14 @@
-# P10 clean rebuild results
+# P10 clean rebuild results — checkpoint 1
 
-Implementation: NOT STARTED. Tests: NOT RUN. Full phase gate: OPEN.
+State: PARTIAL — full phase gate OPEN
 
-Previous evidence belongs to baseline `5e8ac83`; see `../baseline-5e8ac83/`.
+## Implemented
+App-open schedule anti-overlap primitives, stable-file watcher, owned-cache cleanup with leases, resource metrics/admission helpers and batch/rolling dependency planner.
+
+## Evidence
+Watcher stable/change/output exclusion, schedule overlap/misfire, safe cache, resource-denial tests passed.
+
+## Remaining / NOT RUN
+Automation helpers are NOT yet all wired into desktop scheduler/settings. Adaptive resource hysteresis, per-tool/account leases, app-closed Windows opt-in scheduling, full DAG failure propagation/progress/ETA remain open.
+
+Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.

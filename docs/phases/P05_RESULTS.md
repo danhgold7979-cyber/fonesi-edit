@@ -1,5 +1,14 @@
-# P05 clean rebuild results
+# P05 clean rebuild results — checkpoint 1
 
-Implementation: NOT STARTED. Tests: NOT RUN. Full phase gate: OPEN.
+State: PARTIAL — full phase gate OPEN
 
-Previous evidence belongs to baseline `5e8ac83`; see `../baseline-5e8ac83/`.
+## Implemented
+Public yt-dlp/gallery-dl adapters, URL registry, explicit scan completeness, staged validated media publication; 10-platform account settings, isolated Chrome profile schema/launch checks, fail-closed identity readiness.
+
+## Evidence
+Real HTTP localhost video + PNG download validated; URL/selected-account/profile isolation tests passed.
+
+## Remaining / NOT RUN
+No live platform capability certified. Gallery-dl packaged localhost behavior not verified; Windows Chrome session bridge/identity probing unavailable. Pagination/checkpoint/sync quality/subtitle-only update paths incomplete. Trusted installer has tested validation gate, but no approved Windows manifests/UI install-all yet.
+
+Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.

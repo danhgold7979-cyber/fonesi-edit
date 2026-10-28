@@ -1,3 +1,5 @@
+> Rebuild notice (2026-10-28): statuses below describe baseline planning/alpha history, NOT current clean-code acceptance. Current plan: [REBUILD_MASTER_PLAN.md](REBUILD_MASTER_PLAN.md); evidence: [CURRENT_STATUS.md](CURRENT_STATUS.md). Original scope is retained.
+
 # Fonesi Edit — Thiết kế kỹ thuật để chuẩn bị code
 
 Trạng thái: thiết kế đề xuất. Những lựa chọn có nhãn P02 cần kết quả thực nghiệm trước khi khóa. Không có thư viện hoặc nền tảng nào đã được cài/kiểm chứng bởi tài liệu này.

@@ -1,5 +1,14 @@
-# P08 clean rebuild results
+# P08 clean rebuild results — checkpoint 1
 
-Implementation: NOT STARTED. Tests: NOT RUN. Full phase gate: OPEN.
+State: PARTIAL — full phase gate OPEN
 
-Previous evidence belongs to baseline `5e8ac83`; see `../baseline-5e8ac83/`.
+## Implemented
+Recursive safe folder scanning; batch dry-run and per-input validation failures; own subtitles resolved per clip; duration policies cut/speed/loop/freeze; audio mixer supports gain/delay/fade/loop/solo/limiter in renderer.
+
+## Evidence
+Batch scan/plan and duration-policy tests passed plus real render.
+
+## Remaining / NOT RUN
+Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open.
+
+Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.

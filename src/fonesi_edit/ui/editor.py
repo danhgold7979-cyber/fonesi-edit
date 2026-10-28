@@ -1,369 +1,97 @@
-from copy import deepcopy
-from dataclasses import asdict,replace
 from pathlib import Path
-from uuid import uuid4
-import tempfile
-
-from PySide6.QtCore import Qt,QUrl,Signal
-from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QFont
-from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
-from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
-    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox)
-
-from ..domain import Composition,Clip,Layer,identifier
-from ..prototypes.media import probe,extract_frame
+import copy
+from PIL import Image
+from PySide6.QtCore import Qt,Signal
+from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QSplitter,QListWidget,QFormLayout,QDoubleSpinBox,QPushButton,QLineEdit,QComboBox,QCheckBox,QFileDialog,QLabel,QSlider,QScrollArea
+from ..core.model import Layer,Keyframe,US,uid,Project
 from .canvas import Canvas
-from .timeline import Timeline,clip_positions
-
-
-class Snapshot(QUndoCommand):
-    def __init__(self,editor,before,after,name):
-        super().__init__(name);self.editor,self.before,self.after=editor,before,after
-    def undo(self): self.editor.set_composition(Composition.from_dict(self.before))
-    def redo(self): self.editor.set_composition(Composition.from_dict(self.after))
-
+from .timeline import Timeline
 
 class Editor(QWidget):
-    changed=Signal()
-    render_requested=Signal(dict)
+    changed=Signal();preview_requested=Signal(int)
+    def __init__(self,project,history,parent=None):
+        super().__init__(parent);self.project=project;self.history=history;self.busy=False
+        layout=QVBoxLayout(self);toolbar=QHBoxLayout();layout.addLayout(toolbar)
+        for label,callback in [('＋ Chữ',self.add_text),('＋ Logo',self.add_logo),('＋ Vùng che',self.add_mask),('Nhân bản',self.duplicate),('Undo',self.undo),('Redo',self.redo),('Frame xuất chuẩn',lambda:self.preview_requested.emit(self.canvas.time))]:
+            b=QPushButton(label);b.clicked.connect(callback);toolbar.addWidget(b)
+        split=QSplitter();layout.addWidget(split,1);self.layers=QListWidget();self.layers.setMaximumWidth(200);split.addWidget(self.layers)
+        self.canvas=Canvas(project,history);split.addWidget(self.canvas);panel=QWidget();form=QFormLayout(panel);split.addWidget(panel);panel.setMaximumWidth(260)
+        self.fields={}
+        for key,title,low,high,step in [('x','X (% khung)',-200,200,1),('y','Y (% khung)',-200,200,1),('width','Rộng (%)',1,400,1),('height','Cao (%)',1,400,1),('rotation','Góc (°)',-3600,3600,1),('opacity','Opacity (%)',0,100,1)]:
+            field=QDoubleSpinBox();field.setRange(low,high);field.setDecimals(2);field.setSingleStep(step);form.addRow(title,field);self.fields[key]=field;field.editingFinished.connect(lambda k=key:self.numeric_changed(k))
+        self.text=QLineEdit();form.addRow('Nội dung',self.text);self.text.editingFinished.connect(self.text_changed)
+        self.font_size=QDoubleSpinBox();self.font_size.setRange(6,400);form.addRow('Cỡ chữ (px)',self.font_size);self.font_size.editingFinished.connect(self.font_changed)
+        self.lock=QCheckBox('Khóa đối tượng');form.addRow(self.lock);self.lock.clicked.connect(self.lock_changed)
+        self.visible=QCheckBox('Hiện đối tượng');form.addRow(self.visible);self.visible.clicked.connect(self.visible_changed)
+        self.record=QCheckBox('Ghi keyframe tại playhead');form.addRow(self.record)
+        self.snap=QCheckBox('Snap / vùng an toàn');self.snap.setChecked(True);form.addRow(self.snap);self.snap.clicked.connect(self.snap_changed)
+        self.zoom=QComboBox();self.zoom.addItems(['Fit','25%','50%','100%','200%']);form.addRow('Zoom preview',self.zoom);self.zoom.currentIndexChanged.connect(self.zoom_changed)
+        for label,callback in [('Đưa vào khung',self.keep_inside),('Lên layer',lambda:self.reorder(1)),('Xuống layer',lambda:self.reorder(-1)),('Chọn font TTF/OTF',self.choose_font)]:
+            b=QPushButton(label);b.clicked.connect(callback);form.addRow(b)
+        notice=QLabel('Preview kéo thả dùng CPU. “Frame xuất chuẩn” chạy cùng đường render, có thể hủy khi đổi dự án. Thuộc tính chưa hỗ trợ không được bỏ qua khi xuất.');notice.setWordWrap(True);form.addRow(notice)
+        self.timeline=Timeline(project,history);layout.addWidget(self.timeline)
+        self.scrub=QSlider(Qt.Orientation.Horizontal);layout.addWidget(self.scrub);self.scrub.valueChanged.connect(self.seek)
+        self.canvas.changed.connect(self.refresh);self.canvas.selected.connect(self.select_id);self.layers.currentRowChanged.connect(self.select_row)
+        self.timeline.changed.connect(self.refresh);self.timeline.seek.connect(self.seek);self.refresh()
 
-    def __init__(self,host):
-        super().__init__();self.host=host
-        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
-        self.waveforms={};self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
-        layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
-        actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
-                 ('Vùng che',lambda:self.add_layer('mask')),('Nhân bản',self.duplicate),('Xóa layer',self.delete_layer),
-                 ('Undo',self.undo.undo),('Redo',self.undo.redo),('Chia clip',self.split),('Render',self.request_render)]
-        for label,callback in actions:
-            action=toolbar.addAction(label);action.triggered.connect(lambda checked=False,callback=callback:callback())
-        toolbar.addAction('Đầu ra',lambda:self.output_dialog());toolbar.addAction('Âm thanh',lambda:self.audio_dialog())
-        extra=QPushButton('Thao tác thêm ▾');menu=QMenu(extra)
-        for name,callback in [('Sửa clip',self.clip_dialog),('Đặt In',self.mark_in),('Đặt Out',self.mark_out),('Áp dụng In/Out',self.trim_in_out),('Xóa clip và dồn sau',self.ripple_delete),('Nhóm layer',self.group),('Bỏ nhóm',self.ungroup),('Căn giữa ngang',lambda:self.align('x')),('Căn giữa dọc',lambda:self.align('y')),('Phân bố ngang',lambda:self.distribute('x')),('Phân bố dọc',lambda:self.distribute('y')),('Copy kiểu',self.copy_style),('Dán kiểu',self.paste_style),('Khóa / mở chọn',self.lock_selected),('Ẩn / hiện chọn',self.hide_selected),('Preview có âm thanh',lambda:self.host.playback_preview(self.composition))]:
-            action=menu.addAction(name);action.triggered.connect(lambda checked=False,callback=callback:callback())
-        extra.setMenu(menu);toolbar.addWidget(extra)
-        self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
-        self.scope.currentIndexChanged.connect(self.change_scope)
-        split=QSplitter();layout.addWidget(split,1)
-        assets=QWidget();left=QVBoxLayout(assets);self.clips=QListWidget();self.layers=QListWidget()
-        self.clips.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        self.layers.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        left.addWidget(QLabel('Media'));left.addWidget(self.clips);left.addWidget(QLabel('Layers'));left.addWidget(self.layers)
-        self.layers.itemSelectionChanged.connect(self.list_selection)
-        self.clips.itemDoubleClicked.connect(lambda item:self.clip_dialog())
-        layer_buttons=QHBoxLayout();left.addLayout(layer_buttons)
-        for label,delta in [('Lên',1),('Xuống',-1)]:
-            b=QPushButton(label);b.clicked.connect(lambda _,d=delta:self.reorder(d));layer_buttons.addWidget(b)
-        split.addWidget(assets)
-        center=QWidget();middle=QVBoxLayout(center);self.views=QTabWidget();middle.addWidget(self.views,1)
-        self.canvas=Canvas(self);self.canvas.selected.connect(self.select_id);self.views.addTab(self.canvas,'Bố cục')
-        self.video=QVideoWidget();self.views.addTab(self.video,'Playback / render tham chiếu')
-        self.player=QMediaPlayer(self);self.audio=QAudioOutput(self);self.player.setAudioOutput(self.audio);self.player.setVideoOutput(self.video)
-        self.player.errorOccurred.connect(lambda _,error:self.host.message(error))
-        controls=QHBoxLayout();middle.addLayout(controls)
-        play=QPushButton('Phát / dừng');play.clicked.connect(self.toggle_play);controls.addWidget(play)
-        ref=QPushButton('Preview chất lượng xuất');ref.clicked.connect(self.reference);controls.addWidget(ref)
-        self.frame_label=QLabel('');controls.addWidget(self.frame_label)
-        self.timeline=Timeline(self);self.timeline.seek.connect(lambda t:self.player.setPosition(round(t*1000)));middle.addWidget(self.timeline)
-        self.player.positionChanged.connect(lambda milliseconds:self.timeline.position(milliseconds/1000))
-        split.addWidget(center)
-        self.inspector=QTabWidget();split.addWidget(self.inspector);self.fields={}
-        self.build_inspector();split.setSizes([170,740,300])
-        self.refresh()
-
-    def build_inspector(self):
-        transform=QWidget();form=QFormLayout(transform)
-        self.add_field(form,'name','Tên','str')
-        for key,label,lo,hi in [('x','X / rộng',0,1),('y','Y / cao',0,1),('width','Rộng / khung',.01,2),('height','Cao / khung',.01,2),
-                               ('rotation','Xoay °',-360,360),('opacity','Độ rõ',0,1),('start','Bắt đầu s',0,100000),('end','Kết thúc s (0=cuối)',0,100000)]:
-            self.add_field(form,key,label,'number',lo,hi)
-        self.add_field(form,'visible','Hiển thị','bool');self.add_field(form,'locked','Khóa chỉnh tự động','bool')
-        self.inspector.addTab(transform,'Vị trí')
-        style=QWidget();form=QFormLayout(style)
-        for key,label,kind in [('text','Nội dung','str'),('style.font_family','Font','font'),('style.color','Màu HEX','str'),
-                               ('style.outline_color','Viền HEX','str'),('style.background','Nền HEX','str')]:self.add_field(form,key,label,kind)
-        for key,label,lo,hi in [('font_size','Cỡ chữ',8,300),('outline','Viền px',0,20),('line_spacing','Giãn dòng',0,100),
-                               ('shadow','Bóng px',0,30),('padding','Padding',0,100)]:self.add_field(form,'style.'+key,label,'number',lo,hi)
-        for key,label in [('bold','Đậm'),('italic','Nghiêng'),('underline','Gạch chân')]:self.add_field(form,'style.'+key,label,'bool')
-        self.add_field(form,'style.align','Căn chữ','choice',options=['left','center','right'])
-        self.add_field(form,'style.mode','Kiểu vùng che','choice',options=['blur','mosaic','color'])
-        for key,label,lo,hi in [('radius','Cường độ blur',1,50),('corner_radius','Bo góc vùng che',0,200),('feather','Feather vùng che',0,100),('spacing','Giãn ký tự',0,50)]:self.add_field(form,'style.'+key,label,'number',lo,hi)
-        font=QPushButton('Chọn font TTF/OTF');font.clicked.connect(self.choose_font);form.addRow(font)
-        color=QPushButton('Bảng màu chữ');color.clicked.connect(self.choose_color);form.addRow(color)
-        self.inspector.addTab(style,'Kiểu')
-        motion=QWidget();form=QFormLayout(motion)
-        self.add_field(form,'motion.preset','Di chuyển','choice',options=['fixed','a-b','left-right','right-left','top-bottom','bottom-top','diagonal','pingpong','bounce','corners','random','zoom'])
-        for key,label,lo,hi in [('speed','Tốc độ px/s',0,2000),('duration','Một vòng s',.1,3600),('delay','Trễ s',0,3600),('end_x','Đích X',0,1),('end_y','Đích Y',0,1),('fade_in','Fade vào s',0,30),('fade_out','Fade ra s',0,30)]:
-            self.add_field(form,'motion.'+key,label,'number',lo,hi)
-        self.add_field(form,'motion.repeat','Lặp','bool');self.add_field(form,'motion.easing','Gia tốc','choice',options=['linear','ease-in','ease-out','ease-in-out'])
-        for key,label,lo,hi in [('hold','Nghỉ giữa vòng s',0,600),('repeat_count','Số vòng (0=vô hạn)',0,10000),('zoom_min','Zoom min',.1,5),('zoom_max','Zoom max',.1,5),('rotate_speed','Xoay độ/s',-360,360)]:self.add_field(form,'motion.'+key,label,'number',lo,hi)
-        key=QPushButton('Đặt keyframe X/Y tại playhead');key.clicked.connect(self.keyframe);form.addRow(key)
-        advanced=QPushButton('Bảng sửa keyframe đầy đủ');advanced.clicked.connect(self.edit_keyframes);form.addRow(advanced)
-        self.inspector.addTab(motion,'Chuyển động')
-        tabs=[(self.inspector.widget(i),self.inspector.tabText(i)) for i in range(self.inspector.count())]
-        self.inspector.clear()
-        for widget,name in tabs:
-            scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(widget);self.inspector.addTab(scroll,name)
-
-    def add_field(self,form,key,label,kind,lo=0,hi=1,options=None):
-        if kind=='number':
-            widget=QDoubleSpinBox();widget.setRange(lo,hi);widget.setDecimals(3);widget.setSingleStep(.01 if hi<=2 else 1)
-            widget.valueChanged.connect(lambda _:self.field_changed(key))
-        elif kind=='font':widget=QFontComboBox();widget.currentFontChanged.connect(lambda _:self.field_changed(key))
-        elif kind=='bool':widget=QCheckBox();widget.toggled.connect(lambda _:self.field_changed(key))
-        elif kind=='choice':widget=QComboBox();widget.addItems(options);widget.currentTextChanged.connect(lambda _:self.field_changed(key))
-        else:widget=QLineEdit();widget.editingFinished.connect(lambda:self.field_changed(key))
-        self.fields[key]=(widget,kind);form.addRow(label,widget)
-
-    def layer(self):return next((x for x in self.composition.layers if x.id==self.selected_id),None)
-    def begin(self):self._before=self.composition.to_dict()
-
-    def commit(self,name):
-        before=self._before;self._before=None
-        try:after=self.composition.to_dict()
-        except ValueError as exc:
-            if before:self.set_composition(Composition.from_dict(before))
-            self.host.message(str(exc));return
-        if before and before!=after:self.undo.push(Snapshot(self,before,after,name))
-        else:self.refresh()
-
-    def set_composition(self,composition):
-        self.composition=composition;self.refresh();self.changed.emit()
-
-    def refresh(self):
-        self._loading=True
-        clip_ids={self.clips.item(i.row()).data(Qt.ItemDataRole.UserRole) for i in self.clips.selectedIndexes()}
-        self.clips.clear()
-        for c in self.composition.clips:
-            self.clips.addItem(Path(c.path).name);item=self.clips.item(self.clips.count()-1);item.setData(Qt.ItemDataRole.UserRole,c.id);item.setSelected(c.id in clip_ids)
-        if self.clips.count() and not self.clips.selectedItems():self.clips.setCurrentRow(0)
-        self.layers.clear()
-        for layer in self.composition.layers:self.layers.addItem(('🔒 ' if layer.locked else '')+layer.name)
-        selected=next((i for i,x in enumerate(self.composition.layers) if x.id==self.selected_id),-1)
-        self.selected_ids.intersection_update(l.id for l in self.composition.layers)
-        if self.selected_id:self.selected_ids.add(self.selected_id)
-        for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
-        self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
-        self.load_waveforms()
-
-    def load_waveforms(self):
-        if not hasattr(self.host,'background'):return
-        from ..waveform import waveform
-        paths={c.path for c in self.composition.clips}|{a['path'] for a in self.composition.audio}
-        for path in paths:
-            if path in self.waveforms or not Path(path).is_file():continue
-            self.waveforms[path]={}
-            def work(progress,cancel,path=path):
-                try:return path,waveform(path,Path(self.host.workspace.name)/'waveforms',cancel)
-                except (ValueError,RuntimeError,OSError):return path,{}
-            def done(data):self.waveforms[data[0]]=data[1];self.timeline.rebuild()
-            self.host.background(work,done)
-
-    def select_row(self,index):
-        if self._loading:return
-        self.select_id(self.composition.layers[index].id if 0<=index<len(self.composition.layers) else '')
-
-    def select_id(self,layer_id):
-        self.select_ids([layer_id] if layer_id else [])
-
-    def list_selection(self):
-        if self._loading:return
-        self.select_ids([self.composition.layers[i.row()].id for i in self.layers.selectedIndexes()]);self.canvas.rebuild()
-
-    def select_ids(self,layer_ids):
-        layer_id=layer_ids[0] if layer_ids else None;self.selected_ids=set(layer_ids)
-        self.selected_id=layer_id;self._loading=True;self.load_fields();self._loading=False
-        self.layers.blockSignals(True)
-        for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
-        self.layers.blockSignals(False)
-
-    def selected_layers(self):return [l for l in self.composition.layers if l.id in (self.selected_ids|{self.selected_id})]
-
-    def load_fields(self):
-        layer=self.layer()
-        for key,(widget,kind) in self.fields.items():
-            widget.setEnabled(layer is not None)
-            if not layer:continue
-            if '.' in key:
-                parent,name=key.split('.');value=getattr(layer,parent).get(name)
-                if value is None:value={'font_size':32,'font_family':'Arial','color':'#000000' if layer.kind=='mask' else '#ffffff','outline_color':'#000000','outline':2,'mode':'blur','radius':10,'duration':5,'speed':20,'repeat':True,'zoom_min':.95,'zoom_max':1.05,'easing':'linear','align':'left'}.get(name)
-            else:value=getattr(layer,key)
-            widget.blockSignals(True)
-            if kind=='number':widget.setValue(float(value or (8 if key=='style.font_size' else 0)))
-            elif kind=='bool':widget.setChecked(bool(value))
-            elif kind=='choice':widget.setCurrentText(str(value or ('fixed' if key=='motion.preset' else 'linear' if key=='motion.easing' else 'left')))
-            elif kind=='font':widget.setCurrentFont(QFont(value or 'Arial'))
-            else:widget.setText(str(value or ''))
-            widget.blockSignals(False)
-
-    def field_changed(self,key):
-        layer=self.layer()
-        if self._loading or not layer:return
-        widget,kind=self.fields[key]
-        value=widget.value() if kind=='number' else widget.isChecked() if kind=='bool' else widget.currentText() if kind=='choice' else widget.currentFont().family() if kind=='font' else widget.text()
-        if key=='end' and value==0:value=None
-        self.begin()
-        if '.' in key:
-            parent,name=key.split('.');getattr(layer,parent)[name]=value
-            if key=='style.font_family':layer.style.pop('font_file',None)
-        else:setattr(layer,key,value)
-        self.commit('Đổi '+key)
-
-    def add_video(self):
-        paths,_=QFileDialog.getOpenFileNames(self,'Thêm media',filter='Video (*.mp4 *.mkv *.mov *.webm *.avi);;Tất cả (*)')
-        for path in paths:self.open_media(Path(path))
-
-    def open_media(self,path):
-        frame=Path(self.host.workspace.name)/(uuid4().hex+'.png')
-        def work(progress,cancel):
-            info=probe(path);extract_frame(path,frame,min(.1,info.duration/2));return path,info,frame
-        def done(data):
-            path,info,frame=data;self.begin()
-            self.composition.clips.append(Clip(str(path.resolve()),end=info.duration,source_duration=info.duration))
-            self.frame=frame;self.commit('Thêm video')
-            self.player.setSource(QUrl.fromLocalFile(str(path.resolve())))
-            self.frame_label.setText(f'{info.width}×{info.height} • {info.duration:.2f}s')
-        self.host.background(work,done)
-
-    def add_layer(self,kind):
-        path=None
-        if kind=='image':
-            path,_=QFileDialog.getOpenFileName(self,'Chọn logo',filter='Ảnh (*.png *.jpg *.webp)')
-            if not path:return
-        self.begin();layer=Layer(kind=kind,name={'text':'Chữ','image':'Logo','mask':'Vùng che'}[kind],path=path)
-        if kind=='mask':layer.y=.75;layer.width=.8;layer.height=.12;layer.style={'mode':'blur','radius':10}
-        layer.clip_ids=self.scope_ids();self.composition.layers.append(layer);self.selected_id=layer.id;self.selected_ids={layer.id};self.commit('Thêm layer')
-
+    def current(self):return next((l for l in self.project.layers if l.id in self.canvas.selection),None)
+    def mutate(self,label,callback):
+        self.history.begin();callback();self.history.commit(label);self.canvas.reference=None;self.refresh()
+    def add_text(self):self.mutate('add text',lambda:self.project.layers.append(Layer(end=max(US,self.project.duration),z=len(self.project.layers),text='Nội dung',height=.2,style={'font_size':max(16,self.project.height//20),'overflow':'shrink','fill':'#ffffff','stroke':'#000000','stroke_width':2})))
+    def add_logo(self):
+        path,_=QFileDialog.getOpenFileName(self,'Chọn logo','','Images (*.png *.jpg *.jpeg *.webp)')
+        if path:self.mutate('add logo',lambda:self.project.layers.append(Layer(kind='logo',name=Path(path).name,asset_path=path,end=max(US,self.project.duration),width=.2,height=.2,z=len(self.project.layers),style={})))
+    def add_mask(self):self.mutate('add mask',lambda:self.project.layers.append(Layer(kind='mask',name='Vùng che',end=max(US,self.project.duration),z=-1,style={'mask_mode':'blur','blur_radius':12})))
     def duplicate(self):
-        if self.layer():
-            self.begin();copy=deepcopy(self.layer());copy.id=identifier();copy.name+=' copy';copy.x=min(.95,copy.x+.02)
-            self.composition.layers.append(copy);self.selected_id=copy.id;self.selected_ids={copy.id};self.commit('Nhân bản')
-
-    def delete_layer(self):
-        ids={l.id for l in self.selected_layers() if not l.locked}
-        if ids:
-            self.begin();self.composition.layers=[l for l in self.composition.layers if l.id not in ids];self.selected_id=None;self.selected_ids=set();self.commit('Xóa layer')
-
+        l=self.current()
+        if l:
+            new=copy.deepcopy(l);new.id=uid();new.x+=.03;new.y+=.03;new.locked=False;self.mutate('duplicate',lambda:self.project.layers.append(new))
+    def undo(self):self.history.undo();self.refresh()
+    def redo(self):self.history.redo();self.refresh()
+    def select_id(self,identity):
+        self.canvas.selection={identity};self.refresh()
+    def select_row(self,index):
+        if self.busy or index<0 or index>=len(self.project.layers):return
+        self.canvas.selection={self.project.layers[index].id};self.refresh()
+    def numeric_changed(self,key):
+        l=self.current()
+        if self.busy or l is None or l.locked:return
+        value=self.fields[key].value()/(1 if key=='rotation' else 100)
+        def set_value():
+            if self.record.isChecked():
+                keys=l.keyframes.setdefault(key,[]);t=max(0,self.canvas.time-l.start);keys[:]=[k for k in keys if k.time!=t];keys.append(Keyframe(t,value))
+            else:setattr(l,key,value)
+        self.mutate('property '+key,set_value)
+    def text_changed(self):
+        l=self.current()
+        if not self.busy and l and not l.locked:self.mutate('text',lambda:setattr(l,'text',self.text.text()))
+    def font_changed(self):
+        l=self.current()
+        if not self.busy and l and not l.locked:self.mutate('font size',lambda:l.style.update(font_size=int(self.font_size.value())))
+    def lock_changed(self):
+        l=self.current()
+        if l:self.mutate('lock',lambda:setattr(l,'locked',self.lock.isChecked()))
+    def visible_changed(self):
+        l=self.current()
+        if l:self.mutate('visibility',lambda:setattr(l,'visible',self.visible.isChecked()))
+    def snap_changed(self):self.canvas.snap=self.snap.isChecked();self.canvas.grid=self.snap.isChecked();self.canvas.update()
+    def zoom_changed(self,index):self.canvas.zoom=[1,.25,.5,1,2][index];self.canvas.update()
+    def keep_inside(self):
+        l=self.current()
+        if l and not l.locked:self.mutate('keep inside',lambda:(setattr(l,'x',max(0,min(1-l.width,l.x))),setattr(l,'y',max(0,min(1-l.height,l.y)))))
     def reorder(self,delta):
-        index=next((i for i,l in enumerate(self.composition.layers) if l.id==self.selected_id),-1)
-        target=index+delta
-        if index>=0 and 0<=target<len(self.composition.layers):
-            self.begin();layers=self.composition.layers;layers[index],layers[target]=layers[target],layers[index];self.commit('Đổi thứ tự')
-
-    def split(self):
-        t=self.timeline.playhead
-        for clip,offset,length in clip_positions(self.composition):
-            if offset<t<offset+length:
-                self.begin();cut=clip.start+(t-offset)*clip.speed
-                right=replace(clip,id=identifier(),start=cut,offset=t);clip.end=cut
-                for layer in self.composition.layers:
-                    if clip.id in layer.clip_ids:layer.clip_ids.append(right.id)
-                self.composition.clips.insert(self.composition.clips.index(clip)+1,right);self.commit('Chia clip');return
-
-    def group(self):
-        layers=[l for l in self.selected_layers() if not l.locked]
-        if len(layers)<2:return
-        self.begin();key=identifier()
-        for layer in layers:layer.group=key
-        self.commit('Nhóm layer')
-    def ungroup(self):
-        self.begin()
-        for layer in self.selected_layers():
-            if not layer.locked:layer.group=None
-        self.commit('Bỏ nhóm')
-    def align(self,axis):
-        self.begin()
-        for layer in self.selected_layers():
-            if not layer.locked:setattr(layer,axis,(1-getattr(layer,'width' if axis=='x' else 'height'))/2)
-        self.commit('Căn giữa')
-    def distribute(self,axis):
-        layers=sorted([l for l in self.selected_layers() if not l.locked],key=lambda l:getattr(l,axis))
-        if len(layers)<3:return
-        self.begin();first,last=getattr(layers[0],axis),getattr(layers[-1],axis)
-        for i,layer in enumerate(layers):setattr(layer,axis,first+(last-first)*i/(len(layers)-1))
-        self.commit('Phân bố layer')
-    def copy_style(self):
-        if self.layer():self.style_clipboard=deepcopy(self.layer().style)
-    def paste_style(self):
-        if not hasattr(self,'style_clipboard'):return
-        self.begin()
-        for layer in self.selected_layers():
-            if not layer.locked:layer.style=deepcopy(self.style_clipboard)
-        self.commit('Dán kiểu')
-    def lock_selected(self):
-        self.begin();layers=self.selected_layers();value=not all(l.locked for l in layers)
-        for layer in layers:layer.locked=value
-        self.commit('Khóa/mở layer')
-    def hide_selected(self):
-        self.begin();layers=[l for l in self.selected_layers() if not l.locked];value=not any(l.visible for l in layers)
-        for layer in layers:layer.visible=value
-        self.commit('Ẩn/hiện layer')
-    def mark_in(self):self.in_point=self.timeline.playhead;self.host.message(f'In: {self.in_point:.3f}s')
-    def mark_out(self):self.out_point=self.timeline.playhead;self.host.message(f'Out: {self.out_point:.3f}s')
-    def trim_in_out(self):
-        if self.in_point is None or self.out_point is None or self.out_point<=self.in_point:self.host.message('Đặt In trước Out trong một clip');return
-        for clip,offset,length in clip_positions(self.composition):
-            if offset<=self.in_point<self.out_point<=offset+length:
-                self.begin();start=clip.start;clip.start=start+(self.in_point-offset)*clip.speed;clip.end=start+(self.out_point-offset)*clip.speed;clip.freeze=0;self.composition.duration_target=None;self.commit('Cắt In/Out');return
-        self.host.message('In/Out phải nằm trong cùng một clip; chia clip trước khi cắt qua nhiều cảnh')
-    def ripple_delete(self):
-        indices={i.row() for i in self.clips.selectedIndexes()}
-        if not indices:return
-        positions=clip_positions(self.composition);ids={self.composition.clips[i].id for i in indices};shift=0;self.begin()
-        for clip,offset,length in positions:
-            if clip.id in ids:shift+=length-self.composition.transition
-            elif clip.offset is not None:clip.offset=max(0,offset-shift)
-        self.composition.clips=[c for c in self.composition.clips if c.id not in ids]
-        self.composition.layers=[l for l in self.composition.layers if not l.clip_ids or any(cid not in ids for cid in l.clip_ids)]
-        for layer in self.composition.layers:layer.clip_ids=[cid for cid in layer.clip_ids if cid not in ids]
-        self.composition.duration_target=None;self.commit('Xóa clip và dồn sau')
-
-    def clip_dialog(self):
-        if not self.composition.clips:return
-        from .dialogs import ClipDialog
-        ClipDialog(self,max(0,self.clips.currentRow())).exec()
-
+        l=self.current()
+        if l:self.mutate('order',lambda:setattr(l,'z',l.z+delta))
     def choose_font(self):
-        if not self.layer():return
-        path,_=QFileDialog.getOpenFileName(self,'Font riêng',filter='Font (*.ttf *.otf *.ttc *.otc)')
-        if path:
-            from ..fonts import font_faces
-            faces=font_faces(path);self.begin();self.layer().style.update({'font_file':path,'font_family':faces[0]['family']});self.commit('Font riêng')
-
-    def choose_color(self):
-        if not self.layer():return
-        color=QColorDialog.getColor(QColor(self.layer().style.get('color','#ffffff')),self)
-        if color.isValid():self.begin();self.layer().style['color']=color.name();self.commit('Màu chữ')
-
-    def keyframe(self):
-        if not self.layer() or self.layer().locked:return
-        self.begin();layer=self.layer();t=round(self.timeline.playhead,3)
-        for key in ('x','y'):
-            points=[p for p in layer.keyframes.get(key,[]) if p['time']!=t]
-            points.append({'time':t,'value':getattr(layer,key)});layer.keyframes[key]=sorted(points,key=lambda p:p['time'])
-        self.commit('Đặt keyframe')
-
-    def toggle_play(self):
-        self.views.setCurrentIndex(1)
-        self.player.pause() if self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState else self.player.play()
-
-    def request_render(self):self.render_requested.emit(self.composition.to_dict())
-    def reference(self):self.host.reference(self.composition,self.timeline.playhead)
-    def output_dialog(self):
-        from .dialogs import OutputDialog
-        OutputDialog(self).exec()
-    def audio_dialog(self):
-        from .dialogs import AudioDialog
-        AudioDialog(self).exec()
-    def edit_keyframes(self):
-        if not self.layer() or self.layer().locked:return
-        from .dialogs import KeyframeDialog
-        KeyframeDialog(self).exec()
-    def scope_ids(self):
-        if self.scope.currentIndex()==2 or not self.composition.clips:return []
-        indices=sorted({i.row() for i in self.clips.selectedIndexes()}) if self.scope.currentIndex()==1 else [max(0,self.clips.currentRow())]
-        return [self.composition.clips[i].id for i in indices if i<len(self.composition.clips)]
-    def change_scope(self):
-        if not self.layer():return
-        self.begin();self.layer().clip_ids=self.scope_ids();self.commit('Đổi phạm vi layer')
+        l=self.current()
+        if not l or l.locked:return
+        path,_=QFileDialog.getOpenFileName(self,'Chọn font','','Font (*.ttf *.otf)')
+        if path:self.mutate('font',lambda:l.style.update(font_path=path))
+    def seek(self,value):
+        self.canvas.time=int(value);self.timeline.time=int(value);self.canvas.reference=None;self.canvas.update();self.timeline.update()
+    def refresh(self):
+        self.busy=True;self.layers.clear();self.layers.addItems([('🔒 ' if l.locked else '')+l.name for l in self.project.layers]);l=self.current()
+        if l:
+            for key,field in self.fields.items():field.setValue(getattr(l,key)*(1 if key=='rotation' else 100));field.setEnabled(not l.locked)
+            self.text.setText(l.text);self.font_size.setValue(l.style.get('font_size',40));self.lock.setChecked(l.locked);self.visible.setChecked(l.visible)
+        self.scrub.setRange(0,max(1,self.project.duration));self.canvas.update();self.timeline.update();self.busy=False;self.changed.emit()

@@ -1,1 +1,0 @@
-"""Production Qt desktop interface."""

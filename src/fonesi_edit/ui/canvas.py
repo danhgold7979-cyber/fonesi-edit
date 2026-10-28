@@ -1,181 +1,120 @@
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QGraphicsView, QInputDialog
+from __future__ import annotations
+from dataclasses import replace
+import math
+from PIL import Image
+from PySide6.QtCore import Qt,QRectF,QPointF,Signal
+from PySide6.QtGui import QPainter,QColor,QPen,QImage
+from PySide6.QtWidgets import QWidget,QInputDialog
+from ..core.model import Project,CommandHistory
+from ..services.composition import paint_frame
 
-_FONT_FAMILIES={}
+
+def qt_image(image:Image.Image):
+    rgba=image.convert('RGBA');data=rgba.tobytes()
+    return QImage(data,rgba.width,rgba.height,rgba.width*4,QImage.Format.Format_RGBA8888).copy()
 
 
-class Overlay(QGraphicsObject):
-    def __init__(self, layer, width, height, begin, commit):
-        super().__init__()
-        self.layer, self.cw, self.ch = layer, width, height
-        self.begin, self.commit = begin, commit
-        self.mode = None
-        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-        self.setPos(layer.x * width, layer.y * height)
-        self.setTransformOriginPoint(self.boundingRect().center())
-        self.setRotation(layer.rotation)
-        self.setOpacity(layer.opacity)
-        self.setVisible(layer.visible)
-        self.image = QPixmap(layer.path) if layer.kind == 'image' and layer.path else QPixmap()
+class Canvas(QWidget):
+    changed=Signal();selected=Signal(str);error=Signal(str)
+    def __init__(self,project:Project,history:CommandHistory,parent=None):
+        super().__init__(parent);self.project=project;self.history=history;self.selection=set();self.time=0
+        self.base=None;self.zoom=1.;self.grid=True;self.snap=True;self.drag=None;self.reference=None
+        self.setMinimumSize(440,270);self.setFocusPolicy(Qt.FocusPolicy.StrongFocus);self.setMouseTracking(True)
+        self.setToolTip('Kéo: di chuyển • góc phải dưới: kích thước • tay nắm trên: xoay • Alt: bỏ snap • Esc: hủy')
 
-    def boundingRect(self):
-        return QRectF(0, 0, max(12, self.layer.width * self.cw), max(12, self.layer.height * self.ch))
+    def viewport(self):
+        scale=min((self.width()-40)/self.project.width,(self.height()-40)/self.project.height)*self.zoom
+        w,h=self.project.width*scale,self.project.height*scale
+        return QRectF((self.width()-w)/2,(self.height()-h)/2,w,h),scale
 
-    def paint(self, painter, option, widget=None):
-        rect, layer = self.boundingRect(), self.layer
-        if layer.kind in {'text', 'subtitle'}:
-            family=layer.style.get('font_family','Arial');font_path=layer.style.get('font_file')
-            if font_path:
-                if font_path not in _FONT_FAMILIES:
-                    key=QFontDatabase.addApplicationFont(font_path);_FONT_FAMILIES[font_path]=QFontDatabase.applicationFontFamilies(key) if key>=0 else []
-                if _FONT_FAMILIES[font_path] and family not in _FONT_FAMILIES[font_path]:family=_FONT_FAMILIES[font_path][0]
-            font = QFont(family)
-            font.setPixelSize(int(layer.style.get('font_size', 32)))
-            font.setBold(layer.style.get('bold', False))
-            font.setItalic(layer.style.get('italic', False))
-            font.setUnderline(layer.style.get('underline', False))
-            painter.setFont(font)
-            if layer.style.get('background'):
-                painter.fillRect(rect, QColor(layer.style['background']))
-            painter.setPen(QColor(layer.style.get('color', '#ffffff')))
-            align = {'left': Qt.AlignmentFlag.AlignLeft, 'center': Qt.AlignmentFlag.AlignHCenter, 'right': Qt.AlignmentFlag.AlignRight}.get(layer.style.get('align'), Qt.AlignmentFlag.AlignLeft)
-            painter.drawText(rect, int(align | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap), layer.text)
-        elif layer.kind == 'image' and not self.image.isNull():
-            painter.drawPixmap(rect, self.image, QRectF(self.image.rect()))
-        elif layer.kind == 'mask':
-            painter.fillRect(rect, QColor(70, 70, 80, 150))
-            painter.setPen(QColor('#ffffff'))
-            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, 'Vùng che')
-        if self.isSelected():
-            pen = QPen(QColor('#ac99ff'), 2)
-            pen.setCosmetic(True)
-            painter.setPen(pen)
-            painter.setBrush(QColor('#ac99ff'))
-            painter.drawRect(rect)
-            painter.drawRect(QRectF(rect.width() - 5, rect.height() - 5, 10, 10))
-            painter.drawEllipse(QPointF(rect.width() / 2, 0), 5, 5)
+    def point(self,pos):
+        rect,scale=self.viewport();return QPointF((pos.x()-rect.x())/scale,(pos.y()-rect.y())/scale)
 
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        if self.layer.locked:
-            return
-        self.begin()
-        self.origin = event.scenePos()
-        self.original = self.layer.x, self.layer.y, self.layer.width, self.layer.height, self.layer.rotation
-        self.companions={item:(item.layer.x,item.layer.y) for item in self.scene().items() if isinstance(item,Overlay) and item is not self and not item.layer.locked and (item.isSelected() or self.layer.group and item.layer.group==self.layer.group)}
-        local = event.pos()
-        self.mode = 'resize' if (local - self.boundingRect().bottomRight()).manhattanLength() < 25 else 'rotate' if local.y() < 15 and abs(local.x() - self.boundingRect().width() / 2) < 15 else 'move'
+    def bounds(self,layer):
+        values=layer.at(self.time)
+        return QRectF(values['x']*self.project.width,values['y']*self.project.height,values['width']*self.project.width,values['height']*self.project.height)
 
-    def mouseMoveEvent(self, event):
-        if not self.mode or self.layer.locked:
-            return
-        delta = event.scenePos() - self.origin
-        x, y, w, h, rotation = self.original
-        if self.mode == 'move':
-            nx, ny = x + delta.x() / self.cw, y + delta.y() / self.ch
-            if not event.modifiers() & Qt.KeyboardModifier.AltModifier:
-                if abs(nx - 0.5) < 0.01: nx = 0.5
-                if abs(ny - 0.5) < 0.01: ny = 0.5
-            self.layer.x, self.layer.y = min(1, max(0, nx)), min(1, max(0, ny))
-            self.setPos(self.layer.x * self.cw, self.layer.y * self.ch)
-            for item,(sx,sy) in self.companions.items():
-                item.layer.x=max(0,min(1,sx+self.layer.x-x));item.layer.y=max(0,min(1,sy+self.layer.y-y));item.setPos(item.layer.x*self.cw,item.layer.y*self.ch)
-        elif self.mode == 'resize':
-            self.prepareGeometryChange()
-            self.layer.width = max(0.02, w + delta.x() / self.cw)
-            self.layer.height = max(0.02, h + delta.y() / self.ch)
-            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                self.layer.height = h * self.layer.width / w
-        else:
-            self.layer.rotation = rotation + delta.x() / 2
-            self.setRotation(self.layer.rotation)
-        self.update()
+    def paintEvent(self,event):
+        painter=QPainter(self);painter.fillRect(self.rect(),QColor('#0b1220'));rect,scale=self.viewport()
+        base=self.base or Image.new('RGB',(self.project.width,self.project.height),'#172338')
+        try:image=self.reference if self.reference is not None else paint_frame(base,self.project,self.time)
+        except Exception as exc:
+            image=base;painter.setPen(QColor('#f59e0b'));painter.drawText(12,18,str(exc)[:120])
+        painter.drawImage(rect,qt_image(image));painter.setPen(QPen(QColor('#53647b'),1));painter.drawRect(rect)
+        if self.grid:
+            painter.setPen(QPen(QColor(160,180,200,70),1,Qt.PenStyle.DashLine))
+            for f in (1/3,2/3):
+                painter.drawLine(QPointF(rect.x()+rect.width()*f,rect.y()),QPointF(rect.x()+rect.width()*f,rect.bottom()))
+                painter.drawLine(QPointF(rect.x(),rect.y()+rect.height()*f),QPointF(rect.right(),rect.y()+rect.height()*f))
+            painter.drawRect(rect.adjusted(rect.width()*.05,rect.height()*.05,-rect.width()*.05,-rect.height()*.05))
+        for layer in self.project.layers:
+            if layer.id not in self.selection:continue
+            b=self.bounds(layer);b=QRectF(rect.x()+b.x()*scale,rect.y()+b.y()*scale,b.width()*scale,b.height()*scale)
+            painter.setPen(QPen(QColor('#2dd4bf' if not layer.locked else '#f59e0b'),2));painter.setBrush(Qt.BrushStyle.NoBrush);painter.drawRect(b)
+            painter.setBrush(QColor('#2dd4bf'));painter.drawRect(QRectF(b.right()-5,b.bottom()-5,10,10))
+            painter.drawLine(QPointF(b.center().x(),b.top()),QPointF(b.center().x(),b.top()-20));painter.drawEllipse(QPointF(b.center().x(),b.top()-20),5,5)
+        painter.end()
 
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
-        if self.mode:
-            self.mode = None
-            self.commit('Kéo/biến đổi đối tượng')
+    def mousePressEvent(self,event):
+        if event.button()!=Qt.MouseButton.LeftButton:return
+        self.setFocus();self.reference=None;p=self.point(event.position());rect,scale=self.viewport();hit=None;mode='move'
+        for layer in reversed(sorted(self.project.layers,key=lambda l:l.z)):
+            if not layer.visible or layer.locked or not layer.start<=self.time<layer.end:continue
+            b=self.bounds(layer)
+            if layer.id in self.selection and math.hypot(p.x()-b.right(),p.y()-b.bottom())<12/scale:hit=layer;mode='resize';break
+            if layer.id in self.selection and math.hypot(p.x()-b.center().x(),p.y()-(b.top()-20/scale))<12/scale:hit=layer;mode='rotate';break
+            if b.contains(p):hit=layer;break
+        if not hit:self.selection.clear();self.update();return
+        if event.modifiers()&Qt.KeyboardModifier.ShiftModifier:self.selection.symmetric_difference_update({hit.id})
+        elif hit.id not in self.selection:self.selection={hit.id}
+        self.selected.emit(hit.id);self.history.begin()
+        originals={l.id:(l.x,l.y,l.width,l.height,l.rotation) for l in self.project.layers if l.id in self.selection and not l.locked}
+        self.drag={'start':p,'mode':mode,'id':hit.id,'originals':originals};self.update()
+
+    def mouseMoveEvent(self,event):
+        if not self.drag:return
+        p=self.point(event.position());dx=(p.x()-self.drag['start'].x())/self.project.width;dy=(p.y()-self.drag['start'].y())/self.project.height
+        for l in self.project.layers:
+            if l.id not in self.drag['originals']:continue
+            x,y,w,h,r=self.drag['originals'][l.id]
+            if self.drag['mode']=='move':
+                l.x=x+dx;l.y=y+dy
+                if self.snap and not event.modifiers()&Qt.KeyboardModifier.AltModifier:
+                    for edge in (0,.5,1):
+                        for offset in (0,w/2,w):
+                            if abs(l.x+offset-edge)<.01:l.x=edge-offset
+                        for offset in (0,h/2,h):
+                            if abs(l.y+offset-edge)<.01:l.y=edge-offset
+            elif self.drag['mode']=='resize':l.width=max(.01,w+dx);l.height=max(.01,h+dy)
+            else:
+                cx=(x+w/2)*self.project.width;cy=(y+h/2)*self.project.height
+                l.rotation=math.degrees(math.atan2(p.y()-cy,p.x()-cx))+90
+        self.update();self.changed.emit()
+
+    def mouseReleaseEvent(self,event):
+        if self.drag:
+            self.history.commit(self.drag['mode']);self.drag=None;self.changed.emit();self.update()
 
     def mouseDoubleClickEvent(self,event):
-        if self.layer.kind=='text' and not self.layer.locked:
-            text,ok=QInputDialog.getMultiLineText(None,'Sửa chữ trực tiếp','Nội dung',self.layer.text)
-            if ok:self.begin();self.layer.text=text;self.commit('Sửa chữ trên preview')
-        else:super().mouseDoubleClickEvent(event)
+        if len(self.selection)!=1:return
+        layer=next((l for l in self.project.layers if l.id in self.selection),None)
+        if layer and layer.kind=='text' and not layer.locked:
+            value,ok=QInputDialog.getMultiLineText(self,'Sửa chữ','Nội dung',layer.text)
+            if ok:self.history.begin();layer.text=value;self.history.commit('text');self.changed.emit();self.update()
 
-
-class Canvas(QGraphicsView):
-    selected = Signal(str)
-    edited = Signal(str)
-
-    def __init__(self, editor):
-        super().__init__()
-        self.editor = editor
-        self.setScene(QGraphicsScene(self))
-        self.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform)
-        self.setMinimumSize(400, 250)
-        self.scene().selectionChanged.connect(self.selection)
-        self.zoom = 1
-        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
-
-    def rebuild(self, frame=None,reference=False):
-        selected = self.editor.selected_id
-        self.scene().blockSignals(True)
-        self.scene().clear()
-        c = self.editor.composition
-        self.setSceneRect(0, 0, c.width, c.height)
-        if frame and not reference:
-            self.editor.frame = frame
-        selected_frame=frame if reference else self.editor.frame
-        if selected_frame:
-            image = QPixmap(str(selected_frame))
-            if not image.isNull():
-                image = image.scaled(c.width, c.height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                item = self.scene().addPixmap(image)
-                item.setPos((c.width-image.width())/2, (c.height-image.height())/2)
-        safe = self.scene().addRect(c.width * .05, c.height * .05, c.width * .9, c.height * .9, QPen(QColor('#667088'), 1, Qt.PenStyle.DashLine))
-        safe.setZValue(10000)
-        for index, layer in enumerate(c.layers):
-            if reference:break
-            item = Overlay(layer, c.width, c.height, self.editor.begin, self.editor.commit)
-            item.setZValue(index + 1)
-            self.scene().addItem(item)
-            if layer.id in self.editor.selected_ids or layer.id==selected:
-                item.setSelected(True)
-        self.scene().blockSignals(False)
-        self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-        self.scale(self.zoom, self.zoom)
-
-    def selection(self):
-        items = [item for item in self.scene().selectedItems() if isinstance(item, Overlay)]
-        self.editor.select_ids([item.layer.id for item in items])
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-        self.scale(self.zoom, self.zoom)
-
-    def wheelEvent(self, event):
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            self.zoom = max(.25, min(4, self.zoom * (1.1 if event.angleDelta().y() > 0 else 1/1.1)))
-            self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-            self.scale(self.zoom, self.zoom)
-        else:
-            super().wheelEvent(event)
-
-    def keyPressEvent(self, event):
-        mapping = {Qt.Key.Key_Left: (-1,0), Qt.Key.Key_Right:(1,0),Qt.Key.Key_Up:(0,-1),Qt.Key.Key_Down:(0,1)}
-        if event.key()==Qt.Key.Key_Escape:self.rebuild()
-        elif event.key() in mapping and self.editor.layer() and not self.editor.layer().locked:
-            self.editor.begin()
-            dx, dy = mapping[event.key()]
-            factor = 10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
-            layer, c = self.editor.layer(), self.editor.composition
-            layer.x = max(0,min(1,layer.x + dx*factor/c.width))
-            layer.y = max(0,min(1,layer.y + dy*factor/c.height))
-            self.editor.commit('Dịch đối tượng')
-        elif event.key() == Qt.Key.Key_Delete:
-            self.editor.delete_layer()
-        else:
-            super().keyPressEvent(event)
+    def keyPressEvent(self,event):
+        key=event.key()
+        if key==Qt.Key.Key_Escape:
+            if self.drag:self.history.cancel();self.drag=None;self.changed.emit()
+            else:self.selection.clear()
+            self.update();return
+        if key==Qt.Key.Key_Delete:
+            self.history.begin();self.project.layers[:]=[l for l in self.project.layers if l.id not in self.selection or l.locked];self.history.commit('remove objects');self.selection.intersection_update({l.id for l in self.project.layers});self.changed.emit();self.update();return
+        delta={Qt.Key.Key_Left:(-1,0),Qt.Key.Key_Right:(1,0),Qt.Key.Key_Up:(0,-1),Qt.Key.Key_Down:(0,1)}.get(key)
+        if delta and self.selection:
+            step=10 if event.modifiers()&Qt.KeyboardModifier.ShiftModifier else 1
+            self.history.begin()
+            for l in self.project.layers:
+                if l.id in self.selection and not l.locked:l.x+=delta[0]*step/self.project.width;l.y+=delta[1]*step/self.project.height
+            self.history.commit('nudge');self.changed.emit();self.update();return
+        super().keyPressEvent(event)

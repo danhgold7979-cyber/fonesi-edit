@@ -1,0 +1,23 @@
+name: Clean rebuild checks
+on:
+  push:
+    branches: ['rebuild/**']
+  workflow_dispatch:
+jobs:
+  linux-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libopengl0
+      - run: uv sync --locked
+      - run: uv run python scripts/check_plan.py
+      - run: uv run python -m compileall -q src
+      - run: uv run pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - run: uv run fonesi-edit --diagnose

@@ -1,3 +1,5 @@
+> Rebuild notice (2026-10-28): statuses below describe baseline planning/alpha history, NOT current clean-code acceptance. Current plan: [REBUILD_MASTER_PLAN.md](REBUILD_MASTER_PLAN.md); evidence: [CURRENT_STATUS.md](CURRENT_STATUS.md). Original scope is retained.
+
 # Kiểm chứng bản phát triển desktop
 
 Môi trường hiện tại: Linux x86_64, Python 3.12, PySide6 6.8.3, FFmpeg/ffprobe 7.1.5, CPU; không có GPU/Google Chrome thật hoặc thiết bị âm thanh. Mọi media thử được tạo synthetic. Không sử dụng tài khoản hay gọi API dịch trả phí trong kiểm thử local.

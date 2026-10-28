@@ -1,3 +1,5 @@
+> Rebuild notice (2026-10-28): statuses below describe baseline planning/alpha history, NOT current clean-code acceptance. Current plan: [REBUILD_MASTER_PLAN.md](REBUILD_MASTER_PLAN.md); evidence: [CURRENT_STATUS.md](CURRENT_STATUS.md). Original scope is retained.
+
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
 Phiên bản: 1.1 — 27/10/2026. Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.

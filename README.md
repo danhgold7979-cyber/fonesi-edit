@@ -1,49 +1,29 @@
-# Fonesi Edit
+# Fonesi Edit — clean rebuild
 
-Ứng dụng desktop dùng cá nhân để tải ảnh/video theo kênh, tải và dịch phụ đề, edit hàng loạt và ghép video theo ma trận cảnh/góc quay.
+Bản desktop Python/PySide6/SQLite/FFmpeg đang viết lại từ đặc tả trên nhánh `rebuild/spec-first-2026-10-28`. **Đây là checkpoint phát triển, chưa hoàn tất 95 nhóm yêu cầu hoặc nghiệm thu Windows/live nguồn.** Main và lịch sử được giữ nguyên.
 
-Repository có master plan 12 phase và ứng dụng Python/Qt/FFmpeg đang phát triển: 8 tab, project, phụ đề, editor, batch, ma trận, hàng đợi, tự động hóa và cài đặt. [Trạng thái hiện tại](docs/CURRENT_STATUS.md) phân biệt code đã có, kiểm tra local và nghiệm thu còn mở; chưa coi mọi nền tảng/Windows/GPU đã được xác nhận.
+## Theo dõi
+- [Trạng thái hiện tại: code / test / còn thiếu](docs/CURRENT_STATUS.md)
+- [Master plan + 12 phase plans](docs/REBUILD_MASTER_PLAN.md)
+- [95 nhóm yêu cầu / evidence / phần còn mở](docs/rebuild/coverage.json)
+- [Screenshot editor thật](docs/rebuild/evidence/editor-checkpoint.png)
 
-## Chạy ứng dụng
+## Chạy từ source
+Cần Python 3.12, uv, FFmpeg/ffprobe. Bản người dùng cuối sẽ được đóng gói, chưa yêu cầu này là nghiệm thu cuối.
 
-Máy phát triển cần Python 3.12, uv, FFmpeg và ffprobe:
-
-```bash
+```sh
 uv sync --locked
 uv run fonesi-edit
-```
-
-Đọc [hướng dẫn sử dụng](docs/USER_GUIDE.md). Bộ tải yt-dlp/gallery-dl được khóa và gói cùng app. Google Chrome thật và Node tùy quy trình; Settings quét, chọn đường dẫn, tải/cài bản có xác minh và rollback công cụ app quản lý. Không lưu cookie/API key vào Git hay project.
-
-## Kiểm tra và đóng gói
-
-```bash
+uv run fonesi-edit --diagnose
 uv run python scripts/check_plan.py
-uv run pytest -q
-uv run fonesi-edit --verify .local/proof-new-run
-uv run python scripts/build_desktop.py --native-host
-uv run python scripts/verify_packaged.py
+QT_QPA_PLATFORM=offscreen uv run pytest -q
 ```
 
-Trên Linux không có display, thêm `QT_QPA_PLATFORM=offscreen` trước lệnh GUI/test. `--verify` chạy batch/ma trận/render và tải video/ảnh qua HTTP localhost bằng dữ liệu synthetic, không cần tài khoản hay API trả phí. Mỗi lần dùng thư mục mới; kết quả nằm trong `proof.json`.
+Nếu môi trường không cho ghi cache mặc định, đặt `UV_CACHE_DIR`/`XDG_CACHE_HOME` vào thư mục được phép. Dữ liệu người dùng tách khỏi thư mục cài; có thể đặt `FONESI_DATA_DIR` để kiểm thử cô lập.
 
-Windows: `scripts/build_windows.ps1` tạo `dist/FonesiEdit/FonesiEdit.exe` và native host. CI chạy trên Linux/Windows, kiểm tra cả binary và giữ artifact Windows để review khi các bước thành công. Chưa có bằng chứng CI thành công trong phiên cloud nếu chưa đọc được kết quả Actions. Các bản thử P02 và script kiểm chứng cũ vẫn giữ cho hồi quy kỹ thuật.
+## Checkpoint hiện tại
+8 tab mở được; local media/project/subtitle/editor/batch/matrix/queue/settings đã nối đường chạy nền. CPU xuất MP4 với text/logo/mask/sub/keyframes, kiểm tra probe+decode+duration+tracks rồi mới ghi thành công; không ghi đè nguồn. Tải video/ảnh localhost đã kiểm chứng, không đồng nghĩa live mạng xã hội hoặc gallery-dl packaged đã đạt.
 
-Ảnh/video thử, database, bản đóng gói và browser profiles không commit. Nền tảng mục tiêu đầu tiên là Windows; cần kiểm tra Chrome thật, quyền tài khoản, encoder GPU và trải nghiệm trực tiếp trên máy mục tiêu.
+**51 tests pass** ở checkpoint đầu; phạm vi nâng cao, playable preview, đầy đủ auto/resource wiring và packaging còn đang làm. Xem trạng thái sống thay vì coi số test là đủ sản phẩm.
 
-## Kế hoạch và trạng thái
-
-- [Đặc tả sản phẩm](docs/PRODUCT_REQUIREMENTS.md)
-- [Preview, tùy chọn editor, phím tắt và tự động hóa](docs/EDITOR_SPEC.md)
-- [Kế hoạch 12 phase, đầu việc và điều kiện hoàn thành](docs/IMPLEMENTATION_PLAN.md)
-- [Thiết kế kỹ thuật, dữ liệu và các quyết định cần kiểm chứng](docs/TECHNICAL_DESIGN.md)
-- [Đối chiếu yêu cầu với phase và tình huống nghiệm thu](docs/REQUIREMENTS_TRACEABILITY.md)
-- [Ma trận kiểm chứng từng nền tảng tải](docs/PLATFORM_SUPPORT_MATRIX.md)
-- [Cài đặt công cụ, hồ sơ Chrome thật và tài khoản nền tảng](docs/SETTINGS_AND_BROWSER_SPEC.md)
-- [Kế hoạch chi tiết P01](docs/phases/P01_PLAN.md), [kết quả P01](docs/phases/P01_RESULTS.md)
-- [Kế hoạch chi tiết P02](docs/phases/P02_PLAN.md), [kết quả/blocker P02](docs/phases/P02_RESULTS.md)
-- [Screenshot và frame kiểm chứng local](docs/evidence/README.md)
-
-Nền tảng mục tiêu đầu tiên là Windows. Giọng AI, ASR, OCR và tracking tự động được tích hợp ở giai đoạn sau.
-
-Theo yêu cầu người dùng: trước mỗi phase đọc master plan, lập phase plan, triển khai và ghi kết quả; không đánh dấu phase hoàn tất khi cổng bắt buộc còn bị chặn. Quy trình lưu ở AGENTS.md.
+Không commit browser profiles/cookie/API key/download media. Dịch chỉ gọi endpoint được người dùng cấu hình và cho phép; Chrome thật/user-data-dir riêng, auth chưa xác minh bị chặn, không tự đổi sang public. AI voice/ASR/OCR/tracking ngoài bản đầu.

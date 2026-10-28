@@ -1,5 +1,14 @@
-# P09 clean rebuild results
+# P09 clean rebuild results — checkpoint 1
 
-Implementation: NOT STARTED. Tests: NOT RUN. Full phase gate: OPEN.
+State: PARTIAL — full phase gate OPEN
 
-Previous evidence belongs to baseline `5e8ac83`; see `../baseline-5e8ac83/`.
+## Implemented
+Natural scene sort/content IDs; bounded seeded lazy W/K/unique solver, exhaustive small-space proof vs bounded timeout; editable matrix revalidation, CSV, per-row project/queue and transactional reservation/history primitives.
+
+## Evidence
+Small full-product oracle, strict W/K, huge product bounded search, cancel/timeout, locked candidate and history tests passed.
+
+## Remaining / NOT RUN
+Full persisted historical sequence fed into UI solver, atomic enqueue-reservation coupling and failed reservation transitions, scene/angle/row locking UI, rename rollback and duration-allocation UI still need integration.
+
+Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.

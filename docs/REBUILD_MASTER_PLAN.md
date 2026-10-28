@@ -1,7 +1,7 @@
 # Clean rebuild master plan — 28 October 2026
 
 ## Boundary and recovery
-- Work only in `/workspace/shared/fonesi-edit-rebuild`, branch `rebuild/spec-first-2026-10-28`. No push, merge, deployment or user-computer action.
+- Work only in `/workspace/shared/fonesi-edit-rebuild`, branch `rebuild/spec-first-2026-10-28`. User subsequently authorized normal publication of coherent checkpoints on this new branch. No force push, merge, deployment or user-computer action.
 - Recoverable baseline: `5e8ac83fdcd2182b5fcb71ed2ec6825cca384a2d`, local branch `baseline/pre-rebuild-5e8ac83`; original `main` and remote history remain untouched.
 - Preserve original product/editor/settings specifications, traceability, architecture decisions, artwork/evidence assets, repository instructions and third-party notices. Old reports archived under `docs/baseline-5e8ac83/`.
 - After this plan-only commit, remove old executable application, tests, scripts, extension code and old build configuration from the NEW branch. Rebuild contracts and behavior from specifications; do not blindly port the alpha source. Git retains all old code. No deletes outside checkout.
