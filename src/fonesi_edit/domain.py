@@ -10,7 +10,16 @@ import re
 import tempfile
 
 SCHEMA_VERSION = 1
-SECRET_KEYS = {"password", "cookies", "cookie", "api_key", "access_token", "refresh_token", "secret"}
+_SECRET_KEY_NAMES = {
+    "password", "passwd", "pwd", "cookie", "cookies", "apikey", "authorization",
+    "token", "tokens", "accesstoken", "refreshtoken", "sessiontoken", "sessioncookie",
+    "clientsecret", "secret", "bearer", "bearertoken", "authtoken", "privatekey",
+    "xapikey", "idtoken", "csrftoken", "xsrftoken",
+}
+
+
+def _normalized_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", key.casefold())
 
 
 def identifier() -> str:
@@ -25,7 +34,9 @@ def checked_payload(value):
     def check(item):
         if isinstance(item, dict):
             for key, child in item.items():
-                if key.lower() in SECRET_KEYS:
+                if not isinstance(key, str):
+                    raise ValueError("Payload object keys must be strings")
+                if _normalized_key(key) in _SECRET_KEY_NAMES:
                     raise ValueError(f"Secret values cannot be stored in project/job: {key}")
                 check(child)
         elif isinstance(item, list):
