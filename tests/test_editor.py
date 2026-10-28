@@ -355,7 +355,7 @@ def test_layer_clipboard_paste_remaps_ids_and_groups_and_supports_undo_redo():
         first = Layer(text="A", x=.1, group="shared", clip_ids=["clip-a"])
         second = Layer(text="B", x=.3, group="shared", clip_ids=["clip-a"])
         unrelated = Layer(text="Unrelated", x=.7, group="unrelated")
-        editor.set_composition(Composition(layers=[first, second, unrelated]))
+        editor.set_composition(Composition(clips=[Clip('unused.mp4', id='clip-a')], layers=[first, second, unrelated]))
         editor.select_ids([first.id, second.id])
         editor.copy_layers()
         editor.paste_layers()
