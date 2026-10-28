@@ -120,6 +120,34 @@ def _ass_text(stage,layer,composition,duration,index):
     name=f'layer-{index}.ass';doc.save(str(stage/name),encoding='utf-8');return name
 
 
+
+def audio_timeline_offset(track, total, clips, clip_ranges):
+    """Resolve an optional SFX trigger against the exported timeline.
+
+    Offset measures seconds after absolute/percent/scene-start positions or
+    seconds before video-end/scene-end. Scene numbers are 1-based and use
+    the actual post-speed/transition clip ranges.
+    """
+    delay=float(track.get('offset',0))
+    placement=track.get('placement','absolute')
+    if placement=='absolute':
+        resolved=delay
+    elif placement=='percent':
+        resolved=total*float(track['position_pct'])/100+delay
+    elif placement=='video_end':
+        resolved=total-delay
+    elif placement in {'scene_start','scene_end'}:
+        scene=clips[track['scene_index']-1]
+        start,length=clip_ranges[scene.id]
+        resolved=start+delay if placement=='scene_start' else start+length-delay
+    else:
+        raise ValueError('Unsupported SFX placement')
+    if track.get('mode','music')=='sfx' and (not math.isfinite(resolved)
+            or resolved<0 or resolved>=total-1e-8):
+        raise ValueError('SFX starts outside the output timeline; adjust anchor or offset')
+    return resolved
+
+
 def compile_graph(c:Composition,stage:Path):
     c.validate()
     if not c.clips:raise ValueError('Chưa có clip')
@@ -272,7 +300,9 @@ def compile_graph(c:Composition,stage:Path):
         path=Path(track['path']).resolve();source_duration=audio_duration(path)
         if track.get('loop') and not track.get('trim_end'):args+=['-stream_loop','-1']
         args+=['-i',str(path)];idx=inputs;inputs+=1
-        start=max(0,float(track.get('trim_start',0)));offset=max(0,float(track.get('offset',0)));gain=float(track.get('volume',.2))
+        start=max(0,float(track.get('trim_start',0)))
+        offset=audio_timeline_offset(track,total,c.clips,clip_ranges)
+        gain=float(track.get('volume',.2))
         end=float(track.get('trim_end') or source_duration)
         if not 0<=start<end<=source_duration+.001:raise ValueError('Audio trim nằm ngoài nguồn')
         if not 0<=gain<=4:raise ValueError('Audio volume must be 0–4')
