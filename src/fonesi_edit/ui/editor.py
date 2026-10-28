@@ -43,6 +43,7 @@ class Editor(QWidget):
         super().__init__();self.host=host
         self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
         self.preview_fingerprint=None;self._loop_seeking=False
+        self.composition_fingerprint=canonical(self.composition.to_dict())
         self.waveforms={};self.thumbnails={};self._thumbnail_pending=set();self._thumbnail_failed=set()
         self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
@@ -155,7 +156,9 @@ class Editor(QWidget):
 
     def set_composition(self,composition):
         self.preview_fingerprint=None
-        self.composition=composition;self.refresh();self.changed.emit()
+        self.composition=composition
+        self.composition_fingerprint=canonical(composition.to_dict())
+        self.refresh();self.changed.emit()
 
     def refresh(self):
         self._loading=True
@@ -460,7 +463,7 @@ class Editor(QWidget):
             self.loop_action.blockSignals(False)
             self.host.message('Điểm Out vượt thời lượng composition')
             return
-        if self.preview_fingerprint!=canonical(self.composition.to_dict()):
+        if self.preview_fingerprint!=self.composition_fingerprint:
             self.host.message('Để lặp đúng thời gian, hãy dựng Preview có âm thanh từ compositor')
             if hasattr(self.host,'playback_preview'):
                 self.host.playback_preview(self.composition)
@@ -468,7 +471,7 @@ class Editor(QWidget):
     def player_position_changed(self,milliseconds):
         self.timeline.position(milliseconds/1000)
         if self._loop_seeking:return
-        verified=self.preview_fingerprint==canonical(self.composition.to_dict())
+        verified=(self._before is None and self.preview_fingerprint==self.composition_fingerprint)
         if self.player.playbackState()!=QMediaPlayer.PlaybackState.PlayingState:return
         target=loop_seek_target(milliseconds,self.in_point,self.out_point,
             enabled=self.loop_action.isChecked(),verified=verified)
@@ -480,7 +483,7 @@ class Editor(QWidget):
     def toggle_play(self):
         self.views.setCurrentIndex(1)
         if (self.loop_action.isChecked()
-                and self.preview_fingerprint!=canonical(self.composition.to_dict())):
+                and self.preview_fingerprint!=self.composition_fingerprint):
             if hasattr(self.host,'playback_preview'):self.host.playback_preview(self.composition)
             else:self.host.message('Lặp đoạn cần render preview composition trước')
             return
