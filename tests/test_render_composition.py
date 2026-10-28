@@ -78,7 +78,15 @@ def test_clip_crop_compiles_before_flip_rotation_and_renders(tmp_path):
     stage.mkdir()
     _, graph, _ = compile_graph(composition, stage)
     joined = ";".join(graph)
-    crop_at = joined.index("crop=320:288:160:36")
+    # Derive the expected geometry from the same probed source dimensions as
+    # the compositor; this also catches incorrect metadata/orientation handling.
+    from fonesi_edit.render import crop_rect_pixels
+    info = probe(f["source"])
+    rect = crop_rect_pixels(clip, info.width, info.height)
+    assert rect is not None
+    crop_filter = "crop=" + ":".join(str(value) for value in rect)
+    assert crop_filter in joined, f"Missing source crop filter {crop_filter!r} in graph: {joined}"
+    crop_at = joined.index(crop_filter)
     assert crop_at < joined.index("hflip") < joined.index("rotate=")
     output = tmp_path / "cropped.mp4"
     assert render_composition(composition, output)["validated"]
