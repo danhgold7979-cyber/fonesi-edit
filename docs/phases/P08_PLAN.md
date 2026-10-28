@@ -111,3 +111,13 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 - [x] Metadata FFprobe bất đồng bộ, duration min/max và cạnh ngắn 720/1080/2160 px, xử lý video lỗi và giữ lựa chọn ẩn. Cấu hình khoảng thời lượng sai hoặc chưa quét xong bị chặn trước dry-run. [CI 40658101720](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658101720) PASS 225 Linux, 224 Windows + 1 skip, packaged proof hai hệ.
 - [x] Crossfade loop nhạc chỉ áp dụng music+loop, có validation/giới hạn, AudioDialog round-trip, FFmpeg render thật. Vòng đầu dùng `asplit` làm Windows FFmpeg 7.1.1 báo assertion `best_input >= 0`; thay bằng đầu vào độc lập ở commit `54ab4398`, giữ test render, không tắt assertion. [CI 40659216526](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40659216526) PASS 233 Linux, 232 Windows +1 skip, binary/native-host/frozen proof hai hệ.
 - [ ] Bộ lọc codec/FPS/bitrate, profile rất lớn, benchmark/ETA, SFX đa trigger, meters/solo realtime, playlist nâng cao và nghiệm thu loa/installer Windows máy thực còn mở. Không kết luận toàn phase P08 đạt nghiệm thu người dùng.
+
+## P08-04 — SFX phát lặp theo số lần/khoảng cách, không vượt cuối video (28/10/2026)
+
+**Đối chiếu master:** P08-03/P08-04/P08-06 yêu cầu hiệu ứng âm thanh đặt theo giây/cảnh/% và mix đúng timeline, `PRODUCT_REQUIREMENTS.md` §6; SFX hiện có `placement`, `scene_index`, `position_pct`, `offset` nhưng mỗi track chỉ phát một lần. `IMPLEMENTATION_COVERAGE.md` còn mở SFX repeat và multiple trigger.
+
+1. Mở rộng track SFX với `repeat_count` (1..32, mặc định 1) và `repeat_interval` (s, >0 nếu count>1, mặc định 0). Nếu count>1, yêu cầu role SFX, không bật `loop`, không tự fallback. `domain.validate` chặn kiểu sai, NaN/infinity/âm/vượt giới hạn, trạng thái bất nhất.
+2. Sau khi `audio_timeline_offset` resolve mốc video/cảnh/% trên timeline đầu ra, xác định mỗi onset = base + k×interval. Chặn nếu onset cuối nằm tại/sau cuối video. Mỗi trigger dùng FFmpeg input độc lập (tránh bug FFmpeg Windows khi chia nhánh), cùng trim/gain/fade và delay rồi mix thành một track SFX; track có mặc định 1 vẫn giữ pipeline cũ.
+3. AudioDialog thêm hai cột 'SFX số lần' và 'SFX khoảng cách s', không đổi chỉ số field cũ; đọc/ghi round-trip và báo lỗi trạng thái không hợp lệ.
+4. Tests domain invalid/edge, compile_graph onset/fade, FFmpeg render thật hai mốc, Qt offscreen round-trip, regression các audio music crossfade; CI Linux/Windows và frozen proof. Cổng còn mở: danh sách trigger không đều/playlist, realtime meter, stress rất dài và loa Windows máy thật.
+5. Chỉ ghi DONE khi full CI cả hai hệ đạt; khối SFX này không đồng nghĩa P08 hay 95 nhóm đã nghiệm thu toàn diện.
