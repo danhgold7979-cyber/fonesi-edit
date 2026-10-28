@@ -98,3 +98,10 @@ CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 - CI [40729358428](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40729358428) **PASS**: 406 Linux / 405 Windows + 1 intentional skip; packaged proof passed on both runners.
 - Workspace layout persistence and remaining P04/P12 acceptance gates remain in progress.
 
+## P04 update — workspace layout and dense guide priority (28/10/2026)
+
+- Added safe UI-layout persistence for window geometry/state, navigation, editor splitter and inspector tab; no database migration or project/media changes.
+- Added deterministic tie-breaking for equal-distance peer snap guides while preserving nearest-distance priority.
+- CI [40731502132](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40731502132) **PASS**: 411 Linux / 410 Windows + 1 intentional skip; packaged proof passed on both runners.
+- Physical Windows multi-monitor/HiDPI, remaining shortcut/IME and other P04/P12 acceptance gates remain open.
+

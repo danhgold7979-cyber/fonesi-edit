@@ -95,3 +95,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40729358428](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40729358428) **PASS**: 406 Linux tests; 405 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: persistent workspace layout, dense-overlap guide priority, real Windows/HiDPI acceptance and remaining P04/P12 gates.
 
+## P04-02 — Persistent workspace layout and dense-guide priority (28/10/2026)
+
+- Added versioned UI-layout persistence in the existing SQLite settings store: main-window geometry/state, navigation tab, editor splitter sizes and inspector tab. Invalid/stale layout payloads are ignored safely; layout settings do not contain project/media content.
+- Dense peer snapping now uses stable semantic tie-breaking for equal-distance candidates: edge-to-edge, then centre-to-centre, then mixed edge/centre. Distance remains primary, and peer order does not affect the result.
+- CI [run 40731502132](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40731502132) **PASS**: 411 Linux tests; 410 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: physical Windows multi-monitor/HiDPI/4K acceptance, remaining shortcut/remap/IME cases and full P04/P12 acceptance. This increment does not mark all of P04 complete.
+
