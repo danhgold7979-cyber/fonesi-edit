@@ -7,8 +7,12 @@ from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QG
 _FONT_FAMILIES={}
 
 
-def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolerance=.012):
+def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, grid_step=.05, tolerance=.012):
     """Snap normalized layer edges/center to canvas guides; never leave its bounds."""
+    if (not isinstance(grid_step, (int, float)) or isinstance(grid_step, bool)
+            or not math.isfinite(float(grid_step)) or not 0 < grid_step <= 1):
+        raise ValueError("Grid spacing must be finite and between 0 and 1")
+
     def axis(value, span):
         maximum = max(0.0, 1.0 - span)
         value = max(0.0, min(maximum, value))
@@ -17,7 +21,7 @@ def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolera
         # Canvas centre is a guide for the *layer centre*, not its top-left.
         guides = [0.5 - span / 2, 0.05, 0.95 - span]
         if grid:
-            guides.append(round(value / .05) * .05)
+            guides.append(round(value / grid_step) * grid_step)
         nearest = min(guides, key=lambda target: abs(value - target))
         if abs(value - nearest) <= tolerance:
             value = nearest
@@ -232,9 +236,14 @@ class Overlay(QGraphicsObject):
             dx, dy = constrained_group_delta(original_bounds, dx, dy)
             disabled = bool(event.modifiers() & Qt.KeyboardModifier.AltModifier)
             view = next((view for view in self.scene().views() if isinstance(view, Canvas)), None)
-            grid = bool(view and view.editor.composition.adjustments.get('canvas_grid', False))
+            adjustments = view.editor.composition.adjustments if view else {}
+            grid = bool(adjustments.get('canvas_grid', False))
+            grid_step = adjustments.get('canvas_grid_spacing', .05)
+            if grid_step not in {.05, .1, .2}:
+                grid_step = .05
             desired_x, desired_y = snap_layer_position(
-                x + dx, y + dy, w, h, enabled=not disabled, grid=grid)
+                x + dx, y + dy, w, h, enabled=not disabled, grid=grid,
+                grid_step=grid_step)
             peer_rectangles = [
                 (item.layer.x, item.layer.y, item.layer.width, item.layer.height)
                 for item in self.scene().items()
@@ -320,9 +329,13 @@ class Canvas(QGraphicsView):
         if not reference and c.adjustments.get('canvas_grid', False):
             grid_pen = QPen(QColor('#46516b'), 1, Qt.PenStyle.DotLine)
             grid_pen.setCosmetic(True)
-            for tick in range(1, 20):
-                x = c.width * tick / 20
-                y = c.height * tick / 20
+            grid_step = c.adjustments.get('canvas_grid_spacing', .05)
+            if grid_step not in {.05, .1, .2}:
+                grid_step = .05
+            divisions = int(round(1.0 / grid_step))
+            for tick in range(1, divisions):
+                x = c.width * tick / divisions
+                y = c.height * tick / divisions
                 vertical = self.scene().addLine(x, 0, x, c.height, grid_pen)
                 horizontal = self.scene().addLine(0, y, c.width, y, grid_pen)
                 vertical.setZValue(.2)
