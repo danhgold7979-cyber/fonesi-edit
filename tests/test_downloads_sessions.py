@@ -131,7 +131,16 @@ def test_gallery_cookiejar_is_attached_after_extractor_session_exists(tmp_path,m
         domain_initial_dot=False,path='/',path_specified=True,secure=False,
         expires=None,discard=True,comment=None,comment_url=None,rest={},
         rfc2109=False))
+    authenticated_requests=[]
     class Handler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path=='/logo.png':
+                authenticated=self.headers.get('Cookie')=='synthetic_session=local-only'
+                authenticated_requests.append(authenticated)
+                if not authenticated:
+                    self.send_error(403,'Synthetic cookie required')
+                    return
+            super().do_GET()
         def log_message(self,*args):pass
     server=ThreadingHTTPServer(('127.0.0.1',0),
         partial(Handler,directory=str(media['logo'].parent)))
@@ -143,6 +152,7 @@ def test_gallery_cookiejar_is_attached_after_extractor_session_exists(tmp_path,m
         result=_gallery(store,{'kind':'download','payload':payload},'Generic',
                         tmp_path/'Unicode 中文',jar,lambda _:None,Event())
         assert result['count']==1
+        assert authenticated_requests and all(authenticated_requests)
         from pathlib import Path
         assert Path(result['files'][0]['path']).is_file()
     finally:
