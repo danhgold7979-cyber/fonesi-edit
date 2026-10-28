@@ -149,17 +149,29 @@ class QuietLogger:
 
 
 def execute_download_job(store,job,progress,cancel):
-    payload=job['payload'];url=payload['url'];platform=platform_for(url)
+    if not isinstance(job,dict) or not isinstance(job.get('payload'),dict):
+        raise ValueError('Invalid downloader job payload')
+    payload=job['payload']
+    if job.get('kind') not in {'scan','download'}:
+        raise ValueError('Unsupported downloader job kind')
+    url=payload.get('url')
+    if not isinstance(url,str) or not url.strip():
+        raise ValueError('Download URL must be a non-empty HTTP(S) string')
+    platform=platform_for(url)
     engine=payload.get('engine','auto')
     media=payload.get('media','both')
-    if engine not in {'auto','video','gallery'}:
+    if not isinstance(engine,str) or engine not in {'auto','video','gallery'}:
         raise ValueError('Unsupported downloader engine; use auto, video or gallery')
-    if media not in {'both','videos','images'}:
+    if not isinstance(media,str) or media not in {'both','videos','images'}:
         raise ValueError('Unsupported media type; use both, videos or images')
-    try:
-        limit=int(payload.get('limit',0))
-    except (ValueError,TypeError):
-        raise ValueError('Download limit must be a nonnegative integer') from None
+    raw_limit=payload.get('limit',0)
+    if isinstance(raw_limit,bool) or not isinstance(raw_limit,(int,str)):
+        raise ValueError('Download limit must be a nonnegative integer')
+    if isinstance(raw_limit,str):
+        raw_limit=raw_limit.strip()
+        if not raw_limit.isdigit():
+            raise ValueError('Download limit must be a nonnegative integer')
+    limit=int(raw_limit)
     if limit<0:
         raise ValueError('Download limit must be a nonnegative integer')
     binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
