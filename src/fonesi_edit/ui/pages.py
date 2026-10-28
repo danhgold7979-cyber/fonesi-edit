@@ -28,6 +28,9 @@ from ..dependencies import resolve_manifest,install,install_chrome,rollback,stat
 from ..automation import metrics,recommended_parallel,submit_once
 
 
+MAX_SCAN_SELECTION = 500
+
+
 def buttons(layout,host,items):
     row=QToolBar();layout.addWidget(row)
     for label,callback in items:
@@ -84,6 +87,7 @@ class DownloadsPage(QWidget):
         self.scan_sort.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
         filter_row.addWidget(self.scan_sort,1)
         buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
+        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
         self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
@@ -246,8 +250,16 @@ class DownloadsPage(QWidget):
         job_id=self.scans.currentData()
         if type(index) is not int or not job_id:return
         chosen=self.scan_selected.setdefault(job_id,set())
-        if item.checkState(0)==Qt.CheckState.Checked:chosen.add(index)
-        else:chosen.discard(index)
+        if item.checkState(0)==Qt.CheckState.Checked:
+            if index not in chosen and len(chosen)>=MAX_SCAN_SELECTION:
+                self.scan_tree.blockSignals(True)
+                item.setCheckState(0,Qt.CheckState.Unchecked)
+                self.scan_tree.blockSignals(False)
+                self.host.message(f'Tối đa {MAX_SCAN_SELECTION} mục được chọn trong một lần quét; thu hẹp bộ lọc trước khi chọn thêm.')
+                return
+            chosen.add(index)
+        else:
+            chosen.discard(index)
         job=self.host.store.job(job_id)
         data=job.get('result') or {}
         count=len(data.get('items') or [])
@@ -268,6 +280,49 @@ class DownloadsPage(QWidget):
             self.scan_page=target
             self.load_scan()
 
+    def select_all_filtered(self):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        visible=self._scan_visible_indexes(items)
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if safe and safe not in first_by_url:first_by_url[safe]=index
+        selectable=[]
+        for index in visible:
+            item=items[index]
+            safe=selectable_scan_url(item.get('url')) if isinstance(item,dict) else None
+            if (safe and item.get('selectable') is not False
+                    and first_by_url.get(safe)==index):
+                selectable.append(index)
+        chosen=self.scan_selected.setdefault(job_id,set())
+        combined=chosen|set(selectable)
+        if len(combined)>MAX_SCAN_SELECTION:
+            self.host.message(
+                f'Kết quả lọc có thể chọn {len(combined)} mục, vượt giới hạn an toàn {MAX_SCAN_SELECTION}. '
+                'Thu hẹp bộ lọc; chưa thay đổi lựa chọn hiện tại.'
+            )
+            return
+        added=len(set(selectable)-chosen)
+        chosen.update(selectable)
+        self.load_scan()
+        self.host.message(f'Đã chọn {added} mục trong kết quả lọc; tổng {len(chosen)}/{MAX_SCAN_SELECTION}.')
+
+    def clear_all_filtered(self):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        visible=set(self._scan_visible_indexes(items))
+        chosen=self.scan_selected.setdefault(job_id,set())
+        removed=len(chosen&visible)
+        chosen.difference_update(visible)
+        self.load_scan()
+        self.host.message(f'Đã bỏ chọn {removed} mục đang khớp bộ lọc; giữ nguyên các mục ẩn.')
+
     def check_scan_items(self,checked):
         root=self.scan_tree.topLevelItem(0)
         if root is None:return
@@ -283,6 +338,8 @@ class DownloadsPage(QWidget):
         if self.scan_tree.topLevelItem(0) is None:
             raise ValueError('Hãy xem kết quả quét trước khi chọn')
         indexes=sorted(self.scan_selected.get(job_id,set()))
+        if len(indexes)>MAX_SCAN_SELECTION:
+            raise ValueError(f'Tối đa {MAX_SCAN_SELECTION} mục được tải từ một lần quét; hãy thu hẹp lựa chọn.')
         requests=selected_download_payloads(job,indexes)
         account=job['payload'].get('account_ref')
         if account:
