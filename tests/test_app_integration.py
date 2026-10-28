@@ -415,14 +415,14 @@ def test_proxy_preview_quality_is_source_only_and_runs_in_background(tmp_path):
                 f"status={window.status.text()}, app_errors={window.failures}"
             ) from None
         expected=window.editor.proxy_cache[proxy_identity(source,'fast')]['path']
-        wait_until(lambda:window.editor.player.source().toLocalFile()==expected,
+        wait_until(lambda:Path(window.editor.player.source().toLocalFile()).resolve()==Path(expected).resolve(),
                    seconds=10)
         assert Path(expected).is_file()
         assert probe(Path(expected)).duration>.4
         assert source.stat().st_mtime_ns==original_stamp
         assert window.editor.preview_fingerprint is None
         window.editor.proxy_actions['off'].trigger()
-        assert window.editor.player.source().toLocalFile()==str(source.resolve())
+        assert Path(window.editor.player.source().toLocalFile()).resolve()==source.resolve()
     finally:
         close(window)
 
