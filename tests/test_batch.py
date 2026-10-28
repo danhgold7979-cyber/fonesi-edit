@@ -161,9 +161,8 @@ def test_batch_audio_mapping_rejects_missing_ambiguous_and_unsupported_modes(tmp
     with pytest.raises(ValueError,match='đúng một audio'):
         batch_plan(groups,preset,audio_mode='by_name',audio_folder=folder)
     with pytest.raises(ValueError,match='số audio bằng số video'):
-        batch_plan(groups,preset,audio_mode='ordered',audio_folder=folder/'not-here') if False else \
-            batch_plan({str(tmp_path/'channel'):[str(video),str(video)]},
-                       preset,audio_mode='ordered',audio_folder=folder)
+        batch_plan({str(tmp_path/'channel'):[str(video),str(video)]},
+                   preset,audio_mode='ordered',audio_folder=folder)
     copyfile(video,folder/'same.mp4')
     (folder/'unrelated.mp4').unlink()
     copyfile(video,folder/'same.mov')
