@@ -39,3 +39,7 @@
 - [x] Dry-run mapping/snapshot đúng, kiểm tra ffprobe audio track và lỗi ambiguous/missing, output FFmpeg có âm thanh; không tự thay preset.
 - [x] Test CPU/Qt/Windows qua CI full-suite và frozen proof: [run 40642781347](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40642781347) — Linux 166 pass, Windows 165 pass + 1 skip.
 - [ ] Mapping nhạc/SFX cao cấp, meters, kiểm chứng output audio trên hệ Windows người dùng và benchmark corpus lớn vẫn mở.
+
+## P08/P09 tích hợp — duration manual per-scene (28/10/2026)
+
+Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào solver chung `fit_duration`. Chỉ thay đổi khi caller chọn chế độ thủ công; mặc định speed/proportional/equal/weights không đổi. Validate dương/hữu hạn/số scene, tổng cảnh kể cả transition khớp target, tốc độ theo min/max hoặc trim không vượt nguồn; không fallback sang thuật toán chia tỉ lệ. Bổ sung unit regression và CI packaged. UI cung cấp vector thời lượng giây trong ma trận, không tự sinh độ dài không có nguồn. Chưa coi là đánh giá performance/loudness Windows.
