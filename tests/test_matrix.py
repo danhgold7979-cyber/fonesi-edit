@@ -53,3 +53,31 @@ def test_final_reservation_rechecks_current_history_window_atomically(tmp_path):
     with pytest.raises(ValueError,match='W/K'):enqueue_rows(store,'project',[second],preset,tmp_path/'out',window=1,different=2)
     assert len(store.jobs())==1 and history(store,'project')==[['a','b']]
     assert Path(store.jobs()[0]['payload']['output']).name.startswith('video_000001_')
+
+
+def test_duplicate_history_does_not_understate_remaining_matrix_capacity():
+    source=scenes([2,2])
+    seen=[source[0][0].hash,source[1][0].hash]
+    old_history=[seen[:],seen[:]]
+    result=generate(source,3,seed=7,history=old_history)
+    assert result['complete'] and len(result['rows'])==3
+    assert len({combination(row) for row in result['rows']})==3
+    assert all([a.hash for a in row]!=seen for row in result['rows'])
+    assert old_history==[seen,seen]
+
+
+def test_locked_matrix_row_scene_indices_are_validated_and_strings_normalized():
+    source=scenes([2,2])
+    result=generate(source,1,locks={'0':{'1':source[1][1].hash}})
+    assert result['complete']
+    assert result['rows'][0][1].hash==source[1][1].hash
+    for locks in (
+        {1:{0:source[0][0].hash}},
+        {-1:{0:source[0][0].hash}},
+        {0:{2:source[0][0].hash}},
+        {0:{-1:source[0][0].hash}},
+        {0:{0:'unknown-hash'}},
+        {'not-an-index':{0:source[0][0].hash}},
+    ):
+        with pytest.raises(ValueError,match='Locked|locked'):
+            generate(source,1,locks=locks)
