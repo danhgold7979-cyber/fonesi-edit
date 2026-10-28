@@ -473,3 +473,42 @@ def test_paste_layer_clamps_offset_to_canvas_bounds():
         editor.close()
         host.workspace.cleanup()
 
+@pytest.mark.parametrize("step,expected", [
+    (.05, (.1, .3)),
+    (.1, (.1, .3)),
+    (.2, (.2, .4)),
+])
+def test_canvas_grid_snap_uses_selected_spacing(step, expected):
+    from fonesi_edit.ui.canvas import snap_layer_position
+    x, y = snap_layer_position(.101, .301, .1, .1, grid=True, grid_step=step)
+    assert (x, y) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("step", [0, -0.1, 1.1, float("nan"), True])
+def test_canvas_grid_snap_rejects_invalid_spacing(step):
+    from fonesi_edit.ui.canvas import snap_layer_position
+    with pytest.raises(ValueError, match="Grid spacing"):
+        snap_layer_position(.1, .1, .2, .2, grid=True, grid_step=step)
+
+
+def test_canvas_grid_spacing_is_saved_undoable_and_falls_back_for_unknown_values():
+    host = Host()
+    editor = Editor(host)
+    try:
+        assert editor.composition.adjustments.get("canvas_grid_spacing", .05) == .05
+        editor.set_canvas_grid_spacing(.2)
+        assert editor.composition.adjustments["canvas_grid_spacing"] == .2
+        serialized = editor.composition.to_dict()
+        assert Composition.from_dict(serialized).adjustments["canvas_grid_spacing"] == .2
+        editor.undo.undo()
+        assert editor.composition.adjustments.get("canvas_grid_spacing", .05) == .05
+        editor.composition.adjustments["canvas_grid_spacing"] = .15
+        editor.refresh()
+        assert all(
+            action.isChecked() == (value == .05)
+            for value, action in editor.grid_spacing_actions.items()
+        )
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
