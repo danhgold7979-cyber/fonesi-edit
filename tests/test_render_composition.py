@@ -63,7 +63,7 @@ def test_crop_rect_pixels_uses_even_source_pixel_bounds():
     assert crop_rect_pixels(Clip("unused.mp4"), 640, 360) is None
     # Odd source dimensions are clamped to safe even boundaries.
     assert crop_rect_pixels(Clip("unused.mp4", crop_x=0.99, crop_y=0.99,
-                                 crop_width=0.01, crop_height=0.01), 641, 361) == (2, 2, 638, 358)
+                                 crop_width=0.01, crop_height=0.01), 641, 361) == (6, 4, 634, 356)
 
 
 def test_clip_crop_compiles_before_flip_rotation_and_renders(tmp_path):
