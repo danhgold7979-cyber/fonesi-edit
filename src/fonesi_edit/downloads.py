@@ -165,12 +165,12 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
         def emit(self,record):
             try:
                 message=record.getMessage()
-                message=re.sub(r'(?i)\\b(token|api[_-]?key|password|cookie|secret|signature|access_token)=([^&\\s]+)',r'\\1=[redacted]',message)
+                message=re.sub(r'(?i)\b(token|api[_-]?key|password|cookie|secret|signature|access_token)=([^&\s]+)',r'\1=[redacted]',message)
                 def safe_url(match):
                     value=match.group(0)
                     parts=urlsplit(value.rstrip('),.;'))
                     return f'{parts.scheme}://{parts.netloc}{parts.path}'
-                message=re.sub(r'https?://[^\\s\'\"<>]+',safe_url,message)
+                message=re.sub(r'https?://[^\s\'\"<>]+',safe_url,message)
                 diagnostics.append(f'{record.levelname}: {message[:500]}')
                 if len(diagnostics)>12:del diagnostics[:-12]
             except Exception:
