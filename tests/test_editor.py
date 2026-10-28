@@ -484,7 +484,7 @@ def test_canvas_grid_snap_uses_selected_spacing(step, x0, y0, expected):
     assert (x, y) == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("step", [0, -0.1, 1.1, float("nan"), True])
+@pytest.mark.parametrize("step", [0, -0.1, .005, .75, 1.1, float("nan"), True])
 def test_canvas_grid_snap_rejects_invalid_spacing(step):
     from fonesi_edit.ui.canvas import snap_layer_position
     with pytest.raises(ValueError, match="Grid spacing"):
