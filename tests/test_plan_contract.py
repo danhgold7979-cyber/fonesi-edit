@@ -1,8 +1,10 @@
 """Structural contract checks; passing does not establish feature acceptance."""
 from pathlib import Path
 import re
+import runpy
 
-from scripts.check_plan import validate_traceability
+# scripts/ is an executable tooling directory, not an installed Python package.
+validate_traceability = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'scripts/check_plan.py'))['validate_traceability']
 
 
 def test_complete_requirement_traceability_matches_master_plan():
