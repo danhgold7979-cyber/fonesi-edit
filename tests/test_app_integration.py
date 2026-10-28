@@ -401,8 +401,19 @@ def test_proxy_preview_quality_is_source_only_and_runs_in_background(tmp_path):
         assert window.editor.proxy_actions['off'].isChecked()
         window.editor.proxy_actions['fast'].trigger()
         assert window.editor.composition.adjustments['playback_proxy_quality']=='fast'
-        wait_until(lambda:proxy_identity(source,'fast') in window.editor.proxy_cache,
-                   seconds=30)
+        try:
+            wait_until(lambda:proxy_identity(source,'fast') in window.editor.proxy_cache,
+                       seconds=12)
+        except AssertionError:
+            raise AssertionError(
+                f"Proxy UI: clip_row={window.editor.clips.currentRow()}, "
+                f"loading={window.editor._loading}, "
+                f"quality={window.editor.composition.adjustments.get('playback_proxy_quality')}, "
+                f"pending={window.editor._proxy_pending}, "
+                f"failed={window.editor._proxy_failed}, "
+                f"tasks={[task.isRunning() for task in window.tasks]}, "
+                f"status={window.status.text()}, app_errors={window.failures}"
+            ) from None
         expected=window.editor.proxy_cache[proxy_identity(source,'fast')]['path']
         wait_until(lambda:window.editor.player.source().toLocalFile()==expected,
                    seconds=10)
