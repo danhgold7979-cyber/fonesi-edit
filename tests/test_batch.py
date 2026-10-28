@@ -218,7 +218,10 @@ def test_batch_sfx_percent_anchor_retargets_each_source_duration(tmp_path):
         assert current.audio[0]['placement']=='percent'
         stage=tmp_path/f'graph-{i}';stage.mkdir()
         _,graph,duration=compile_graph(current,stage)
-        delays[round(duration,1)]=graph
-    assert 'adelay=250:all=1' in delays[.5]
-    assert 'adelay=750:all=1' in delays[1.5]
+        expected_ms=round(duration*.5*1000)
+        assert f'adelay={expected_ms}:all=1' in graph
+        delays[round(duration,1)]=expected_ms
+    # FFprobe's MP4 duration may be 0.52/1.52 due to frame rounding;
+    # percentage placement must use *probed output time*, not a fixture hint.
+    assert delays[.5]<delays[1.5]
     assert preset.audio[0]['position_pct']==50
