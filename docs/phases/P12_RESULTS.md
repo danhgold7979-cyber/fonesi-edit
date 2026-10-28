@@ -13,3 +13,8 @@ P12 vẫn chưa qua cổng phát hành đầy đủ: Windows máy thật, Chrome
 Một run Windows trước đó bị Chocolatey Community 504 Gateway Timeout khi cài FFmpeg 7.1.1, trước khi test ứng dụng. Pipeline nay retry giới hạn ba lần, giữ nguyên phiên bản và fail nếu vẫn không cài được. Run [40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) đã PASS cả Linux/Windows với frozen proof; không suy ra Windows 10/11 máy người dùng đã nghiệm thu hoặc installer/app updater đã đầy đủ.
 
 **Bằng chứng packaging cập nhật:** [CI 40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919) đã build/frozen proof đạt cả Linux/Windows; artifact `FonesiEdit-Windows-development` cho review nội bộ, hết hạn theo GitHub Actions (07 ngày). Đây không phải installer được ký hoặc bản phát hành nghiệm thu toàn diện.
+
+
+## CI đóng gói cập nhật P04/P10 — 28/10/2026
+
+[CI 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) build production app/native-host và chạy packaged proof Linux/Windows thành công; 195/194 tests (+1 skip Windows). Artifact `FonesiEdit-Windows-development` có thời hạn 7 ngày theo CI. Không phải installer/updater đã ký hoặc chứng nhận máy Windows 10/11 người dùng, GPU/driver/HiDPI/audio/Chrome.
