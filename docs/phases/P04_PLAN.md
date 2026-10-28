@@ -26,12 +26,12 @@ Nền hiện có: Qt/PySide6, canvas/inspector, lựa chọn nhiều layer, undo
 
 ## 4. Cổng đóng lát cắt
 
-- [ ] Snap đến **tâm** canvas (tính cả width/height), không nhầm góc trên trái.
-- [ ] Nhiều layer giữ khoảng cách khi kéo sát mép; không lệch nhóm; undo khôi phục nguyên vị trí.
-- [ ] Alt tạm tắt snap; grid on/off hiển thị đúng và lưu/khôi phục qua project.
-- [ ] Test regression tự động qua Linux/Windows.
-- [ ] Proof binary thực tế vẫn đạt trên CI hai hệ; giữ bản Windows review.
-- [ ] P04_RESULTS và CURRENT_STATUS ghi đúng phần đạt/chưa đạt.
+- [x] Snap đến **tâm** canvas (tính cả width/height), không nhầm góc trên trái; regression helper đã kiểm tra.
+- [x] Nhiều layer giữ khoảng cách khi kéo sát mép; nhóm dùng một delta có giới hạn; undo khôi phục snapshot.
+- [x] Alt tạm tắt snap; grid on/off và bước lưới 1–50% hiển thị, lưu/khôi phục qua project.
+- [x] Test regression tự động qua Linux/Windows; CI mới nhất [40734016363](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40734016363) PASS.
+- [x] Proof binary thực tế đạt trên CI hai hệ; Windows development build được giữ làm artifact review.
+- [x] P04_RESULTS và CURRENT_STATUS đã ghi phần đạt/chưa đạt và cổng nghiệm thu còn mở.
 
 ## 5. Phạm vi còn mở, không tự đổi thành PASS
 
