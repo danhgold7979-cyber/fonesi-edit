@@ -11,7 +11,7 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 | Phase | Kết quả chính | Phụ thuộc để hoàn tất | Trạng thái |
 | --- | --- | --- | --- |
 | P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
-| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | Chưa qua cổng — xem phases/P02_RESULTS.md |
+| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | CI source + packaged proof Linux/Windows đạt; cổng live/API/Chrome/GPU còn mở — xem phases/P02_RESULTS.md |
 | P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Có code / QA local; xem CURRENT_STATUS.md |
 | P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Có code / QA local; xem CURRENT_STATUS.md |
 | P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Có code / QA local; xem CURRENT_STATUS.md |
@@ -64,7 +64,7 @@ Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 
 - [ ] P02-03: thử dịch Trung–Việt với thuật ngữ/tên riêng/câu dài; so chất lượng, tốc độ, chi phí, cache và quota.
 - [ ] P02-04: so engine preview cho Qt; mẫu alpha logo, chữ Việt/Trung, blur, seek, waveform, keyframe, audio; so mốc với FFmpeg export.
 - [ ] P02-05: thử CPU/encoder GPU thật, phân biệt encode GPU và filter CPU; đo RAM/VRAM và fallback.
-- [ ] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. Không để P12 mới thử đóng gói.
+- [x] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. CI frozen proof đạt; nghiệm thu máy Windows người dùng vẫn là cổng riêng.
 - [ ] P02-07: benchmark có máy/mẫu; chốt ngân sách UI/proxy/seek, sai số hình/thời gian và mức song song ban đầu trước P04/P07.
 - [ ] P02-08: ghi quyết định provider dịch, preview, FFmpeg build, packaging; blocker cho Windows/nguồn chưa truy cập được.
 - [ ] P02-09: thử discovery/tool manifest, nguồn Windows đáng tin, đường dẫn tùy chỉnh/version/capability, tải-cài-verify và rollback khi job đang dùng bản cũ.

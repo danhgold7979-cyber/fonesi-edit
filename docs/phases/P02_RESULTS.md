@@ -1,73 +1,67 @@
-# P02 — Kết quả thực nghiệm hiện tại
+# P02 — Kết quả kiểm chứng kỹ thuật
 
-Trạng thái: **chưa hoàn tất phase**, đã có prototype chạy thật và kiểm chứng CPU/Linux. Giữ nguyên cổng tổng thể; **P03 chưa bắt đầu**. Ngày: 27/10/2026.
+**Cập nhật:** 28/10/2026  
+**Trạng thái:** kiểm thử source và packaged synthetic proof đã PASS trên CI Linux/Windows; cổng nghiệm thu bên ngoài vẫn mở. Không đánh dấu hoàn tất toàn bộ phase P02.  
+**Nhánh:** phase/p02-windows-packaged-proof  
+**Commit kiểm chứng:** ff3254ea8619bff5aefd4c2dac6e36bda637ac37  
+**GitHub Actions:** [Desktop verification — run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40634117095)
 
-## 1. Mã đã triển khai
+## 1. Nguyên nhân lỗi Windows đã tìm thấy và sửa
 
-- Package Python có `pyproject.toml` và `uv.lock`; Qt/PySide6 6.8.3, yt-dlp 2026.10.26, gallery-dl 1.32.18, PyInstaller 6.22.3 được resolve từ nguồn package tin cậy.
-- Prototype Qt: mở media cục bộ, bố trí/kéo vị trí chữ, X/Y/cỡ/tốc độ, chọn sub/logo/font, render/cancel/progress, playback và tool scan/path override.
-- Renderer CPU thật: text Unicode không chèn vào shell/filter expression, logo RGBA, blur vùng cố định, SRT burn-in, giữ audio, no-overwrite, validate probe/duration/tracks/full-decode rồi publish.
-- SRT parser/time map: BOM/CRLF, nhiều dòng, cue không hợp lệ, giao với đoạn trim, speed rational và offset.
-- Official Google Translation v2 adapter: chỉ gửi khi có cấu hình; báo thiếu key, không mock dịch. Chưa chứng minh chất lượng/billing live.
-- Chrome profile proof: tạo hồ sơ app-owned độc lập, mở URL nền tảng bằng Google Chrome chính thức khi tìm thấy; không đọc cookie, không tuyên bố auth/bridge đã dùng được.
-- Script Windows verify/build và GitHub Actions Linux/Windows đã chuẩn bị; kết quả remote cần kiểm tra riêng, không suy ra đã pass vì có YAML.
+Bản đóng gói Windows trước đó thất bại khi tải ảnh qua gallery-dl trong proof. Artifact đã ghi rõ lỗi: UnicodeEncodeError do bảng mã console Windows (cp1252), không phải lỗi render video hoặc kết nối HTTP.
 
-## 2. Bằng chứng local đã đạt
+Nguyên nhân: trong chế độ mặc định, gallery-dl chọn PipeOutput khi stdout không phải terminal và in đường dẫn đầu ra. Proof sử dụng thư mục có ký tự Trung Quốc (download 中文); khi đường dẫn được ghi vào stdout kế thừa của tiến trình đóng gói, console cp1252 không mã hóa được một số ký tự. gallery-dl bắt lỗi và trả status khác 0, khiến wrapper trước đó chỉ báo lỗi chung.
 
-Lệnh chính: `uv run pytest -q`, `uv run python scripts/run_p02_local.py`, `QT_QPA_PLATFORM=offscreen uv run fonesi-prototype ui --smoke --source <fixture> --screenshot <path>`.
+Thay đổi đã triển khai:
 
-| Kiểm tra | Kết quả |
-| --- | --- |
-| Test suite | 24 bài qua, không có bài skip trong lần local được ghi nhận |
-| FFmpeg/ffprobe | 7.1.5 Debian, CPU libx264/AAC; artifact decode đầy đủ |
-| Dọc/ngang | 360×640 và 640×360, 25 FPS, synthetic 3 giây; output 3.008 giây |
-| Sample render | 0.454s ngang, 0.478s dọc trong lần đo; chỉ là fixture nhỏ trên cloud hiện tại |
-| Unicode/path/filter | Tên Việt/Trung, dấu nháy/ký tự filter trong title/path được xử lý, không overwrite |
-| Logo alpha | Fixture có alpha=0 và alpha>100; logo nhìn thấy trên frame output |
-| Qt UI | Khởi tạo, nạp frame thật, screenshot và đóng sạch offscreen |
-| Package Linux | PyInstaller 6.22.3 build onedir có FFmpeg/ffprobe, binary mở media/chụp screenshot/đóng sạch exit 0; không thay kết quả Windows |
-| Qt video decode | Nhận ít nhất hai QVideoFrame thật của video đã render |
-| Decode parity | Qt frame so với FFmpeg tại startTime của frame, mean RGB error <3/255 |
-| Cancel/error | Không publish output khi hủy/nguồn lỗi, không thay nguồn/output cũ; UI smoke trả exit 1 nếu media yêu cầu không nạp được |
-| Tool scan | FFmpeg, ffprobe, yt-dlp, gallery-dl khởi chạy/version được; Google Chrome chính thức thiếu |
-| Plan validation | 12 phase, 94 task, 95 nhóm yêu cầu; link/task references hợp lệ |
+- Đặt output mode của gallery-dl thành null trong worker desktop; ứng dụng GUI không cần in đường dẫn tải xuống ra console.
+- Thu thập cảnh báo/lỗi gallery-dl có giới hạn, làm sạch URL query/fragment và che các giá trị trông như token/key/password/cookie trước khi lưu chẩn đoán.
+- Kiểm tra ảnh bằng QImageReader cả bước nhận dạng định dạng và bước decode thực tế; lỗi nêu định dạng/supported formats để dễ điều tra hơn.
+- Bổ sung regression test mô phỏng stdout Windows cp1252 nghiêm ngặt trong test tải ảnh vào thư mục Unicode.
 
-Corpus là **synthetic lavfi**, không phải nội dung đã tải từ mạng xã hội. Decode parity của video đã composited không thay nghiệm thu toàn bộ thao tác/keyframe/font preview của P04/P07. Cloud có 5 vCPU và RAM khoảng 33 GiB; không suy ra tốc độ máy Windows khác.
+Không thay đổi TLS, proxy bảo mật, xác thực tài khoản hoặc kiểm tra tính hợp lệ của ảnh. Không bỏ job tải ảnh khỏi proof.
 
-Screenshot/frame tham khảo ở [evidence](../evidence/README.md); media/log/runtime giữ trong `.local/` bị loại khỏi Git.
+## 2. Bằng chứng CI mới nhất
 
-## 3. Lỗi đã chẩn đoán và sửa
-
-- PySide6 6.12.0 được resolver chọn ban đầu gây native segfault khi khởi tạo QAudioOutput trong Linux thiếu PipeWire config. Reproducer tối thiểu xác nhận, không nuốt lỗi bằng try/except Python. Khóa PySide6 6.8.3, chạy lại UI/audio init và tests thành công. Không coi đây là kiểm tra loa vật lý.
-- Logo synthetic tạo bằng drawbox trên nền alpha=0 ban đầu vẫn trong suốt. Thay fixture bằng PNG RGBA có alpha rõ và thêm kiểm tra pixel alpha; kiểm tra frame đã thấy logo thật.
-
-## 4. Blocker và phép thử đã thực hiện
-
-| Task | Trạng thái hiện tại | Prerequisite còn thiếu |
+| Kiểm tra | Linux runner | Windows runner |
 | --- | --- | --- |
-| P02-01 | Linux toolchain/dependency lock đã kiểm chứng; Windows còn mở | Máy/runner Windows cho phần mục tiêu |
-| P02-02 | YouTube test item và Bilibili test item đều bị proxy từ chối CONNECT HTTP 403 | Áp dụng quyền egress; sau đó mới đánh giá extractor/auth |
-| P02-03 | Parser/adapter/báo thiếu config có test, chưa dịch live | Provider/key hợp lệ và quyền tới translation.googleapis.com |
-| P02-04 | Qt 6.8.3 + FFmpeg reference/decode đã chạy local | Interactive Windows, đầy đủ UI parity và benchmark seek |
-| P02-05 | CPU encode pass; thử NVENC thất bại vì không có libcuda.so.1, không có /dev/dri | GPU/driver/máy có khả năng thật |
-| P02-06 | Có script và CI build Windows, kết quả remote chưa xác nhận | Runner Windows và chạy bản đóng gói thực tế |
-| P02-07 | Có số đo fixture CPU nhỏ; chưa có ngân sách Windows/UI hoàn chỉnh | Máy tham chiếu/mẫu đủ lớn và đo tương tác |
-| P02-08 | Qt/FFmpeg có ứng viên bằng evidence; provider và auth còn mở | Hoàn tất các phép thử phụ thuộc |
-| P02-09 | Discovery/path/version và dependency package lock có proof; Windows installer/rollback chưa đạt | Phép thử installer/lease trên Windows |
-| P02-10 | Profile isolation có test; không thay Chromium cho Chrome | Google Chrome Windows và người dùng đăng nhập để thử bridge |
+| Dependency lock và check_plan.py | PASS | PASS |
+| Test source | 92 tests; 0 fail, 0 error, 0 skip | 92 tests; 0 fail, 0 error, 1 skip |
+| Lý do skip | — | Fixture cài công cụ kiểu POSIX; kiểm tra installer Windows thực vẫn cần môi trường phù hợp |
+| Build ứng dụng/native host | PASS | PASS |
+| Frozen packaged proof | PASS | PASS |
+| Job proof | 2 render + 1 tải video + 1 tải ảnh qua localhost | 2 render + 1 tải video + 1 tải ảnh qua localhost |
+| Bằng chứng tích hợp | Phụ đề song ngữ, rename/undo, UI smoke/frame decode | Phụ đề song ngữ, rename/undo, UI smoke/frame decode |
 
-URL thử live: `https://www.youtube.com/watch?v=BaW_jenozKc`, `https://www.bilibili.com/video/BV13x41117TL` (mẫu công khai từ upstream extractor). Proxy trả 403 trước khi có response của website; chưa thể kết luận website chặn tài khoản hay yt-dlp lỗi.
+Windows proof báo passed=true, frozen=true, rename_undo_verified=true và bilingual_render_verified=true; thời gian proof 8.781 giây. Linux proof báo passed=true và frozen=true; thời gian proof 5.231 giây. Các đầu vào tải/render trong proof đều là synthetic/localhost, không phải bằng chứng hỗ trợ nền tảng mạng xã hội thật.
 
-Không có GH_TOKEN vẫn push Git thành công qua HTTPS proxy hiện có; không yêu cầu token GitHub mới.
+Artifacts của lần chạy nằm trong [GitHub Actions run](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40634117095). Artifact Windows development build là bản review nội bộ, không phải public release.
 
-## 5. Cấu hình cloud đã lưu nháp
+## 3. Trạng thái từng đầu việc P02
 
-- `install_script`: `bash scripts/bootstrap.sh` trong checkout.
-- `start_skill`: đọc master/phase plan, refresh lock, local proof, test, headless UI và giới hạn nghiệm thu.
-- Custom egress: youtube.com, *.youtube.com, youtubei.googleapis.com, *.googlevideo.com, *.ytimg.com, www.bilibili.com, api.bilibili.com, *.bilivideo.com, *.hdslb.com.
-- Optional personal binding `FONESI_GOOGLE_TRANSLATE_API_KEY`, destination `translation.googleapis.com`; domain này được tool tự thêm. Chỉ khai báo tên, không có giá trị.
-- Tool đã xác nhận draft saved và yêu cầu Review/Save trong Environment settings rồi Publish. Việc lưu draft **chưa áp dụng mạng, chưa tạo key, chưa publish**; không lặp lại request bị chặn khi runtime chưa đổi.
+| Task | Trạng thái | Bằng chứng / điều kiện còn thiếu |
+| --- | --- | --- |
+| P02-01 | Một phần | Dependency lock và toolchain CI Linux/Windows đã chạy; benchmark/ma trận codec-filter-font trên máy mục tiêu chưa đủ |
+| P02-02 | BLOCKED/PENDING | YouTube và Bilibili bị proxy chặn CONNECT HTTP 403 trong lần thử trước; chưa chứng minh quét nguyên kênh hoặc auth từng nền tảng |
+| P02-03 | BLOCKED/PENDING | Adapter và báo thiếu cấu hình có test; chưa dịch live hoặc xác nhận chất lượng/chi phí provider |
+| P02-04 | Một phần | Qt/FFmpeg và frozen proof đạt; parity/seek/độ mượt UI Windows đầy đủ vẫn cần kiểm thử tương tác |
+| P02-05 | BLOCKED | CPU proof đạt; không có GPU/driver/VRAM tương ứng để xác nhận encode GPU thật |
+| P02-06 | PASS trên CI | Frozen app Windows khởi chạy, render song ngữ, tải video/ảnh localhost, rename/undo và UI smoke đã đạt |
+| P02-07 | BLOCKED/PENDING | Có số đo fixture CPU nhỏ; benchmark trên máy tham chiếu và ngân sách UI/proxy/seek chưa chốt |
+| P02-08 | Một phần | Root cause Windows Unicode console đã được ghi nhận và sửa; quyết định live provider/auth và các cổng bên ngoài vẫn mở |
+| P02-09 | Một phần | Tool discovery/version/path và proof cục bộ có; installer/update/lease/rollback trên máy Windows thực còn mở |
+| P02-10 | BLOCKED/PENDING | Profile isolation có test; Chrome thật, đăng nhập người dùng và session handoff vào downloader chưa được xác nhận end-to-end |
 
-## 6. Điều kiện tiếp tục
+## 4. Các cổng chưa được xác nhận
 
-Áp dụng egress rồi retry live nguồn; cấu hình provider qua nơi nhập an toàn nếu muốn dùng adapter Google; kiểm tra kết quả Windows CI và chạy Chrome/account/GPU trên máy tương ứng. Theo chỉ đạo mới của người dùng, tiếp tục code các phần độc lập sau khi đọc master/lập phase plan. P02 vẫn chưa được đánh dấu hoàn tất nghiệm thu bên ngoài.
+- Tải nguyên kênh, phân trang, checkpoint, ảnh/video/sub và xác thực trên từng nền tảng.
+- Dịch live Trung–Việt, chi phí, quota và chất lượng provider với nội dung đại diện.
+- Chrome thật trên Windows: OTP/QR/CAPTCHA do người dùng xử lý, phiên dùng được bởi connector, đổi nick/mismatch và resume.
+- GPU/VRAM/driver, HiDPI, thiết bị âm thanh vật lý, installer/update/rollback trên máy người dùng và soak/crash/power-loss dài hạn.
+- Toàn bộ tương tác nâng cao của 95 nhóm yêu cầu; những mục còn mở tiếp tục nằm trong IMPLEMENTATION_COVERAGE.md.
+
+Proxy trả 403 trước khi nhận được response từ website, vì vậy không được kết luận website chặn tài khoản hoặc extractor sai. Cấu hình egress/provider chưa được xác nhận áp dụng chỉ vì có bản nháp.
+
+## 5. Bước tiếp theo
+
+Giữ P02-06 hoàn tất theo bằng chứng CI; không đóng toàn phase P02 khi các cổng bên ngoài còn mở. Tiếp tục hoàn thiện phần độc lập ở P03 trở đi theo master plan và phase plan riêng. Không sửa/xóa source media, không commit secrets, browser profiles, downloaded media hoặc runtime artifacts.
