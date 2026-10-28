@@ -225,3 +225,68 @@ def test_batch_ui_exposes_separate_audio_mapping_modes(tmp_path):
         assert window.batch.audio_folder is not window.batch.audio
     finally:
         close(window)
+
+
+def test_matrix_selected_row_regeneration_preserves_other_rows_and_locked_cells(tmp_path):
+    from fonesi_edit.matrix import Angle,generate,matrix_rows_valid,combination
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        scene_angles=[[Angle(i+1,j+1,f'/fixture/{i}/{j}.mp4',f'fixture-{i}-{j}')
+                       for j in range(4)] for i in range(2)]
+        rows=generate(scene_angles,4,seed=8,window=1,different=2)['rows']
+        page=window.matrix
+        page.window.setValue(1);page.different.setValue(2);page.seed.setValue(11)
+        page.old_history=[]
+        page.model.replace(scene_angles,rows)
+        page.model.locked.add((1,1))  # GUI columns are 1-based scene indices.
+        page.table.setCurrentIndex(page.model.index(1,2))
+        unchanged=[combination(row) for row in page.model.rows]
+        pinned=page.model.rows[1][0].hash
+        page.regenerate()
+        wait_until(lambda: combination(page.model.rows[1])!=unchanged[1] or
+                   not window.tasks,seconds=12)
+        assert combination(page.model.rows[1])!=unchanged[1], window.failures
+        assert page.model.rows[1][0].hash==pinned
+        assert [combination(row) for i,row in enumerate(page.model.rows) if i!=1] == \
+            [value for i,value in enumerate(unchanged) if i!=1]
+        assert (1,1) in page.model.locked
+        assert matrix_rows_valid(page.model.rows,[],window=1,different=2)
+        assert 'Đã tạo lại hàng' in page.summary.text()
+    finally:
+        close(window)
+
+
+def test_matrix_regeneration_does_not_overwrite_edits_done_while_worker_runs(tmp_path,monkeypatch):
+    from threading import Event
+    import fonesi_edit.ui.pages as page_module
+    from fonesi_edit.matrix import Angle,generate,combination
+    started=Event();proceed=Event()
+    actual=page_module.regenerate_row
+    def gated(*args,**kwargs):
+        started.set()
+        assert proceed.wait(8)
+        return actual(*args,**kwargs)
+    monkeypatch.setattr(page_module,'regenerate_row',gated)
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        scenes=[[Angle(i+1,j+1,f'/fixture/{i}/{j}.mp4',f'key-{i}-{j}')
+                 for j in range(4)] for i in range(2)]
+        rows=generate(scenes,3,seed=8,window=1,different=2)['rows']
+        page=window.matrix
+        page.window.setValue(1);page.different.setValue(2);page.seed.setValue(9)
+        page.model.replace(scenes,rows)
+        page.table.setCurrentIndex(page.model.index(1,1))
+        page.regenerate()
+        wait_until(started.is_set,seconds=5)
+        page.seed.setValue(10)  # User changed options before worker finished.
+        original=combination(page.model.rows[1])
+        proceed.set()
+        wait_until(lambda:not window.tasks,seconds=15)
+        APP.processEvents()
+        assert combination(page.model.rows[1])==original
+        assert 'kết quả cũ bị bỏ' in page.host.status.text()
+    finally:
+        proceed.set()
+        close(window)
