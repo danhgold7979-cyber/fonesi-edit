@@ -66,3 +66,11 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - A subsequent mouse release cannot commit the cancelled drag. The rendered preview fingerprint is retained because the composition has returned to its original state.
 - CI [run 40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40723004092) **PASS**: 363 Linux tests; 362 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both systems.
 - This verifies the synthetic Qt drag regression; physical keyboard/focus and real Windows/HiDPI acceptance remain open.
+
+## P04-02 — Crop ratio lock: handle/boundary regression expansion (28/10/2026)
+
+- Extracted normalized crop-drag geometry into a deterministic helper and exercised all eight edge/corner handles, new-crop creation, movement clamping, invalid geometry and free-ratio behavior.
+- Ratio lock preserves normalized width/height for a fixed source; edge handles keep the opposite edge fixed and resize the orthogonal axis symmetrically. Boundary clamps keep the crop inside the frame.
+- CI [run 40724751585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40724751585) **PASS**: 386 Linux tests; 385 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: physical Windows/HiDPI/4K acceptance, rotated metadata, VFR/mixed FPS, and complete preview/export parity. This test slice does not mark all of P04 complete.
+
