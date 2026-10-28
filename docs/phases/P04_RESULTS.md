@@ -102,3 +102,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40731502132](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40731502132) **PASS**: 411 Linux tests; 410 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: physical Windows multi-monitor/HiDPI/4K acceptance, remaining shortcut/remap/IME cases and full P04/P12 acceptance. This increment does not mark all of P04 complete.
 
+## P04-02 — IME preedit shortcut guard (28/10/2026)
+
+- Added application/focused-widget input-method event tracking. While a text input owns active preedit, editor/global QAction callbacks are suppressed; preedit end or focus departure clears the state, and installed filters are removed on shutdown.
+- Synthetic Qt tests cover suppression during preedit, normal action routing after composition ends, and clearing state when focus leaves. These tests do not replace physical Chinese/Japanese/Korean IME acceptance.
+- CI [run 40734016363](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40734016363) **PASS**: 413 Linux tests; 412 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: physical OS/IME keyboard testing, multi-monitor/HiDPI/4K acceptance, and the remaining P04/P12 gates.
+
