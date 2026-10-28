@@ -1123,7 +1123,7 @@ def test_ime_preedit_state_clears_when_focus_leaves_composing_widget(tmp_path):
     try:
         APP.sendEvent(field, QInputMethodEvent("拼音", []))
         assert window.ime_composition_active(field)
-        window.property_search.setFocus()
+        window.editor.property_search.setFocus()
         APP.processEvents()
         assert window._ime_composing_widget is None
         assert not window.ime_composition_active(field)
