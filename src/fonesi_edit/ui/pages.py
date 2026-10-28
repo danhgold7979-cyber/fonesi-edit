@@ -154,7 +154,7 @@ class DownloadsPage(QWidget):
                 child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
                 child.setCheckState(0,Qt.CheckState.Unchecked)
             else:
-                child.setFlags(child.flags()&~Qt.ItemFlag.ItemIsEnabled)
+                child.setFlags(child.flags() & ~(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable))
             parent.addChild(child)
         parent.setExpanded(True)
 
