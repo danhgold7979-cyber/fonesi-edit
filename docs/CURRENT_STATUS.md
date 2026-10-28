@@ -86,3 +86,9 @@ CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 - CI [40726135615](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40726135615) **PASS**: 398 Linux tests / 397 Windows tests + 1 intentional POSIX-fixture skip; packaged proof passed on both runners.
 - Arbitrary custom numeric steps, dense-overlap guide priority, physical Windows/HiDPI and other P04/P12 acceptance gates remain open.
 
+## P04 update — custom numeric grid spacing (28/10/2026)
+
+- Added custom grid spacing from 1% to 50%, exact normalized guide placement, persisted project setting and Undo/Redo.
+- CI [40728076508](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40728076508) **PASS**: 403 Linux / 402 Windows + 1 intentional skip; packaged proof passed on both runners.
+- Inspector search/reset, dense-overlap guide priority, physical Windows/HiDPI and remaining P04/P12 acceptance gates remain in progress.
+
