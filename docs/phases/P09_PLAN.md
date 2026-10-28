@@ -46,3 +46,7 @@ Master `P09-05`/MAT-06 yêu cầu chia đều, tỷ lệ, trọng số hoặc nh
 ### P09-05 — Nhập thời lượng giây cho từng cảnh
 
 Bổ sung tùy chọn `manual` riêng với `weights`: vector thời lượng (giây) từng cảnh; tổng thời lượng clip trừ overlap chuyển cảnh phải bằng target audio nếu gắn audio, sai lệch báo rõ, không ép khớp. Nếu không gắn audio, tổng thời lượng từ các cảnh sẽ quyết định mục tiêu video. Chỉ hỗ trợ chính sách speed/trim đã có và kiểm tra giới hạn tốc độ/cắt; không ngầm bỏ cảnh hoặc đổi thành freeze/loop. Cung cấp ô nhập/kiểm tra số cảnh, giá trị hữu hạn dương, test solver (có/không audio), queue snapshot và UI. Đây là phần còn thiếu của P09-05/MAT-06.
+
+### P09-05 — Giới hạn speed cùng UI với thời lượng từng cảnh
+
+`MatrixPage` chưa có min/max speed riêng dù solver hỗ trợ. Thêm hai spinbox 0.1–10 giống BatchPage; preview/queued render truyền cùng snapshot giới hạn vào `row_composition` và `enqueue_rows`. Kiểm tra min lớn hơn max trong worker (solver báo không khả thi). Test UI và output theo giới hạn. Mặc định 0.5–2 giữ tương thích.
