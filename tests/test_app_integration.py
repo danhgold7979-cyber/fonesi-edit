@@ -687,7 +687,7 @@ def test_batch_metadata_filter_is_async_orientation_aware_and_preserves_hidden_s
         assert not page.tree.topLevelItem(0).child(2).isHidden()  # portrait 1080×1920
         assert sum(len(v) for v in page.selected().values())==4
         page.plans=[{'output':'retain-filter-only'}]
-        page.duration_max.setValue(2)
+        page.duration_max.setValue(.25)
         assert 'Khoảng thời lượng không hợp lệ' in page.summary.text()
         with pytest.raises(ValueError,match='Khoảng thời lượng'):
             page.plan()
