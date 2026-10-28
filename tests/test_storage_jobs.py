@@ -110,6 +110,10 @@ def test_orphan_recovered_after_startup_and_live_worker_can_be_excluded(tmp_path
     "ACCESS_TOKEN",
     "passwd",
     "private_key",
+    "apiSecret",
+    "sessionId",
+    "signature",
+    "jwtToken",
 ])
 def test_secret_key_aliases_are_rejected_recursively(secret_key):
     with pytest.raises(ValueError, match="Secret values cannot be stored"):
@@ -120,7 +124,7 @@ def test_worker_error_sanitizer_removes_secrets_but_keeps_diagnostic_context():
     message = (
         "HTTP 403 for https://example.test/media/item?token=query-secret&signature=signed-secret "
         "Authorization: Bearer bearer-secret api-key=api-secret "
-        "session_cookie=cookie-secret path=/media/item"
+        "session_cookie=cookie-secret signature=standalone-signature-secret path=/media/item"
     )
     sanitized = sanitize_error_message(message)
 
@@ -130,6 +134,7 @@ def test_worker_error_sanitizer_removes_secrets_but_keeps_diagnostic_context():
         "bearer-secret",
         "api-secret",
         "cookie-secret",
+        "standalone-signature-secret",
     ):
         assert secret not in sanitized
     assert "HTTP 403" in sanitized
