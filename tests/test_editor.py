@@ -189,3 +189,37 @@ def test_loop_action_validates_range_and_is_invalidated_by_composition_edit():
         assert any('vượt thời lượng' in error for error in host.errors)
     finally:
         editor.close();host.workspace.cleanup()
+
+
+def test_timeline_thumbnail_toggle_is_undoable_and_displays_verified_cached_frames(tmp_path):
+    from fonesi_edit.prototypes.media import create_fixture
+    from fonesi_edit.thumbnails import thumbnail_strip
+    from fonesi_edit.ui.timeline import Segment
+    host=Host();editor=Editor(host)
+    media=create_fixture(tmp_path/'source',duration=.5)
+    clip=Clip(str(media['source']),end=.5,source_duration=.5)
+    try:
+        editor.set_composition(Composition(clips=[clip]))
+        assert editor.thumbnail_assets(clip)==[]
+        assert not editor.thumbnail_action.isChecked()
+        editor.thumbnail_action.setChecked(True)
+        assert editor.composition.adjustments['timeline_thumbnails'] is True
+        assert editor.undo.count()==1
+        tiles=thumbnail_strip(clip,tmp_path/'cache')
+        editor.thumbnails[clip.id]=tiles
+        editor.timeline.rebuild()
+        segments=[item for item in editor.timeline.scene().items()
+                  if isinstance(item,Segment) and item.is_clip]
+        assert len(segments)==1 and len(segments[0].thumbnail_pixmaps)==3
+        editor.undo.undo()
+        assert editor.composition.adjustments.get('timeline_thumbnails') is None
+        assert not editor.thumbnail_action.isChecked()
+        editor.timeline.rebuild()
+        segment=next(item for item in editor.timeline.scene().items()
+                     if isinstance(item,Segment) and item.is_clip)
+        assert not segment.thumbnail_pixmaps
+        editor.undo.redo()
+        assert editor.thumbnail_action.isChecked()
+        assert editor.thumbnail_assets(editor.composition.clips[0])==tiles['frames']
+    finally:
+        editor.close();host.workspace.cleanup()
