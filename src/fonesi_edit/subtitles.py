@@ -5,6 +5,7 @@ import html
 import json
 import os
 import re
+import tempfile
 import time
 from urllib.request import Request,urlopen
 from urllib.parse import urlsplit
@@ -40,9 +41,25 @@ def write_captions(path:Path,captions,overwrite=False):
         if cue.end_ms<=cue.start_ms:raise ValueError('Invalid caption interval')
         data.events.append(pysubs2.SSAEvent(start=cue.start_ms,end=cue.end_ms,text=cue.text.replace('\n',r'\N')))
     path.parent.mkdir(parents=True,exist_ok=True)
-    # Exclusive publication when creating; explicit save may replace a subtitle document.
+    # Serialize before touching an existing user-edited subtitle document.
     encoded=data.to_string(format_=path.suffix.lstrip('.')).encode('utf-8')
-    with path.open('wb' if overwrite else 'xb') as stream:stream.write(encoded)
+    if not overwrite:
+        with path.open('xb') as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        return
+    descriptor, temporary = tempfile.mkstemp(
+        prefix='.fonesi-caption-', suffix='.tmp', dir=path.parent)
+    try:
+        with os.fdopen(descriptor,'wb') as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Atomic swap preserves the original on serialization/write failure.
+        os.replace(temporary,path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def caption_warnings(captions,duration_ms=None):
@@ -94,7 +111,12 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
     for index,cue in enumerate(result):
         if cue.locked:continue
         original=cue.source_text or cue.text
-        key='translation:'+hashlib.sha256(canonical([original,source,target,config]).encode()).hexdigest()
+        # Daily quota changes must not invalidate an otherwise identical translation.
+        # Provider, glossary, endpoint and translation-affecting options stay in
+        # the fingerprint so cache entries never cross incompatible settings.
+        translation_config={k:v for k,v in config.items() if k not in {'daily_limit'}}
+        key='translation:'+hashlib.sha256(
+            canonical([original,source,target,translation_config]).encode()).hexdigest()
         cached=store.cached(key)
         if cached:cue.source_text=original;cue.text=cached['text']
         else:missing.append((index,key,original))
