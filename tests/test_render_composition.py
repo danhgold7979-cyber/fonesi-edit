@@ -417,3 +417,48 @@ def test_sfx_repeat_anchors_render_two_audible_events_without_leaking_outside(tm
     invalid=deepcopy(composition);invalid.audio[0]['repeat_interval']=.81
     with pytest.raises(ValueError,match='outside the output timeline'):
         compile_graph(invalid,tmp_path/'invalid')
+
+@pytest.mark.parametrize("handle,start,current", [
+    ("left_top", (0.2, 0.2), (0.1, 0.1)),
+    ("left_bottom", (0.2, 0.4), (0.1, 0.5)),
+    ("right_top", (0.6, 0.2), (0.7, 0.1)),
+    ("right_bottom", (0.6, 0.4), (0.7, 0.5)),
+    ("left", (0.2, 0.3), (0.1, 0.3)),
+    ("right", (0.6, 0.3), (0.7, 0.3)),
+    ("top", (0.4, 0.2), (0.4, 0.1)),
+    ("bottom", (0.4, 0.4), (0.4, 0.5)),
+])
+def test_crop_drag_ratio_lock_preserves_aspect_for_all_handles(handle, start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    rect = crop_drag_rect((0.2, 0.2, 0.4, 0.2), handle, start, current, ratio_locked=True)
+    x, y, width, height = rect
+    assert width / height == pytest.approx(2.0)
+    assert 0 <= x < 1 and 0 <= y < 1
+    assert 0 < width <= 1 and 0 < height <= 1
+    assert x + width <= 1.0 + 1e-9
+    assert y + height <= 1.0 + 1e-9
+
+
+@pytest.mark.parametrize("handle,start,current", [
+    ("right_bottom", (0.6, 0.4), (1.0, 1.0)),
+    ("left_top", (0.2, 0.2), (0.0, 0.0)),
+    ("top", (0.4, 0.2), (0.4, 0.0)),
+    ("new", (0.8, 0.8), (0.2, 0.2)),
+])
+def test_crop_ratio_lock_stays_in_bounds_at_canvas_edges(handle, start, current):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    rect = crop_drag_rect((0.2, 0.2, 0.4, 0.2), handle, start, current, ratio_locked=True)
+    x, y, width, height = rect
+    assert width / height == pytest.approx(2.0)
+    assert x >= 0 and y >= 0 and x + width <= 1.0 + 1e-9 and y + height <= 1.0 + 1e-9
+
+
+def test_crop_drag_free_ratio_keeps_independent_edge_resize_and_move_behavior():
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    assert crop_drag_rect((0.2, 0.2, 0.4, 0.2), "right", (0.6, 0.3), (0.7, 0.3)) == pytest.approx(
+        (0.2, 0.2, 0.5, 0.2)
+    )
+    assert crop_drag_rect((0.2, 0.2, 0.4, 0.2), "move", (0.4, 0.3), (0.5, 0.4)) == pytest.approx(
+        (0.3, 0.3, 0.4, 0.2)
+    )
+
