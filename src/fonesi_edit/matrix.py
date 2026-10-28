@@ -54,9 +54,31 @@ def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,histo
     if any(not scene for scene in scenes):raise ValueError('Empty scene')
     capacity=math.prod(len(scene) for scene in scenes)
     previous=[list(item) for item in history];used={canonical(item) for item in previous}
-    possible_history=sum(all(value in {a.hash for a in scene} for value,scene in zip(old,scenes)) and len(old)==len(scenes) for old in previous)
+    allowed_hashes=[{a.hash for a in scene} for scene in scenes]
+    matching_history={
+        canonical(old) for old in previous
+        if len(old)==len(scenes)
+        and all(value in allowed for value,allowed in zip(old,allowed_hashes))
+    }
+    possible_history=len(matching_history)
     if count>capacity-possible_history:raise ValueError(f'Chỉ còn tối đa {capacity-possible_history} tổ hợp chưa dùng')
-    rng=random.Random(seed);rows=[];frequency={};start=time.monotonic();attempts=0;locks=locks or {}
+    normalized_locks={}
+    for raw_row,columns in (locks or {}).items():
+        try:row_index=int(raw_row)
+        except (TypeError,ValueError):raise ValueError('Invalid locked row index') from None
+        if row_index<0 or row_index>=count or row_index in normalized_locks:
+            raise ValueError('Locked row is outside the requested matrix or duplicated')
+        if not isinstance(columns,dict):raise ValueError('Invalid locked scene map')
+        normalized_locks[row_index]={}
+        for raw_scene,angle_hash in columns.items():
+            try:scene_index=int(raw_scene)
+            except (TypeError,ValueError):raise ValueError('Invalid locked scene index') from None
+            if scene_index<0 or scene_index>=len(scenes):
+                raise ValueError('Locked scene index outside the matrix')
+            if angle_hash not in allowed_hashes[scene_index]:
+                raise ValueError('Locked angle missing from scene')
+            normalized_locks[row_index][scene_index]=angle_hash
+    rng=random.Random(seed);rows=[];frequency={};start=time.monotonic();attempts=0;locks=normalized_locks
     # Small spaces are enumerated as indices, never as a Cartesian list of media objects.
     order=rng.sample(range(capacity),capacity) if capacity<=10000 else None;cursor=0
     while len(rows)<count and time.monotonic()-start<seconds:
