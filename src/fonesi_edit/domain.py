@@ -14,7 +14,8 @@ _SECRET_KEY_NAMES = {
     "password", "passwd", "pwd", "cookie", "cookies", "apikey", "authorization",
     "token", "tokens", "accesstoken", "refreshtoken", "sessiontoken", "sessioncookie",
     "clientsecret", "secret", "bearer", "bearertoken", "authtoken", "privatekey",
-    "xapikey", "idtoken", "csrftoken", "xsrftoken",
+    "xapikey", "idtoken", "csrftoken", "xsrftoken", "signature", "sig",
+    "signedurl", "jwt", "jwttoken", "apisecret", "sessionid", "sessionkey",
 }
 
 
