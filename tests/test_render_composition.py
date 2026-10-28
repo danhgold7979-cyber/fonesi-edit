@@ -76,3 +76,23 @@ def test_solo_track_excludes_original_audio_in_actual_output(tmp_path):
     data=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(output),'-vn','-f','s16le','-'],capture_output=True,check=True).stdout
     samples=array('h');samples.frombytes(data)
     assert samples and max(abs(value) for value in samples)==0
+
+
+@pytest.mark.parametrize('bad_gain',[float('nan'),float('inf'),-1,5])
+def test_clip_gain_rejects_nonfinite_and_out_of_bounds(bad_gain):
+    with pytest.raises(ValueError,match='rotation/volume'):
+        Composition(clips=[Clip('synthetic.mp4',volume=bad_gain)]).validate()
+
+
+@pytest.mark.parametrize('changes',[
+    {'width':320.0},
+    {'height':True},
+    {'fps':30.5},
+    {'fps':True},
+    {'width':321},
+])
+def test_output_geometry_requires_even_integer_dimensions_and_integer_fps(changes):
+    values={'width':320,'height':180,'fps':25,**changes}
+    with pytest.raises(ValueError):
+        Composition(**values).validate()
+    Composition(width=320,height=180,fps=25).validate()
