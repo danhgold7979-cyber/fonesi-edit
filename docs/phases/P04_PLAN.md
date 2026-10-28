@@ -98,3 +98,17 @@ Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ t�
 Crop engine P04-02 đã được đưa vào `Clip` và compositor; CI lần đầu bắt được sai kỳ vọng pixel lẻ và test hard-code kích thước nguồn. Hai lỗi đã được sửa ở các commit test kế tiếp; không được coi crop engine là pass cho đến khi CI mới nhất xác nhận.
 
 Phạm vi giao diện tiếp theo: hiển thị frame nguồn, overlay ngoài vùng crop, kéo vùng/tám cạnh, lưới 3×3, checkbox khóa tỷ lệ, reset và center; thao tác dialog chỉ sửa bản nháp và Cancel không thay đổi project. Sau code phải bổ sung test Qt, chạy `scripts/check_plan.py`, toàn bộ suite và packaged proof Linux/Windows.
+
+
+## 11. P04-04 — Keyboard shortcut focus policy (28/10/2026)
+
+**Rà soát master plan trước code:** P04-07 yêu cầu shortcut theo focus, remap/xung đột/trợ giúp và không để nhập tiếng Việt/Trung kích hoạt player/canvas. `app.py` đã có action menu và remap, nhưng hiện chỉ nhường shortcut cho ba lớp text cơ bản; spin box, combo box, item view, checkbox và editor con có thể nhận shortcut toàn cửa sổ không đúng ngữ cảnh. Remap hiện cho phép gửi JSON thiếu key nhưng lưu trực tiếp map một phần, khiến action runtime và thiết lập sau khi mở lại có thể khác nhau.
+
+**Phạm vi lát cắt:**
+1. Thêm policy thuần nhận diện focus widget qua chuỗi parent: text editor (QLineEdit/QPlainTextEdit/QTextEdit), input/control (spin box, combo box, item view, slider, button) và focus thường.
+2. Khi focus ở text editor: Undo/Redo đi vào lịch sử cục bộ của control; các action editor như Play/Marker/In/Out/Split/Group/Lock/Render không chạy. Khi focus ở control khác, các action editor tương tự phải nhường cho control. Các action app-level Open/Save/Settings/Help/Scan giữ nguyên.
+3. Chuẩn hóa và xác thực shortcut: chỉ nhận chuỗi hợp lệ, cho phép giá trị rỗng để tắt, chặn shortcut trùng sau chuẩn hóa, báo lỗi nếu chuỗi không hợp lệ; remap từng phần phải merge với cấu hình hiện tại rồi lưu đầy đủ để runtime và restart nhất quán.
+4. Test Qt cho line edit/IME-style editing, spin box, combo box, item view, focus canvas, Undo/Redo cục bộ, conflict và partial remap. Không mô phỏng đăng nhập hoặc gửi network.
+5. Chạy `scripts/check_plan.py`, toàn bộ pytest, build và frozen proof Linux/Windows; chỉ ghi kết quả sau CI.
+
+**Ngoài phạm vi:** remap theo từng workspace/profile, tổ hợp nhiều bước và các phím tùy biến theo thiết bị. Không đổi phím mặc định nếu không cần thiết.
