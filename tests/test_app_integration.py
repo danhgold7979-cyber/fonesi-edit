@@ -903,7 +903,9 @@ def test_canvas_layer_clipboard_shortcuts_and_native_text_routing(tmp_path):
         window.editor.select_id(window.editor.composition.layers[0].id)
         window.editor.canvas.setFocus()
         APP.processEvents()
+        APP.clipboard().setText('do not serialize layer')
         window.actions['Copy layer'].trigger()
+        assert APP.clipboard().text() == 'do not serialize layer'
         window.actions['Paste layer'].trigger()
         assert len(window.editor.composition.layers) == 2
         window.actions['Cut layer'].trigger()

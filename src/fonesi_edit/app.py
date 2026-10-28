@@ -34,7 +34,7 @@ _TEXT_EDIT_WIDGETS = (QLineEdit, QPlainTextEdit, QTextEdit)
 _INTERACTIVE_WIDGETS = (QAbstractSpinBox, QComboBox, QAbstractItemView, QAbstractSlider, QAbstractButton)
 _EDITOR_SHORTCUT_ACTIONS = frozenset({
     "Undo", "Redo", "Nhân bản", "Split", "Đưa vào hàng đợi", "Phát/dừng",
-    "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer",
+    "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer", "Thêm video",
     "Select all", "Copy layer", "Paste layer", "Cut layer",
 })
 

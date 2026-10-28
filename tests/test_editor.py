@@ -352,8 +352,12 @@ def test_layer_clipboard_paste_remaps_ids_and_groups_and_supports_undo_redo():
     host = Host()
     editor = Editor(host)
     try:
-        first = Layer(text="A", x=.1, group="shared", clip_ids=["clip-a"])
-        second = Layer(text="B", x=.3, group="shared", clip_ids=["clip-a"])
+        first = Layer(text="A", x=.1, group="shared", clip_ids=["clip-a"],
+                      style={"font_family": "Arial", "color": "#fefefe"},
+                      keyframes={"x": [{"time": 0, "value": .1}]})
+        second = Layer(text="B", x=.3, group="shared", clip_ids=["clip-a"],
+                       style={"font_family": "Arial", "color": "#ff0000"},
+                       keyframes={"x": [{"time": 0, "value": .3}]})
         unrelated = Layer(text="Unrelated", x=.7, group="unrelated")
         editor.set_composition(Composition(clips=[Clip('unused.mp4', id='clip-a')], layers=[first, second, unrelated]))
         editor.select_ids([first.id, second.id])
@@ -367,6 +371,8 @@ def test_layer_clipboard_paste_remaps_ids_and_groups_and_supports_undo_redo():
         assert pasted[0].group != "shared"
         assert editor.composition.layers[2].group == "unrelated"
         assert [layer.clip_ids for layer in pasted] == [["clip-a"], ["clip-a"]]
+        assert pasted[0].style == first.style and pasted[1].style == second.style
+        assert pasted[0].keyframes == first.keyframes and pasted[1].keyframes == second.keyframes
         assert pasted[0].x == pytest.approx(.12)
         assert pasted[1].x == pytest.approx(.32)
         assert editor.undo.count() == 1
@@ -391,8 +397,11 @@ def test_cut_layer_copies_only_unlocked_layers_and_undo_restores_them():
         editor.cut_layers()
         assert [layer.id for layer in editor.composition.layers] == [locked.id]
         assert [layer.text for layer in editor._layer_clipboard] == ["Editable"]
+        assert editor.undo.count() == 1
         editor.undo.undo()
         assert {layer.id for layer in editor.composition.layers} == {editable.id, locked.id}
+        editor.undo.redo()
+        assert [layer.id for layer in editor.composition.layers] == [locked.id]
     finally:
         editor.close()
         host.workspace.cleanup()
@@ -442,6 +451,24 @@ def test_escape_cancels_canvas_drag_and_mouse_release_does_not_commit():
         assert editor.composition.layers[0].x == pytest.approx(.1)
         assert editor.composition.layers[0].y == pytest.approx(.2)
         assert editor.undo.count() == 0
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+def test_paste_layer_clamps_offset_to_canvas_bounds():
+    host = Host()
+    editor = Editor(host)
+    try:
+        edge = Layer(text="Edge", x=.69, y=.84, width=.3, height=.15)
+        editor.set_composition(Composition(layers=[edge]))
+        editor.select_id(edge.id)
+        editor.copy_layers()
+        editor.paste_layers()
+        pasted = editor.composition.layers[-1]
+        assert pasted.x == pytest.approx(.7)
+        assert pasted.y == pytest.approx(.85)
+        assert pasted.x + pasted.width <= 1.0 + 1e-9
+        assert pasted.y + pasted.height <= 1.0 + 1e-9
     finally:
         editor.close()
         host.workspace.cleanup()
