@@ -155,3 +155,37 @@ def test_multiselection_drag_preserves_offsets_and_has_one_undo():
         assert abs(a.x-.1)<1e-9 and abs(b.x-.4)<1e-9
     finally:
         editor.close();host.workspace.cleanup()
+
+
+def test_rendered_preview_loop_requires_valid_in_out_and_matching_composition():
+    from fonesi_edit.ui.editor import loop_seek_target
+    assert loop_seek_target(1200,.5,1.2,enabled=True,verified=True)==500
+    assert loop_seek_target(1100,.5,1.2,enabled=True,verified=True) is None
+    for kwargs in ({'enabled':False,'verified':True},
+                   {'enabled':True,'verified':False}):
+        assert loop_seek_target(1200,.5,1.2,**kwargs) is None
+    for start,end in ((None,1.2),(1,1),(1.2,.5),(-1,1),(0,float('nan')),(0,.01)):
+        assert loop_seek_target(2000,start,end,enabled=True,verified=True) is None
+
+
+def test_loop_action_validates_range_and_is_invalidated_by_composition_edit():
+    from fonesi_edit.domain import canonical
+    host=Host();editor=Editor(host)
+    try:
+        editor.set_composition(Composition(clips=[Clip('fixture.mp4',end=4)]))
+        editor.loop_action.setChecked(True)
+        assert not editor.loop_action.isChecked()
+        assert any('In và Out' in error for error in host.errors)
+        editor.in_point=.25;editor.out_point=1.75
+        editor.preview_fingerprint=canonical(editor.composition.to_dict())
+        editor.loop_action.setChecked(True)
+        assert editor.loop_action.isChecked()
+        editor.set_composition(Composition(clips=[Clip('different.mp4',end=3)]))
+        assert editor.preview_fingerprint is None
+        editor.out_point=10
+        editor.loop_action.setChecked(False)
+        editor.loop_action.setChecked(True)
+        assert not editor.loop_action.isChecked()
+        assert any('vượt thời lượng' in error for error in host.errors)
+    finally:
+        editor.close();host.workspace.cleanup()
