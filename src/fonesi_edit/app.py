@@ -12,7 +12,8 @@ import time
 from PySide6.QtCore import Qt,QTimer,QUrl
 from PySide6.QtGui import QAction,QKeySequence,QDesktopServices
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QTabWidget,QLabel,QPushButton,
-    QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle)
+    QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle,
+    QAbstractSpinBox,QComboBox,QAbstractItemView,QAbstractSlider,QAbstractButton)
 
 from .domain import Composition,atomic_json,canonical
 from .paths import data_directory
@@ -26,6 +27,56 @@ from .render import reference_frame,render_composition
 from .ui.tasks import Task
 from .ui.editor import Editor
 from .ui.pages import DownloadsPage,SubtitlesPage,BatchPage,MatrixPage,QueuePage,SettingsPage
+
+
+_TEXT_EDIT_WIDGETS = (QLineEdit, QPlainTextEdit, QTextEdit)
+_INTERACTIVE_WIDGETS = (QAbstractSpinBox, QComboBox, QAbstractItemView, QAbstractSlider, QAbstractButton)
+_EDITOR_SHORTCUT_ACTIONS = frozenset({
+    "Undo", "Redo", "Nhân bản", "Split", "Đưa vào hàng đợi", "Phát/dừng",
+    "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer",
+})
+
+
+def shortcut_focus_policy(focused):
+    """Return (policy, target) for global shortcuts given the active Qt focus widget."""
+    current = focused
+    while current is not None:
+        if isinstance(current, _TEXT_EDIT_WIDGETS):
+            return "text", current
+        if isinstance(current, _INTERACTIVE_WIDGETS):
+            return "control", current
+        current = current.parentWidget() if hasattr(current, "parentWidget") else None
+    return "global", None
+
+
+def normalize_shortcut_remap(changes, current):
+    """Merge partial shortcut edits, normalize them, and reject invalid/conflicting keys."""
+    if not isinstance(changes, dict) or set(changes) - set(current):
+        raise ValueError("Tên thao tác không hợp lệ")
+    merged = dict(current)
+    for name, value in changes.items():
+        if not isinstance(value, str):
+            raise ValueError(f"Phím tắt của {name} phải là chuỗi")
+        if not value.strip():
+            merged[name] = ""
+            continue
+        sequence = QKeySequence.fromString(value.strip(), QKeySequence.SequenceFormat.PortableText)
+        normalized = sequence.toString(QKeySequence.SequenceFormat.PortableText)
+        if sequence.isEmpty() or not normalized:
+            raise ValueError(f"Phím tắt không hợp lệ: {name}")
+        if sequence.count() != 1:
+            raise ValueError(f"Chỉ hỗ trợ một tổ hợp phím cho {name}")
+        merged[name] = normalized
+    owners = {}
+    for name, value in merged.items():
+        if not value:
+            continue
+        sequence = QKeySequence.fromString(value, QKeySequence.SequenceFormat.PortableText)
+        normalized = sequence.toString(QKeySequence.SequenceFormat.PortableText)
+        if normalized in owners:
+            raise ValueError(f"Phím tắt trùng nhau: {owners[normalized]} và {name}")
+        owners[normalized] = name
+    return merged
 
 
 class MainWindow(QMainWindow):
@@ -281,10 +332,12 @@ class MainWindow(QMainWindow):
         for name,(default,callback) in keys.items():
             action=QAction(name,self);action.setShortcut(QKeySequence(remap.get(name,default)))
             def invoke(_checked=False,callback=callback,name=name):
-                focused=QApplication.focusWidget()
-                if isinstance(focused,(QLineEdit,QPlainTextEdit,QTextEdit)) and name in {'Undo','Redo','Nhân bản','Split','Đưa vào hàng đợi','Phát/dừng','Marker','Đặt In','Đặt Out','Nhóm layer','Bỏ nhóm','Khóa layer'}:
-                    if name=='Undo':focused.undo()
-                    elif name=='Redo':focused.redo()
+                policy, target = shortcut_focus_policy(QApplication.focusWidget())
+                if name in _EDITOR_SHORTCUT_ACTIONS and policy != "global":
+                    if policy == "text" and name == "Undo":
+                        target.undo()
+                    elif policy == "text" and name == "Redo":
+                        target.redo()
                     return
                 self.guard(callback)()
             action.triggered.connect(invoke);menu.addAction(action);self.actions[name]=action
@@ -295,11 +348,10 @@ class MainWindow(QMainWindow):
         text,ok=QInputDialog.getMultiLineText(self,'Phím tắt','JSON tên → phím (để trống để bỏ)',json.dumps(data,ensure_ascii=False,indent=2))
         if not ok:return
         changed=json.loads(text)
-        if not isinstance(changed,dict) or set(changed)-set(data):raise ValueError('Tên thao tác không hợp lệ')
-        normalized=[QKeySequence(value).toString() for value in changed.values() if value]
-        if len(set(normalized))!=len(normalized):raise ValueError('Phím tắt trùng nhau')
-        for name,value in changed.items():self.actions[name].setShortcut(QKeySequence(value))
-        self.store.set_setting('shortcuts',changed)
+        normalized = normalize_shortcut_remap(changed, data)
+        for name,value in normalized.items():
+            self.actions[name].setShortcut(QKeySequence(value))
+        self.store.set_setting('shortcuts', normalized)
 
     def add_marker(self):self.editor.timeline.markers.append(self.editor.timeline.playhead);self.editor.timeline.rebuild()
     def help(self):

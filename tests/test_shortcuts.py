@@ -1,0 +1,62 @@
+import os
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+import pytest
+from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QComboBox, QListWidget, QPushButton, QWidget
+from fonesi_edit.app import normalize_shortcut_remap, shortcut_focus_policy
+
+APP = QApplication.instance() or QApplication([])
+
+
+@pytest.mark.parametrize("widget,expected", [
+    (QLineEdit(), "text"),
+    (QPlainTextEdit(), "text"),
+    (QTextEdit(), "text"),
+    (QSpinBox(), "control"),
+    (QComboBox(), "control"),
+    (QListWidget(), "control"),
+    (QPushButton("Run"), "control"),
+    (QWidget(), "global"),
+])
+def test_shortcut_focus_policy_classifies_interactive_focus(widget, expected):
+    policy, target = shortcut_focus_policy(widget)
+    assert policy == expected
+    assert target is (widget if expected != "global" else None)
+
+
+def test_shortcut_focus_policy_follows_parent_chain_for_editor_controls():
+    parent = QSpinBox()
+    child = QLineEdit(parent)
+    policy, target = shortcut_focus_policy(child)
+    assert policy == "text"
+    assert target is child
+
+
+def test_partial_shortcut_remap_merges_and_normalizes_existing_values():
+    current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z", "Save": "Ctrl+S"}
+    changed = normalize_shortcut_remap({"Undo": "Ctrl+Y"}, current)
+    assert changed == {"Undo": "Ctrl+Y", "Redo": "Ctrl+Shift+Z", "Save": "Ctrl+S"}
+
+
+def test_shortcut_remap_allows_explicitly_disabling_one_action():
+    current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z"}
+    assert normalize_shortcut_remap({"Undo": ""}, current) == {"Undo": "", "Redo": "Ctrl+Shift+Z"}
+
+
+def test_shortcut_remap_rejects_duplicate_after_normalization():
+    current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z"}
+    with pytest.raises(ValueError, match="trùng"):
+        normalize_shortcut_remap({"Redo": "Ctrl+Z"}, current)
+
+
+def test_shortcut_remap_rejects_multi_stroke_sequence():
+    current = {"Undo": "Ctrl+Z", "Redo": "Ctrl+Shift+Z"}
+    with pytest.raises(ValueError, match="một tổ hợp"):
+        normalize_shortcut_remap({"Undo": "Ctrl+K, Ctrl+C"}, current)
+
+
+def test_shortcut_remap_rejects_unknown_action_and_non_string_values():
+    with pytest.raises(ValueError, match="Tên thao tác"):
+        normalize_shortcut_remap({"Delete everything": "Ctrl+X"}, {"Undo": "Ctrl+Z"})
+    with pytest.raises(ValueError, match="phải là chuỗi"):
+        normalize_shortcut_remap({"Undo": 7}, {"Undo": "Ctrl+Z"})
