@@ -39,3 +39,14 @@ Project tự lưu, có recovery và liên kết lại media. Menu Thao tác có 
 Ctrl+S lưu project; Ctrl+Z/Ctrl+Shift+Z undo/redo; Ctrl+B chia clip; I/O đặt In/Out; Ctrl+G/Ctrl+Shift+G nhóm/bỏ nhóm; Ctrl+L khóa layer; M đặt marker; Space phát/dừng; Ctrl+, cài đặt; F5 quét công cụ; F1 hướng dẫn. Menu Thao tác cho đổi phím và kiểm tra trùng. Mũi tên/Shift+mũi tên trên canvas dịch 1/10 pixel; trên timeline đi 1 frame/1 giây. Alt tắt snap tạm, Ctrl+con lăn zoom. Delete chỉ bỏ layer khỏi project.
 
 Developer có thể chạy `uv run fonesi-edit --verify .local/proof-new` và `uv run python scripts/verify_packaged.py` sau build. Chỉ dùng dữ liệu synthetic/localhost, không xác nhận tải mạng xã hội hay dịch live. Xem [đối chiếu triển khai](IMPLEMENTATION_COVERAGE.md) cho các tùy chọn còn mở.
+
+
+## Preview In–Out, thumbnail và proxy (bản development)
+
+Trong **Editor / preset**, đặt In bằng **I** và Out bằng **O**, rồi vào **Thao tác thêm → Lặp đoạn In–Out (preview đã render)**. Loop chỉ seek trong video dựng bằng compositor đúng composition hiện tại, không lặp trực tiếp theo timestamp file gốc khi clip có trim/speed. Sau khi chỉnh layer/clip cần dựng lại preview.
+
+**Thao tác thêm → Thumbnail video trên timeline (tạo nền)**: bật/tắt bằng undo/save project; app tạo 3 PNG nguồn/clip đang nhìn thấy, dùng FFmpeg/cache background, không thay media. Đây là ảnh của video *nguồn*, không phải frame chứa hiệu ứng final.
+
+**Thao tác thêm → Proxy nguồn**: chọn Không dùng / Nhanh (640px) / Cân bằng (1280px) / Cao (1920px). FFmpeg tạo MP4 H.264/AAC theo nguồn đang chọn trong cache per-user, validate trước khi dùng; video gốc và export final luôn giữ nguyên. Proxy chỉ tăng tốc phát **nguồn**, không phản ánh toàn bộ text/logo/sub; dùng nút **Preview có âm thanh** để kiểm tra composition đã dựng.
+
+Trong **Cài đặt → Tự động / máy**, đặt **Giới hạn cache proxy (MiB)** (128–65536, mặc định 4096) và bấm **Dọn cache proxy an toàn** nếu muốn quét ngay. App dọn file proxy cũ chỉ có filename hash khi vượt quota; không xóa thư mục tải, nguồn, render output, media đang phát, hồ sơ Chrome hoặc tool. Cache downloader/dịch có phạm vi quản lý khác.
