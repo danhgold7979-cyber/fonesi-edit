@@ -547,3 +547,87 @@ def test_custom_canvas_grid_spacing_rejects_out_of_range_values():
         editor.close()
         host.workspace.cleanup()
 
+def test_inspector_property_search_filters_rows_case_insensitively_without_project_mutation():
+    host = Host()
+    editor = Editor(host)
+    try:
+        editor.add_layer('text')
+        before = editor.composition.to_dict()
+        editor.property_search.setText("FONT")
+        font_row, _ = editor.field_forms["style.font_family"].getWidgetPosition(
+            editor.fields["style.font_family"][0]
+        )
+        x_row, _ = editor.field_forms["x"].getWidgetPosition(editor.fields["x"][0])
+        assert editor.field_forms["style.font_family"].isRowVisible(font_row)
+        assert not editor.field_forms["x"].isRowVisible(x_row)
+        assert editor.composition.to_dict() == before
+        editor.property_search.clear()
+        assert editor.field_forms["x"].isRowVisible(x_row)
+        assert editor.composition.to_dict() == before
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+
+def test_reset_layer_properties_preserves_identity_content_and_is_one_undo_step():
+    from fonesi_edit.domain import Layer
+    host = Host()
+    editor = Editor(host)
+    try:
+        layer = Layer(
+            kind="text", name="Custom title", text="Keep this text",
+            x=.4, y=.3, width=.6, height=.2, rotation=45, opacity=.4,
+            style={"font_size": 48, "color": "#ff0000", "outline": 4},
+            motion={"preset": "zoom", "zoom_min": .5, "zoom_max": 2},
+            keyframes={"x": [{"time": 0.0, "value": .4}]},
+            group="group-keep", clip_ids=["clip-keep"],
+        )
+        editor.composition.layers.append(layer)
+        editor.selected_id = layer.id
+        editor.selected_ids = {layer.id}
+        editor.refresh()
+        editor.undo.clear()
+        editor.reset_layer_properties()
+        restored = editor.layer()
+        assert restored is not None
+        assert restored.id == layer.id
+        assert restored.name == "Custom title"
+        assert restored.text == "Keep this text"
+        assert restored.path is None
+        assert restored.group == "group-keep"
+        assert restored.clip_ids == ["clip-keep"]
+        assert (restored.x, restored.y, restored.width, restored.height, restored.rotation, restored.opacity) == pytest.approx((.05, .08, .3, .1, 0, 1))
+        assert restored.style == {"font_size": 32, "color": "#ffffff", "outline": 2, "outline_color": "#000000"}
+        assert restored.motion == {"preset": "fixed", "speed": 20, "duration": 5, "delay": 0, "repeat": True, "easing": "linear"}
+        assert restored.keyframes == {}
+        assert editor.undo.count() == 1
+        editor.undo.undo()
+        restored = editor.layer()
+        assert restored.rotation == 45
+        assert restored.text == "Keep this text"
+        assert restored.keyframes["x"][0]["value"] == .4
+        editor.undo.redo()
+        assert editor.layer().rotation == 0
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+
+def test_reset_layer_properties_requires_unlocked_selected_layer():
+    from fonesi_edit.domain import Layer
+    host = Host()
+    editor = Editor(host)
+    try:
+        layer = Layer(kind="text", locked=True, rotation=45)
+        editor.composition.layers.append(layer)
+        editor.selected_id = layer.id
+        editor.refresh()
+        editor.undo.clear()
+        editor.reset_layer_properties()
+        assert editor.layer().rotation == 45
+        assert editor.undo.count() == 0
+        assert any("mở khóa" in message for message in host.errors)
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
