@@ -1,26 +1,54 @@
-# P02 — Plan chi tiết trước khi code kiểm chứng
+# P02 clean rebuild plan — Reproducible technical proof
 
-Đã đọc lại IMPLEMENTATION_PLAN v1.1 và P01_RESULTS. P01 đã chốt thiết kế; P02 xây mẫu chạy thật trước khi scaffold sản phẩm P03. Không đánh dấu P03 bắt đầu khi cổng P02 còn thiếu bằng chứng.
+Status: PLANNED; authored before clean implementation on `rebuild/spec-first-2026-10-28`.
+Baseline: `5e8ac83fdcd2182b5fcb71ed2ec6825cca384a2d`. Previous evidence is historical, never new-code evidence.
 
-## Lát cắt triển khai
+## Alignment and dependencies
+Master: [REBUILD_MASTER_PLAN.md](../REBUILD_MASTER_PLAN.md). Original scope: [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md), three source specifications.
+Dependencies: P01 contracts; prior phase interfaces (independent local work proceeds while external gates remain open).
 
-1. Khóa môi trường Python 3.12, Qt/PySide6, yt-dlp, gallery-dl và pytest bằng lockfile; dùng FFmpeg/ffprobe hiện có. Không tải binary không xác minh.
-2. Code namespace `fonesi_edit.prototypes`: probe và render media thật, scan công cụ và Chrome chính thức, adapter dịch chỉ chạy khi có cấu hình hợp lệ.
-3. Tạo fixture lavfi có nhãn synthetic, sub Việt/Trung, đường dẫn Unicode; render CPU có sub, text/logo alpha và vùng che, kiểm tra tracks/duration/decode.
-4. Prototype Qt mở media cục bộ, kiểm tra tool, cấu hình render, preview tham chiếu do FFmpeg tạo và playback bằng QtMultimedia. Kéo overlay là phép thử UX, không tự nhận full editor P04.
-5. Thử live public metadata/download có timeout và ghi lỗi cụ thể. Không bắt người dùng đưa tài khoản trong chat; không đọc browser profile cá nhân.
-6. Kiểm tra encoder CPU/GPU bằng encode thật; so font/alpha/frame khi engine hỗ trợ. Ghi unknown/blocked thay vì pass khi chưa có phần cứng.
-7. Ghi version, command, fixture, timings và kết quả ở P02_RESULTS; tách local PASS khỏi live source/translation/Windows/Chrome BLOCKED.
-8. Thêm GitHub Actions Linux/Windows với action SHA đã đọc từ repository chính thức, dependency lock, kiểm tra local và build proof trên Windows. CI chỉ chứng minh phần thực sự chạy; chưa có kết quả thì pending. CI không tự đăng nhập tài khoản nguồn hoặc thay nghiệm thu GPU/máy người dùng.
+## Concrete execution order
+Measure actual toolchain first; retain every external gate as NOT RUN, not simulated pass. Pin versions that really install. Establish explicit time/frame tolerances with synthetic fixtures.
 
-## Kiểm tra bắt buộc trước đóng phase
+## Task inventory (all original tasks retained)
+- [ ] P02-01: ghi toolchain/máy/OS/codec/filter/encoder/font; lấy công cụ từ nguồn tin cậy, giữ TLS/checksum/chữ ký, pin sau kiểm chứng.
+- [ ] P02-02: thử yt-dlp/gallery-dl trên nguồn công khai và nguồn có cấu hình đăng nhập; quét nhiều trang, tải video/ảnh/sub theo bảng nền tảng.
+- [ ] P02-03: thử dịch Trung–Việt với thuật ngữ/tên riêng/câu dài; so chất lượng, tốc độ, chi phí, cache và quota.
+- [ ] P02-04: so engine preview cho Qt; mẫu alpha logo, chữ Việt/Trung, blur, seek, waveform, keyframe, audio; so mốc với FFmpeg export.
+- [ ] P02-05: thử CPU/encoder GPU thật, phân biệt encode GPU và filter CPU; đo RAM/VRAM và fallback.
+- [ ] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. Không để P12 mới thử đóng gói.
+- [ ] P02-07: benchmark có máy/mẫu; chốt ngân sách UI/proxy/seek, sai số hình/thời gian và mức song song ban đầu trước P04/P07.
+- [ ] P02-08: ghi quyết định provider dịch, preview, FFmpeg build, packaging; blocker cho Windows/nguồn chưa truy cập được.
+- [ ] P02-09: thử discovery/tool manifest, nguồn Windows đáng tin, đường dẫn tùy chỉnh/version/capability, tải-cài-verify và rollback khi job đang dùng bản cũ.
+- [ ] P02-10: Google Chrome chính thức trên Windows, hồ sơ độc lập, nhiều nền tảng/một hồ sơ và nhiều nick cùng nền tảng khác hồ sơ; kiểm chứng session handoff vào downloader với Chrome đang mở, mã hóa hiện tại và account mismatch.
 
-- Unit/integration có ý nghĩa: cue parser/time mapping, path Unicode/escaping, no overwrite, FFmpeg failure, media validation; real FFmpeg output và Qt offscreen smoke.
-- Proof download từ một URL không thay kiểm chứng kênh nhiều trang.
-- Provider thiếu key chỉ xác minh báo cấu hình thiếu; không coi là bản dịch thật.
-- Windows packaging và Chrome thật cần Windows; Chromium Linux không phải evidence thay thế.
-- Nếu thiếu prerequisite bên ngoài, hoàn thành mọi nhánh độc lập và ghi BLOCKED rõ; chưa chuyển phase phụ thuộc hoặc tuyên bố toàn app sẵn sàng.
+## Deliverables
+scripts/prove_environment.py; docs/rebuild/evidence/environment.json; locked dependency manifest
 
-## Không làm trong phase này
+## Tests before results may claim pass
+Record actual OS, Python, Qt, FFmpeg/ffprobe versions, CPU encode/probe/decode with Unicode path, headless Qt startup and package smoke.
 
-Chưa triển khai DB/scheduler bền vững, tất cả connector/auth, installer tự động, batch và ma trận hoàn chỉnh; chúng có phase riêng. Không dựng button giả báo thành công cho chức năng chưa có.
+## Requirement traceability
+| ID | Requirement | Source | Tasks | Required acceptance evidence |
+| --- | --- | --- | --- | --- |
+| SRC-02 | Mọi nền tảng đã nêu, capabilities riêng | PR 3.1 | P02-02, P05-07 | Mỗi loại nguồn có trạng thái/evidence theo bảng nền tảng |
+| SUB-03 | Dịch Trung–Việt, ngữ cảnh/thuật ngữ/tên riêng | PR 4.1 | P02-03, P06-03 | Provider thật, ánh xạ cue đầy đủ, mẫu được đọc soát |
+| ED-07 | Font glyph/fallback/thiếu font và Unicode | ED 3.1 | P02-04, P07-01 | Việt/Trung đúng; thiếu font có cảnh báo/thay hàng loạt |
+| ED-20 | Preview-export và CPU/GPU capability | PR 8; ED 7 | P02-04, P02-05, P07-08 | Frame/time/audio trong dung sai, unsupported báo đúng |
+| AUTO-04 | CPU/GPU/Auto và metrics khả dụng | PR 8 | P02-05, P10-04 | Encode thật, unknown hiển thị đúng, fallback có log |
+| WIN-01 | Build tái lập, user data tách, không bộ dev | PR 11 | P02-06, P12-01 | App đóng gói chạy trên Windows mục tiêu |
+| TOL-02 | Trỏ đường dẫn, chọn bản, kiểm tra hoạt động | SB 2.1 | P02-09, P03-08 | Unicode/timeout/sai version/capability báo đúng, không sửa tool ngoài |
+| TOL-03 | FFmpeg/ffprobe/downloader và dependency theo workflow | SB 2.2 | P02-09, P03-08 | Manifest đúng kiến trúc/phiên bản/capability, không bắt cài dev tools vô cớ |
+| TOL-05 | Trusted artifacts, TLS/checksum/chữ ký | SB 2.3 | P02-09, P03-08 | Artifact lỗi bị chặn, bản cũ và cấu hình được giữ |
+| TOL-07 | Chrome chính thức quét/trỏ/tải-cài | SB 2.2, 3 | P02-10, P04-08, P12-07 | Google Chrome thật, không WebView/Chromium giả thay thế |
+| AUTH-02 | Chrome thật với user-data-dir riêng, nhiều nền tảng/một hồ sơ | SB 3 | P02-10, P05-08 | Profile A lưu nhiều phiên website, đóng/mở vẫn đúng khi còn hợp lệ |
+| AUTH-06 | Session handoff tương thích Chrome/OS/connector | SB 6 | P02-10, P05-09 | Bộ tải dùng phiên thật; không tắt mã hóa hoặc coi web login là đã đạt |
+
+## Acceptance gate
+CPU media proof and reproducible dependency install local; full gate also requires real Windows, Chrome, GPU and configured translation/live sources.
+
+## External/hardware blockers
+Windows/GPU/real Chrome and user credentials/provider unavailable in cloud. Known old Windows gallery-dl failure remains unresolved until re-tested.
+
+## Result recording
+Record implemented code paths, exact command/commit, pass/fail/not-run/skipped, remaining UI/subproperties and external prerequisites in `P02_RESULTS.md`. No task/group passes because only one example works.

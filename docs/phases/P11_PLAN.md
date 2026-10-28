@@ -1,21 +1,45 @@
-# P11 — Tích hợp và hoàn thiện
+# P11 clean rebuild plan — Integration, durability and honest coverage
 
-Đã đọc master P11, tất cả phase plans/results local và 95 nhóm yêu cầu. Chỉ đạo tiếp tục không biến kiểm tra bên ngoài thành pass.
+Status: PLANNED; authored before clean implementation on `rebuild/spec-first-2026-10-28`.
+Baseline: `5e8ac83fdcd2182b5fcb71ed2ec6825cca384a2d`. Previous evidence is historical, never new-code evidence.
 
-1. Chạy toàn bộ suite: Store/worker, editor, downloads/session, captions/translation, motion/render, batch/matrix/automation/tools.
-2. Tạo app production thật đủ khu vực, save/autosave/preset, nguồn/job UI, sub editor, dry-run batch, matrix model virtualized, Settings tools/browser/provider/resources.
-3. Integration UI→snapshot→worker→FFmpeg→artifact, mở lại project/queue; kiểm tra scope, shortcut không ăn IME, lỗi source/quota/no overwrite.
-4. Rà bug time map, input hashing, cancel, app close, CLI/tool override và browser secret boundary; fix và chạy lại check bị ảnh hưởng.
-5. Báo riêng implemented/local-tested/live-blocked/pending; không đánh dấu full Windows/platform/AI đã có. Lưu hiện vật/run summary và cập nhật traceability thực tế.
+## Alignment and dependencies
+Master: [REBUILD_MASTER_PLAN.md](../REBUILD_MASTER_PLAN.md). Original scope: [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md), three source specifications.
+Dependencies: P01 contracts; prior phase interfaces (independent local work proceeds while external gates remain open).
 
-## Vòng rà soát tích hợp tiếp theo
+## Concrete execution order
+Run all tests after final edits, collect real tool/version/test evidence; audit all 95 groups against concrete code/UI and test; fix regressions and record remaining scope without percentage inflation.
 
-Đối chiếu lại master P03–P12 trước sửa: ưu tiên đường dùng xuyên tab và kiểm chứng binary.
+## Task inventory (all original tasks retained)
+- [ ] P11-01: end-to-end các workflow/nguồn hỗ trợ; dọc/ngang/CFR/VFR/rotation/audio lệch hoặc không audio/sub sau speed-trim.
+- [ ] P11-02: crash worker/app/mạng/auth/rate limit/quota/tệp hỏng/thiếu font-media/quyền ghi-đĩa đầy; retry/resume.
+- [ ] P11-03: lô lớn/nhiều layer/ma trận lớn/tải+render; đo UI/proxy/seek/RAM/VRAM/rò tài nguyên trên máy tham chiếu.
+- [ ] P11-04: đối chiếu frame/sub/audio/duration theo dung sai; sửa nguyên nhân, không tắt kiểm tra để đạt.
+- [ ] P11-05: rà mọi hàng truy vết, mọi tùy chọn/phím tắt/focus/HiDPI/theme/persistence/preset migration.
+- [ ] P11-06: nguồn có phiên bản/ngày/evidence, tách lỗi app/hạn chế nguồn/blocker cấu hình; không đóng mục chưa chạy thành công.
+- [ ] P11-07: log/backup/cache/dependency, lỗi còn lại theo mức ảnh hưởng và cách khắc phục.
+- [ ] P11-08: missing/wrong tools, installer ngắt/verify lỗi/quyền ghi/update bận; Chrome A nhiều nền tảng, Chrome B nick khác, phiên hết hạn/challenge/mismatch/lock/bridge không dùng được, export không chứa session.
 
-- P06-05/P07-08/P08-02/P09-06: sub là layer kéo được; bind lại đúng sidecar từng video trong batch/ma trận, map trim/speed/loop, chuỗi dịch cập nhật đúng tham chiếu; lưu bản nháp bảng sub.
-- P03-04/P03-05/P09-03: khóa scheduler, migration có backup, kiểm tra W/K lần cuối trong transaction đặt chỗ, tên đầu ra theo thứ tự hàng và snapshot tool.
-- P04-03/P04-05/P07-01: đa chọn/nhóm, căn chỉnh, clip inspector, ripple/in-out và audio timeline; giữ undo nguyên tử và font riêng trong canvas.
-- P03-08/P10-04: repair cài bản mới cạnh bản hỏng, không thay tệp đang được job sử dụng; kiểm tra nguồn dịch không chứa bí mật trong URL.
-- P12-01/P12-03: chạy batch + matrix thật qua worker binary; CI build production trên Linux/Windows và giữ evidence cụ thể. Cập nhật README/hướng dẫn/trạng thái theo kết quả thực.
+## Deliverables
+tests/test_integration.py; scripts/verify_rebuild.py; docs/rebuild/evidence/verification.json
 
-Vòng công cụ phụ: import/export preset schema có kiểm tra, thu hồi pairing extension theo profile không xóa Chrome, giữ undo riêng của ô nhập khi phím tắt ứng dụng có focus. Đối chiếu OPS-07/AUTH-11/ED-19 trước đóng gói lại.
+## Tests before results may claim pass
+End-to-end local media → subtitles → edits → batch/matrix → validation; corrupted file, killed worker, recovery, collision, disk admission; regression UI tests; coverage audit for every requirement and shortcut.
+
+## Requirement traceability
+| ID | Requirement | Source | Tasks | Required acceptance evidence |
+| --- | --- | --- | --- | --- |
+| OPS-05 | Worker ngoài UI, lỗi tách biệt, log chẩn đoán | PR 8–9 | P03-04, P11-02 | FFmpeg/worker lỗi không sập UI hoặc mất lô |
+| OPS-07 | Preset import/export/copy nhóm/tài nguyên thiếu | ED 8 | P01-04, P08-02, P11-05 | Đủ công cụ phụ, version/thiếu tài nguyên được báo |
+| OPS-08 | Menu/search/folder gần dùng/theme/HiDPI | ED 1, 8 | P04-01, P11-05 | Thao tác chuột/phím, ngữ cảnh và tỉ lệ màn hình dùng được |
+| AUTH-09 | Đổi nick/mismatch, không xoay tài khoản tự động | SB 5 | P05-10, P11-08 | Job cũ không chạy bằng nick mới; rate limit không tự coi hết hạn |
+| AUTH-11 | Browser data riêng, export/dọn/xóa liên kết khác xóa profile | SB 4–5, 8 | P03-09, P10-07, P11-08 | Export không lộ session, cache cleanup không xóa profile, xóa dữ liệu có thao tác riêng |
+
+## Acceptance gate
+No data loss, wrong identity/language/combinations or success without validation; all tests pass or exact failures/blockers documented; incomplete requirements stay open.
+
+## External/hardware blockers
+Cannot close live/provider/Windows requirements using localhost or mocked tests.
+
+## Result recording
+Record implemented code paths, exact command/commit, pass/fail/not-run/skipped, remaining UI/subproperties and external prerequisites in `P11_RESULTS.md`. No task/group passes because only one example works.
