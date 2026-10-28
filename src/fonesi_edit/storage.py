@@ -2,7 +2,9 @@
 from contextlib import contextmanager
 from pathlib import Path
 import json
+import os
 import sqlite3
+import tempfile
 import time
 
 from .domain import canonical, checked_payload, identifier
@@ -30,6 +32,49 @@ CREATE TABLE IF NOT EXISTS schedules(id TEXT PRIMARY KEY,data TEXT NOT NULL,next
 """
 
 
+def _backup_connection(source: sqlite3.Connection, destination: Path) -> Path:
+    """Create, validate, then atomically publish a backup without overwriting a file."""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError(destination)
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".fonesi-backup-", suffix=".tmp", dir=destination.parent
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        with sqlite3.connect(temporary) as target:
+            source.backup(target)
+            target.commit()
+
+        with sqlite3.connect(temporary) as check:
+            row = check.execute("PRAGMA integrity_check").fetchone()
+            if not row or row[0] != "ok":
+                detail = row[0] if row else "no result"
+                raise sqlite3.DatabaseError(f"Backup integrity_check failed: {detail}")
+
+        with temporary.open("rb+") as stream:
+            stream.flush()
+            os.fsync(stream.fileno())
+
+        try:
+            # Source and destination share a directory/filesystem. Hard-link
+            # publication is atomic and fails if the destination appeared meanwhile.
+            os.link(temporary, destination)
+        except FileExistsError:
+            raise
+        except OSError as exc:
+            raise RuntimeError(
+                "Atomic backup publication requires hard-link support on the destination "
+                "filesystem; backup was not published"
+            ) from exc
+        return destination
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 class Store:
     def __init__(self, path: Path):
         self.path = path.resolve()
@@ -40,7 +85,7 @@ class Store:
                 raise ValueError("Database is newer than this application")
             if version==1:
                 backup=self.path.with_name(self.path.stem+'.before-v2-'+identifier()[:8]+'.db')
-                with sqlite3.connect(backup) as target:conn.backup(target)
+                _backup_connection(conn, backup)
             conn.executescript(SCHEMA)
             columns={r[1] for r in conn.execute('PRAGMA table_info(jobs)')}
             if 'started' not in columns:conn.execute('ALTER TABLE jobs ADD COLUMN started REAL')
@@ -62,10 +107,8 @@ class Store:
             conn.close()
 
     def backup(self, destination: Path):
-        if destination.exists():
-            raise FileExistsError(destination)
-        with self.connect() as source, sqlite3.connect(destination) as target:
-            source.backup(target)
+        with self.connect() as source:
+            return _backup_connection(source, destination)
 
     def setting(self, key, default=None):
         with self.connect() as conn:
