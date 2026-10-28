@@ -473,14 +473,14 @@ def test_paste_layer_clamps_offset_to_canvas_bounds():
         editor.close()
         host.workspace.cleanup()
 
-@pytest.mark.parametrize("step,expected", [
-    (.05, (.1, .3)),
-    (.1, (.1, .3)),
-    (.2, (.2, .4)),
+@pytest.mark.parametrize("step,x0,y0,expected", [
+    (.05, .101, .301, (.1, .3)),
+    (.1, .101, .301, (.1, .3)),
+    (.2, .199, .399, (.2, .4)),
 ])
-def test_canvas_grid_snap_uses_selected_spacing(step, expected):
+def test_canvas_grid_snap_uses_selected_spacing(step, x0, y0, expected):
     from fonesi_edit.ui.canvas import snap_layer_position
-    x, y = snap_layer_position(.101, .301, .1, .1, grid=True, grid_step=step)
+    x, y = snap_layer_position(x0, y0, .1, .1, grid=True, grid_step=step)
     assert (x, y) == pytest.approx(expected)
 
 
