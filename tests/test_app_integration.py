@@ -95,6 +95,7 @@ def test_undo_while_editing_text_uses_the_input_history(tmp_path):
 def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp_path):
     from PySide6.QtCore import Qt
     window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True  # Do not send synthetic example.test jobs to network.
     try:
         payload={'url':'https://example.test/channel','folder':str(tmp_path/'downloads'),
                  'engine':'gallery','media':'images','limit':0,'subtitles':False}
@@ -132,6 +133,7 @@ def test_scan_selection_tree_enqueues_only_checked_items_and_survives_reopen(tmp
         close(window)
 
     reopened=MainWindow(tmp_path/'state')
+    reopened.scheduler.paused=True
     try:
         reopened.downloads.show_scan()
         assert reopened.downloads.scan_tree.topLevelItem(0).childCount()==3
