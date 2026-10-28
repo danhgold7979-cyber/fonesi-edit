@@ -290,3 +290,20 @@ def test_matrix_regeneration_does_not_overwrite_edits_done_while_worker_runs(tmp
     finally:
         proceed.set()
         close(window)
+
+
+
+def test_matrix_ui_angle_usage_summary_labels_planned_not_rendered(tmp_path):
+    from fonesi_edit.matrix import Angle
+    window=MainWindow(tmp_path/'state')
+    try:
+        source=[[Angle(1,1,'/fake/1.mp4','s1'),Angle(1,2,'/fake/2.mp4','s2')],
+                [Angle(2,1,'/fake/3.mp4','s3')]]
+        window.matrix.model.replace(source,[[source[0][0],source[1][0]]])
+        groups=window.matrix.statistics()
+        assert [item['uses'] for item in groups[0]]==[1,0]
+        assert [item['uses'] for item in groups[1]]==[1]
+        assert 'không phải số video đã render' in window.matrix.summary.text()
+        assert 'C1: G1=1' in window.matrix.summary.text()
+    finally:
+        close(window)
