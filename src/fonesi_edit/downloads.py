@@ -36,8 +36,19 @@ class QuietLogger:
 
 def execute_download_job(store,job,progress,cancel):
     payload=job['payload'];url=payload['url'];platform=platform_for(url)
-    binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
     engine=payload.get('engine','auto')
+    media=payload.get('media','both')
+    if engine not in {'auto','video','gallery'}:
+        raise ValueError('Unsupported downloader engine; use auto, video or gallery')
+    if media not in {'both','videos','images'}:
+        raise ValueError('Unsupported media type; use both, videos or images')
+    try:
+        limit=int(payload.get('limit',0))
+    except (ValueError,TypeError):
+        raise ValueError('Download limit must be a nonnegative integer') from None
+    if limit<0:
+        raise ValueError('Download limit must be a nonnegative integer')
+    binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
     if engine=='auto' and payload.get('media')=='both' and platform in {'Facebook','TikTok','Douyin','Kuaishou'}:
         combined=[];warnings=[]
         for index,(chosen,media) in enumerate([('video','videos'),('gallery','images')]):
@@ -48,7 +59,8 @@ def execute_download_job(store,job,progress,cancel):
                 combined.extend(result.get('files' if job['kind']=='download' else 'items',[]))
             except Exception as exc:
                 if cancel.is_set():raise
-                warnings.append(chosen+': '+str(exc)[-500:])
+                from .worker import sanitize_error_message
+                warnings.append(chosen+': '+sanitize_error_message(exc,limit=500))
         if not combined:raise RuntimeError('Không có artifact hợp lệ. '+'; '.join(warnings))
         return {'platform':platform,'files' if job['kind']=='download' else 'items':combined,'count':len(combined),'warnings':warnings,'complete':None,'live_channel_verified':False}
     if engine=='auto':engine='gallery' if payload.get('media')=='images' or (payload.get('media')=='both' and platform in {'Instagram','Threads','X','Xiaohongshu'}) else 'video'
@@ -112,7 +124,7 @@ def execute_download_job(store,job,progress,cancel):
 
 def _gallery(store,job,platform,root,jar,progress,cancel):
     from gallery_dl import config,job as gallery_job,exception
-    payload=job['payload'];limit=int(payload.get('limit',0)) or 1000000
+    payload=job['payload'];limit=max(0,int(payload.get('limit',0))) or 1000000
     config.clear();config.set(('output',),'mode','null')
     config.set(('extractor',),'base-directory',str(root/platform))
     config.set(('extractor',),'directory',['{_fonesi_channel}','{_fonesi_kind}'])
@@ -162,7 +174,12 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
             if len(files)>=limit:raise exception.StopExtraction()
     instance=Scanner(payload['url'],file=io.StringIO()) if job['kind']=='scan' else Downloader(payload['url'])
     if jar:
-        for cookie in jar:instance.extractor.session.cookies.set_cookie(cookie)
+        # gallery-dl only creates the requests session during extractor.initialize().
+        # Initialize first, then attach the selected account's cookies to that
+        # session. Job.run() safely calls the now-idempotent initializer again.
+        instance.extractor.initialize()
+        for cookie in jar:
+            instance.extractor.session.cookies.set_cookie(cookie)
 
     # gallery-dl handles many extractor exceptions internally and returns a status
     # code. Capture warning/error records so a failed packaged proof is diagnosable,
@@ -171,13 +188,8 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
     class DiagnosticCapture(logging.Handler):
         def emit(self,record):
             try:
-                message=record.getMessage()
-                message=re.sub(r'(?i)\b(token|api[_-]?key|password|cookie|secret|signature|access_token)=([^&\s]+)',r'\1=[redacted]',message)
-                def safe_url(match):
-                    value=match.group(0)
-                    parts=urlsplit(value.rstrip('),.;'))
-                    return f'{parts.scheme}://{parts.netloc}{parts.path}'
-                message=re.sub(r'https?://[^\s\'\"<>]+',safe_url,message)
+                from .worker import sanitize_error_message
+                message=sanitize_error_message(record.getMessage(),limit=500)
                 diagnostics.append(f'{record.levelname}: {message[:500]}')
                 if len(diagnostics)>12:del diagnostics[:-12]
             except Exception:
