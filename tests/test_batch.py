@@ -225,3 +225,27 @@ def test_batch_sfx_percent_anchor_retargets_each_source_duration(tmp_path):
     # percentage placement must use *probed output time*, not a fixture hint.
     assert delays[.5]<delays[1.5]
     assert preset.audio[0]['position_pct']==50
+
+
+
+def test_multi_root_batch_scan_deduplicates_nested_paths_and_ignores_outputs(tmp_path):
+    from fonesi_edit.batch import scan_multiple_folders
+    for name in ('Alpha/videos/clip2.mp4','Alpha/videos/clip10.mp4',
+                 'Beta/videos/camera1.mkv','Alpha edit/videos/render.mp4',
+                 'cache/temp.mp4'):
+        f=tmp_path/name;f.parent.mkdir(parents=True,exist_ok=True)
+        f.write_bytes(b'media-file-stub')
+    alpha=tmp_path/'Alpha'
+    beta=tmp_path/'Beta'
+    result=scan_multiple_folders([alpha,tmp_path,beta,alpha])
+    assert set(result)=={str(alpha.resolve()),str(beta.resolve())}
+    assert [Path(p).name for p in result[str(alpha.resolve())]]==[
+        'clip2.mp4','clip10.mp4']
+    assert [Path(p).name for p in result[str(beta.resolve())]]==[
+        'camera1.mkv']
+    assert len([p for items in result.values() for p in items])==3
+    assert (tmp_path/'Alpha edit/videos/render.mp4').exists()
+    with pytest.raises(ValueError,match='ít nhất một'):
+        scan_multiple_folders([])
+    with pytest.raises(NotADirectoryError):
+        scan_multiple_folders([tmp_path/'does-not-exist'])
