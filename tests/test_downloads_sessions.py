@@ -255,3 +255,17 @@ def test_mixed_source_scan_preserves_each_item_extractor_and_account_scope():
     scan['result']['items'][1]['engine']='invalid'
     with pytest.raises(ValueError,match='adapter'):
         selected_download_payloads(scan,[1])
+
+
+def test_duplicate_scanned_urls_cannot_enqueue_two_jobs_for_same_item():
+    from fonesi_edit.downloads import selected_download_payloads
+    url='https://example.test/media/repeated.png'
+    scan={'kind':'scan','state':'succeeded',
+          'payload':{'url':'https://example.test/gallery','folder':'D:/output'},
+          'result':{'platform':'Generic','items':[
+              {'kind':'images','url':url,'id':'first','selectable':True},
+              {'kind':'images','url':url,'id':'repeated','selectable':True},
+          ]}}
+    with pytest.raises(ValueError,match='URL lặp'):
+        selected_download_payloads(scan,[0,1])
+    assert len(selected_download_payloads(scan,[0]))==1
