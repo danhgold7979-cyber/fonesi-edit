@@ -88,13 +88,25 @@ class Overlay(QGraphicsObject):
             painter.drawEllipse(QPointF(rect.width() / 2, 0), 5, 5)
 
     def mousePressEvent(self, event):
+        # Qt normally deselects the other items when a selected item is pressed.
+        # Preserve the pre-press multi-selection for a common drag gesture.
+        preselected = set(self.scene().selectedItems()) if self.scene() and self.isSelected() else set()
         super().mousePressEvent(event)
         if self.layer.locked:
             return
+        for item in preselected:
+            if isinstance(item, Overlay):
+                item.setSelected(True)
         self.begin()
         self.origin = event.scenePos()
         self.original = self.layer.x, self.layer.y, self.layer.width, self.layer.height, self.layer.rotation
-        self.companions={item:(item.layer.x,item.layer.y) for item in self.scene().items() if isinstance(item,Overlay) and item is not self and not item.layer.locked and (item.isSelected() or self.layer.group and item.layer.group==self.layer.group)}
+        self.companions = {
+            item: (item.layer.x, item.layer.y)
+            for item in self.scene().items()
+            if isinstance(item, Overlay) and item is not self and not item.layer.locked
+            and (item.isSelected() or item in preselected
+                 or (self.layer.group and item.layer.group == self.layer.group))
+        }
         local = event.pos()
         self.mode = 'resize' if (local - self.boundingRect().bottomRight()).manhattanLength() < 25 else 'rotate' if local.y() < 15 and abs(local.x() - self.boundingRect().width() / 2) < 15 else 'move'
 
