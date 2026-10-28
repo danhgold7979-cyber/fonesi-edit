@@ -414,3 +414,34 @@ def test_proxy_preview_quality_is_source_only_and_runs_in_background(tmp_path):
         assert window.editor.player.source().toLocalFile()==str(source.resolve())
     finally:
         close(window)
+
+
+def test_proxy_cache_quota_persisted_and_swept_in_background(tmp_path,monkeypatch):
+    from PySide6.QtCore import QUrl
+    import fonesi_edit.app as app_module
+    calls=[]
+    def fake_cleanup(root,maximum,protected):
+        calls.append((Path(root),maximum,list(protected)))
+        return {'scanned_bytes':0,'remaining_bytes':0,'deleted_bytes':0,
+                'deleted':[],'over_budget':False}
+    monkeypatch.setattr(app_module,'evict_proxy_cache',fake_cleanup)
+    window=MainWindow(tmp_path/'state')
+    try:
+        window.settings.cache_budget_mb.setValue(128)
+        window.settings.save_resources()
+        assert window.store.setting('proxy_cache_limit_mb')==128
+        active=tmp_path/'current-proxy.mp4'
+        active.write_bytes(b'not real, used only to verify protection')
+        window.editor.player.setSource(QUrl.fromLocalFile(str(active)))
+        window.cleanup_cache(force=True)
+        wait_until(lambda:not window._cache_cleanup_busy and bool(calls),seconds=10)
+        assert calls[0][0]==window.data/'cache'/'proxies'
+        assert calls[0][1]==128*1024**2
+        assert str(active) in calls[0][2]
+    finally:
+        close(window)
+    reopened=MainWindow(tmp_path/'state')
+    try:
+        assert reopened.settings.cache_budget_mb.value()==128
+    finally:
+        close(reopened)
