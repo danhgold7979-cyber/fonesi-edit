@@ -6,7 +6,7 @@ from uuid import uuid4
 import tempfile
 
 from PySide6.QtCore import Qt,QUrl,Signal
-from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QFont
+from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QActionGroup,QFont
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLa
 from ..domain import Composition,Clip,Layer,identifier,canonical
 from ..prototypes.media import probe,extract_frame
 from ..thumbnails import thumbnail_identity,thumbnail_strip
+from ..proxy import proxy_identity,playback_proxy
 from .canvas import Canvas
 from .timeline import Timeline,clip_positions
 
@@ -45,6 +46,7 @@ class Editor(QWidget):
         self.preview_fingerprint=None;self._loop_seeking=False
         self.composition_fingerprint=canonical(self.composition.to_dict())
         self.waveforms={};self.thumbnails={};self._thumbnail_pending=set();self._thumbnail_failed=set()
+        self.proxy_cache={};self._proxy_pending=set();self._proxy_failed=set()
         self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
         actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
@@ -68,12 +70,23 @@ class Editor(QWidget):
         self.thumbnail_action.setCheckable(True)
         self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
         self.thumbnail_action.toggled.connect(self.set_timeline_thumbnails)
+        self.proxy_group=QActionGroup(self)
+        self.proxy_group.setExclusive(True)
+        self.proxy_actions={}
+        for label,value in [('Không dùng proxy','off'),('Proxy nhanh (640px)','fast'),
+                            ('Proxy cân bằng (1280px)','balanced'),('Proxy cao (1920px)','high')]:
+            action=menu.addAction(label)
+            action.setData(value);action.setCheckable(True)
+            action.setChecked(value==self.composition.adjustments.get('playback_proxy_quality','off'))
+            self.proxy_group.addAction(action);self.proxy_actions[value]=action
+        self.proxy_group.triggered.connect(lambda action:self.set_proxy_quality(action.data()))
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
         split=QSplitter();layout.addWidget(split,1)
         assets=QWidget();left=QVBoxLayout(assets);self.clips=QListWidget();self.layers=QListWidget()
         self.clips.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.clips.currentRowChanged.connect(lambda _:self.load_proxy())
         self.layers.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         left.addWidget(QLabel('Media'));left.addWidget(self.clips);left.addWidget(QLabel('Layers'));left.addWidget(self.layers)
         self.layers.itemSelectionChanged.connect(self.list_selection)
@@ -181,9 +194,14 @@ class Editor(QWidget):
             self.thumbnail_action.blockSignals(True)
             self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
             self.thumbnail_action.blockSignals(False)
+        if hasattr(self,'proxy_actions'):
+            quality=self.composition.adjustments.get('playback_proxy_quality','off')
+            action=self.proxy_actions.get(quality,self.proxy_actions['off'])
+            action.setChecked(True)
         self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
         self.load_waveforms()
         self.load_thumbnails()
+        self.load_proxy()
 
     def load_waveforms(self):
         if not hasattr(self.host,'background'):return
@@ -251,6 +269,69 @@ class Editor(QWidget):
                     self.timeline.rebuild()
                     self.load_thumbnails()
             self.host.background(work,done)
+
+    def set_proxy_quality(self,quality):
+        if quality not in {'off','fast','balanced','high'}:
+            raise ValueError('Chất lượng proxy không hỗ trợ')
+        if self.composition.adjustments.get('playback_proxy_quality','off')==quality:
+            return
+        self._proxy_failed.clear()
+        self.begin()
+        self.composition.adjustments['playback_proxy_quality']=quality
+        self.commit('Thay chất lượng proxy nguồn')
+
+    def load_proxy(self):
+        if self._loading or not hasattr(self,'player') or not hasattr(self,'clips'):
+            return
+        index=self.clips.currentRow()
+        if not 0<=index<len(self.composition.clips):
+            return
+        clip=self.composition.clips[index]
+        if not Path(clip.path).is_file() or self.preview_fingerprint is not None:
+            return
+        quality=self.composition.adjustments.get('playback_proxy_quality','off')
+        if quality not in {'off','fast','balanced','high'}:
+            return
+        if quality=='off':
+            original=QUrl.fromLocalFile(str(Path(clip.path).resolve()))
+            if self.player.source()!=original:self.player.setSource(original)
+            return
+        if not hasattr(self.host,'background') or not hasattr(self.host,'workspace'):
+            return
+        try:key=proxy_identity(clip.path,quality)
+        except (OSError,ValueError):return
+        entry=self.proxy_cache.get(key)
+        if entry and Path(entry['path']).is_file():
+            target=QUrl.fromLocalFile(entry['path'])
+            if self.player.source()!=target:self.player.setSource(target)
+            return
+        if key in self._proxy_pending or key in self._proxy_failed or self._proxy_pending:
+            return
+        self._proxy_pending.add(key)
+        source=clip.path
+        cache_root=Path(getattr(self.host,'data',self.host.workspace.name))/'cache'/'proxies'
+        def work(progress,cancel):
+            try:return key,playback_proxy(source,cache_root,quality,cancel),None
+            except (RuntimeError,TimeoutError,ValueError,OSError) as exc:
+                return key,None,str(exc)[:200]
+        def done(result):
+            identity,data,error=result
+            self._proxy_pending.discard(identity)
+            if error:self._proxy_failed.add(identity)
+            elif data:self.proxy_cache[identity]=data
+            index=self.clips.currentRow()
+            if (data and 0<=index<len(self.composition.clips)
+                    and self.composition.clips[index].path==source
+                    and self.composition.adjustments.get('playback_proxy_quality')==quality
+                    and self.preview_fingerprint is None):
+                try:matches=proxy_identity(source,quality)==identity
+                except (OSError,ValueError):matches=False
+                if matches and Path(data['path']).is_file():
+                    self.player.setSource(QUrl.fromLocalFile(data['path']))
+                    self.host.message('Đã nạp proxy nguồn local; bản xuất vẫn dùng tệp gốc.')
+            if error and self.composition.adjustments.get('playback_proxy_quality')==quality:
+                self.host.message('Không tạo được proxy nguồn: '+error)
+        self.host.background(work,done)
 
     def select_row(self,index):
         if self._loading:return
