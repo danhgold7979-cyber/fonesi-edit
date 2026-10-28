@@ -29,3 +29,20 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - [x] Crop values commit through the existing editor snapshot, so Undo restores the prior crop.
 - [x] CI [run 40686663256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40686663256) PASS: **262 tests Linux; 261 Windows + 1 POSIX-only skip**. Both runners passed production desktop/native-host build and frozen packaged proof. Added tests cover legacy project compatibility, invalid crop bounds, odd-dimension even-pixel geometry, FFmpeg filter order and real render, crop preview pixels, Qt drag, cancel and Undo.
 - [ ] Still open: full handle/ratio-lock edge-case matrix, rotated-metadata/VFR/HiDPI/4K and long-timeline testing on real Windows user machines. This is evidence for the crop slice only, not completion of all P04 tasks.
+
+## P04-02/P04-03 — Peer-object snapping and visible alignment guides (28/10/2026)
+
+- Added normalized-coordinate snapping to peer left/centre/right and top/centre/bottom guides, with bounded tolerance and deterministic tie-breaking.
+- Drag integration excludes self, selected/group companions, hidden layers and locked layers. Group members keep one common translation delta.
+- Active snap guides are dashed viewport-only overlays. They clear on rebuild/release and when Alt disables snapping; they are not inserted into the scene, project model or FFmpeg output.
+- CI [run 40714649301](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40714649301) **PASS**: 326 Linux tests; 325 Windows tests + 1 intentional POSIX-fixture skip. Production app/native host and frozen proof passed on both runners.
+- This verifies the offline code slice; peer-guide behavior on real Windows/HiDPI displays and the rest of P04 remain separate acceptance gates.
+
+## P04-02/P04-03 — Crop ratio-lock geometry and bounds (28/10/2026)
+
+- Extracted crop dragging into a pure normalized-geometry helper used by the existing CropDialog.
+- With ratio lock enabled, all eight edge/corner handles preserve the crop's normalized width/height ratio. Corner handles keep the opposite corner fixed; side handles keep the opposite edge fixed and resize around the orthogonal centre.
+- Added boundary clamping and tests for creating/moving/resizing, ratio preservation, free-ratio regression and out-of-frame prevention.
+- CI [run 40716484637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40716484637) **PASS**: 339 Linux tests; 338 Windows tests + 1 intentional POSIX-fixture skip. Production app/native host and frozen proof passed on both runners.
+- Follow-up anchor-invariant tests passed in [run 40717364128](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40717364128): **347 Linux tests; 346 Windows tests + 1 intentional skip**, with packaged proof on both systems.
+- Still open: rotated metadata, VFR, mixed FPS, HiDPI/4K, long timelines, crop/preview/export parity across all transforms, and real Windows user-machine acceptance. These results do not mark all of P04 complete.

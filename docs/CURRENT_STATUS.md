@@ -7,7 +7,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P01 | Thiết kế, luồng, contracts, traceability | Cập nhật theo thay đổi đã được chấp thuận |
 | P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain/SQLite/snapshots/worker; backup có integrity/no-overwrite, credential alias checks và error redaction; CI Linux/Windows pass | Soak/crash/power-loss, filesystem không hỗ trợ hard link, installer và nghiệm thu máy Windows người dùng |
-| P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, thumbnail source strip async, validated source proxy 3 mức; crop normalized model + FFmpeg render + CropDialog/8 handles + undo; CI crop slice Linux/Windows frozen PASS | Keyboard focus policy đang được harden; crop ratio/rotation-metadata edge cases, VFR/HiDPI/4K/seek/timeline dài, các phần còn lại của P04 và nghiệm thu máy Windows user |
+| P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, async thumbnail strip, validated source proxy 3 mức; peer-object snap + viewport-only guides CI PASS; normalized crop + FFmpeg render + CropDialog/8 handles + ratio-lock/bounds tests CI Linux/Windows frozen PASS | Rotation metadata/VFR/mixed FPS, HiDPI/4K/seek/audio-sync/long timeline, full shortcut-table parity and remaining P04 tasks, real Windows user-machine acceptance |
 | P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
@@ -62,3 +62,10 @@ P03: job error được lọc ở worker **và tại SQLite Store.fail**, test f
 ## P08 — SFX repeat interval (28/10/2026)
 
 [CI 40660385646](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40660385646) **PASS 246 test Linux, 245 test Windows +1 skip; frozen binary/native-host/render/download/UI proof hai hệ PASS**. SFX phát lặp 1–32 lần theo khoảng giây trên timeline đã resolve, chặn tràn thời lượng và role/policy không hợp lệ; đã thử âm PCM thật và round-trip UI. Vẫn cần trigger không đều/playlist, realtime meter và nghiệm thu Windows người dùng.
+
+## P04 update — peer snap guides and crop ratio lock (28/10/2026)
+
+- Peer snapping/viewport guide CI [40714649301](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40714649301): **326 Linux / 325 Windows + 1 intentional skip**, packaged proof both systems PASS.
+- Crop ratio-lock/bounds CI [40716484637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40716484637): **339 Linux / 338 Windows + 1 intentional skip**, packaged proof both systems PASS.
+- Anchor-preservation regression CI [40717364128](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40717364128): **347 Linux / 346 Windows + 1 intentional skip**, packaged proof both systems PASS.
+- P04 remains in progress. Live provider, real Windows/HiDPI/GPU, rotated metadata/VFR and remaining shortcut/editor requirements are not marked accepted.
