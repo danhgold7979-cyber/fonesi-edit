@@ -53,3 +53,12 @@ Crop bằng tay nắm và tương tác đủ chín điểm neo, proxy chất lư
 ## 7. P04-06 — Proxy phát nguồn local có ba mức (cùng đợt)
 
 Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ tăng tốc phát media gốc ở tab Playback, không thay thế compositor/FFmpeg export hoặc được công bố đã có hiệu ứng đầy đủ. Ba mức Nhanh (cạnh dài ≤640), Cân bằng (≤1280), Cao (≤1920), ngoài chế độ Tắt. FFmpeg transcode h264/aac bảo toàn thứ tự thời gian, không sửa nguồn. Cache trên user workspace, key path/stat/quality, viết tệp tạm + probe/kiểm tra duration + atomic publish, hủy/timeout, giữ bản cũ khi không hợp lệ. UI menu chọn mức, lưu trong project; khi switching clips chỉ tạo một proxy cần thiết qua background và không lạm dụng queue; dùng đúng bản proxy khi người dùng chọn, không áp dụng trên rendered preview. Test cache/invalidations/no source mutation, UI picker, actual media decode. Cổng Windows real-time performance và proxy long media vẫn cần nghiệm thu riêng.
+
+
+### Kết quả lát cắt P04-05/06 (28/10/2026)
+
+- [x] Loop In–Out chỉ dùng rendered preview theo fingerprint; không dùng file nguồn raw cho thời gian composition.
+- [x] Thumbnail 3 ảnh/clip, cache/validation/cancel, tạo nền theo viewport, undo bật/tắt.
+- [x] Source proxy Off/Nhanh/Cân bằng/Cao, không upscale, validated/no source overwrite.
+- [x] Full source/packaged Linux/Windows CI [run 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) PASS.
+- [ ] Crop handles/anchor, HiDPI/4K/VFR/seek/audio sync/phím tắt đầy đủ và nghiệm thu PC Windows người dùng còn mở. Không tick toàn bộ P04 trong master.
