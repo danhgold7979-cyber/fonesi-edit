@@ -94,3 +94,82 @@ def test_multiple_clips_never_silently_convert_loop_or_freeze_to_speed(policy):
     with pytest.raises(ValueError,match='exactly one clip'):
         fit_duration(composition,6,policy=policy)
     assert [clip.speed for clip in composition.clips]==[1,1]
+
+
+def test_batch_main_audio_mapping_by_name_is_correct_and_renders_real_audio(tmp_path):
+    from shutil import copyfile
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    first=Path(media['source'])
+    second=first.with_name('clip2.mp4')
+    copyfile(first,second)
+    audio_folder=tmp_path/'audio'
+    audio_folder.mkdir()
+    copyfile(first,audio_folder/first.name)
+    copyfile(second,audio_folder/second.name)
+    groups={str(tmp_path/'channel'):[str(first),str(second)]}
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu',seed=11,
+                       audio=[{'path':'music.ogg','mode':'music','volume':.2}])
+    before=preset.to_dict()
+    plans=batch_plan(groups,preset,audio_mode='by_name',audio_folder=audio_folder)
+    assert len(plans)==2
+    for plan in plans:
+        assert Path(plan['audio_source']).stem==Path(plan['source']).stem
+        c=Composition.from_dict(plan['composition'])
+        assert c.audio[0]['mode']=='main'
+        assert c.audio[0]['path']==plan['audio_source']
+        assert c.audio[1]['mode']=='music'
+        assert c.clips[0].path==str(Path(plan['source']).resolve())
+    assert preset.to_dict()==before
+    # Avoid missing "music.ogg" in the real compositor proof; this track is
+    # tested above as preserved metadata, and actual audio binding below.
+    real=Composition.from_dict(plans[0]['composition'])
+    real.audio=[real.audio[0]]
+    out=tmp_path/'verified.mp4'
+    result=render_composition(real,out)
+    assert result['validated'] and probe(out).audio_codec
+
+
+def test_batch_audio_ordered_and_seeded_random_are_deterministic(tmp_path):
+    from shutil import copyfile
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    a=Path(media['source']);b=a.with_name('clip2.mp4');copyfile(a,b)
+    groups={str(tmp_path/'channel'):[str(b),str(a)]}
+    sounds=tmp_path/'sounds';sounds.mkdir()
+    copyfile(a,sounds/'audio1.mp4');copyfile(a,sounds/'audio2.mp4')
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu',seed=123)
+    ordered=batch_plan(groups,preset,audio_mode='ordered',audio_folder=sounds)
+    assert [Path(plan['audio_source']).name for plan in ordered]==['audio1.mp4','audio2.mp4']
+    first=batch_plan(groups,preset,audio_mode='random',audio_folder=sounds)
+    second=batch_plan(groups,preset,audio_mode='random',audio_folder=sounds)
+    assert first==second
+    assert all(Path(plan['audio_source']).parent==sounds for plan in first)
+    assert [Path(plan['audio_source']).name for plan in first]
+
+
+def test_batch_audio_mapping_rejects_missing_ambiguous_and_unsupported_modes(tmp_path):
+    from shutil import copyfile
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    video=Path(media['source'])
+    groups={str(tmp_path/'channel'):[str(video)]}
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+    with pytest.raises(ValueError,match='Unknown audio assignment mode'):
+        batch_plan(groups,preset,audio_mode='silent_fallback')
+    with pytest.raises(ValueError,match='Chọn thư mục'):
+        batch_plan(groups,preset,audio_mode='by_name')
+    folder=tmp_path/'sounds';folder.mkdir()
+    copyfile(video,folder/'unrelated.mp4')
+    with pytest.raises(ValueError,match='đúng một audio'):
+        batch_plan(groups,preset,audio_mode='by_name',audio_folder=folder)
+    with pytest.raises(ValueError,match='số audio bằng số video'):
+        batch_plan(groups,preset,audio_mode='ordered',audio_folder=folder/'not-here') if False else \
+            batch_plan({str(tmp_path/'channel'):[str(video),str(video)]},
+                       preset,audio_mode='ordered',audio_folder=folder)
+    copyfile(video,folder/'same.mp4')
+    (folder/'unrelated.mp4').unlink()
+    copyfile(video,folder/'same.mov')
+    with pytest.raises(ValueError,match='đúng một audio'):
+        batch_plan({str(tmp_path/'channel'):[str(folder/'same.mp4')]},
+                   preset,audio_mode='by_name',audio_folder=folder)
+    (folder/'bad.wav').write_bytes(b'not a valid sound')
+    with pytest.raises(ValueError,match='không có track hợp lệ'):
+        batch_plan(groups,preset,audio_mode='random',audio_folder=folder)
