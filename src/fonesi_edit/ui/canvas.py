@@ -5,6 +5,37 @@ from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QG
 _FONT_FAMILIES={}
 
 
+def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolerance=.012):
+    """Snap normalized layer edges/center to canvas guides; never leave its bounds."""
+    def axis(value, span):
+        maximum = max(0.0, 1.0 - span)
+        value = max(0.0, min(maximum, value))
+        if not enabled:
+            return value
+        # Canvas centre is a guide for the *layer centre*, not its top-left.
+        guides = [0.5 - span / 2, 0.05, 0.95 - span]
+        if grid:
+            guides.append(round(value / .05) * .05)
+        nearest = min(guides, key=lambda target: abs(value - target))
+        if abs(value - nearest) <= tolerance:
+            value = nearest
+        return max(0.0, min(maximum, value))
+
+    return axis(x, width), axis(y, height)
+
+
+def constrained_group_delta(layers, dx, dy):
+    """Clamp one shared drag delta against the union of normalized layer bounds."""
+    if not layers:
+        return dx, dy
+    left = min(layer.x for layer in layers)
+    top = min(layer.y for layer in layers)
+    right = max(layer.x + layer.width for layer in layers)
+    bottom = max(layer.y + layer.height for layer in layers)
+    return (max(-left, min(1.0 - right, dx)),
+            max(-top, min(1.0 - bottom, dy)))
+
+
 class Overlay(QGraphicsObject):
     def __init__(self, layer, width, height, begin, commit):
         super().__init__()
@@ -73,20 +104,30 @@ class Overlay(QGraphicsObject):
         delta = event.scenePos() - self.origin
         x, y, w, h, rotation = self.original
         if self.mode == 'move':
-            nx, ny = x + delta.x() / self.cw, y + delta.y() / self.ch
-            if not event.modifiers() & Qt.KeyboardModifier.AltModifier:
-                if abs(nx - 0.5) < 0.01: nx = 0.5
-                if abs(ny - 0.5) < 0.01: ny = 0.5
-            self.layer.x, self.layer.y = min(1, max(0, nx)), min(1, max(0, ny))
+            dx, dy = delta.x() / self.cw, delta.y() / self.ch
+            group = [self.layer, *[item.layer for item in self.companions]]
+            dx, dy = constrained_group_delta(group, dx, dy)
+            disabled = bool(event.modifiers() & Qt.KeyboardModifier.AltModifier)
+            desired_x, desired_y = snap_layer_position(
+                x + dx, y + dy, w, h, enabled=not disabled,
+                grid=bool(self.scene().views()[0].editor.composition.adjustments.get('canvas_grid', False)))
+            # Apply snapping to the entire group as a common translation.
+            dx, dy = constrained_group_delta(group, dx + desired_x - x - dx, dy + desired_y - y - dy)
+            self.layer.x, self.layer.y = x + dx, y + dy
             self.setPos(self.layer.x * self.cw, self.layer.y * self.ch)
-            for item,(sx,sy) in self.companions.items():
-                item.layer.x=max(0,min(1,sx+self.layer.x-x));item.layer.y=max(0,min(1,sy+self.layer.y-y));item.setPos(item.layer.x*self.cw,item.layer.y*self.ch)
+            for item, (sx, sy) in self.companions.items():
+                item.layer.x, item.layer.y = sx + dx, sy + dy
+                item.setPos(item.layer.x * self.cw, item.layer.y * self.ch)
         elif self.mode == 'resize':
-            self.prepareGeometryChange()
-            self.layer.width = max(0.02, w + delta.x() / self.cw)
-            self.layer.height = max(0.02, h + delta.y() / self.ch)
+            max_w, max_h = max(.02, 1.0 - x), max(.02, 1.0 - y)
+            new_w = min(max_w, max(.02, w + delta.x() / self.cw))
+            new_h = min(max_h, max(.02, h + delta.y() / self.ch))
             if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                self.layer.height = h * self.layer.width / w
+                ratio = min(new_w / max(w, .001), new_h / max(h, .001))
+                new_w, new_h = w * ratio, h * ratio
+            self.prepareGeometryChange()
+            self.layer.width, self.layer.height = new_w, new_h
+            self.setTransformOriginPoint(self.boundingRect().center())
         else:
             self.layer.rotation = rotation + delta.x() / 2
             self.setRotation(self.layer.rotation)
@@ -134,6 +175,16 @@ class Canvas(QGraphicsView):
                 image = image.scaled(c.width, c.height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 item = self.scene().addPixmap(image)
                 item.setPos((c.width-image.width())/2, (c.height-image.height())/2)
+        if c.adjustments.get('canvas_grid', False):
+            grid_pen = QPen(QColor('#46516b'), 1, Qt.PenStyle.DotLine)
+            grid_pen.setCosmetic(True)
+            for tick in range(1, 20):
+                x = c.width * tick / 20
+                y = c.height * tick / 20
+                vertical = self.scene().addLine(x, 0, x, c.height, grid_pen)
+                horizontal = self.scene().addLine(0, y, c.width, y, grid_pen)
+                vertical.setZValue(.2)
+                horizontal.setZValue(.2)
         safe = self.scene().addRect(c.width * .05, c.height * .05, c.width * .9, c.height * .9, QPen(QColor('#667088'), 1, Qt.PenStyle.DashLine))
         safe.setZValue(10000)
         for index, layer in enumerate(c.layers):
