@@ -105,3 +105,9 @@ CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 - CI [40731502132](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40731502132) **PASS**: 411 Linux / 410 Windows + 1 intentional skip; packaged proof passed on both runners.
 - Physical Windows multi-monitor/HiDPI, remaining shortcut/IME and other P04/P12 acceptance gates remain open.
 
+## P04 update — IME preedit shortcut guard (28/10/2026)
+
+- Added focus-scoped IME preedit tracking to suppress editor actions during active text composition; preedit end/focus departure clears state and shutdown removes installed filters.
+- CI [40734016363](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40734016363) **PASS**: 413 Linux / 412 Windows + 1 intentional skip; packaged proof passed on both runners.
+- Synthetic tests pass; physical OS/IME and Windows multi-monitor/HiDPI acceptance remain open.
+
