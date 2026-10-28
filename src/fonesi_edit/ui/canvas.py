@@ -24,14 +24,14 @@ def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, tolera
     return axis(x, width), axis(y, height)
 
 
-def constrained_group_delta(layers, dx, dy):
-    """Clamp one shared drag delta against the union of normalized layer bounds."""
-    if not layers:
+def constrained_group_delta(rectangles, dx, dy):
+    """Clamp a group translation against its *original* union of rectangles."""
+    if not rectangles:
         return dx, dy
-    left = min(layer.x for layer in layers)
-    top = min(layer.y for layer in layers)
-    right = max(layer.x + layer.width for layer in layers)
-    bottom = max(layer.y + layer.height for layer in layers)
+    left = min(x for x, y, width, height in rectangles)
+    top = min(y for x, y, width, height in rectangles)
+    right = max(x + width for x, y, width, height in rectangles)
+    bottom = max(y + height for x, y, width, height in rectangles)
     return (max(-left, min(1.0 - right, dx)),
             max(-top, min(1.0 - bottom, dy)))
 
@@ -105,14 +105,17 @@ class Overlay(QGraphicsObject):
         x, y, w, h, rotation = self.original
         if self.mode == 'move':
             dx, dy = delta.x() / self.cw, delta.y() / self.ch
-            group = [self.layer, *[item.layer for item in self.companions]]
-            dx, dy = constrained_group_delta(group, dx, dy)
+            original_bounds = [(x, y, w, h)] + [
+                (sx, sy, item.layer.width, item.layer.height)
+                for item, (sx, sy) in self.companions.items()]
+            dx, dy = constrained_group_delta(original_bounds, dx, dy)
             disabled = bool(event.modifiers() & Qt.KeyboardModifier.AltModifier)
+            view = next((view for view in self.scene().views() if isinstance(view, Canvas)), None)
+            grid = bool(view and view.editor.composition.adjustments.get('canvas_grid', False))
             desired_x, desired_y = snap_layer_position(
-                x + dx, y + dy, w, h, enabled=not disabled,
-                grid=bool(self.scene().views()[0].editor.composition.adjustments.get('canvas_grid', False)))
-            # Apply snapping to the entire group as a common translation.
-            dx, dy = constrained_group_delta(group, dx + desired_x - x - dx, dy + desired_y - y - dy)
+                x + dx, y + dy, w, h, enabled=not disabled, grid=grid)
+            # A single bounded delta keeps companion spacing unchanged.
+            dx, dy = constrained_group_delta(original_bounds, desired_x - x, desired_y - y)
             self.layer.x, self.layer.y = x + dx, y + dy
             self.setPos(self.layer.x * self.cw, self.layer.y * self.ch)
             for item, (sx, sy) in self.companions.items():
@@ -175,7 +178,7 @@ class Canvas(QGraphicsView):
                 image = image.scaled(c.width, c.height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 item = self.scene().addPixmap(image)
                 item.setPos((c.width-image.width())/2, (c.height-image.height())/2)
-        if c.adjustments.get('canvas_grid', False):
+        if not reference and c.adjustments.get('canvas_grid', False):
             grid_pen = QPen(QColor('#46516b'), 1, Qt.PenStyle.DotLine)
             grid_pen.setCosmetic(True)
             for tick in range(1, 20):
