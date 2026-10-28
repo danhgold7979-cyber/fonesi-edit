@@ -121,3 +121,10 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 3. AudioDialog thêm hai cột 'SFX số lần' và 'SFX khoảng cách s', không đổi chỉ số field cũ; đọc/ghi round-trip và báo lỗi trạng thái không hợp lệ.
 4. Tests domain invalid/edge, compile_graph onset/fade, FFmpeg render thật hai mốc, Qt offscreen round-trip, regression các audio music crossfade; CI Linux/Windows và frozen proof. Cổng còn mở: danh sách trigger không đều/playlist, realtime meter, stress rất dài và loa Windows máy thật.
 5. Chỉ ghi DONE khi full CI cả hai hệ đạt; khối SFX này không đồng nghĩa P08 hay 95 nhóm đã nghiệm thu toàn diện.
+
+### Bằng chứng P08-04 SFX repeat
+
+- [x] Count 1–32 và interval được validate; count >1 yêu cầu SFX không loop, không tự fallback; onset cuối không được nằm tại/sau cuối timeline render. Track cũ mặc định phát một lần.
+- [x] FFmpeg mỗi trigger là đầu vào riêng (không asplit), áp cùng trim/gain/fade và adelay theo timeline đã resolve, mix về track SFX. AudioDialog có count/interval và round-trip.
+- [x] Regression kiểm tra sai kiểu/giới hạn, kiểm vị trí và PCM hai trigger có vùng yên lặng tách biệt, Qt UI. [CI 40660385646](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40660385646) PASS **246 Linux /245 Windows +1 skip**, frozen app/native-host proof hai hệ PASS.
+- [ ] SFX trigger ở các mốc không đều/đặt playlist tùy ý, realtime meter/solo monitoring và nghiệm thu thiết bị Windows máy thực vẫn mở; không gắn P08 đạt toàn phase.
