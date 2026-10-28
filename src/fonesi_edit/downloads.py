@@ -2,6 +2,7 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 import io
+import logging
 import re
 
 from .browser import cookie_jar,DOMAINS
@@ -155,8 +156,39 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
     instance=Scanner(payload['url'],file=io.StringIO()) if job['kind']=='scan' else Downloader(payload['url'])
     if jar:
         for cookie in jar:instance.extractor.session.cookies.set_cookie(cookie)
-    instance.run()
-    if getattr(instance,'status',0) and not files and not items:raise RuntimeError('Gallery extractor could not complete; check source/session')
+
+    # gallery-dl handles many extractor exceptions internally and returns a status
+    # code. Capture warning/error records so a failed packaged proof is diagnosable,
+    # without enabling verbose logging or leaking signed URL query strings.
+    diagnostics=[]
+    class DiagnosticCapture(logging.Handler):
+        def emit(self,record):
+            try:
+                message=record.getMessage()
+                message=re.sub(r'(?i)\\b(token|api[_-]?key|password|cookie|secret|signature|access_token)=([^&\\s]+)',r'\\1=[redacted]',message)
+                def safe_url(match):
+                    value=match.group(0)
+                    parts=urlsplit(value.rstrip('),.;'))
+                    return f'{parts.scheme}://{parts.netloc}{parts.path}'
+                message=re.sub(r'https?://[^\\s\'\"<>]+',safe_url,message)
+                diagnostics.append(f'{record.levelname}: {message[:500]}')
+                if len(diagnostics)>12:del diagnostics[:-12]
+            except Exception:
+                diagnostics.append(f'{record.levelname}: <diagnostic unavailable>')
+    capture=DiagnosticCapture(level=logging.WARNING)
+    logger=logging.getLogger()
+    logger.addHandler(capture)
+    try:
+        instance.run()
+    finally:
+        logger.removeHandler(capture)
+        capture.close()
+    status=int(getattr(instance,'status',0) or 0)
+    if status and not files and not items:
+        detail=' | '.join(diagnostics[-6:])
+        if detail:
+            raise RuntimeError(f'Gallery extractor failed (status={status}): {detail[:1800]}')
+        raise RuntimeError(f'Gallery extractor failed (status={status}); no valid media returned. Check extractor, HTTP transport, and image decoder.')
     result=items if job['kind']=='scan' else files
     if not result:raise RuntimeError('No accessible gallery media returned')
     progress(1)
