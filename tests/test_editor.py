@@ -348,3 +348,66 @@ def test_canvas_clears_peer_guides_when_rebuilt():
         editor.close()
         host.workspace.cleanup()
 
+def test_layer_clipboard_paste_remaps_ids_and_groups_and_supports_undo_redo():
+    host = Host()
+    editor = Editor(host)
+    try:
+        first = Layer(text="A", x=.1, group="shared", clip_ids=["clip-a"])
+        second = Layer(text="B", x=.3, group="shared", clip_ids=["clip-a"])
+        unrelated = Layer(text="Unrelated", x=.7, group="unrelated")
+        editor.set_composition(Composition(layers=[first, second, unrelated]))
+        editor.select_ids([first.id, second.id])
+        editor.copy_layers()
+        editor.paste_layers()
+
+        assert len(editor.composition.layers) == 5
+        pasted = editor.composition.layers[3:]
+        assert all(layer.id not in {first.id, second.id, unrelated.id} for layer in pasted)
+        assert pasted[0].group == pasted[1].group
+        assert pasted[0].group != "shared"
+        assert editor.composition.layers[2].group == "unrelated"
+        assert [layer.clip_ids for layer in pasted] == [["clip-a"], ["clip-a"]]
+        assert pasted[0].x == pytest.approx(.12)
+        assert pasted[1].x == pytest.approx(.32)
+        assert editor.undo.count() == 1
+
+        editor.undo.undo()
+        assert len(editor.composition.layers) == 3
+        editor.undo.redo()
+        assert len(editor.composition.layers) == 5
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+
+def test_cut_layer_copies_only_unlocked_layers_and_undo_restores_them():
+    host = Host()
+    editor = Editor(host)
+    try:
+        editable = Layer(text="Editable")
+        locked = Layer(text="Locked", locked=True)
+        editor.set_composition(Composition(layers=[editable, locked]))
+        editor.select_ids([editable.id, locked.id])
+        editor.cut_layers()
+        assert [layer.id for layer in editor.composition.layers] == [locked.id]
+        assert [layer.text for layer in editor._layer_clipboard] == ["Editable"]
+        editor.undo.undo()
+        assert {layer.id for layer in editor.composition.layers} == {editable.id, locked.id}
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+
+def test_select_all_layers_selects_every_layer_in_canvas():
+    host = Host()
+    editor = Editor(host)
+    try:
+        layers = [Layer(text="A"), Layer(text="B", locked=True)]
+        editor.set_composition(Composition(layers=layers))
+        editor.select_all_layers()
+        assert editor.selected_ids == {layer.id for layer in layers}
+        assert len(editor.selected_layers()) == 2
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+

@@ -42,7 +42,7 @@ class Editor(QWidget):
 
     def __init__(self,host):
         super().__init__();self.host=host
-        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
+        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self._layer_clipboard=[];self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
         self.preview_fingerprint=None;self._loop_seeking=False
         self.composition_fingerprint=canonical(self.composition.to_dict())
         self.waveforms={};self.thumbnails={};self._thumbnail_pending=set();self._thumbnail_failed=set()
@@ -434,6 +434,52 @@ class Editor(QWidget):
         if self.layer():
             self.begin();copy=deepcopy(self.layer());copy.id=identifier();copy.name+=' copy';copy.x=min(.95,copy.x+.02)
             self.composition.layers.append(copy);self.selected_id=copy.id;self.selected_ids={copy.id};self.commit('Nhân bản')
+
+    def select_all_layers(self):
+        self.select_ids([layer.id for layer in self.composition.layers])
+        self.canvas.rebuild()
+
+    def copy_layers(self):
+        layers = self.selected_layers()
+        if not layers:
+            return
+        self._layer_clipboard = deepcopy(layers)
+        self.host.message(f'Đã sao chép {len(layers)} layer')
+
+    def paste_layers(self):
+        if not self._layer_clipboard:
+            return
+        self.begin()
+        copies = deepcopy(self._layer_clipboard)
+        group_ids = {}
+        for layer in copies:
+            layer.id = identifier()
+            layer.name += ' copy'
+            if layer.group:
+                old_group = layer.group
+                if old_group not in group_ids:
+                    group_ids[old_group] = identifier()
+                layer.group = group_ids[old_group]
+            layer.x = max(0.0, min(max(0.0, 1.0 - layer.width), layer.x + .02))
+            layer.y = max(0.0, min(max(0.0, 1.0 - layer.height), layer.y + .02))
+        self.composition.layers.extend(copies)
+        self.selected_ids = {layer.id for layer in copies}
+        self.selected_id = copies[0].id
+        self.commit('Dán layer')
+        self.host.message(f'Đã dán {len(copies)} layer')
+
+    def cut_layers(self):
+        eligible = [layer for layer in self.selected_layers() if not layer.locked]
+        if not eligible:
+            return
+        self._layer_clipboard = deepcopy(eligible)
+        ids = {layer.id for layer in eligible}
+        self.begin()
+        self.composition.layers = [layer for layer in self.composition.layers if layer.id not in ids]
+        self.selected_id = None
+        self.selected_ids = set()
+        self.commit('Cắt layer')
+        self.host.message(f'Đã cắt {len(eligible)} layer khỏi project')
 
     def delete_layer(self):
         ids={l.id for l in self.selected_layers() if not l.locked}

@@ -893,3 +893,42 @@ def test_save_as_same_path_uses_normal_save_without_new_project_id(tmp_path, mon
     finally:
         close(window)
 
+def test_canvas_layer_clipboard_shortcuts_and_native_text_routing(tmp_path):
+    from PySide6.QtWidgets import QLineEdit
+    window = MainWindow(tmp_path / 'state')
+    try:
+        window.editor.set_composition(Composition(layers=[Layer(text='Layer A')]))
+        window.editor.select_id(window.editor.composition.layers[0].id)
+        window.editor.canvas.setFocus()
+        APP.processEvents()
+        window.actions['Copy layer'].trigger()
+        window.actions['Paste layer'].trigger()
+        assert len(window.editor.composition.layers) == 2
+        window.actions['Cut layer'].trigger()
+        assert len(window.editor.composition.layers) == 1
+        window.actions['Select all'].trigger()
+        assert len(window.editor.selected_layers()) == 1
+
+        window.show()
+        field = QLineEdit(window)
+        field.setGeometry(10, 10, 220, 28)
+        field.setText('native text')
+        field.show()
+        field.setFocus()
+        field.selectAll()
+        APP.processEvents()
+        window.actions['Copy layer'].trigger()
+        assert APP.clipboard().text() == 'native text'
+        APP.clipboard().setText(' pasted')
+        field.setCursorPosition(len(field.text()))
+        window.actions['Paste layer'].trigger()
+        assert field.text() == 'native text pasted'
+        field.selectAll()
+        window.actions['Cut layer'].trigger()
+        assert field.text() == ''
+        field.setText('select all')
+        window.actions['Select all'].trigger()
+        assert field.selectedText() == 'select all'
+    finally:
+        close(window)
+

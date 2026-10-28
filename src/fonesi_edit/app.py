@@ -35,6 +35,7 @@ _INTERACTIVE_WIDGETS = (QAbstractSpinBox, QComboBox, QAbstractItemView, QAbstrac
 _EDITOR_SHORTCUT_ACTIONS = frozenset({
     "Undo", "Redo", "Nhân bản", "Split", "Đưa vào hàng đợi", "Phát/dừng",
     "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer",
+    "Select all", "Copy layer", "Paste layer", "Cut layer",
 })
 
 
@@ -398,6 +399,10 @@ class MainWindow(QMainWindow):
     def shortcuts(self):
         menu=self.menuBar().addMenu('Thao tác');keys={'Mở project':('Ctrl+O',self.open_project),'Lưu project':('Ctrl+S',self.save_project),
             'Lưu thành project mới':('Ctrl+Shift+S',self.save_project_as),
+            'Select all':('Ctrl+A',self.editor.select_all_layers),
+            'Copy layer':('Ctrl+C',self.editor.copy_layers),
+            'Paste layer':('Ctrl+V',self.editor.paste_layers),
+            'Cut layer':('Ctrl+X',self.editor.cut_layers),
             'Cài đặt':('Ctrl+,',lambda:self.nav.setCurrentWidget(self.settings)), 'Undo':('Ctrl+Z',self.editor.undo.undo),'Redo':('Ctrl+Shift+Z',self.editor.undo.redo),
             'Thêm video':('Ctrl+Shift+O',self.editor.add_video),'Nhân bản':('Ctrl+D',self.editor.duplicate),'Split':('Ctrl+B',self.editor.split),
             'Đưa vào hàng đợi':('Ctrl+Return',self.editor.request_render),'Phát/dừng':('Space',self.editor.toggle_play),'Marker':('M',self.add_marker),
@@ -410,10 +415,31 @@ class MainWindow(QMainWindow):
             def invoke(_checked=False,callback=callback,name=name):
                 policy, target = shortcut_focus_policy(QApplication.focusWidget())
                 if not should_dispatch_editor_shortcut(name, policy):
-                    if policy == "text" and name == "Undo":
-                        target.undo()
-                    elif policy == "text" and name == "Redo":
-                        target.redo()
+                    native_methods = {
+                        "Undo": "undo", "Redo": "redo", "Select all": "selectAll",
+                        "Copy layer": "copy", "Paste layer": "paste", "Cut layer": "cut",
+                    }
+                    clipboard_actions = {"Copy layer", "Paste layer", "Cut layer"}
+                    if policy == "text":
+                        method = getattr(target, native_methods.get(name, ""), None)
+                        if callable(method):
+                            method()
+                    elif policy == "control":
+                        if target is self.editor.layers and name in clipboard_actions:
+                            self.guard(callback)()
+                        elif name == "Select all":
+                            native_target = target
+                            if isinstance(target, QAbstractSpinBox):
+                                native_target = target.lineEdit()
+                            elif isinstance(target, QComboBox) and target.isEditable():
+                                native_target = target.lineEdit()
+                            method = getattr(native_target, "selectAll", None)
+                            if callable(method):
+                                method()
+                        elif name in clipboard_actions and isinstance(target, QAbstractSpinBox):
+                            method = getattr(target.lineEdit(), native_methods[name], None)
+                            if callable(method):
+                                method()
                     return
                 self.guard(callback)()
             action.triggered.connect(invoke);menu.addAction(action);self.actions[name]=action

@@ -94,6 +94,7 @@ def test_shortcut_remap_rejects_incomplete_sequence():
 @pytest.mark.parametrize("action", [
     "Undo", "Redo", "Nhân bản", "Split", "Đưa vào hàng đợi", "Phát/dừng",
     "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer",
+    "Select all", "Copy layer", "Paste layer", "Cut layer",
 ])
 @pytest.mark.parametrize("policy", ["text", "control"])
 def test_editor_shortcuts_yield_to_focused_text_and_controls(action, policy):
@@ -107,4 +108,5 @@ def test_app_level_shortcuts_remain_available_when_controls_have_focus(action, p
 
 
 def test_editor_shortcuts_dispatch_when_canvas_or_global_area_has_focus():
-    assert should_dispatch_editor_shortcut("Phát/dừng", "global")
+    for action in ("Phát/dừng", "Select all", "Copy layer", "Paste layer", "Cut layer"):
+        assert should_dispatch_editor_shortcut(action, "global")
