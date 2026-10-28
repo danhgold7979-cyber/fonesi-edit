@@ -448,7 +448,7 @@ def test_proxy_cache_quota_persisted_and_swept_in_background(tmp_path,monkeypatc
         wait_until(lambda:not window._cache_cleanup_busy and bool(calls),seconds=10)
         assert calls[0][0]==window.data/'cache'/'proxies'
         assert calls[0][1]==128*1024**2
-        assert str(active) in calls[0][2]
+        assert any(Path(protected).resolve()==active.resolve() for protected in calls[0][2])
     finally:
         close(window)
     reopened=MainWindow(tmp_path/'state')
