@@ -51,3 +51,39 @@ def test_completed_translation_file_is_reused_after_worker_recovery(tmp_path,mon
     assert module.execute_translation(store,payload,lambda _:None,None)['reused'] and len(calls)==1 and output.stat().st_mtime_ns==stamp
     output.write_text('1\n00:00:00,000 --> 00:00:00,500\nEdited by user\n')
     with pytest.raises(FileExistsError):module.execute_translation(store,payload,lambda _:None,None)
+
+
+def test_changing_only_daily_translation_quota_reuses_cached_cues(tmp_path):
+    store=Store(tmp_path/'state.db')
+    calls=[]
+    def fake(texts,*args):
+        calls.append(tuple(texts))
+        return ['Bản dịch '+text for text in texts]
+    cue=Caption(0,1200,'Original')
+    first=translate_captions(store,[cue],config={'provider':'test','daily_limit':100},transport=fake)
+    assert first[0].text=='Bản dịch Original'
+    second=translate_captions(store,[cue],config={'provider':'test','daily_limit':1},transport=fake)
+    assert second[0].text==first[0].text
+    assert len(calls)==1
+
+
+def test_overwriting_subtitle_is_atomic_and_failure_keeps_manual_edits(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    path=tmp_path/'manual.srt'
+    module.write_captions(path,[Caption(0,1000,'Sửa tay đã lưu')])
+    original=path.read_bytes()
+    bad=Caption(0,1000,'Invalid')
+    bad.end_ms=0
+    with pytest.raises(ValueError):
+        module.write_captions(path,[bad],overwrite=True)
+    assert path.read_bytes()==original
+    def fail_replace(*args):
+        raise OSError('synthetic rename failure')
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'replace',fail_replace)
+        with pytest.raises(OSError,match='rename failure'):
+            module.write_captions(path,[Caption(0,1000,'Ghi mới')],overwrite=True)
+    assert path.read_bytes()==original
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+    module.write_captions(path,[Caption(0,1000,'Ghi mới')],overwrite=True)
+    assert read_captions(path)[0].text=='Ghi mới'
