@@ -46,3 +46,16 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40716484637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40716484637) **PASS**: 339 Linux tests; 338 Windows tests + 1 intentional POSIX-fixture skip. Production app/native host and frozen proof passed on both runners.
 - Follow-up anchor-invariant tests passed in [run 40717364128](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40717364128): **347 Linux tests; 346 Windows tests + 1 intentional skip**, with packaged proof on both systems.
 - Still open: rotated metadata, VFR, mixed FPS, HiDPI/4K, long timelines, crop/preview/export parity across all transforms, and real Windows user-machine acceptance. These results do not mark all of P04 complete.
+
+## P04-07 — Save As project and shortcut-table parity (28/10/2026)
+
+- Added a visible **Lưu thành** toolbar action and Ctrl+Shift+S. Save As normalizes the `.fonesi` extension, creates an independent project ID and Store record, and writes a standalone project file.
+- Cancel leaves the active project unchanged. Selecting the current project path uses normal Save rather than creating a duplicate ID. Save As does not rewrite the source project file or its named database snapshot.
+- CI [run 40719769956](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40719769956) **PASS**: 350 Linux tests; 349 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both systems.
+
+## P04-07 — Focus-aware layer clipboard shortcuts (28/10/2026)
+
+- Added Ctrl+A/C/V/X actions for layer selection and an in-app layer clipboard. Paste regenerates layer IDs and group IDs, preserves clip references/style/keyframes, applies a bounded offset and records one undo step. Cut removes only unlocked selected layers; source media files are never deleted or changed.
+- When a text editor has focus, the same actions route to the native widget's select-all/copy/paste/cut methods rather than operating on layers. The layer list retains list selection semantics and supports layer clipboard actions.
+- CI [run 40721462280](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40721462280) **PASS**: 362 Linux tests; 361 Windows tests + 1 intentional POSIX-fixture skip. Production app/native host and frozen proof passed on both systems.
+- Remaining: real OS IME/keyboard testing, advanced multi-step shortcut customization, dense peer-guide priorities, and the remaining P04/P12 acceptance gates. These slices do not mark the whole phase complete.

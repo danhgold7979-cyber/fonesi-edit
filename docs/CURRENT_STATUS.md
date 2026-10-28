@@ -7,7 +7,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P01 | Thiết kế, luồng, contracts, traceability | Cập nhật theo thay đổi đã được chấp thuận |
 | P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain/SQLite/snapshots/worker; backup có integrity/no-overwrite, credential alias checks và error redaction; CI Linux/Windows pass | Soak/crash/power-loss, filesystem không hỗ trợ hard link, installer và nghiệm thu máy Windows người dùng |
-| P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, async thumbnail strip, validated source proxy 3 mức; peer-object snap + viewport-only guides CI PASS; normalized crop + FFmpeg render + CropDialog/8 handles + ratio-lock/bounds tests CI Linux/Windows frozen PASS | Rotation metadata/VFR/mixed FPS, HiDPI/4K/seek/audio-sync/long timeline, full shortcut-table parity and remaining P04 tasks, real Windows user-machine acceptance |
+| P04 | Canvas/inspector/timeline/undo, rendered In–Out loop, async thumbnail strip, validated source proxy; peer snap + viewport guides; normalized crop + ratio-lock/anchor tests; Save As + Ctrl+Shift+S; focus-aware Ctrl+A/C/V/X layer clipboard; latest slices CI Linux/Windows + frozen proof PASS | Rotation metadata/VFR/mixed FPS, HiDPI/4K/seek/audio-sync/long timeline, remaining shortcut/customization cases, remaining P04 tasks and real Windows user-machine acceptance |
 | P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
@@ -69,3 +69,9 @@ P03: job error được lọc ở worker **và tại SQLite Store.fail**, test f
 - Crop ratio-lock/bounds CI [40716484637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40716484637): **339 Linux / 338 Windows + 1 intentional skip**, packaged proof both systems PASS.
 - Anchor-preservation regression CI [40717364128](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40717364128): **347 Linux / 346 Windows + 1 intentional skip**, packaged proof both systems PASS.
 - P04 remains in progress. Live provider, real Windows/HiDPI/GPU, rotated metadata/VFR and remaining shortcut/editor requirements are not marked accepted.
+
+## P04 update — Save As and focus-aware layer clipboard (28/10/2026)
+
+- Save As toolbar/shortcut CI [40719769956](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40719769956): **350 Linux / 349 Windows + 1 intentional skip**, packaged proof both systems PASS.
+- Layer clipboard and focus-aware Ctrl+A/C/V/X CI [40721462280](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40721462280): **362 Linux / 361 Windows + 1 intentional skip**, packaged proof both systems PASS.
+- P04 remains in progress; live provider, real Windows/IME, GPU/HiDPI, VFR/rotation and other unverified requirements are not marked accepted.
