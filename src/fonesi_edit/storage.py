@@ -209,10 +209,14 @@ class Store:
             conn.execute("UPDATE matrix_history SET state='succeeded' WHERE job_id=?",(job_id,))
 
     def fail(self, job_id, message, blocked=False):
+        # Every caller, including schedulers and recovery paths, passes through
+        # this persistence boundary. Never trust callers to redact first.
+        from .worker import sanitize_error_message
+        safe_error = sanitize_error_message(message, limit=3000)
         with self.connect() as conn:
             row = conn.execute("SELECT cancel_requested FROM jobs WHERE id=?", (job_id,)).fetchone()
             state = "canceled" if row and row[0] else "blocked" if blocked else "failed"
-            conn.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=?", (state, str(message)[-3000:], time.time(), job_id))
+            conn.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=?", (state, safe_error, time.time(), job_id))
             conn.execute("UPDATE matrix_history SET state='failed' WHERE job_id=?",(job_id,))
 
     def cancel(self, job_id):
