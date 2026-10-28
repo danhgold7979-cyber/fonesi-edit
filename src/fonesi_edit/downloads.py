@@ -113,7 +113,8 @@ def execute_download_job(store,job,progress,cancel):
 def _gallery(store,job,platform,root,jar,progress,cancel):
     from gallery_dl import config,job as gallery_job,exception
     payload=job['payload'];limit=int(payload.get('limit',0)) or 1000000
-    config.clear();config.set(('extractor',),'base-directory',str(root/platform))
+    config.clear();config.set(('output',),'mode','null')
+    config.set(('extractor',),'base-directory',str(root/platform))
     config.set(('extractor',),'directory',['{_fonesi_channel}','{_fonesi_kind}'])
     config.set(('extractor',),'filename','{_fonesi_id}.{extension}')
     config.set(('extractor',),'timeout',15);config.set(('extractor',),'retries',2)
