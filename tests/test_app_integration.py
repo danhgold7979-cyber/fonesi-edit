@@ -1201,3 +1201,60 @@ def test_scan_search_filter_sort_preserves_original_selection_and_safe_urls(tmp_
     finally:
         close(window)
 
+def test_bulk_scan_selection_spans_filtered_pages_and_clear_keeps_hidden_choices(tmp_path):
+    window = MainWindow(tmp_path / "state")
+    window.scheduler.paused = True
+    try:
+        payload = {"url": "https://example.test/gallery", "folder": str(tmp_path / "output"),
+                   "engine": "gallery", "media": "images"}
+        scan_id = window.store.submit("scan", payload)
+        window.store.claim(allowed={"scan"})
+        urls = [f"https://example.test/media/{name}.png" for name in ("a", "b", "c", "d", "e")]
+        items = [{"id": str(i), "title": f"Image {i}", "kind": "images",
+                  "engine": "gallery", "url": url, "selectable": True}
+                 for i, url in enumerate(urls)]
+        window.store.finish(scan_id, {"platform": "Generic", "items": items, "count": len(items), "complete": True})
+        page = window.downloads
+        page.scan_page_size = 2
+        page.show_scan()
+        page.select_all_filtered()
+        assert page.scan_selected[scan_id] == set(range(5))
+        page.scan_search.setText("Image 4")
+        assert page.scan_selected[scan_id] == set(range(5))
+        page.clear_all_filtered()
+        assert page.scan_selected[scan_id] == {0, 1, 2, 3}
+        page.scan_search.clear()
+        page.change_scan_page(2)
+        assert page.scan_tree.topLevelItem(0).child(0).checkState(0).name == "Unchecked"
+    finally:
+        close(window)
+
+
+def test_bulk_scan_selection_over_cap_is_atomic_and_does_not_enqueue_partial_jobs(tmp_path):
+    import pytest
+    window = MainWindow(tmp_path / "state")
+    window.scheduler.paused = True
+    try:
+        payload = {"url": "https://example.test/gallery", "folder": str(tmp_path / "output"),
+                   "engine": "gallery", "media": "images"}
+        scan_id = window.store.submit("scan", payload)
+        window.store.claim(allowed={"scan"})
+        items = [{"id": str(i), "title": f"Image {i}", "kind": "images",
+                  "engine": "gallery", "url": f"https://example.test/media/{i}.png",
+                  "selectable": True} for i in range(501)]
+        window.store.finish(scan_id, {"platform": "Generic", "items": items, "count": len(items), "complete": True})
+        page = window.downloads
+        page.scan_page_size = 200
+        page.show_scan()
+        existing = set(range(500))
+        page.scan_selected[scan_id] = set(existing)
+        page.select_all_filtered()
+        assert page.scan_selected[scan_id] == existing
+        assert "chưa thay đổi" in window.status.text()
+        page.scan_selected[scan_id] = set(range(501))
+        with pytest.raises(ValueError, match="Tối đa 500"):
+            page.download_selected()
+        assert not [job for job in window.store.jobs() if job["kind"] == "download"]
+    finally:
+        close(window)
+
