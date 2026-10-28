@@ -81,3 +81,69 @@ def test_locked_matrix_row_scene_indices_are_validated_and_strings_normalized():
     ):
         with pytest.raises(ValueError,match='Locked|locked'):
             generate(source,1,locks=locks)
+
+
+
+def test_regenerate_one_row_preserves_locked_cell_and_forward_wk():
+    from fonesi_edit.matrix import regenerate_row, matrix_rows_valid
+    source = scenes([4, 4])
+    rows = generate(source, 4, seed=8, window=1, different=2)['rows']
+    before = [[angle.hash for angle in row] for row in rows]
+    locks = {0: rows[1][0].hash}
+    result = regenerate_row(source, rows, 1, seed=11, window=1, different=2,
+                            locks=locks, seconds=3)
+    updated = [list(row) for row in rows]
+    updated[1] = result['row']
+    assert result['row'][0].hash == locks[0]
+    assert result['row'][1].hash != rows[1][1].hash
+    assert [[a.hash for a in row] for row in rows] == before
+    assert [a.hash for a in updated[0]] == before[0]
+    assert [a.hash for a in updated[2]] == before[2]
+    assert [a.hash for a in updated[3]] == before[3]
+    assert matrix_rows_valid(updated, [], 1, 2)
+    assert [a.hash for a in regenerate_row(source, rows, 1, seed=11,
+        window=1, different=2, locks=locks, seconds=3)['row']] == [
+        a.hash for a in result['row']]
+
+
+def test_regenerate_row_checks_later_rows_not_only_previous():
+    from fonesi_edit.matrix import regenerate_row, matrix_rows_valid
+    source = scenes([3])
+    rows = [[source[0][0]], [source[0][1]], [source[0][2]]]
+    assert matrix_rows_valid(rows, [], window=1, different=0)
+    # No alternative exists: replacing middle with either neighbor would
+    # break W=1 of the middle or *following* row.
+    with pytest.raises(ValueError, match='Không có góc thay thế'):
+        regenerate_row(source, rows, 1, seed=1, window=1, seconds=2)
+    assert [row[0].hash for row in rows] == [a.hash for a in source[0]]
+
+
+def test_regenerate_row_rejects_locked_and_historical_combinations_without_changes():
+    from fonesi_edit.matrix import regenerate_row
+    source=scenes([2,2])
+    rows=[[source[0][0],source[1][0]]]
+    historical=[[source[0][0].hash,source[1][1].hash],
+                [source[0][1].hash,source[1][0].hash]]
+    locked={0:rows[0][0].hash}
+    with pytest.raises(ValueError,match='Không có góc thay thế'):
+        regenerate_row(source,rows,0,locks=locked,history=historical,seconds=2)
+    with pytest.raises(ValueError,match='All angles'):
+        regenerate_row(source,rows,0,locks={0:rows[0][0].hash,1:rows[0][1].hash})
+    with pytest.raises(ValueError,match='Locked angle'):
+        regenerate_row(source,rows,0,locks={0:source[0][1].hash})
+    assert rows[0][0]==source[0][0]
+
+
+def test_regenerate_row_cancel_and_bad_index_do_not_mutate_rows():
+    from threading import Event
+    from fonesi_edit.matrix import regenerate_row
+    source=scenes([2,3])
+    rows=[[source[0][0],source[1][0]]]
+    event=Event();event.set()
+    with pytest.raises(RuntimeError,match='Canceled'):
+        regenerate_row(source,rows,0,seconds=1,cancel=event)
+    with pytest.raises(ValueError,match='row index'):
+        regenerate_row(source,rows,-1)
+    with pytest.raises(ValueError,match='time budget'):
+        regenerate_row(source,rows,0,seconds=0)
+    assert rows==[[source[0][0],source[1][0]]]
