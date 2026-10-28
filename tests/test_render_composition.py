@@ -117,8 +117,29 @@ def test_crop_dialog_has_preview_controls_and_cancel_preserves_clip(tmp_path, mo
     outside = preview.pixelColor(2, 2)
     assert inside.lightness() > 220
     assert outside.lightness() < 180
+
+    # Verify that a real Qt drag moves the normalized crop rectangle.
+    from PySide6.QtCore import QPoint, Qt
+    from PySide6.QtTest import QTest
+    dialog.show()
+    app.processEvents()
+    dialog.rect = [0.25, 0.25, 0.5, 0.5]
+    dialog._paint_crop()
+    shown = dialog.canvas.pixmap()
+    offset_x = (dialog.canvas.width() - shown.width()) // 2
+    offset_y = (dialog.canvas.height() - shown.height()) // 2
+    start = QPoint(offset_x + int(0.45 * shown.width()), offset_y + int(0.45 * shown.height()))
+    end = QPoint(start.x() + 24, start.y() + 8)
+    original_x = dialog.rect[0]
+    QTest.mousePress(dialog.canvas, Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(dialog.canvas, end, delay=10)
+    QTest.mouseRelease(dialog.canvas, Qt.MouseButton.LeftButton, pos=end)
+    app.processEvents()
+    assert dialog.rect[0] > original_x
+
     dialog.rect = [0.1, 0.1, 0.6, 0.6]
     dialog.reject()
+    dialog.close()
     assert (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == before
     assert dialog.lock_ratio.text() == "Khóa tỷ lệ crop"
     dialog.reset_crop()
