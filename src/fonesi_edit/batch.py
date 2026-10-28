@@ -6,7 +6,7 @@ import re
 import random
 
 from .domain import Clip,Composition,Layer,canonical,identifier
-from .prototypes.media import probe
+from .prototypes.media import probe,MediaError
 from .render import audio_duration
 
 VIDEO_EXTENSIONS={'.mp4','.mkv','.mov','.webm','.avi','.m4v','.flv','.ts'}
@@ -109,6 +109,31 @@ def scan_multiple_folders(roots):
                 seen_files.add(path)
                 combined.setdefault(channel,[]).append(str(path))
     return combined
+
+
+def probe_batch_metadata(groups, progress=None, cancel=None):
+    """Read FFprobe video facts off the UI thread; keep per-file failures explicit.
+
+    Group values are paths returned by the batch scanner. Repeated source paths
+    (including overlapping roots) are only probed once. No media is modified.
+    """
+    sources=list(dict.fromkeys(str(Path(path).expanduser().resolve())
+        for paths in groups.values() for path in paths))
+    media={}
+    errors={}
+    for index,source in enumerate(sources):
+        if cancel is not None and cancel.is_set():
+            return {'media':media,'errors':errors,'cancelled':True}
+        try:
+            info=probe(Path(source))
+            if info.width<=0 or info.height<=0:
+                raise ValueError('Invalid video dimensions')
+            media[source]={'duration':info.duration,'width':info.width,'height':info.height}
+        except (OSError,ValueError,KeyError,TypeError,ZeroDivisionError,MediaError) as exc:
+            errors[source]=type(exc).__name__
+        if progress is not None:
+            progress((index+1)/len(sources))
+    return {'media':media,'errors':errors,'cancelled':False}
 
 
 def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximum=2,allocation='proportional',weights=None,manual_durations=None):

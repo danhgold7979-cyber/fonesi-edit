@@ -249,3 +249,26 @@ def test_multi_root_batch_scan_deduplicates_nested_paths_and_ignores_outputs(tmp
         scan_multiple_folders([])
     with pytest.raises(NotADirectoryError):
         scan_multiple_folders([tmp_path/'does-not-exist'])
+
+
+
+def test_batch_metadata_probes_real_video_deduplicates_and_reports_corrupt_input(tmp_path):
+    from threading import Event
+    from fonesi_edit.batch import probe_batch_metadata
+    video=Path(create_fixture(tmp_path/'media',duration=1)['source'])
+    corrupt=tmp_path/'damaged.mp4'
+    corrupt.write_bytes(b'not a playable video')
+    before={str(video):video.stat().st_size,str(corrupt):corrupt.stat().st_size}
+    progress=[]
+    result=probe_batch_metadata({'A':[str(video),str(corrupt)],'B':[str(video)]},
+        progress.append,Event())
+    media=result['media'][str(video.resolve())]
+    assert media['width']>0 and media['height']>0 and .9<=media['duration']<=1.1
+    assert str(corrupt.resolve()) in result['errors']
+    assert len(result['media'])==1 and result['cancelled'] is False
+    assert progress[-1]==1 and len(progress)==2
+    assert video.stat().st_size==before[str(video)]
+    assert corrupt.stat().st_size==before[str(corrupt)]
+    stopped=Event();stopped.set()
+    cancelled=probe_batch_metadata({'A':[str(video)]},cancel=stopped)
+    assert cancelled['cancelled'] is True and cancelled['media']=={}

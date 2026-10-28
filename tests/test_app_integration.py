@@ -649,3 +649,79 @@ def test_batch_async_scan_rejects_stale_results_when_source_roots_change(tmp_pat
         assert sum(len(paths) for paths in page.selected().values())==2
     finally:
         close(window)
+
+
+
+def test_batch_metadata_filter_is_async_orientation_aware_and_preserves_hidden_selection(tmp_path,monkeypatch):
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        channel=str(tmp_path/'channel')
+        short=str(tmp_path/'short.mp4')
+        wide=str(tmp_path/'wide.mkv')
+        portrait=str(tmp_path/'portrait.mp4')
+        unreadable=str(tmp_path/'damaged.mp4')
+        page.scanned({channel:[short,wide,portrait,unreadable]})
+        pending=[]
+        monkeypatch.setattr(window,'background',
+            lambda work,done:pending.append((work,done)))
+        page.duration_min.setValue(1)
+        assert len(pending)==1 and page.media_metadata is None
+        assert sum(len(v) for v in page.selected().values())==4
+        assert 'CHƯA áp dụng' in page.summary.text()
+        with pytest.raises(ValueError,match='chưa áp dụng'):
+            page.plan()
+        pending[0][1]({'media':{
+            short:{'duration':.5,'width':1920,'height':1080},
+            wide:{'duration':5,'width':1280,'height':720},
+            portrait:{'duration':3,'width':1080,'height':1920}},
+            'errors':{unreadable:'MediaError'},'cancelled':False})
+        assert page.media_metadata is not None
+        assert page.tree.topLevelItem(0).child(0).isHidden()
+        assert not page.tree.topLevelItem(0).child(1).isHidden()
+        assert not page.tree.topLevelItem(0).child(2).isHidden()
+        assert page.tree.topLevelItem(0).child(3).isHidden()
+        page.short_edge.setCurrentIndex(page.short_edge.findData(1080))
+        assert page.tree.topLevelItem(0).child(1).isHidden()
+        assert not page.tree.topLevelItem(0).child(2).isHidden()  # portrait 1080×1920
+        assert sum(len(v) for v in page.selected().values())==4
+        page.plans=[{'output':'retain-filter-only'}]
+        page.duration_max.setValue(2)
+        assert 'Khoảng thời lượng không hợp lệ' in page.summary.text()
+        with pytest.raises(ValueError,match='Khoảng thời lượng'):
+            page.plan()
+        assert len(page.plans)==1   # Visibility filtering alone never alters a dry-run.
+        page.duration_max.setValue(4)
+        page.check_visible('none')
+        assert not page.plans
+        assert set(page.selected()[channel])=={short,wide,unreadable}
+        page.source_changed()
+        assert page.media_metadata is None and page.selected()=={}
+    finally:
+        close(window)
+
+
+def test_batch_metadata_stale_callback_cannot_replace_new_scan(tmp_path,monkeypatch):
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        old=str(tmp_path/'old.mp4');new=str(tmp_path/'new.mp4')
+        pending=[]
+        monkeypatch.setattr(window,'background',
+            lambda work,done:pending.append(done))
+        page.scanned({'old':[old]})
+        page.duration_min.setValue(1)
+        assert len(pending)==1
+        page.scanned({'new':[new]})  # Replaces the source while the old FFprobe job is pending.
+        assert len(pending)==2 and page.media_metadata is None
+        pending[0]({'media':{old:{'duration':20,'width':3840,'height':2160}},
+                    'errors':{},'cancelled':False})
+        assert page.media_metadata is None
+        pending[1]({'media':{new:{'duration':2,'width':1080,'height':1920}},
+                    'errors':{},'cancelled':False})
+        assert page.media_metadata is not None and new in page.media_metadata
+        assert old not in page.media_metadata
+        assert page.selected()=={'new':[new]}
+    finally:
+        close(window)

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,scan_multiple_folders,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
+from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
@@ -376,7 +376,7 @@ class SubtitlesPage(QWidget):
 
 class BatchPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;self._scan_revision=0;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;self._scan_revision=0;self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Thư mục gốc (tùy chọn nếu có nhiều folder)',host,True)
         self.extra_roots=QPlainTextEdit();self.extra_roots.setPlaceholderText('Các folder nguồn bổ sung, mỗi dòng một đường dẫn');self.extra_roots.setMaximumHeight(90);form.addRow('Folder nguồn bổ sung',self.extra_roots)
         self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
@@ -396,10 +396,22 @@ class BatchPage(QWidget):
         self.format_filter=QComboBox();self.format_filter.addItem('Tất cả định dạng','')
         for extension in sorted(VIDEO_EXTENSIONS):self.format_filter.addItem(extension,extension)
         filter_row.addWidget(self.format_filter)
+        metadata_row=QHBoxLayout();layout.addLayout(metadata_row)
+        self.duration_min=QDoubleSpinBox();self.duration_min.setRange(0,604800);self.duration_min.setDecimals(2);self.duration_min.setSpecialValueText('Không giới hạn')
+        self.duration_max=QDoubleSpinBox();self.duration_max.setRange(0,604800);self.duration_max.setDecimals(2);self.duration_max.setSpecialValueText('Không giới hạn')
+        metadata_row.addWidget(QLabel('Từ (giây)'));metadata_row.addWidget(self.duration_min)
+        metadata_row.addWidget(QLabel('Đến (giây)'));metadata_row.addWidget(self.duration_max)
+        self.short_edge=QComboBox()
+        for label,pixels in [('Mọi độ phân giải',0),('Cạnh ngắn ≥ 720px',720),('Cạnh ngắn ≥ 1080px',1080),('Cạnh ngắn ≥ 2160px',2160)]:
+            self.short_edge.addItem(label,pixels)
+        metadata_row.addWidget(self.short_edge)
         buttons(layout,host,[('Chọn mục đang hiện',lambda:self.check_visible('all')),('Bỏ chọn đang hiện',lambda:self.check_visible('none')),('Đảo chọn đang hiện',lambda:self.check_visible('invert'))])
         self.tree=QTreeWidget();self.tree.setHeaderLabels(['Kênh / video','Số tệp']);layout.addWidget(self.tree,1)
         self.search.textChanged.connect(lambda _:self.filter_batch())
         self.format_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
+        for spin in (self.duration_min,self.duration_max):
+            spin.valueChanged.connect(lambda _:self.filter_batch())
+        self.short_edge.currentIndexChanged.connect(lambda _:self.filter_batch())
         self.tree.itemChanged.connect(self.selection_changed)
         self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
         self.folder.textChanged.connect(lambda _:self.source_changed())
@@ -431,6 +443,7 @@ class BatchPage(QWidget):
         # audio only invalidates a dry-run, not the separate source scan.
         self._scan_revision+=1
         self.invalidate_plan()
+        self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False
         self.groups={}
         self.tree.blockSignals(True);self.tree.clear();self.tree.blockSignals(False)
         self.summary.setText('Danh sách folder đã đổi: cần quét lại nguồn.')
@@ -447,7 +460,10 @@ class BatchPage(QWidget):
             lambda groups:self.scanned(groups) if revision==self._scan_revision
             else self.host.message('Bỏ kết quả quét cũ vì danh sách folder đã thay đổi'))
     def scanned(self,groups):
+        # A new accepted scan must also invalidate any older FFprobe callback.
+        self._scan_revision+=1
         self.invalidate_plan()
+        self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False
         self.groups=groups
         self.tree.blockSignals(True)
         self.tree.clear()
@@ -458,9 +474,38 @@ class BatchPage(QWidget):
         self.tree.blockSignals(False)
         self.filter_batch()
 
+    def metadata_filter_active(self):
+        return bool(self.duration_min.value() or self.duration_max.value() or self.short_edge.currentData())
+
+    def request_metadata(self):
+        if self.media_metadata is not None or self._metadata_loading or not self.groups:
+            return
+        revision=self._scan_revision
+        groups={channel:list(paths) for channel,paths in self.groups.items()}
+        self._metadata_loading=True
+        self.host.background(lambda progress,cancel:probe_batch_metadata(groups,progress,cancel),
+            lambda result:self.metadata_scanned(result) if revision==self._scan_revision
+            else self.host.message('Bỏ kết quả FFprobe cũ vì nguồn video đã thay đổi'))
+
+    def metadata_scanned(self,result):
+        self._metadata_loading=False
+        if result.get('cancelled'):
+            self.summary.setText('Quét FFprobe bị hủy; bộ lọc metadata chưa được áp dụng.')
+            return
+        self.media_metadata=result['media']
+        self.media_metadata_errors=result['errors']
+        self.filter_batch()
+
     def filter_batch(self):
         needle=self.search.text().strip().casefold()
         extension=self.format_filter.currentData() or ''
+        minimum_duration=self.duration_min.value()
+        maximum_duration=self.duration_max.value()
+        minimum_side=self.short_edge.currentData() or 0
+        invalid_interval=bool(maximum_duration and maximum_duration<minimum_duration)
+        metadata_active=self.metadata_filter_active()
+        if metadata_active and not invalid_interval:
+            self.request_metadata()
         for i in range(self.tree.topLevelItemCount()):
             parent=self.tree.topLevelItem(i)
             channel_match=bool(needle) and needle in parent.text(0).casefold()
@@ -469,10 +514,19 @@ class BatchPage(QWidget):
                 child=parent.child(j)
                 matches_text=not needle or channel_match or needle in child.text(0).casefold()
                 matches_type=not extension or Path(child.text(0)).suffix.casefold()==extension
-                child.setHidden(not (matches_text and matches_type))
+                matches_metadata=True
+                if metadata_active and not invalid_interval and self.media_metadata is not None:
+                    info=self.media_metadata.get(str(Path(child.text(0)).resolve()))
+                    matches_metadata=(info is not None
+                        and (not minimum_duration or info['duration']>=minimum_duration)
+                        and (not maximum_duration or info['duration']<=maximum_duration)
+                        and (not minimum_side or min(info['width'],info['height'])>=minimum_side))
+                child.setHidden(not (matches_text and matches_type and matches_metadata))
                 visible+=not child.isHidden()
             parent.setHidden(not bool(visible))
         self.update_selection_summary()
+        if invalid_interval:
+            self.summary.setText('Khoảng thời lượng không hợp lệ: giới hạn đến phải ≥ giới hạn từ; chưa áp dụng lọc metadata.')
 
     def update_selection_summary(self):
         chosen=sum(len(paths) for paths in self.selected().values())
@@ -481,7 +535,15 @@ class BatchPage(QWidget):
         visible=sum(1 for i in range(self.tree.topLevelItemCount())
             for parent in [self.tree.topLevelItem(i)] if not parent.isHidden()
             for j in range(parent.childCount()) if not parent.child(j).isHidden())
-        self.summary.setText(f'{chosen}/{total} video đã chọn • {visible} mục đang hiển thị. Lọc không xóa tệp hoặc làm mất lựa chọn ở trang khác. Thay checkbox thì cần lập kế hoạch lại.')
+        note=''
+        if self.metadata_filter_active():
+            if self._metadata_loading:
+                note=' • Đang đọc FFprobe; lọc thời lượng/độ phân giải CHƯA áp dụng.'
+            elif self.media_metadata is None:
+                note=' • Chưa có metadata; bộ lọc chưa áp dụng.'
+            elif self.media_metadata_errors:
+                note=f' • {len(self.media_metadata_errors)} video không đọc được metadata (ẩn khi lọc).'
+        self.summary.setText(f'{chosen}/{total} video đã chọn • {visible} mục đang hiển thị. Lọc chỉ ẩn, không bỏ chọn tệp. Đổi checkbox thì cần lập kế hoạch lại.{note}')
 
     def selection_changed(self,item,column):
         if column!=0:return
@@ -510,6 +572,11 @@ class BatchPage(QWidget):
             if files:result[parent.text(0)]=files
         return result
     def plan(self):
+        if self.duration_max.value() and self.duration_max.value()<self.duration_min.value():
+            raise ValueError('Khoảng thời lượng không hợp lệ: giới hạn đến nhỏ hơn giới hạn từ')
+        if self.metadata_filter_active() and self.media_metadata is None:
+            self.request_metadata()
+            raise ValueError('Đang chờ đọc metadata FFprobe trước khi lập kế hoạch; bộ lọc chưa áp dụng')
         groups=self.selected()
         if not groups:raise ValueError('Quét/chọn folder trước')
         self.invalidate_plan()
