@@ -3,7 +3,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QComboBox, QListWidget, QPushButton, QWidget
-from fonesi_edit.app import normalize_shortcut_remap, parse_shortcut_remap_json, shortcut_focus_policy
+from fonesi_edit.app import (normalize_shortcut_remap, parse_shortcut_remap_json,
+                             shortcut_focus_policy, should_dispatch_editor_shortcut)
 
 APP = QApplication.instance() or QApplication([])
 
@@ -87,3 +88,23 @@ def test_shortcut_remap_rejects_incomplete_sequence():
     current = {"Undo": "Ctrl+Z"}
     with pytest.raises(ValueError, match="không hợp lệ"):
         normalize_shortcut_remap({"Undo": "Ctrl+"}, current)
+
+
+
+@pytest.mark.parametrize("action", [
+    "Undo", "Redo", "Nhân bản", "Split", "Đưa vào hàng đợi", "Phát/dừng",
+    "Marker", "Đặt In", "Đặt Out", "Nhóm layer", "Bỏ nhóm", "Khóa layer",
+])
+@pytest.mark.parametrize("policy", ["text", "control"])
+def test_editor_shortcuts_yield_to_focused_text_and_controls(action, policy):
+    assert not should_dispatch_editor_shortcut(action, policy)
+
+
+@pytest.mark.parametrize("action", ["Mở", "Lưu", "Trợ giúp", "Quét công cụ", "Cài đặt"])
+@pytest.mark.parametrize("policy", ["text", "control"])
+def test_app_level_shortcuts_remain_available_when_controls_have_focus(action, policy):
+    assert should_dispatch_editor_shortcut(action, policy)
+
+
+def test_editor_shortcuts_dispatch_when_canvas_or_global_area_has_focus():
+    assert should_dispatch_editor_shortcut("Phát/dừng", "global")

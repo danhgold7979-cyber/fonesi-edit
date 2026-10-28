@@ -67,6 +67,11 @@ def parse_shortcut_remap_json(text, current):
     return normalize_shortcut_remap(changes, current)
 
 
+def should_dispatch_editor_shortcut(action_name, focus_policy):
+    """Editor-scoped shortcuts must yield whenever a text/control owns focus."""
+    return action_name not in _EDITOR_SHORTCUT_ACTIONS or focus_policy == "global"
+
+
 def normalize_shortcut_remap(changes, current):
     """Merge partial shortcut edits, normalize them, and reject invalid/conflicting keys."""
     if not isinstance(changes, dict) or set(changes) - set(current):
@@ -351,7 +356,7 @@ class MainWindow(QMainWindow):
             action=QAction(name,self);action.setShortcut(QKeySequence(remap.get(name,default)))
             def invoke(_checked=False,callback=callback,name=name):
                 policy, target = shortcut_focus_policy(QApplication.focusWidget())
-                if name in _EDITOR_SHORTCUT_ACTIONS and policy != "global":
+                if not should_dispatch_editor_shortcut(name, policy):
                     if policy == "text" and name == "Undo":
                         target.undo()
                     elif policy == "text" and name == "Redo":

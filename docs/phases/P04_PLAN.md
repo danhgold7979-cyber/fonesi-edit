@@ -122,3 +122,8 @@ CI [40686663256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 ## 12. P04-05 — Shortcut remap failure handling (28/10/2026)
 
 Bổ sung bước hardening: JSON người dùng nhập sai phải trả lỗi có kiểm soát, không làm văng slot UI; remap từng phần phải merge với map hiện tại; lưu map đầy đủ trước khi cập nhật QAction để tránh runtime/settings lệch nhau khi storage ghi thất bại. Test helper parser JSON và giữ nguyên hành vi merge/conflict. Chạy full source/packaged CI hai hệ; nếu storage lỗi ngoài các exception dự kiến, giữ nguyên runtime state và ghi blocker.
+
+
+## 13. P04-06 — Explicit shortcut dispatch policy (28/10/2026)
+
+Tách điều kiện dispatch editor shortcut thành helper thuần, để test ma trận action × focus mà không cần giả lập bàn phím/IME của hệ điều hành. Editor actions nhường cho text/control; app-level actions không bị chặn; global/canvas focus vẫn cho phép editor shortcuts. CI mới xác nhận hành vi code, còn IME/HiDPI/Windows user acceptance giữ riêng.
