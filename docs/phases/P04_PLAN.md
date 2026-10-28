@@ -127,3 +127,18 @@ Bổ sung bước hardening: JSON người dùng nhập sai phải trả lỗi c
 ## 13. P04-06 — Explicit shortcut dispatch policy (28/10/2026)
 
 Tách điều kiện dispatch editor shortcut thành helper thuần, để test ma trận action × focus mà không cần giả lập bàn phím/IME của hệ điều hành. Editor actions nhường cho text/control; app-level actions không bị chặn; global/canvas focus vẫn cho phép editor shortcuts. CI mới xác nhận hành vi code, còn IME/HiDPI/Windows user acceptance giữ riêng.
+
+
+## 14. P04-07 — Save As project and shortcut-table parity (28/10/2026)
+
+**Master alignment:** `EDITOR_SPEC.md` §9 defines Ctrl+Shift+S as Save As. The current menu has Ctrl+O/Ctrl+S but no Save As action, leaving a documented keyboard path unavailable.
+
+**Implementation slice:**
+1. Add `save_project_as` with a native save dialog and `.fonesi` extension normalization.
+2. Preserve the current project record before branching to a new project ID; write the selected project file atomically and register the new project in the local Store.
+3. If the dialog is cancelled, leave project ID/path and project list unchanged. If the chosen path is the current project file, use normal Save instead of creating a duplicate ID.
+4. Expose the action in the shortcut menu with Ctrl+Shift+S; keep remapping and focus-policy behavior from P04-05/P04-06.
+5. Add integration tests for independent IDs/files, cancel semantics, same-path save behavior and the registered shortcut.
+6. Run plan validation, full source suite and frozen Linux/Windows proof. Do not mark Save As accepted until the new CI run passes.
+
+**Failure handling:** do not change the active project pointer until the destination file and Store record have been written. If Store indexing fails after the file was written, keep the prior project active and report that the standalone file exists but internal indexing did not complete. No secrets or media are copied by Save As.
