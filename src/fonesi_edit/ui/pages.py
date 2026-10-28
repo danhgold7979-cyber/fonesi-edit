@@ -24,7 +24,7 @@ from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pair
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
 from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses
-from ..automation import metrics,recommended_parallel
+from ..automation import metrics,recommended_parallel,submit_once
 
 
 def buttons(layout,host,items):
@@ -183,8 +183,12 @@ class DownloadsPage(QWidget):
         account=job['payload'].get('account_ref')
         if account and account not in {item['id'] for item in bindings(self.host.store)}:
             raise PermissionError('Tài khoản quét đã bị xóa; không tự chuyển sang công khai')
-        for payload in requests:self.host.store.submit('download',payload)
-        self.host.message(f"Đã thêm {len(requests)} job tải đúng mục đã chọn từ scan {job_id[:8]}")
+        for payload in requests:
+            # Stable per-scan identity means pressing Download twice does not
+            # enqueue the same selected source twice; use Queue/Retry instead.
+            submit_once(self.host.store,'download',payload,
+                        'scan-item:'+job_id+':'+payload['url'])
+        self.host.message(f"Đã xếp {len(requests)} mục từ scan {job_id[:8]}; mục đã xếp trước không tạo trùng (dùng Retry nếu cần)")
         self.host.activate_queue()
 
     def schedule(self):
