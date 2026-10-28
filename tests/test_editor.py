@@ -124,3 +124,34 @@ def test_canvas_grid_is_view_only_project_persistent_and_undoable():
         assert editor.grid_action.isChecked()
     finally:
         editor.close();host.workspace.cleanup()
+
+
+def test_multiselection_drag_preserves_offsets_and_has_one_undo():
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import QPointF,QPoint,Qt
+    host=Host();editor=Editor(host)
+    first=Layer(x=.1,y=.2,width=.2,height=.15)
+    second=Layer(x=.4,y=.3,width=.2,height=.15)
+    try:
+        editor.set_composition(Composition(layers=[first,second]))
+        editor.select_ids([first.id,second.id])
+        editor.canvas.rebuild()
+        editor.resize(1300,850);editor.show();APP.processEvents()
+        start=editor.canvas.mapFromScene(QPointF(.16*1280,.27*720))
+        destination=start+QPoint(50,23)
+        QTest.mousePress(editor.canvas.viewport(),Qt.MouseButton.LeftButton,
+                         Qt.KeyboardModifier.NoModifier,start)
+        QTest.mouseMove(editor.canvas.viewport(),destination,20)
+        QTest.mouseRelease(editor.canvas.viewport(),Qt.MouseButton.LeftButton,
+                           Qt.KeyboardModifier.NoModifier,destination)
+        APP.processEvents()
+        a,b=editor.composition.layers
+        assert a.x>.1 and b.x>.4
+        assert abs((b.x-a.x)-.3)<1e-9
+        assert abs((b.y-a.y)-.1)<1e-9
+        assert editor.undo.count()==1
+        editor.undo.undo()
+        a,b=editor.composition.layers
+        assert abs(a.x-.1)<1e-9 and abs(b.x-.4)<1e-9
+    finally:
+        editor.close();host.workspace.cleanup()
