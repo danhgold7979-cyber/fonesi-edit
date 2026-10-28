@@ -614,5 +614,8 @@ def test_batch_page_multiple_roots_scan_all_selected_without_duplicate_files(tmp
         page.plans=[{'output':'stale'}]
         page.extra_roots.setPlainText(str(root_a))
         assert not page.plans
+        page.scan()  # Another scan is pending; never leave stale sources ready.
+        assert page.selected()=={}
+        assert page.tree.topLevelItemCount()==0
     finally:
         close(window)
