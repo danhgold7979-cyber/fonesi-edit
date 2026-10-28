@@ -43,3 +43,23 @@ Cannot close live/provider/Windows requirements using localhost or mocked tests.
 
 ## Result recording
 Record implemented code paths, exact command/commit, pass/fail/not-run/skipped, remaining UI/subproperties and external prerequisites in `P11_RESULTS.md`. No task/group passes because only one example works.
+
+## Execution addendum — cross-platform CI stabilization (2026-10-28)
+
+**Status: PLAN FIRST; no code changes in this addendum yet.**
+
+### Evidence and diagnosed failures
+- Latest rebuild CI run: `40635527059`.
+- Linux: `tests/test_jobs.py::test_real_worker_process_validation_and_pause` observed the durable job state become terminal before the child process had exited and been reaped. This is a timing race in the test's wait condition; it must wait for both the terminal database state and scheduler child cleanup under one bounded deadline.
+- Windows: `scripts/check_plan.py` uses implicit `Path.read_text()` encoding. The Windows runner's cp1252 default cannot decode the UTF-8 Vietnamese master plan. All repository text/JSON reads in this script must explicitly use UTF-8.
+
+### Planned implementation order
+1. Make plan/coverage/phase-plan reads in `scripts/check_plan.py` explicitly UTF-8; retain all existing assertions and validation scope.
+2. Correct the worker integration test to poll until the job is terminal **and** its child process has been reaped, without removing the timeout or weakening result/attempt assertions.
+3. Run `check_plan.py`, compileall, the full test suite and packaged proof on Linux and Windows through GitHub Actions.
+4. Update this phase result only after observing actual CI outcomes. Do not claim Windows acceptance from a planned workflow or Linux-only result.
+
+### Acceptance gate
+- Plan checker passes on Windows with its default system encoding.
+- Worker integration test passes deterministically and still proves successful media validation, one attempt and no leaked child process.
+- Full Linux and Windows workflow outcomes are recorded separately; external live-source, Chrome identity handoff and GPU gates remain open.
