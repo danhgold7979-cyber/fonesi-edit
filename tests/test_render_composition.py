@@ -33,6 +33,58 @@ def test_real_multi_clip_alpha_mask_text_subtitle_audio_and_reuse(tmp_path):
     with pytest.raises(FileExistsError):render_composition(changed,output)
 
 
+def test_clip_crop_defaults_keep_legacy_project_payload_compatible():
+    legacy = Composition.from_dict({"clips": [{"path": "legacy.mp4"}]})
+    clip = legacy.clips[0]
+    assert (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == (0, 0, 1, 1)
+    assert Composition.from_dict(legacy.to_dict()).clips[0].crop_width == 1
+
+
+@pytest.mark.parametrize("values", [
+    {"crop_x": -0.01},
+    {"crop_y": 1.01},
+    {"crop_width": 0},
+    {"crop_height": -0.1},
+    {"crop_x": 0.8, "crop_width": 0.3},
+    {"crop_y": 0.8, "crop_height": 0.3},
+    {"crop_x": float("nan")},
+    {"crop_width": True},
+])
+def test_clip_crop_rejects_invalid_normalized_regions(values):
+    with pytest.raises(ValueError, match="Crop region"):
+        Composition(clips=[Clip("unused.mp4", **values)]).validate()
+
+
+def test_crop_rect_pixels_uses_even_source_pixel_bounds():
+    from fonesi_edit.render import crop_rect_pixels
+    clip = Clip("unused.mp4", crop_x=0.25, crop_y=0.1,
+                crop_width=0.5, crop_height=0.8)
+    assert crop_rect_pixels(clip, 640, 360) == (320, 288, 160, 36)
+    assert crop_rect_pixels(Clip("unused.mp4"), 640, 360) is None
+    # Odd source dimensions are clamped to safe even boundaries.
+    assert crop_rect_pixels(Clip("unused.mp4", crop_x=0.99, crop_y=0.99,
+                                 crop_width=0.01, crop_height=0.01), 641, 361) == (2, 2, 638, 358)
+
+
+def test_clip_crop_compiles_before_flip_rotation_and_renders(tmp_path):
+    from fonesi_edit.render import compile_graph
+    f = create_fixture(tmp_path / "media", duration=0.6)
+    source = str(f["source"])
+    clip = Clip(source, end=0.5, flip=True, rotation=90,
+                crop_x=0.25, crop_y=0.1, crop_width=0.5, crop_height=0.8)
+    composition = Composition(width=320, height=180, fps=25, encoder="cpu",
+                              clips=[clip], mute_original=True)
+    stage = tmp_path / "crop-stage"
+    stage.mkdir()
+    _, graph, _ = compile_graph(composition, stage)
+    joined = ";".join(graph)
+    crop_at = joined.index("crop=320:288:160:36")
+    assert crop_at < joined.index("hflip") < joined.index("rotate=")
+    output = tmp_path / "cropped.mp4"
+    assert render_composition(composition, output)["validated"]
+    assert (probe(output).width, probe(output).height) == (320, 180)
+
+
 def test_crossfade_speed_crop_and_reference_use_real_export(tmp_path):
     f=create_fixture(tmp_path/'media',duration=1)
     c=Composition(width=180,height=320,fps=25,encoder='cpu',fit='crop',transition=.1,

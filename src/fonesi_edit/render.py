@@ -148,6 +148,43 @@ def audio_timeline_offset(track, total, clips, clip_ranges):
     return resolved
 
 
+def crop_rect_pixels(clip, source_width: int, source_height: int):
+    """Return an even-pixel FFmpeg crop as (width, height, x, y).
+
+    Coordinates are normalized to the untransformed source frame. Even crop
+    geometry is required for reliable yuv420p output across FFmpeg builds.
+    """
+    if type(source_width) is not int or type(source_height) is not int:
+        raise ValueError("Source dimensions must be integers")
+    if source_width < 2 or source_height < 2:
+        raise ValueError("Source frame is too small to crop safely")
+    x, y, width, height = (
+        clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height
+    )
+    if (x, y, width, height) == (0.0, 0.0, 1.0, 1.0):
+        return None
+    values = (x, y, width, height)
+    if any(type(value) not in (int, float) or not math.isfinite(value) for value in values):
+        raise ValueError("Crop region values must be finite numbers")
+    if (x < 0 or y < 0 or width <= 0 or height <= 0
+            or x + width > 1 or y + height > 1):
+        raise ValueError("Crop region must stay within the source frame")
+
+    def axis(start, extent, dimension):
+        usable = dimension - dimension % 2
+        if usable < 2:
+            raise ValueError("Source frame is too small to crop safely")
+        raw_start = math.floor(start * dimension)
+        raw_end = math.ceil((start + extent) * dimension)
+        left = max(0, min(usable - 2, (raw_start // 2) * 2))
+        right = min(usable, max(left + 2, ((raw_end + 1) // 2) * 2))
+        return left, right - left
+
+    left, crop_width = axis(x, width, source_width)
+    top, crop_height = axis(y, height, source_height)
+    return crop_width, crop_height, left, top
+
+
 def compile_graph(c:Composition,stage:Path):
     c.validate()
     if not c.clips:raise ValueError('Chưa có clip')
@@ -165,6 +202,10 @@ def compile_graph(c:Composition,stage:Path):
             segments.append((label+'v',label+'a',gap))
         args+=['-i',str(Path(clip.path).resolve())];idx=inputs;inputs+=1
         vf=[f'trim=start={clip.start:.8f}:end={end:.8f}',f'setpts=(PTS-STARTPTS)/{clip.speed:.8f}',f'fps={c.fps}','settb=AVTB']
+        crop = crop_rect_pixels(clip, info.width, info.height)
+        if crop:
+            crop_width, crop_height, crop_x, crop_y = crop
+            vf.append(f'crop={crop_width}:{crop_height}:{crop_x}:{crop_y}')
         if clip.flip:vf.append('hflip')
         if clip.freeze:vf.append(f'tpad=stop_mode=clone:stop_duration={clip.freeze}')
         if clip.rotation:vf.append(f'rotate={clip.rotation:.8f}*PI/180:fillcolor=black')

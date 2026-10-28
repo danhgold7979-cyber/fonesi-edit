@@ -83,6 +83,12 @@ class Clip:
     source_duration: float | None = None
     freeze: float = 0
     id: str = field(default_factory=identifier)
+    # Normalized crop rectangle in source-video coordinates. Defaults preserve
+    # projects created before manual crop support.
+    crop_x: float = 0.0
+    crop_y: float = 0.0
+    crop_width: float = 1.0
+    crop_height: float = 1.0
 
     def validate(self):
         if not self.path or not math.isfinite(self.start) or self.start < 0:
@@ -96,6 +102,14 @@ class Clip:
             raise ValueError("Invalid rotation/volume")
         if not math.isfinite(self.freeze) or self.freeze<0:raise ValueError("Freeze duration invalid")
         if self.offset is not None and (not math.isfinite(self.offset) or self.offset<0):raise ValueError('Clip offset invalid')
+        crop = (self.crop_x, self.crop_y, self.crop_width, self.crop_height)
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in crop):
+            raise ValueError("Crop region values must be finite numbers")
+        if (self.crop_x < 0 or self.crop_y < 0
+                or self.crop_width <= 0 or self.crop_height <= 0
+                or self.crop_x + self.crop_width > 1
+                or self.crop_y + self.crop_height > 1):
+            raise ValueError("Crop region must be positive and stay within the source frame")
 
 
 @dataclass
