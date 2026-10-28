@@ -65,19 +65,25 @@ class OutputDialog(QDialog):
 
 class AudioDialog(QDialog):
     def __init__(self,editor):
-        super().__init__(editor);self.editor=editor;self.setWindowTitle('Âm thanh / nhạc / sound effect');self.resize(1050,550)
+        super().__init__(editor);self.editor=editor;self.setWindowTitle('Âm thanh / nhạc / sound effect');self.resize(1200,600)
         layout=QVBoxLayout(self);row=QHBoxLayout();layout.addLayout(row)
         add=QPushButton('Thêm âm thanh');add.clicked.connect(self.add);row.addWidget(add)
         delete=QPushButton('Bỏ track chọn');delete.clicked.connect(self.remove);row.addWidget(delete)
         self.mute=QCheckBox('Tắt tiếng video gốc');self.mute.setChecked(editor.composition.mute_original);row.addWidget(self.mute)
-        self.table=QTableWidget(0,11);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Bắt đầu s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
+        layout.addWidget(QLabel('SFX: Offset là giây sau mốc (đầu cảnh / phần trăm), hoặc giây TRƯỚC mốc (cuối cảnh / cuối video). Cảnh đánh số từ 1.'))
+        self.table=QTableWidget(0,14);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Offset s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo','Mốc SFX','Vị trí %','Cảnh #']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         for track in editor.composition.audio:self.add_track(track)
         row=QHBoxLayout();layout.addLayout(row);self.fit=QCheckBox('Khớp video theo âm thanh chính');row.addWidget(self.fit);self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);row.addWidget(self.policy)
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);buttons.accepted.connect(self.apply);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
     def add_track(self,track):
         row=self.table.rowCount();self.table.insertRow(row);self.table.setItem(row,0,QTableWidgetItem(track['path']))
         mode=QComboBox();mode.addItems(['main','music','sfx']);mode.setCurrentText(track.get('mode','music'));self.table.setCellWidget(row,1,mode)
-        for col,key,default in [(2,'volume',.2),(3,'offset',0),(5,'fade_in',0),(6,'fade_out',0),(7,'trim_start',0),(8,'trim_end',0)]:self.table.setItem(row,col,QTableWidgetItem(str(track.get(key) or default)))
+        for col,key,default in [(2,'volume',.2),(3,'offset',0),(5,'fade_in',0),(6,'fade_out',0),(7,'trim_start',0),(8,'trim_end',0),(12,'position_pct',50),(13,'scene_index',1)]:self.table.setItem(row,col,QTableWidgetItem(str(track.get(key) if track.get(key) is not None else default)))
+        placement=QComboBox()
+        for label,mode in [('Giây tuyệt đối','absolute'),('Theo % video','percent'),('Trước cuối video','video_end'),('Sau đầu cảnh','scene_start'),('Trước cuối cảnh','scene_end')]:placement.addItem(label,mode)
+        choice=placement.findData(track.get('placement','absolute'))
+        if choice>=0:placement.setCurrentIndex(choice)
+        self.table.setCellWidget(row,11,placement)
         for col,key in [(4,'loop'),(9,'mute'),(10,'solo')]:
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if track.get(key) else Qt.CheckState.Unchecked);self.table.setItem(row,col,check)
     def add(self):
@@ -95,6 +101,12 @@ class AudioDialog(QDialog):
                     if value<0 or (key=='volume' and value>4):raise ValueError('Giá trị audio phải không âm; volume ≤4')
                     track[key]=value
                 track['trim_end']=float(self.table.item(row,8).text()) or None
+                placement=self.table.cellWidget(row,11).currentData()
+                if placement!='absolute':
+                    if track['mode']!='sfx':raise ValueError('Mốc theo cảnh / % chỉ dùng cho SFX')
+                    track['placement']=placement
+                    if placement=='percent':track['position_pct']=float(self.table.item(row,12).text())
+                    if placement in {'scene_start','scene_end'}:track['scene_index']=int(self.table.item(row,13).text())
                 for col,key in [(9,'mute'),(10,'solo')]:track[key]=self.table.item(row,col).checkState()==Qt.CheckState.Checked
                 tracks.append(track)
             c.audio=tracks;c.mute_original=self.mute.isChecked()
