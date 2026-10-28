@@ -66,3 +66,42 @@ def test_download_workflow_translates_subtitle_layers_once_then_waits_for_transl
     render=next(j for j in store.jobs() if j['kind']=='render');translation=next(j for j in store.jobs() if j['kind']=='translate')
     assert render['payload']['composition']['layers'][0]['path']==translation['payload']['output']
     assert translation['id'] in render['depends_on']
+
+
+def test_invalid_resource_profile_does_not_default_to_maximum():
+    data={'ram_available':8*1024**3,'disk_free':10**10,'cores':16,'cpu_percent':1}
+    with pytest.raises(ValueError,match='Unknown resource profile'):
+        recommended_parallel(data,'maax')
+
+
+def test_gpu_sampler_drops_stale_data_when_binary_missing(monkeypatch):
+    import fonesi_edit.automation as module
+    original=dict(module._GPU)
+    try:
+        module._GPU.update({'data':[{'name':'stale-GPU'}],'busy':True,'checked':0})
+        monkeypatch.setattr(module.shutil,'which',lambda _:None)
+        module.update_gpu()
+        assert module._GPU['data'] is None
+        assert module._GPU['busy'] is False
+        assert module._GPU['checked']>0
+    finally:
+        module._GPU.clear();module._GPU.update(original)
+
+
+def test_automation_error_reports_are_sanitized(tmp_path):
+    store=Store(tmp_path/'state.db')
+    automation=Automation(store)
+    def fail():
+        raise RuntimeError('HTTP 403 https://example.test/a?token=private Authorization: Bearer hidden-secret')
+    automation.tick=fail
+    class TwoSteps:
+        def __init__(self):self.calls=0
+        def wait(self,seconds):
+            self.calls+=1
+            return self.calls>1
+    automation.stop_event=TwoSteps()
+    automation.loop()
+    assert len(automation.errors)==1
+    assert 'HTTP 403' in automation.errors[0]
+    assert 'private' not in automation.errors[0]
+    assert 'hidden-secret' not in automation.errors[0]
