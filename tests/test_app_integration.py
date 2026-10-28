@@ -559,3 +559,31 @@ def test_batch_search_format_and_visible_only_selection_keep_hidden_choices(tmp_
         assert '1/1 video' in page.summary.text()
     finally:
         close(window)
+
+
+
+def test_batch_dry_run_is_invalidated_by_settings_and_async_stale_result(tmp_path,monkeypatch):
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        group=str(tmp_path/'channel')
+        page.scanned({group:[str(tmp_path/'channel'/'video.mp4')]})
+        page.plans=[{'output':'old-plan'}]
+        page.policy.setCurrentText('trim')
+        assert not page.plans
+        captured={}
+        def background(function,done):
+            captured['function']=function
+            captured['done']=done
+        monkeypatch.setattr(window,'background',background)
+        page.plan()
+        assert captured['function'] and not page.plans
+        page.audio_mode.setCurrentIndex(page.audio_mode.findData('random'))
+        captured['done']([{'output':'obsolete-output'}])
+        assert page.plans==[]
+        assert 'Đã bỏ bản dry-run cũ' in window.status.text()
+        page.plans=[{'output':'editor-preset-snapshot'}]
+        window.editor.changed.emit()
+        assert not page.plans
+    finally:
+        close(window)
