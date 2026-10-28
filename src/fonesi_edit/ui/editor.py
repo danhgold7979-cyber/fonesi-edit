@@ -42,6 +42,10 @@ class Editor(QWidget):
         extra=QPushButton('Thao tác thêm ▾');menu=QMenu(extra)
         for name,callback in [('Sửa clip',self.clip_dialog),('Đặt In',self.mark_in),('Đặt Out',self.mark_out),('Áp dụng In/Out',self.trim_in_out),('Xóa clip và dồn sau',self.ripple_delete),('Nhóm layer',self.group),('Bỏ nhóm',self.ungroup),('Căn giữa ngang',lambda:self.align('x')),('Căn giữa dọc',lambda:self.align('y')),('Phân bố ngang',lambda:self.distribute('x')),('Phân bố dọc',lambda:self.distribute('y')),('Copy kiểu',self.copy_style),('Dán kiểu',self.paste_style),('Khóa / mở chọn',self.lock_selected),('Ẩn / hiện chọn',self.hide_selected),('Preview có âm thanh',lambda:self.host.playback_preview(self.composition))]:
             action=menu.addAction(name);action.triggered.connect(lambda checked=False,callback=callback:callback())
+        self.grid_action=menu.addAction('Lưới căn chỉnh (5%)')
+        self.grid_action.setCheckable(True)
+        self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
+        self.grid_action.triggered.connect(self.set_canvas_grid)
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
@@ -144,6 +148,10 @@ class Editor(QWidget):
         self.selected_ids.intersection_update(l.id for l in self.composition.layers)
         if self.selected_id:self.selected_ids.add(self.selected_id)
         for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
+        if hasattr(self, 'grid_action'):
+            self.grid_action.blockSignals(True)
+            self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
+            self.grid_action.blockSignals(False)
         self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
         self.load_waveforms()
 
@@ -209,6 +217,14 @@ class Editor(QWidget):
             if key=='style.font_family':layer.style.pop('font_file',None)
         else:setattr(layer,key,value)
         self.commit('Đổi '+key)
+
+    def set_canvas_grid(self, enabled):
+        enabled=bool(enabled)
+        if bool(self.composition.adjustments.get('canvas_grid', False))==enabled:
+            return
+        self.begin()
+        self.composition.adjustments['canvas_grid']=enabled
+        self.commit('Bật/tắt lưới căn chỉnh')
 
     def add_video(self):
         paths,_=QFileDialog.getOpenFileNames(self,'Thêm media',filter='Video (*.mp4 *.mkv *.mov *.webm *.avi);;Tất cả (*)')
