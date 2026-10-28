@@ -30,3 +30,7 @@ Chứng minh solver constraints với corpus lớn, GUI regenerate từng hàng/
 6. Chạy source tests, check_plan, frozen build proof trên CI Linux/Windows, cập nhật P09_RESULTS/CURRENT_STATUS/COVERAGE khi có bằng chứng.
 
 **Cổng giữ mở:** cân bằng lượt sử dụng toàn cục, weights/nhập tay UI, solver tập lớn chứng minh tối ưu, UX multi-row/drag scene và nghiệm thu máy Windows người dùng. Không đánh dấu toàn P09 là hoàn tất.
+
+### P09-04 — Thống kê tần suất sau tạo/sửa hàng
+
+Cùng lát cắt bổ sung bảng thống kê góc từ **những hàng hiện có**: tất cả góc hợp lệ theo từng cảnh, số lần sử dụng (kể cả góc 0 lần), không cộng một job chưa render thành lượt thành công lịch sử. UI có nút xem tóm tắt không làm thay đổi ma trận. Test định lượng với số góc khác nhau giữa các cảnh; giữ `hash` làm ID thay vì tự suy ra theo filename.
