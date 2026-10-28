@@ -200,6 +200,7 @@ def test_timeline_thumbnail_toggle_is_undoable_and_displays_verified_cached_fram
     clip=Clip(str(media['source']),end=.5,source_duration=.5)
     try:
         editor.set_composition(Composition(clips=[clip]))
+        assert editor.clips.currentRow()==0
         assert editor.thumbnail_assets(clip)==[]
         assert not editor.thumbnail_action.isChecked()
         editor.thumbnail_action.setChecked(True)
