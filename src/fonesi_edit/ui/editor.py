@@ -16,7 +16,7 @@ from ..domain import Composition,Clip,Layer,identifier,canonical
 from ..prototypes.media import probe,extract_frame
 from ..thumbnails import thumbnail_identity,thumbnail_strip
 from ..proxy import proxy_identity,playback_proxy
-from .canvas import Canvas
+from .canvas import Canvas, anchor_group_delta
 from .timeline import Timeline,clip_positions
 
 def loop_seek_target(milliseconds, start, end, *, enabled, verified):
@@ -58,6 +58,15 @@ class Editor(QWidget):
         extra=QPushButton('Thao tác thêm ▾');menu=QMenu(extra)
         for name,callback in [('Sửa clip',self.clip_dialog),('Đặt In',self.mark_in),('Đặt Out',self.mark_out),('Áp dụng In/Out',self.trim_in_out),('Xóa clip và dồn sau',self.ripple_delete),('Nhóm layer',self.group),('Bỏ nhóm',self.ungroup),('Căn giữa ngang',lambda:self.align('x')),('Căn giữa dọc',lambda:self.align('y')),('Phân bố ngang',lambda:self.distribute('x')),('Phân bố dọc',lambda:self.distribute('y')),('Copy kiểu',self.copy_style),('Dán kiểu',self.paste_style),('Khóa / mở chọn',self.lock_selected),('Ẩn / hiện chọn',self.hide_selected),('Preview có âm thanh',lambda:self.host.playback_preview(self.composition))]:
             action=menu.addAction(name);action.triggered.connect(lambda checked=False,callback=callback:callback())
+        anchor_menu=menu.addMenu('Đặt neo 9 vị trí')
+        for label,horizontal,vertical in [
+            ('Trên trái','left','top'),('Trên giữa','center','top'),('Trên phải','right','top'),
+            ('Giữa trái','left','center'),('Giữa khung','center','center'),('Giữa phải','right','center'),
+            ('Dưới trái','left','bottom'),('Dưới giữa','center','bottom'),('Dưới phải','right','bottom'),
+        ]:
+            action=anchor_menu.addAction(label)
+            action.triggered.connect(
+                lambda checked=False,h=horizontal,v=vertical:self.anchor_selected(h,v))
         self.grid_action=menu.addAction('Lưới căn chỉnh (5%)')
         self.grid_action.setCheckable(True)
         self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
@@ -458,6 +467,41 @@ class Editor(QWidget):
         for layer in self.selected_layers():
             if not layer.locked:layer.group=None
         self.commit('Bỏ nhóm')
+    def anchor_selected(self, horizontal, vertical):
+        selected = [layer for layer in self.selected_layers() if not layer.locked]
+        if not selected:
+            self.host.message('Chọn ít nhất một layer không khóa để đặt neo.')
+            return
+        selected_ids = {layer.id for layer in selected}
+        group_ids = {layer.group for layer in selected if layer.group}
+        movable = [
+            layer for layer in self.composition.layers
+            if not layer.locked and (
+                layer.id in selected_ids
+                or (layer.group is not None and layer.group in group_ids)
+            )
+        ]
+        delta = anchor_group_delta(
+            [(layer.x, layer.y, layer.width, layer.height) for layer in movable],
+            horizontal, vertical,
+        )
+        if delta is None:
+            self.host.message('Nhóm layer lớn hơn canvas; không thể đặt neo mà không làm đối tượng tràn khung.')
+            return
+        dx, dy = delta
+        if abs(dx) <= 1e-12 and abs(dy) <= 1e-12:
+            return
+        self.begin()
+        for layer in movable:
+            layer.x += dx
+            layer.y += dy
+        labels = {
+            ('left','top'):'trên trái', ('center','top'):'trên giữa', ('right','top'):'trên phải',
+            ('left','center'):'giữa trái', ('center','center'):'giữa khung', ('right','center'):'giữa phải',
+            ('left','bottom'):'dưới trái', ('center','bottom'):'dưới giữa', ('right','bottom'):'dưới phải',
+        }
+        self.commit('Đặt neo ' + labels[(horizontal, vertical)])
+
     def align(self,axis):
         self.begin()
         for layer in self.selected_layers():

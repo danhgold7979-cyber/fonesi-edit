@@ -1,3 +1,5 @@
+import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsScene, QGraphicsView, QInputDialog
@@ -34,6 +36,60 @@ def constrained_group_delta(rectangles, dx, dy):
     bottom = max(y + height for x, y, width, height in rectangles)
     return (max(-left, min(1.0 - right, dx)),
             max(-top, min(1.0 - bottom, dy)))
+
+
+
+def anchor_group_delta(rectangles, horizontal, vertical, margin=0.05):
+    """Return one translation placing a group's bounds at a 3x3 canvas anchor.
+
+    Coordinates and dimensions are normalized to the canvas. A 5% safe margin
+    is used when possible and reduced only when necessary for a group to fit.
+    Returns None when the group's union cannot fit inside the canvas.
+    """
+    if horizontal not in {"left", "center", "right"}:
+        raise ValueError("Unknown horizontal anchor")
+    if vertical not in {"top", "center", "bottom"}:
+        raise ValueError("Unknown vertical anchor")
+    if (not isinstance(margin, (int, float)) or isinstance(margin, bool)
+            or not math.isfinite(float(margin)) or not 0 <= margin < 0.5):
+        raise ValueError("Anchor margin must be finite and between 0 and 0.5")
+
+    boxes = []
+    for rectangle in rectangles:
+        if len(rectangle) != 4:
+            raise ValueError("Each layer rectangle must contain x, y, width and height")
+        x, y, width, height = (float(value) for value in rectangle)
+        if (not all(math.isfinite(value) for value in (x, y, width, height))
+                or width < 0 or height < 0):
+            raise ValueError("Layer rectangle must contain finite coordinates and non-negative size")
+        boxes.append((x, y, width, height))
+    if not boxes:
+        return (0.0, 0.0)
+
+    left = min(x for x, y, width, height in boxes)
+    top = min(y for x, y, width, height in boxes)
+    right = max(x + width for x, y, width, height in boxes)
+    bottom = max(y + height for x, y, width, height in boxes)
+    group_width, group_height = right - left, bottom - top
+    if group_width > 1.0 or group_height > 1.0:
+        return None
+
+    margin_x = min(float(margin), max(0.0, (1.0 - group_width) / 2.0))
+    margin_y = min(float(margin), max(0.0, (1.0 - group_height) / 2.0))
+    if horizontal == "left":
+        target_left = margin_x
+    elif horizontal == "center":
+        target_left = (1.0 - group_width) / 2.0
+    else:
+        target_left = 1.0 - margin_x - group_width
+
+    if vertical == "top":
+        target_top = margin_y
+    elif vertical == "center":
+        target_top = (1.0 - group_height) / 2.0
+    else:
+        target_top = 1.0 - margin_y - group_height
+    return target_left - left, target_top - top
 
 
 class Overlay(QGraphicsObject):

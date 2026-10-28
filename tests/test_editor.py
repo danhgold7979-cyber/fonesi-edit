@@ -1,6 +1,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from pathlib import Path
+import pytest
 from tempfile import TemporaryDirectory
 from PySide6.QtWidgets import QApplication
 from fonesi_edit.domain import Clip,Layer,Composition
@@ -224,3 +225,65 @@ def test_timeline_thumbnail_toggle_is_undoable_and_displays_verified_cached_fram
         assert editor.thumbnail_assets(editor.composition.clips[0])==tiles['frames']
     finally:
         editor.close();host.workspace.cleanup()
+
+
+
+def test_anchor_group_delta_supports_all_nine_safe_positions():
+    from fonesi_edit.ui.canvas import anchor_group_delta
+
+    rectangles = [(.2, .2, .2, .1), (.5, .4, .2, .2)]
+    horizontal_targets = {'left': .05, 'center': .25, 'right': .45}
+    vertical_targets = {'top': .05, 'center': .3, 'bottom': .55}
+    for horizontal, target_x in horizontal_targets.items():
+        for vertical, target_y in vertical_targets.items():
+            dx, dy = anchor_group_delta(rectangles, horizontal, vertical)
+            assert abs((.2 + dx) - target_x) < 1e-9
+            assert abs((.2 + dy) - target_y) < 1e-9
+
+
+def test_anchor_group_delta_handles_large_groups_and_invalid_inputs():
+    from fonesi_edit.ui.canvas import anchor_group_delta
+
+    # The 5% margin shrinks to 2.5% when a 95%-wide group still fits.
+    dx, dy = anchor_group_delta([(0, 0, .95, .5)], 'right', 'bottom')
+    assert abs(dx - .025) < 1e-9
+    assert abs(dy - .45) < 1e-9
+    assert anchor_group_delta([(0, 0, 1.01, .5)], 'center', 'center') is None
+    with pytest.raises(ValueError):
+        anchor_group_delta([(0, 0, .2, .2)], 'outside', 'center')
+    with pytest.raises(ValueError):
+        anchor_group_delta([(0, 0, float('nan'), .2)], 'left', 'top')
+
+
+def test_nine_point_anchor_moves_group_atomically_and_respects_locked_layers():
+    host = Host()
+    editor = Editor(host)
+    first = Layer(x=.2, y=.3, width=.1, height=.1, group='pair')
+    second = Layer(x=.4, y=.5, width=.2, height=.1, group='pair')
+    locked = Layer(x=.8, y=.8, width=.1, height=.1, group='pair', locked=True)
+    unrelated = Layer(x=.1, y=.1, width=.1, height=.1)
+    try:
+        editor.set_composition(Composition(layers=[first, second, locked, unrelated]))
+        editor.select_id(first.id)
+        editor.anchor_selected('right', 'bottom')
+        by_id = {layer.id: layer for layer in editor.composition.layers}
+        assert abs(by_id[first.id].x - .55) < 1e-9
+        assert abs(by_id[first.id].y - .65) < 1e-9
+        assert abs(by_id[second.id].x - .75) < 1e-9
+        assert abs(by_id[second.id].y - .85) < 1e-9
+        assert (by_id[locked.id].x, by_id[locked.id].y) == (.8, .8)
+        assert (by_id[unrelated.id].x, by_id[unrelated.id].y) == (.1, .1)
+        assert abs((by_id[second.id].x - by_id[first.id].x) - .2) < 1e-9
+        assert editor.undo.count() == 1
+
+        editor.undo.undo()
+        by_id = {layer.id: layer for layer in editor.composition.layers}
+        assert abs(by_id[first.id].x - .2) < 1e-9
+        assert abs(by_id[second.id].y - .5) < 1e-9
+        editor.undo.redo()
+        by_id = {layer.id: layer for layer in editor.composition.layers}
+        assert abs(by_id[first.id].x - .55) < 1e-9
+        assert abs(by_id[second.id].y - .85) < 1e-9
+    finally:
+        editor.close()
+        host.workspace.cleanup()
