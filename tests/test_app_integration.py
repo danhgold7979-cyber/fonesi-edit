@@ -898,6 +898,7 @@ def test_canvas_layer_clipboard_shortcuts_and_native_text_routing(tmp_path):
     window = MainWindow(tmp_path / 'state')
     try:
         window.show()
+        window.nav.setCurrentWidget(window.editor)
         window.editor.set_composition(Composition(layers=[Layer(text='Layer A')]))
         window.editor.select_id(window.editor.composition.layers[0].id)
         window.editor.canvas.setFocus()
