@@ -96,9 +96,17 @@ def test_revoking_one_profile_does_not_revoke_the_other(tmp_path):
 
 @pytest.mark.parametrize('overrides',[
     {'engine':'unsupported'},
+    {'engine':[]},
     {'media':'everything'},
+    {'media':[]},
     {'limit':-2},
     {'limit':'many'},
+    {'limit':1.5},
+    {'limit':True},
+    {'limit':None},
+    {'url':[]},
+    {'url':''},
+    {'url':'ftp://example.test/media.mp4'},
 ])
 def test_download_options_fail_before_creating_outputs(tmp_path,overrides):
     from threading import Event
