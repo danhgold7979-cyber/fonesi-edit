@@ -5,7 +5,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | Phase | Code/kiểm chứng hiện có | Cổng còn riêng |
 | --- | --- | --- |
 | P01 | Thiết kế, luồng, contracts, traceability | Cập nhật theo thay đổi đã được chấp thuận |
-| P02 | Proof CPU/Qt/FFmpeg và package Linux | Live nguồn/dịch/Windows/Chrome/GPU |
+| P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain, SQLite, snapshots, jobs, subprocess, recovery, registry | Độ bền dài hạn/Windows |
 | P04 | Canvas/inspector/timeline/undo/project và phím tắt nền | Hoàn thiện chi tiết tương tác/parity mọi trường hợp |
 | P05 | yt-dlp/gallery-dl, profile/binding, extension/native handoff | Live nguyên kênh, từng nền tảng và Chrome Windows |
@@ -15,10 +15,10 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P09 | Lazy matrix, W/K/history/reservations/CSV/rows | Solver constraints lớn, thao tác tất cả kiểu khóa |
 | P10 | Workflow/watch/schedule, metrics/admission/tools | Installer/auth/driver Windows thực tế |
 | P11 | Test local và app integration đang mở rộng | Regression cuối và đối chiếu đầy đủ tùy chọn |
-| P12 | Script/build app + native host, Linux build đã tạo | Linux frozen-worker proof đã qua; Windows packaged acceptance còn mở |
+| P12 | Script/build app + native host; frozen proof Linux/Windows CI đã đạt | Cài đặt/rollback, máy Windows người dùng, Chrome/GPU/HiDPI/audio và nghiệm thu release còn mở |
 
 Chạy `uv run fonesi-edit`. Bản CLI/prototype cũ vẫn giữ để hồi quy. Runtime, browser profiles, video và API keys không được commit.
 
 Kiểm chứng cuối: **92 tests qua, 0 fail/error/skip**; binary Linux chạy 4 job thật (batch/ma trận song ngữ, tải video/ảnh localhost), rename/undo, mở UI và giải mã frame Qt. 36 file source khớp hash của bundle. Xem [báo cáo](LOCAL_VERIFICATION.md), [evidence JSON](evidence/desktop-verification.json) và [phần đã có/còn mở theo 95 nhóm](IMPLEMENTATION_COVERAGE.md).
 
-CI Windows/Linux đã có build production/native host, proof từ binary và artifact phát triển; chưa xác nhận CI Windows đã thành công. Mạng xã hội nguyên kênh, API dịch thật, Chrome Windows/GPU/HiDPI/audio máy thật vẫn cần kiểm chứng riêng. Những tùy chọn nâng cao chưa hoàn tất tiếp tục được ghi trong coverage, không tự đổi thành đã đạt hoặc loại khỏi phạm vi. Giọng AI/ASR/OCR/tracking thuộc giai đoạn sau.
+CI branch P02 mới nhất đã build production/native host và chạy frozen proof thành công trên Linux/Windows: [run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40634117095). Đây là synthetic/localhost CI evidence, không phải nghiệm thu máy Windows người dùng. Mạng xã hội nguyên kênh, API dịch thật, Chrome session handoff, GPU/VRAM/driver, HiDPI/audio và installer/rollback máy thật vẫn cần kiểm chứng riêng. Những tùy chọn nâng cao chưa hoàn tất tiếp tục được ghi trong coverage, không tự đổi thành đã đạt hoặc loại khỏi phạm vi. Giọng AI/ASR/OCR/tracking thuộc giai đoạn sau.

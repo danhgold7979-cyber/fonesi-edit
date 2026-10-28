@@ -2,6 +2,7 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 import io
+import logging
 import re
 
 from .browser import cookie_jar,DOMAINS
@@ -112,7 +113,8 @@ def execute_download_job(store,job,progress,cancel):
 def _gallery(store,job,platform,root,jar,progress,cancel):
     from gallery_dl import config,job as gallery_job,exception
     payload=job['payload'];limit=int(payload.get('limit',0)) or 1000000
-    config.clear();config.set(('extractor',),'base-directory',str(root/platform))
+    config.clear();config.set(('output',),'mode','null')
+    config.set(('extractor',),'base-directory',str(root/platform))
     config.set(('extractor',),'directory',['{_fonesi_channel}','{_fonesi_kind}'])
     config.set(('extractor',),'filename','{_fonesi_id}.{extension}')
     config.set(('extractor',),'timeout',15);config.set(('extractor',),'retries',2)
@@ -149,14 +151,51 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
                 if data['_fonesi_kind']=='videos':probe(path)
                 else:
                     from PySide6.QtGui import QImageReader
-                    if not QImageReader(str(path)).canRead():raise RuntimeError('Downloaded image is invalid')
+                    reader=QImageReader(str(path))
+                    if not reader.canRead():
+                        supported=','.join(bytes(fmt).decode('ascii','replace') for fmt in QImageReader.supportedImageFormats())
+                        detected=bytes(reader.format()).decode('ascii','replace')
+                        raise RuntimeError(f'Image decoder unavailable or image invalid (detected={detected or path.suffix.lstrip(".")}; supported={supported[:300]})')
+                    image=reader.read()
+                    if image.isNull():raise RuntimeError(f'Image decoder failed: {reader.errorString()[:240]}')
                 files.append({'path':str(path),'id':data['_fonesi_id'],'kind':data['_fonesi_kind']})
             if len(files)>=limit:raise exception.StopExtraction()
     instance=Scanner(payload['url'],file=io.StringIO()) if job['kind']=='scan' else Downloader(payload['url'])
     if jar:
         for cookie in jar:instance.extractor.session.cookies.set_cookie(cookie)
-    instance.run()
-    if getattr(instance,'status',0) and not files and not items:raise RuntimeError('Gallery extractor could not complete; check source/session')
+
+    # gallery-dl handles many extractor exceptions internally and returns a status
+    # code. Capture warning/error records so a failed packaged proof is diagnosable,
+    # without enabling verbose logging or leaking signed URL query strings.
+    diagnostics=[]
+    class DiagnosticCapture(logging.Handler):
+        def emit(self,record):
+            try:
+                message=record.getMessage()
+                message=re.sub(r'(?i)\b(token|api[_-]?key|password|cookie|secret|signature|access_token)=([^&\s]+)',r'\1=[redacted]',message)
+                def safe_url(match):
+                    value=match.group(0)
+                    parts=urlsplit(value.rstrip('),.;'))
+                    return f'{parts.scheme}://{parts.netloc}{parts.path}'
+                message=re.sub(r'https?://[^\s\'\"<>]+',safe_url,message)
+                diagnostics.append(f'{record.levelname}: {message[:500]}')
+                if len(diagnostics)>12:del diagnostics[:-12]
+            except Exception:
+                diagnostics.append(f'{record.levelname}: <diagnostic unavailable>')
+    capture=DiagnosticCapture(level=logging.WARNING)
+    logger=logging.getLogger()
+    logger.addHandler(capture)
+    try:
+        instance.run()
+    finally:
+        logger.removeHandler(capture)
+        capture.close()
+    status=int(getattr(instance,'status',0) or 0)
+    if status and not files and not items:
+        detail=' | '.join(diagnostics[-6:])
+        if detail:
+            raise RuntimeError(f'Gallery extractor failed (status={status}): {detail[:1800]}')
+        raise RuntimeError(f'Gallery extractor failed (status={status}); no valid media returned. Check extractor, HTTP transport, and image decoder.')
     result=items if job['kind']=='scan' else files
     if not result:raise RuntimeError('No accessible gallery media returned')
     progress(1)

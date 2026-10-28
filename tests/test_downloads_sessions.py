@@ -2,6 +2,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from threading import Thread,Event
 import os
+import sys
 import pytest
 from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity
 from fonesi_edit.downloads import platform_for,safe_name,execute_download_job
@@ -48,6 +49,17 @@ def test_real_generic_download_and_second_run_preserves_file(tmp_path,monkeypatc
         result2=execute_download_job(store,job,lambda p:None,Event())
         assert result2['count']==1 and output.stat().st_mtime_ns==stamp
         image_payload={**payload,'engine':'gallery','media':'images','url':f'http://127.0.0.1:{server.server_port}/logo.png'}
+        class LegacyWindowsConsole:
+            encoding='cp1252'
+            def write(self,value):
+                value.encode(self.encoding,'strict')
+                return len(value)
+            def flush(self):pass
+            def isatty(self):return False
+        # A desktop worker must not print Unicode output paths to a legacy Windows
+        # console. This reproduces the frozen-app UnicodeEncodeError without relying
+        # on pytest's Unicode-capable stdout capture.
+        monkeypatch.setattr(sys,'stdout',LegacyWindowsConsole())
         images=execute_download_job(store,{'kind':'download','payload':image_payload},lambda p:None,Event())
         assert images['count']==1 and images['files'][0]['kind']=='images'
         assert Path(images['files'][0]['path']).is_file()
