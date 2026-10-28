@@ -59,16 +59,28 @@ def snap_layer_to_peers_with_guides(x, y, width, height, peers, *, enabled=True,
                 continue
             peer_start, peer_span = (px, pw) if axis == 0 else (py, ph)
             peer_guides = (peer_start, peer_start + peer_span / 2.0, peer_start + peer_span)
-            for moving_offset in moving_guides:
-                for peer_guide in peer_guides:
+            for moving_index, moving_offset in enumerate(moving_guides):
+                for peer_index, peer_guide in enumerate(peer_guides):
                     target = peer_guide - moving_offset
                     if 0.0 <= target <= max(0.0, 1.0 - span):
                         distance = abs(target - position)
                         if distance <= tolerance:
-                            candidates.append((distance, target, peer_guide))
+                            moving_is_center = moving_index == 1
+                            peer_is_center = peer_index == 1
+                            if moving_is_center and peer_is_center:
+                                priority = 1  # centre-to-centre
+                            elif moving_is_center != peer_is_center:
+                                priority = 2  # edge-to-centre
+                            else:
+                                priority = 0  # edge-to-edge
+                            # Quantize only floating-point noise in normalized coordinates;
+                            # distance remains the primary ordering criterion.
+                            candidates.append((round(distance, 12), priority, target, peer_guide))
         if not candidates:
             return position, None
-        _, target, guide = min(candidates, key=lambda candidate: (candidate[0], candidate[1], candidate[2]))
+        _, _, target, guide = min(
+            candidates, key=lambda candidate: (candidate[0], candidate[1], candidate[2], candidate[3])
+        )
         return target, guide
 
     snapped_x, vertical_guide = nearest_axis(x, width, 0)
