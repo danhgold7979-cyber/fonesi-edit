@@ -2,9 +2,64 @@
 from argparse import ArgumentParser
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 from threading import Thread,Event
+from urllib.parse import urlsplit, urlunsplit
 
 from .storage import Store
+
+
+_SENSITIVE_ASSIGNMENT = re.compile(
+    r"""(?i)\b(password|passwd|pwd|cookie|cookies|api[_-]?key|api[_-]?secret|access[_-]?token|refresh[_-]?token|session[_-]?cookie|session[_-]?token|session[_-]?id|session[_-]?key|client[_-]?secret|secret|signature|sig|signed[_-]?url|authorization|x-api-key|bearer[_-]?token|auth[_-]?token|private[_-]?key|csrf[_-]?token|jwt(?:[_-]?token)?)\b(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&]+)"""
+)
+_BEARER_CREDENTIAL = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
+
+
+def sanitize_error_message(message, limit=3000):
+    """Remove common credential values and signed URL query strings from worker errors."""
+    text = str(message)
+    text = _BEARER_CREDENTIAL.sub(r"\1 [redacted]", text)
+    text = _SENSITIVE_ASSIGNMENT.sub(r"\1\2[redacted]", text)
+
+    def safe_url(match):
+        value = match.group(0)
+        trailing = ""
+        while value and value[-1] in ".,);]}":
+            trailing = value[-1] + trailing
+            value = value[:-1]
+        try:
+            parts = urlsplit(value)
+            hostname = parts.hostname
+            if not hostname:
+                return "[URL redacted]" + trailing
+            host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+            try:
+                port = parts.port
+            except ValueError:
+                port = None
+            if port is not None:
+                host = f"{host}:{port}"
+            safe = urlunsplit((parts.scheme, host, parts.path, "", ""))
+            return safe + trailing
+        except (TypeError, ValueError):
+            return "[URL redacted]" + trailing
+
+    text = re.sub(r"https?://[^\s<>\"']+", safe_url, text)
+    return text[:max(0, int(limit))]
+
+
+def sanitize_error(message):
+    value = str(message)
+    value = re.sub(r"(?i)\\bBearer\\s+[^\\s,;]+", "Bearer [redacted]", value)
+    value = re.sub(
+        r"(?i)\\b(password|passwd|token|api[_-]?key|cookie|secret|authorization|access[_-]?token|refresh[_-]?token)\\s*[:=]\\s*[^\\s&;,]+",
+        lambda m: m.group(1) + "=[redacted]", value)
+    value = re.sub(r"https?://[^\\s<>\\\"']+", lambda m: (
+        (lambda u: u.scheme + "://" + (u.hostname or "") + ((":" + str(u.port)) if u.port else "") + u.path)(
+            urlsplit(m.group(0).rstrip(".,;)")
+        )
+    ), value)
+    return value[-3000:]
 
 
 class Cancel:
@@ -58,7 +113,7 @@ def main(argv=None):
         store.finish(args.job, execute(store, job))
         return 0
     except Exception as exc:
-        message = re.sub(r"(?i)(token|key|password|cookie|secret)=([^\s&]+)", r"\1=[redacted]", str(exc))
+        message = sanitize_error_message(exc)
         store.fail(args.job, message, blocked=isinstance(exc, (PermissionError, FileNotFoundError)))
         return 1
     finally:done.set()
