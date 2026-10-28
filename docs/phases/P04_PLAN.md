@@ -169,3 +169,20 @@ Tách điều kiện dispatch editor shortcut thành helper thuần, để test 
 5. Run full source suite and Linux/Windows packaged proof; keep OS-level focus/IME acceptance separate.
 
 **Safety:** cancel restores the exact pre-gesture model snapshot; it does not modify source media, project files, or export output.
+
+## 16. P04-07 — Shortcut focus completeness and layer clipboard invariants (28/10/2026)
+
+**Baseline verified before changes:** CI run [40721462280](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40721462280) passed 362 Linux tests and 361 Windows tests plus one intentional POSIX-fixture skip; plan validation, production app/native-host builds and frozen packaged proof passed on both runners.
+
+**Code review findings:**
+- `Thêm video` is an editor-scoped action with shortcut `Ctrl+Shift+O`, but is missing from `_EDITOR_SHORTCUT_ACTIONS`. It can therefore fire while a text editor/control owns focus, contrary to P04-07.
+- Clipboard tests currently cover basic copy/paste/cut and native text routing, but do not lock down cloned IDs, group remapping, payload preservation, one-step Undo/Redo, locked-layer protection, bounded placement, or isolation from the OS clipboard.
+
+**Implementation plan:**
+1. Add `Thêm video` to the editor-scoped focus policy and add regression tests proving it yields to text/control focus but dispatches with canvas/global focus.
+2. Expand layer clipboard integration tests for fresh layer IDs, copied-group internal consistency with new group IDs, unchanged unrelated groups, preserved style/keyframes/clip references, bounded placement, and OS clipboard isolation.
+3. Verify Cut removes only unlocked selected layers, keeps locked layers intact, and Undo/Redo restores the entire cut as one atomic history operation.
+4. Run `scripts/check_plan.py`, the full test suite, production desktop/native-host build and frozen proof on Linux/Windows through CI.
+5. Update P04_RESULTS, CURRENT_STATUS, IMPLEMENTATION_COVERAGE and PHASE_EXECUTION_LEDGER only from the resulting CI evidence. Real IME, physical Windows keyboard, HiDPI, live sources, GPU and user-machine acceptance remain separate gates.
+
+**Safety:** no media source is modified/deleted, no project schema change, no serialized layer payload is written to the system clipboard, and no unrelated phase is marked complete.
