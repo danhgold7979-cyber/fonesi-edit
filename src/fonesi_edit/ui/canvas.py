@@ -10,8 +10,8 @@ _FONT_FAMILIES={}
 def snap_layer_position(x, y, width, height, *, enabled=True, grid=False, grid_step=.05, tolerance=.012):
     """Snap normalized layer edges/center to canvas guides; never leave its bounds."""
     if (not isinstance(grid_step, (int, float)) or isinstance(grid_step, bool)
-            or not math.isfinite(float(grid_step)) or not 0 < grid_step <= 1):
-        raise ValueError("Grid spacing must be finite and between 0 and 1")
+            or not math.isfinite(float(grid_step)) or not .01 <= grid_step <= .5):
+        raise ValueError("Grid spacing must be between 1% and 50%")
 
     def axis(value, span):
         maximum = max(0.0, 1.0 - span)
