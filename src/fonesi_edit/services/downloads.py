@@ -73,7 +73,7 @@ def download(snapshot,*,cancel=lambda:False,progress=lambda *a:None):
     kind=snapshot.get('media_kind','video');directory=directory/('images' if kind=='image' else 'videos');directory.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.fonesi-download-',dir=directory) as d:
         stage=Path(d);progress('downloading',None,'Tải vào staging; chưa công nhận hoàn tất')
-        if info['platform']=='Local test HTTP':
+        if info['platform']=='Local test HTTP' and snapshot.get('adapter','direct')=='direct':
             suffix=Path(urlparse(info['url']).path).suffix or ('.png' if kind=='image' else '.mp4');path=stage/('media'+suffix)
             with urlopen(Request(info['url'],headers={'User-Agent':'FonesiEdit-local-proof'}),timeout=20) as source,path.open('wb') as out:
                 total=int(source.headers.get('Content-Length',0));read=0
@@ -81,9 +81,9 @@ def download(snapshot,*,cancel=lambda:False,progress=lambda *a:None):
                     if cancel():raise Cancelled('Download canceled')
                     read+=len(block);out.write(block);progress('downloading',read/total if total else None,f'{read} bytes')
         elif kind=='image':
-            run(module_command('gallery_dl')+['--no-input','--directory',str(stage),'--retries','2',info['url']],cancel=cancel,timeout=600)
+            run(module_command('gallery_dl')+['--no-input','--directory',str(stage),'--filename','{filename}.{extension}','--retries','2',info['url']],cancel=cancel,timeout=600)
         else:
-            height=int(snapshot.get('max_height',1080));args=module_command('yt_dlp')+['--no-playlist','--no-warnings','--retries','2','--socket-timeout','20','-f',f'bv*[height<={height}]+ba/b[height<={height}]','--merge-output-format','mp4','-o',str(stage/'%(id)s.%(ext)s')]
+            height=int(snapshot.get('max_height',1080));args=module_command('yt_dlp')+['--no-playlist','--no-warnings','--retries','2','--socket-timeout','20','-f',f'bv*[height<={height}]+ba/b[height<={height}]/b','--merge-output-format','mp4','-o',str(stage/'%(id)s.%(ext)s')]
             if snapshot.get('rate_limit'):args+=['--limit-rate',str(snapshot['rate_limit'])]
             if snapshot.get('subtitles'):args+=['--write-subs','--write-auto-subs','--sub-langs',snapshot.get('subtitle_languages','vi,en,zh.*')]
             run(args+[info['url']],cancel=cancel,timeout=3600)
@@ -101,4 +101,4 @@ def download(snapshot,*,cancel=lambda:False,progress=lambda *a:None):
                 from .subtitles import read_subtitles
                 read_subtitles(path);dest=directory.parent/'subtitles';dest.mkdir(exist_ok=True);sidecars.append(str(publish_no_clobber(path,dest/path.name)))
         return {'validated':True,'path':artifacts[0]['path'],'artifacts':artifacts,'subtitles':sidecars,'platform':info['platform'],
-                'evidence_scope':'localhost transport only' if info['platform']=='Local test HTTP' else 'single URL download; not full-channel certification'}
+                'adapter':snapshot.get('adapter','direct' if info['platform']=='Local test HTTP' else 'gallery-dl' if kind=='image' else 'yt-dlp'),'evidence_scope':'localhost transport only' if info['platform']=='Local test HTTP' else 'single URL download; not full-channel certification'}

@@ -19,7 +19,9 @@ def worker_command(db: Path, job_id: str, owner: str) -> list[str]:
 
 class Scheduler:
     def __init__(self, store: Store, limit=1):
-        self.store=store;self.limit=limit;self.paused=False;self.children={}
+        self.store=store;self.limit=limit;self.paused=False;self.children={};self.block_reason=''
+        from ..services.automation import ResourcePolicy
+        self.policy=ResourcePolicy();self.kind_limits={'render':1,'download':2,'inspect':2}
         self.store.recover()
 
     def tick(self):
@@ -29,9 +31,16 @@ class Scheduler:
                 row=self.store.get(jid)
                 if row['state'] in {'running','validating'}:
                     self.store.finish(jid,row['owner'],'failed',error=f'Worker exited unexpectedly ({proc.returncode}); stage can be retried')
+        self.store.propagate_dependency_failures()
         if self.paused:return
+        allowed,reason=self.policy.admission(self.store.path.parent)
+        self.block_reason='' if allowed else reason
+        if not allowed:return
         while len(self.children)<self.limit:
-            owner=uid();row=self.store.claim(owner)
+            active=[self.store.get(j)['kind'] for j in self.children]
+            kinds=[kind for kind,limit in self.kind_limits.items() if active.count(kind)<limit]
+            if not kinds:break
+            owner=uid();row=self.store.claim(owner,kinds=kinds)
             if row is None:break
             try:
                 proc=subprocess.Popen(worker_command(self.store.path,row['id'],owner),stdin=subprocess.DEVNULL,
@@ -85,4 +94,9 @@ def execute_job(db: Path, job_id: str, owner: str):
     except Exception as exc:
         store.finish(job_id,owner,'failed',error=redact(f'{type(exc).__name__}: {exc}'))
     finally:
+        final=store.get(job_id)
+        snap=json.loads(row['snapshot'])
+        if snap.get('matrix') and final['state'] in {'failed','canceled','blocked_configuration'}:
+            with store.connection() as connection:
+                connection.execute('UPDATE matrix_history SET state=? WHERE project=? AND combination=? AND job_id=?',(final['state'],snap['matrix']['project_id'],snap['matrix']['key'],job_id))
         stopped.set();thread.join(timeout=1)

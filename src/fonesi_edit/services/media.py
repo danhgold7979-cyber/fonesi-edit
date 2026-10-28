@@ -6,6 +6,7 @@ from PIL import Image
 import json
 import shutil
 import os
+import sys
 from ..core.model import Asset, US
 from ..core.paths import content_hash
 from ..core.process import run
@@ -13,7 +14,8 @@ from ..core.process import run
 
 def tool(name: str) -> str:
     explicit=os.environ.get('FONESI_'+name.upper()+'_PATH')
-    p=explicit or shutil.which(name)
+    bundled=Path(getattr(sys,'_MEIPASS',Path(__file__).parent))/'media/bin'/(name+('.exe' if os.name=='nt' else ''))
+    p=explicit or (str(bundled) if bundled.is_file() else shutil.which(name))
     if explicit and not Path(explicit).is_file():raise FileNotFoundError('Selected tool path invalid; no silent fallback: '+explicit)
     if not p: raise FileNotFoundError(f'Thiếu {name}: mở Cài đặt → Công cụ')
     return p

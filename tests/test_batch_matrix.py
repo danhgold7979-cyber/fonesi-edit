@@ -10,7 +10,10 @@ from fonesi_edit.services.matrix import *
 def test_scan_exclusions_and_symlink(tmp_path):
     for name in ['source/a.mp4','output/b.mp4','cache/c.mp4','Kênh edit/d.mp4']:
         p=tmp_path/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'x')
-    (tmp_path/'loop').symlink_to(tmp_path,target_is_directory=True)
+    try:(tmp_path/'loop').symlink_to(tmp_path,target_is_directory=True)
+    except OSError:
+        if __import__('os').name=='nt':pytest.skip('Windows symlink permission unavailable; separate target test remains open')
+        raise
     assert [p.name for p in scan_folders([tmp_path])]==['a.mp4']
 
 

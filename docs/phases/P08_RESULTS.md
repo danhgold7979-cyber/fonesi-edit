@@ -12,3 +12,6 @@ Batch scan/plan and duration-policy tests passed plus real render.
 Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open.
 
 Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.
+
+## Checkpoint 2 — latest
+Clip/audio settings UI now exposes trim/speed/fit/flip/rotation/color/duration policy plus audio gain/trim/start/role/loop/fade/mute/solo/normalize; proxy uses actual mixed audio. Preset group import/export, missing assets and content-hash relink added. Rename preview/two-stage apply/undo implemented and tested as service; not yet exposed in desktop. Crossfades/ducking/SFX event allocation and all-mode batch overrides remain open.

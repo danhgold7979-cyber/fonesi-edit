@@ -82,6 +82,8 @@ class ToolManager:
         if any('/' in x or '\\' in x or x in {'.','..',''} for x in [name,version]):raise ValueError('Unsafe tool identity')
         parsed=urlparse(manifest['url'])
         if parsed.scheme!='https' or parsed.username or parsed.password:raise ValueError('Trusted artifacts require HTTPS')
+        executable=PurePosixPath(manifest['executable'].replace('\\','/'))
+        if executable.is_absolute() or '..' in executable.parts or ':' in str(executable):raise ValueError('Unsafe executable path in manifest')
         target=self.root/name/version
         if target.exists():raise FileExistsError('Version already installed; verify or choose another version')
         with tempfile.TemporaryDirectory(prefix='.stage-',dir=self.root) as d:

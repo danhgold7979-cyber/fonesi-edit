@@ -12,3 +12,6 @@ Real HTTP localhost video + PNG download validated; URL/selected-account/profile
 No live platform capability certified. Gallery-dl packaged localhost behavior not verified; Windows Chrome session bridge/identity probing unavailable. Pagination/checkpoint/sync quality/subtitle-only update paths incomplete. Trusted installer has tested validation gate, but no approved Windows manifests/UI install-all yet.
 
 Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.
+
+## Checkpoint 2 — latest
+Actual pinned yt-dlp video and gallery-dl PNG download both passed from frozen Linux executable over localhost. Filename override avoids embedding host:port into image names. Windows old gallery issue is NOT declared fixed; Windows source+packaged CI prepared. Pinned authenticated-source FFmpeg9.0.2 artifact install UI added for Windows x64; official Chrome download page is opened explicitly, not marked installed. Full social pagination/auth/session bridge still unimplemented/unverified.

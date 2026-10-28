@@ -50,7 +50,7 @@ def fit_duration(clip:Clip,target:int,policy='error',min_speed=.5,max_speed=2,fp
         return result
     if policy=='freeze':
         from fractions import Fraction
-        frame=max(1,round(US/Fraction(fps)));tail=target-natural
+        frame=min(clip.source_out-clip.source_in,max(1,round(US/Fraction(fps))));tail=target-natural
         return [replace(clip),replace(clip,id=uid(),source_in=max(clip.source_in,clip.source_out-frame),offset=clip.offset+natural,speed=str(Fraction(frame,tail)),volume=0)]
     raise ValueError('Video is too short; choose speed, loop or freeze. Another clip will not be added automatically.')
 

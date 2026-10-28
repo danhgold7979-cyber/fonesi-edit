@@ -1,0 +1,113 @@
+{
+  "version": "0.1.0.dev1",
+  "frozen": false,
+  "os": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "ui_opened": true,
+  "source_preserved": true,
+  "jobs": [
+    {
+      "id": "423f2cc4-6548-46da-a2c8-069832cc0e22",
+      "kind": "render",
+      "state": "succeeded",
+      "error": null,
+      "result": {
+        "duration": 1000000,
+        "elapsed_seconds": 0.9282031610000558,
+        "hardware_reason": "CPU compositor; Auto selects tested CPU path, not an unverified GPU encoder",
+        "has_audio": true,
+        "has_video": true,
+        "intermediate_reason": "Lossless FFV1 normalization for mixed sources before canonical CPU layers; one final H.264 encode",
+        "path": "<proof-root>/output/batch.mp4",
+        "renderer": "canonical-pillow-cpu-v1",
+        "sha256": "2123434c3431c5b86e5ad3df076439e1714f612811c988ce13f34a8a044043e6",
+        "size": 63399,
+        "snapshot_hash": "2395ffa5744fcda70fd867444ca4ecf367a3674c323583a1048207d580775dfd",
+        "validated": true,
+        "warnings": []
+      }
+    },
+    {
+      "id": "d1b50357-ec04-4434-b759-6596070ef752",
+      "kind": "render",
+      "state": "succeeded",
+      "error": null,
+      "result": {
+        "duration": 800000,
+        "elapsed_seconds": 0.8107242529999894,
+        "hardware_reason": "CPU compositor; Auto selects tested CPU path, not an unverified GPU encoder",
+        "has_audio": true,
+        "has_video": true,
+        "intermediate_reason": "Lossless FFV1 normalization for mixed sources before canonical CPU layers; one final H.264 encode",
+        "path": "<proof-root>/output/matrix.mp4",
+        "renderer": "canonical-pillow-cpu-v1",
+        "sha256": "c7387fe0f62bca698f0120a195a85d7af33db3e65fd887369d16cbe4141af8e4",
+        "size": 3349,
+        "snapshot_hash": "75a3572164e7794e07c49607b7e83e711c8db8b6c3f40620088655b599ef8f66",
+        "validated": true,
+        "warnings": []
+      }
+    },
+    {
+      "id": "6bd798dc-36e4-469a-9820-52a88d4b97e6",
+      "kind": "download",
+      "state": "succeeded",
+      "error": null,
+      "result": {
+        "adapter": "yt-dlp",
+        "artifacts": [
+          {
+            "duration": 1000000,
+            "has_audio": true,
+            "has_video": true,
+            "path": "<proof-root>/downloads/Local test HTTP/Nguồn__ngu%E1%BB%93n%20%E4%B8%AD%E6%96%87/videos/ngu%E1%BB%93n%20%E4%B8%AD%E6%96%87.mp4",
+            "sha256": "68418d8721f3ae9d75a075028d7a98f47011ecae4233bdf294c0c604c49d4772",
+            "size": 41237,
+            "validated": true
+          }
+        ],
+        "evidence_scope": "localhost transport only",
+        "path": "<proof-root>/downloads/Local test HTTP/Nguồn__ngu%E1%BB%93n%20%E4%B8%AD%E6%96%87/videos/ngu%E1%BB%93n%20%E4%B8%AD%E6%96%87.mp4",
+        "platform": "Local test HTTP",
+        "subtitles": [],
+        "validated": true
+      }
+    },
+    {
+      "id": "9070024c-793c-4ea6-8f38-98c769d65b7e",
+      "kind": "download",
+      "state": "succeeded",
+      "error": null,
+      "result": {
+        "adapter": "gallery-dl",
+        "artifacts": [
+          {
+            "height": 60,
+            "path": "<proof-root>/downloads/Local test HTTP/Nguồn__%E1%BA%A3nh/images/%E1%BA%A3nh.png",
+            "sha256": "b88af293281dcb9dc2dd5ad103ab565b930bec10f4387cec20bf14288652c509",
+            "size": 156,
+            "validated": true,
+            "width": 80
+          }
+        ],
+        "evidence_scope": "localhost transport only",
+        "path": "<proof-root>/downloads/Local test HTTP/Nguồn__%E1%BA%A3nh/images/%E1%BA%A3nh.png",
+        "platform": "Local test HTTP",
+        "subtitles": [],
+        "validated": true
+      }
+    }
+  ],
+  "tool_paths": {
+    "ffmpeg": "/usr/bin/ffmpeg",
+    "ffprobe": "/usr/bin/ffprobe"
+  },
+  "external_acceptance": {
+    "Windows": "NOT RUN",
+    "GPU": "NOT RUN",
+    "Chrome real sessions": "NOT RUN",
+    "live social full channels": "NOT RUN",
+    "live translation quality": "NOT RUN"
+  },
+  "passed": true,
+  "path_normalization": "Local runtime roots replaced for readable repository evidence; outcomes/hashes unchanged"
+}

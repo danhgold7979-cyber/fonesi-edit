@@ -489,7 +489,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "ui/canvas.py; ui/editor.py; ui/timeline.py; services/composition.py; tests/test_ui.py; tests/test_render.py"
+      "ui/canvas.py; ui/editor.py; ui/timeline.py; services/composition.py; tests/test_ui.py; tests/test_render.py",
+      "tests/test_preview.py (real Qt decoded frame); docs/rebuild/evidence/packaged-proof.json (Linux only)"
     ],
     "remaining": "Playable normalized proxy/audio preview, waveform/thumbnails, advanced crop/anchors/groups/alignment, full shortcuts/remap/IME/HiDPI and exhaustive direct cue editing remain open. Static base-frame scrubbing is NOT certified playback."
   },
@@ -515,7 +516,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "ui/canvas.py; ui/editor.py; ui/timeline.py; services/composition.py; tests/test_ui.py; tests/test_render.py"
+      "ui/canvas.py; ui/editor.py; ui/timeline.py; services/composition.py; tests/test_ui.py; tests/test_render.py",
+      "tests/test_preview.py (real Qt decoded frame); docs/rebuild/evidence/packaged-proof.json (Linux only)"
     ],
     "remaining": "Playable normalized proxy/audio preview, waveform/thumbnails, advanced crop/anchors/groups/alignment, full shortcuts/remap/IME/HiDPI and exhaustive direct cue editing remain open. Static base-frame scrubbing is NOT certified playback."
   },
@@ -580,7 +582,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/render.py; services/batch.py; tests/test_render.py"
+      "services/render.py; services/batch.py; tests/test_render.py",
+      "ui/clip_dialog.py; services/editing.py; tests/test_editing_motion.py; tests/test_ui.py::test_clip_dialog_invalid_apply_rolls_back_draft"
     ],
     "remaining": "Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open."
   },
@@ -593,7 +596,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/render.py; services/batch.py; tests/test_render.py"
+      "services/render.py; services/batch.py; tests/test_render.py",
+      "ui/clip_dialog.py; services/editing.py; tests/test_editing_motion.py; tests/test_ui.py::test_clip_dialog_invalid_apply_rolls_back_draft"
     ],
     "remaining": "Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open."
   },
@@ -632,7 +636,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/render.py; services/batch.py; tests/test_render.py"
+      "services/render.py; services/batch.py; tests/test_render.py",
+      "ui/clip_dialog.py; services/editing.py; tests/test_editing_motion.py; tests/test_ui.py::test_clip_dialog_invalid_apply_rolls_back_draft"
     ],
     "remaining": "Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open."
   },
@@ -645,7 +650,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/render.py; services/batch.py; tests/test_render.py"
+      "services/render.py; services/batch.py; tests/test_render.py",
+      "ui/clip_dialog.py; services/editing.py; tests/test_editing_motion.py; tests/test_ui.py::test_clip_dialog_invalid_apply_rolls_back_draft"
     ],
     "remaining": "Full duration/audio settings UI, mapping modes/ambiguity, crossfades/ducking/SFX events/meter, preset asset migration and representative multi-folder regression remain open."
   },
@@ -762,7 +768,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/automation.py; tests/test_downloads_automation.py"
+      "services/automation.py; tests/test_downloads_automation.py",
+      "ui/window.py watcher settings; core/jobs.py admission integration"
     ],
     "remaining": "Automation helpers are NOT yet all wired into desktop scheduler/settings. Adaptive resource hysteresis, per-tool/account leases, app-closed Windows opt-in scheduling, full DAG failure propagation/progress/ETA remain open."
   },
@@ -801,7 +808,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "services/automation.py; tests/test_downloads_automation.py"
+      "services/automation.py; tests/test_downloads_automation.py",
+      "ui/window.py watcher settings; core/jobs.py admission integration"
     ],
     "remaining": "Automation helpers are NOT yet all wired into desktop scheduler/settings. Adaptive resource hysteresis, per-tool/account leases, app-closed Windows opt-in scheduling, full DAG failure propagation/progress/ETA remain open."
   },
@@ -905,7 +913,8 @@
     "implementation": "partial",
     "tests": "subset_passed",
     "evidence": [
-      "core/; tests/test_core.py; tests/test_jobs.py"
+      "core/; tests/test_core.py; tests/test_jobs.py",
+      "ui/clip_dialog.py; services/editing.py; tests/test_editing_motion.py; tests/test_ui.py::test_clip_dialog_invalid_apply_rolls_back_draft"
     ],
     "remaining": "Migration beyond initial schema, sustained crash campaign, resource-aware admission integration, fully immutable resolved tool leases and Windows process-tree acceptance remain open."
   },
@@ -928,12 +937,13 @@
     "source": "PR 11",
     "tasks": "P02-06, P12-01",
     "acceptance": "App đóng gói chạy trên Windows mục tiêu",
-    "implementation": "not_started",
-    "tests": "not_run",
+    "implementation": "partial",
+    "tests": "linux_packaged_passed_windows_pending",
     "evidence": [
-      "packaging/THIRD_PARTY_NOTICES.md"
+      "scripts/build_desktop.py; scripts/verify_packaged.py; docs/rebuild/evidence/packaged-proof.json; .github/workflows/rebuild.yml",
+      "tests/test_preview.py (real Qt decoded frame); docs/rebuild/evidence/packaged-proof.json (Linux only)"
     ],
-    "remaining": "Clean frozen Linux and Windows builds/worker proofs, dependency bundle checks, installer/update/rollback acceptance, final Vietnamese guide and release criteria remain open."
+    "remaining": "Windows exact-commit CI, real target machine/Chrome/GPU/HiDPI/audio, full functionality and public redistribution obligations remain open."
   },
   {
     "id": "WIN-02",
@@ -941,12 +951,13 @@
     "source": "PR 11",
     "tasks": "P12-02, P12-03",
     "acceptance": "Workflow từ binary thật, không chỉ từ source",
-    "implementation": "not_started",
-    "tests": "not_run",
+    "implementation": "partial",
+    "tests": "linux_packaged_passed_windows_pending",
     "evidence": [
-      "packaging/THIRD_PARTY_NOTICES.md"
+      "scripts/build_desktop.py; scripts/verify_packaged.py; docs/rebuild/evidence/packaged-proof.json; .github/workflows/rebuild.yml",
+      "tests/test_preview.py (real Qt decoded frame); docs/rebuild/evidence/packaged-proof.json (Linux only)"
     ],
-    "remaining": "Clean frozen Linux and Windows builds/worker proofs, dependency bundle checks, installer/update/rollback acceptance, final Vietnamese guide and release criteria remain open."
+    "remaining": "Windows exact-commit CI, real target machine/Chrome/GPU/HiDPI/audio, full functionality and public redistribution obligations remain open."
   },
   {
     "id": "WIN-03",
@@ -954,12 +965,13 @@
     "source": "PR 11",
     "tasks": "P12-04, P12-06",
     "acceptance": "Người dùng chạy quy trình theo tài liệu, giới hạn rõ",
-    "implementation": "not_started",
-    "tests": "not_run",
+    "implementation": "partial",
+    "tests": "linux_packaged_passed_windows_pending",
     "evidence": [
-      "packaging/THIRD_PARTY_NOTICES.md"
+      "scripts/build_desktop.py; scripts/verify_packaged.py; docs/rebuild/evidence/packaged-proof.json; .github/workflows/rebuild.yml",
+      "tests/test_preview.py (real Qt decoded frame); docs/rebuild/evidence/packaged-proof.json (Linux only)"
     ],
-    "remaining": "Clean frozen Linux and Windows builds/worker proofs, dependency bundle checks, installer/update/rollback acceptance, final Vietnamese guide and release criteria remain open."
+    "remaining": "Windows exact-commit CI, real target machine/Chrome/GPU/HiDPI/audio, full functionality and public redistribution obligations remain open."
   },
   {
     "id": "WIN-04",
@@ -967,12 +979,12 @@
     "source": "Kế hoạch",
     "tasks": "P12-05",
     "acceptance": "Cập nhật lỗi khôi phục được, project backup trước migration",
-    "implementation": "not_started",
-    "tests": "not_run",
+    "implementation": "partial",
+    "tests": "linux_packaged_passed_windows_pending",
     "evidence": [
-      "packaging/THIRD_PARTY_NOTICES.md"
+      "scripts/build_desktop.py; scripts/verify_packaged.py; docs/rebuild/evidence/packaged-proof.json; .github/workflows/rebuild.yml"
     ],
-    "remaining": "Clean frozen Linux and Windows builds/worker proofs, dependency bundle checks, installer/update/rollback acceptance, final Vietnamese guide and release criteria remain open."
+    "remaining": "Windows exact-commit CI, real target machine/Chrome/GPU/HiDPI/audio, full functionality and public redistribution obligations remain open."
   },
   {
     "id": "TOL-01",

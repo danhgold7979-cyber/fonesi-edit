@@ -160,3 +160,20 @@ class Store:
     def cache_put(self, scope,key,payload):
         with self.connection() as db:
             db.execute('INSERT INTO cache VALUES(?,?,?,?) ON CONFLICT(scope,key) DO UPDATE SET payload=excluded.payload,updated=excluded.updated',(scope,key,canonical(payload),time.time()))
+
+    def update_pending_snapshot(self,job_id,snapshot):
+        data=canonical(snapshot)
+        with self.connection() as db:
+            cursor=db.execute("UPDATE jobs SET snapshot=?,snapshot_hash=?,updated=? WHERE id=? AND state='pending'",(data,digest(snapshot),time.time(),job_id))
+            if cursor.rowcount!=1:raise ValueError('Only pending jobs can receive explicitly approved snapshot updates')
+
+    def set_priority(self,job_id,priority):
+        with self.connection() as db:
+            cursor=db.execute("UPDATE jobs SET priority=? WHERE id=? AND state IN ('pending','retry_wait')",(int(priority),job_id))
+            if cursor.rowcount!=1:raise ValueError('Only waiting jobs can be reordered')
+
+    def propagate_dependency_failures(self):
+        with self.connection() as db:
+            db.execute("""UPDATE jobs SET state='blocked_configuration',error='Required upstream step did not succeed; retry upstream then resume this job'
+                WHERE state='pending' AND id IN (SELECT d.job_id FROM dependencies d JOIN jobs j ON j.id=d.depends_on
+                WHERE d.allow_failure=0 AND j.state IN ('failed','canceled','skipped','blocked_configuration','uncertain'))""")

@@ -12,3 +12,6 @@ Small full-product oracle, strict W/K, huge product bounded search, cancel/timeo
 Full persisted historical sequence fed into UI solver, atomic enqueue-reservation coupling and failed reservation transitions, scene/angle/row locking UI, rename rollback and duration-allocation UI still need integration.
 
 Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.
+
+## Checkpoint 2 — latest
+Natural scene/render pipeline passed from frozen worker. Reservation/history and editable matrix remain partial; persisted history must still be fed to UI solver and enqueue/reservation made atomic.

@@ -30,3 +30,12 @@ def test_window_eight_tabs_autosave_and_text_focus(qapp,tmp_path,monkeypatch):
     w.editor.add_text();w.editor.canvas.selection={w.project.layers[0].id};w.editor.refresh();w.editor.text.setFocus();w.editor.text.setText('Tiếng Việt 中文')
     QTest.keyClick(w.editor.text,Qt.Key.Key_Space);assert len(w.project.layers)==1
     w.autosave_now();assert (tmp_path/'recovery.json').exists();w.close();qapp.processEvents()
+
+
+def test_clip_dialog_invalid_apply_rolls_back_draft(qapp,media):
+    from fonesi_edit.services.media import inspect_asset
+    from fonesi_edit.core.model import Clip
+    from fonesi_edit.ui.clip_dialog import ClipDialog
+    a=inspect_asset(media);p=Project(assets=[a],clips=[Clip(a.id,0,a.duration)]);before=p.to_dict()
+    d=ClipDialog(p);d.fields['source_out'].setValue(100);d.apply();assert p.to_dict()==before
+    d.fields['source_out'].setValue(a.duration/US);d.fields['speed'].setValue(2);d.apply();assert p.clips[0].speed=='2';d.close()

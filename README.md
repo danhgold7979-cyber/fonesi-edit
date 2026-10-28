@@ -24,6 +24,6 @@ Nếu môi trường không cho ghi cache mặc định, đặt `UV_CACHE_DIR`/`
 ## Checkpoint hiện tại
 8 tab mở được; local media/project/subtitle/editor/batch/matrix/queue/settings đã nối đường chạy nền. CPU xuất MP4 với text/logo/mask/sub/keyframes, kiểm tra probe+decode+duration+tracks rồi mới ghi thành công; không ghi đè nguồn. Tải video/ảnh localhost đã kiểm chứng, không đồng nghĩa live mạng xã hội hoặc gallery-dl packaged đã đạt.
 
-**51 tests pass** ở checkpoint đầu; phạm vi nâng cao, playable preview, đầy đủ auto/resource wiring và packaging còn đang làm. Xem trạng thái sống thay vì coi số test là đủ sản phẩm.
+**59 tests pass** và frozen Linux proof4 job thật đã qua; playable proxy/audio/waveform đã có. Windows CI mới được chuẩn bị; advanced UI, history/DAG completeness và máy mục tiêu còn đang làm. Xem trạng thái sống thay vì coi số test là đủ sản phẩm.
 
 Không commit browser profiles/cookie/API key/download media. Dịch chỉ gọi endpoint được người dùng cấu hình và cho phép; Chrome thật/user-data-dir riêng, auth chưa xác minh bị chặn, không tự đổi sang public. AI voice/ASR/OCR/tracking ngoài bản đầu.

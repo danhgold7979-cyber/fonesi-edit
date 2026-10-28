@@ -4,6 +4,7 @@ import subprocess
 from ..core.model import uid
 from ..core.paths import contained
 from .tools import inspect_tool
+from ..core.process import popen
 
 PLATFORMS={
  'YouTube':('youtube.com','https://www.youtube.com/'), 'Bilibili':('bilibili.com','https://www.bilibili.com/'),
@@ -31,7 +32,7 @@ class BrowserManager:
         if not contained(path,self.root):raise ValueError('Only app-managed isolated profiles are supported')
         if any((path/x).exists() for x in ['SingletonLock','lockfile']):raise ValueError('Profile is open/locked; existing lock is not removed')
         if profile_id in self.running and self.running[profile_id].poll() is None:raise ValueError('Profile is already open in a managed Chrome process')
-        proc=subprocess.Popen([chrome,'--user-data-dir='+str(path),'--no-first-run',PLATFORMS[platform][1]],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        proc=popen([chrome,'--user-data-dir='+str(path),'--no-first-run',PLATFORMS[platform][1]],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         self.running[profile_id]=proc;return proc.pid
     def preflight(self,binding_id,expected_identity=None):
         if not binding_id:return {'public':True,'ready':True}

@@ -40,7 +40,7 @@ def table(headers):
 class MainWindow(QMainWindow):
     def __init__(self,data_dir=None):
         super().__init__();self.data=Path(data_dir) if data_dir else user_data();self.data.mkdir(parents=True,exist_ok=True)
-        self.store=Store(self.data/'state.db');self.scheduler=Scheduler(self.store);self.browser=BrowserManager(self.data/'browser_profiles',self.store)
+        self.store=Store(self.data/'state.db');self.scheduler=Scheduler(self.store,limit=3);self.browser=BrowserManager(self.data/'browser_profiles',self.store)
         self.project=Project();self.history=CommandHistory(self.project);self.project_path=None;self.generation=0;self.dirty=False;self.subtitle_updating=False
         self.runner=TaskRunner(self);self.batch_roots=[];self.batch_plan=[];self.scenes=[];self.matrix_rows=[];self.download_items=[]
         self.settings=QSettings(str(self.data/'ui.ini'),QSettings.Format.IniFormat)
@@ -52,6 +52,10 @@ class MainWindow(QMainWindow):
         self.tabs=QTabWidget();root.addWidget(self.tabs,1)
         self.build_overview();self.build_downloads();self.build_subtitles();self.editor=Editor(self.project,self.history);self.tabs.addTab(self.editor,'Editor');self.editor.changed.connect(self.mark_changed);self.editor.preview_requested.connect(self.preview)
         self.build_batch();self.build_matrix();self.build_queue();self.build_settings()
+        from .playback import Playback
+        self.playback=Playback(self);self.proxy_task=None;self.proxy_identity=None;self.watcher=None;self.watch_busy=False;self.watch_last=0
+        self.playback.frame.connect(self.playback_frame);self.playback.position.connect(self.editor.display_time);self.playback.failed.connect(self.notify)
+        self.editor.play_requested.connect(self.playback.toggle);self.editor.position_requested.connect(self.playback.seek);self.editor.proxy_requested.connect(lambda:self.prepare_proxy(force=True));self.editor.audio_requested.connect(self.add_audio);self.editor.clip_settings_requested.connect(self.clip_settings);self.editor.preset_requested.connect(self.preset_tools)
         self.statusBar().showMessage('P03–P10 đang phát triển · chỉ kiểm chứng local; xem CURRENT_STATUS.md. Không chứng nhận Windows/live nguồn.')
         self.timer=QTimer(self);self.timer.setInterval(250);self.timer.timeout.connect(self.tick);self.timer.start()
         self.autosave=QTimer(self);self.autosave.setSingleShot(True);self.autosave.setInterval(1500);self.autosave.timeout.connect(self.autosave_now)
@@ -110,10 +114,11 @@ class MainWindow(QMainWindow):
     def build_queue(self):
         _,layout=self.page('Hàng đợi / Lịch sử');r=self.row(layout);self.pause=QCheckBox('Tạm dừng nhận job mới');self.pause.clicked.connect(lambda:self.set_pause());r.addWidget(self.pause)
         button('Hủy job chọn',self.cancel_job,r);button('Thử lại job lỗi',self.retry_job,r);button('Mở kết quả',self.open_result,r);button('Sao chép lỗi',self.copy_error,r)
+        button('Tăng ưu tiên',self.prioritize_job,r)
         self.job_table=table(['ID','Loại','Trạng thái','Công đoạn','Tiến độ','Lỗi / kết quả']);self.job_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);layout.addWidget(self.job_table);self.last_jobs=None
     def build_settings(self):
         _,layout=self.page('Cài đặt');tabs=QTabWidget();layout.addWidget(tabs)
-        tools_page=QWidget();tl=QVBoxLayout(tools_page);tabs.addTab(tools_page,'Công cụ');r=self.row(tl);button('Quét / kiểm tra lại',self.scan_tools_async,r);button('Chọn đường dẫn tool',self.choose_tool_path,r)
+        tools_page=QWidget();tl=QVBoxLayout(tools_page);tabs.addTab(tools_page,'Công cụ');r=self.row(tl);button('Quét / kiểm tra lại',self.scan_tools_async,r);button('Chọn đường dẫn tool',self.choose_tool_path,r);button('Cài FFmpeg/ffprobe Windows',self.install_media_tools,r);button('Hủy tác vụ nền',self.runner.cancel_all,r);button('Google Chrome chính thức',lambda:QDesktopServices.openUrl(QUrl('https://www.google.com/chrome/')),r)
         self.tool_table=table(['Tên','Nguồn','Đường dẫn','Phiên bản','Trạng thái / lỗi']);self.tool_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);tl.addWidget(self.tool_table)
         tl.addWidget(QLabel('Cài/cập nhật tự động cần manifest đã xác minh theo OS/architecture. Chưa có manifest Windows được nghiệm thu cho rebuild; không chạy installer không rõ nguồn.'))
         account_page=QWidget();al=QVBoxLayout(account_page);tabs.addTab(account_page,'Chrome / tài khoản');r=self.row(al);self.platform=QComboBox();self.platform.addItems(PLATFORMS);r.addWidget(self.platform);self.profiles=QComboBox();r.addWidget(self.profiles)
@@ -125,6 +130,14 @@ class MainWindow(QMainWindow):
         self.translation_budget=QSpinBox();self.translation_budget.setRange(0,100000000);tf.addRow('Hạn mức ký tự',self.translation_budget)
         self.translation_consent=QCheckBox('Cho gửi nội dung sub đến provider này; đã kiểm tra chi phí/quyền dùng');tf.addRow(self.translation_consent)
         tf.addRow(QLabel('Khóa lấy từ biến môi trường FONESI_TRANSLATION_KEY, không lưu trong project/log. Glossary/context/style provider chưa hỗ trợ trong adapter này.'))
+        auto_page=QWidget();af=QFormLayout(auto_page);tabs.addTab(auto_page,'Tự động / tài nguyên')
+        self.watch_root=QLineEdit();self.watch_output=QLineEdit(str(self.data/'output'));af.addRow('Theo dõi thư mục',self.watch_root);af.addRow('Đầu ra watcher',self.watch_output)
+        self.watch_enabled=QCheckBox('Bật watcher khi app mở');af.addRow(self.watch_enabled);self.watch_enabled.clicked.connect(self.toggle_watcher)
+        self.watch_status=QLabel('Tắt mặc định; không tạo service hoặc lịch chạy khi app đóng.');self.watch_status.setWordWrap(True);af.addRow(self.watch_status)
+        for kind,title in [('render','Render đồng thời'),('download','Tải đồng thời'),('inspect','Probe đồng thời')]:
+            value=QSpinBox();value.setRange(1,8);value.setValue(self.scheduler.kind_limits[kind]);value.valueChanged.connect(lambda n,k=kind:self.scheduler.kind_limits.update({k:n}));af.addRow(title,value)
+        af.addRow(QLabel('Scheduler giữ tối thiểu 512 MiB RAM và 512 MiB đĩa; không nhận job mới khi dưới ngưỡng. GPU/VRAM chưa có phép đo thì hiển thị unknown.'))
+
     def mark_changed(self):
         self.dirty=True
         if hasattr(self,'autosave'):self.autosave.start()
@@ -143,8 +156,8 @@ class MainWindow(QMainWindow):
     def load_path(self,path):
         if not self.confirm_discard():return
         def load():
-            project=load_project(path);self.runner.cancel_all();self.generation+=1;self.project.__dict__.clear();self.project.__dict__.update(project.__dict__)
-            self.history.undo_items.clear();self.history.redo_items.clear();self.project_path=path;self.editor.canvas.base=None;self.editor.canvas.selection.clear();self.editor.refresh();self.refresh_cues();self.dirty=False;self.preview(0,base_only=True)
+            project=load_project(path);self.playback.stop();self.runner.cancel_all();self.generation+=1;self.project.__dict__.clear();self.project.__dict__.update(project.__dict__)
+            self.history.undo_items.clear();self.history.redo_items.clear();self.project_path=path;self.editor.canvas.base=None;self.editor.canvas.selection.clear();self.editor.refresh();self.refresh_cues();self.dirty=False;self.preview(0,base_only=True);self.prepare_proxy()
         self.guarded(load)
     def save(self,save_as=False):
         path=self.project_path
@@ -162,12 +175,66 @@ class MainWindow(QMainWindow):
         def work(cancel):return [inspect_asset(Path(p)) for p in paths if not cancel()]
         def done(assets):
             if generation!=self.generation:return
+            self.playback.stop()
             def append():
                 offset=self.project.duration
                 for asset in assets:
                     self.project.assets.append(asset);self.project.clips.append(Clip(asset.id,0,asset.duration,offset=offset));offset+=asset.duration
-            self.editor.mutate('import media',append);self.tabs.setCurrentIndex(3);self.preview(0,base_only=True)
+            self.editor.mutate('import media',append);self.tabs.setCurrentIndex(3);self.preview(0,base_only=True);self.prepare_proxy()
         self.runner.submit(work,done,self.error)
+    def add_audio(self):
+        from ..core.model import AudioTrack
+        path,_=QFileDialog.getOpenFileName(self,'Thêm audio','','Audio (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus)')
+        if not path:return
+        generation=self.generation
+        def done(asset):
+            if generation!=self.generation:return
+            self.editor.mutate('add audio',lambda:self.project.audio.append(AudioTrack(path,trim_out=asset.duration)));self.prepare_proxy()
+        self.runner.submit(lambda cancel:inspect_asset(Path(path)),done,self.error)
+    def clip_settings(self):
+        from .clip_dialog import ClipDialog
+        draft=Project.from_dict(self.project.to_dict());dialog=ClipDialog(draft,self)
+        if dialog.exec():
+            self.editor.mutate('clip/audio settings',lambda:self.project.__dict__.update(draft.__dict__));self.refresh_cues();self.playback.stop();self.editor.canvas.base=None;self.prepare_proxy()
+    def preset_tools(self):
+        from ..services.editing import export_preset,import_preset,relink
+        choice,ok=QInputDialog.getItem(self,'Preset / media','Thao tác',['Xuất preset','Nhập preset','Nhập chỉ layers','Nhập chỉ audio','Liên kết lại media theo hash'],0,False)
+        if not ok:return
+        if choice=='Xuất preset':
+            path,_=QFileDialog.getSaveFileName(self,'Xuất preset',str(self.data/'preset.json'),'JSON (*.json)')
+            if path:self.guarded(lambda:atomic_write(Path(path),json.dumps(export_preset(self.project),ensure_ascii=False,indent=2)))
+        elif choice.startswith('Nhập'):
+            path,_=QFileDialog.getOpenFileName(self,'Nhập preset','','JSON (*.json)')
+            if not path:return
+            def load():
+                preset=json.loads(Path(path).read_text());draft=Project.from_dict(self.project.to_dict());groups=('layers',) if choice=='Nhập chỉ layers' else ('audio',) if choice=='Nhập chỉ audio' else ('canvas','layers','audio','settings');result=import_preset(draft,preset,groups)
+                self.editor.mutate('import preset',lambda:self.project.__dict__.update(draft.__dict__));self.notify('Tài nguyên thiếu: '+str(result['missing_assets']));self.prepare_proxy()
+            self.guarded(load)
+        else:
+            root=QFileDialog.getExistingDirectory(self,'Thư mục mới chứa media')
+            if not root:return
+            draft=Project.from_dict(self.project.to_dict());generation=self.generation
+            def done(result):
+                if generation!=self.generation:return
+                self.editor.mutate('relink',lambda:self.project.__dict__.update(draft.__dict__));self.notify(str(result));self.prepare_proxy()
+            self.runner.submit(lambda cancel:relink(draft,Path(root)),done,self.error)
+    def playback_frame(self,image):
+        if image.size==(self.project.width,self.project.height):self.editor.canvas.base=image;self.editor.canvas.reference=None;self.editor.canvas.update()
+    def prepare_proxy(self,force=False):
+        if not self.project.clips:return
+        from ..services.preview import build_proxy,proxy_key,waveform
+        snapshot=Project.from_dict(self.project.to_dict());identity=proxy_key(snapshot);generation=self.generation
+        if identity==self.proxy_identity and not force:return
+        if self.proxy_task:self.proxy_task.cancelled.set()
+        target=self.data/'cache'/('proxy-'+identity+('.refresh-'+str(time.time_ns()) if force else '')+'.mp4');target.parent.mkdir(exist_ok=True)
+        self.notify('Tạo proxy/audio có thể phát ở nền; UI vẫn dùng được…')
+        def work(cancel):
+            if not target.exists():build_proxy(snapshot,target,cancel)
+            return target,waveform(target,400,cancel)
+        def done(result):
+            if generation!=self.generation or identity!=proxy_key(self.project):return
+            self.proxy_identity=identity;self.playback.load(result[0]);self.editor.timeline.waveform=result[1];self.editor.timeline.update();self.notify('Proxy video/audio đã kiểm tra; bấm Phát. Layer dùng chung compositor CPU.')
+        self.proxy_task=self.runner.submit(work,done,self.notify)
     def preview(self,t=0,base_only=False):
         if not self.project.clips:return
         snapshot=Project.from_dict(self.project.to_dict());generation=self.generation
@@ -195,8 +262,8 @@ class MainWindow(QMainWindow):
         def prepare():
             sources=identify_many(self.urls.toPlainText());binding=self.download_account.currentData()
             if binding:self.browser.preflight(binding)
-            self.download_items=[];self.download_table.setRowCount(0)
-            def work(cancel):return [scan(s['url'],{'limit':self.scan_limit.value()},cancel) for s in sources]
+            self.download_items=[];self.download_table.setRowCount(0);limit=self.scan_limit.value()
+            def work(cancel):return [scan(s['url'],{'limit':limit},cancel) for s in sources]
             def done(results):
                 for result in results:
                     self.download_status.setText('Quét: '+result['completeness']+' — '+result.get('warning',''))
@@ -326,6 +393,9 @@ class MainWindow(QMainWindow):
     def cancel_job(self):
         job=self.selected_job()
         if job:self.store.cancel(job)
+    def prioritize_job(self):
+        job=self.selected_job()
+        if job:self.guarded(lambda:self.store.set_priority(job,self.store.get(job)['priority']+1))
     def retry_job(self):
         job=self.selected_job()
         if job:self.guarded(lambda:self.store.retry(job))
@@ -338,6 +408,15 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QApplication
         job=self.selected_job()
         if job:QApplication.clipboard().setText(self.store.get(job).get('error') or '')
+    def install_media_tools(self):
+        from ..services.tools import ToolManager
+        from ..services.tool_registry import install_windows_ffmpeg
+        if os.name!='nt':self.error('Manifest đã pin này chỉ dành Windows x64; không chạy binary khác OS');return
+        manager=ToolManager(self.data/'tools',self.store)
+        def done(paths):
+            for name,path in paths.items():os.environ['FONESI_'+name.upper()+'_PATH']=path
+            self.scan_tools_async();self.notify('Đã tải, kiểm checksum và self-test FFmpeg/ffprobe. Workflow vẫn cần nghiệm thu riêng.')
+        self.runner.submit(lambda cancel,progress:install_windows_ffmpeg(manager,cancel,progress),done,self.error,progress=lambda stage,value:self.notify(stage+(' — chưa biết tổng' if value is None else f' {value:.0%}')))
     def scan_tools_async(self):
         if not hasattr(self,'tool_table'):return
         overrides={k:v['path'] for k,v in self.store.objects('tool_override').items()}
@@ -375,7 +454,7 @@ class MainWindow(QMainWindow):
         if profile:self.guarded(lambda:self.browser.open(chrome,profile,self.platform.currentText()))
         else:self.error('Tạo/chọn hồ sơ trước')
     def tick(self):
-        self.scheduler.tick();rows=self.store.jobs();signature=[(r['id'],r['state'],r['progress'],r['stage'],r['error']) for r in rows]
+        self.scheduler.tick();self.watch_tick();rows=self.store.jobs();signature=[(r['id'],r['state'],r['progress'],r['stage'],r['error']) for r in rows]
         if signature!=self.last_jobs:
             selected=self.selected_job();self.job_table.setRowCount(len(rows))
             for i,r in enumerate(rows):
@@ -391,6 +470,22 @@ class MainWindow(QMainWindow):
             import psutil,shutil
             mem=psutil.virtual_memory();disk=shutil.disk_usage(self.data);self.metrics.setText(f'CPU {psutil.cpu_percent():.0f}% · RAM khả dụng {mem.available/1024**3:.1f} GiB · Đĩa trống {disk.free/1024**3:.1f} GiB · GPU/VRAM: chưa đo')
         except Exception:self.metrics.setText('Metrics không đọc được — unknown')
+    def watch_tick(self):
+        if not self.watcher or self.watch_busy or time.monotonic()-self.watch_last<1:return
+        self.watch_last=time.monotonic();self.watch_busy=True;watcher=self.watcher;template=Project.from_dict(self.project.to_dict());output=Path(self.watch_output.text())
+        def work(cancel):return make_batch(watcher.poll(),template,output,cancel=cancel)
+        def done(plans):
+            self.watch_busy=False
+            if self.watcher is watcher:enqueue_batch(self.store,plans);self.watch_status.setText(f'Đã nhận {len(plans)} tệp ổn định ở lượt gần nhất; chỉ chạy khi app mở.')
+        def failed(error):self.watch_busy=False;self.watch_status.setText(error)
+        self.runner.submit(work,done,failed)
+    def toggle_watcher(self):
+        if self.watch_enabled.isChecked():
+            from ..services.automation import StableWatcher
+            root=Path(self.watch_root.text());output=Path(self.watch_output.text())
+            if not root.is_dir() or root.resolve()==output.resolve():self.watch_enabled.setChecked(False);self.error('Nguồn phải tồn tại và khác thư mục output');return
+            self.watcher=StableWatcher([root],[output,self.data/'cache',self.data/'browser_profiles'],stable_seconds=3);self.watch_status.setText('Đã bật chủ động: đợi tệp ổn định rồi probe; dùng snapshot editor lúc nhận tệp.')
+        else:self.watcher=None;self.watch_status.setText('Đã tắt watcher; job đã xếp hàng vẫn giữ nguyên.')
     def show_help(self):
         QMessageBox.information(self,'Hướng dẫn bản rebuild','1. Thêm media → Editor → kéo/resize/xoay/chữ/logo/mask.\n2. Nhập sub, chỉnh cue; Frame xuất chuẩn để đối chiếu.\n3. Lưu project hoặc Xuất → Hàng đợi.\n4. Batch quét folder/dry-run; Matrix chọn C1…Cn rồi sinh W/K.\n\nCtrl+O mở · Ctrl+S lưu · Ctrl+, cài đặt · Delete canvas chỉ bỏ layer · Alt kéo bỏ snap.\n\nChưa nghiệm thu đầy đủ: Windows/GPU/Chrome handoff/live nguồn/dịch thực; nhiều tùy chọn nâng cao còn mở. Không dùng bản này như bản phát hành hoàn tất.')
     def dragEnterEvent(self,event):
@@ -404,4 +499,4 @@ class MainWindow(QMainWindow):
         if files:self.import_media(files)
         event.acceptProposedAction()
     def closeEvent(self,event):
-        self.autosave_now();self.runner.cancel_all();self.scheduler.shutdown(cancel=True);self.settings.setValue('geometry',self.saveGeometry());event.accept()
+        self.autosave_now();self.playback.stop();self.runner.cancel_all();self.scheduler.shutdown(cancel=True);self.settings.setValue('geometry',self.saveGeometry());event.accept()

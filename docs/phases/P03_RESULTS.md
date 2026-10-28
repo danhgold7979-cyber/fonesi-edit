@@ -12,3 +12,6 @@ Qt-independent versioned project model; rational time maps; immutable SQLite job
 Migration beyond initial schema, sustained crash campaign, resource-aware admission integration, fully immutable resolved tool leases and Windows process-tree acceptance remain open.
 
 Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.
+
+## Checkpoint 2 — latest
+Resource admission now wired into scheduler, separate render/download/probe limits, failed required-dependency propagation, pending-only priority/snapshot APIs. Real worker dispatch verified from frozen executable. Remaining: exhaustive migration/crash Windows matrix and atomic artifact/history guarantees under kill boundaries.

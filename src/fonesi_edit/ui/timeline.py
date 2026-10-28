@@ -4,9 +4,9 @@ from PySide6.QtWidgets import QWidget
 from ..core.model import US,Clip,uid
 
 class Timeline(QWidget):
-    seek=Signal(int);changed=Signal()
+    seek=Signal(object);changed=Signal()
     def __init__(self,project,history,parent=None):
-        super().__init__(parent);self.project=project;self.history=history;self.time=0;self.drag=None;self.zoom=1.;self.setMinimumHeight(175);self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        super().__init__(parent);self.project=project;self.history=history;self.time=0;self.drag=None;self.zoom=1.;self.waveform=[];self.setMinimumHeight(205);self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     def scale(self):return (self.width()-100)/max(US,self.project.duration)*self.zoom
     def paintEvent(self,event):
         p=QPainter(self);p.fillRect(self.rect(),QColor('#111c2e'));s=self.scale()
@@ -22,6 +22,10 @@ class Timeline(QWidget):
                 r=QRectF(90+a*s,30+row*40,max(3,(b-a)*s),28)
                 p.setBrush(QColor(['#2563a5','#167e80','#7c4d9e'][row]));p.setPen(QColor('#68b9c3'));p.drawRoundedRect(r,4,4)
                 p.setPen(QColor('#ffffff'));p.drawText(r.adjusted(5,0,-3,0),Qt.AlignmentFlag.AlignVCenter,str(getattr(x,'name',getattr(x,'text','Clip')))[:25])
+        if self.waveform:
+            p.setPen(QPen(QColor('#58b6ae'),1));usable=self.width()-100
+            for index,point in enumerate(self.waveform):
+                x=90+index/len(self.waveform)*usable;p.drawLine(int(x),int(185-point['max']*15),int(x),int(185-point['min']*15))
         p.setPen(QPen(QColor('#f4b942'),2));x=90+self.time*s;p.drawLine(int(x),20,int(x),self.height());p.end()
     def mousePressEvent(self,event):
         self.setFocus();s=self.scale();t=max(0,round((event.position().x()-90)/s));row=int((event.position().y()-30)//40)

@@ -11,7 +11,7 @@ import tempfile
 import time
 from ..core.model import Project,Clip,US,seconds,digest
 from ..core.paths import atomic_write,publish_no_clobber
-from ..core.process import run,stop_process,Cancelled,ProcessFailure
+from ..core.process import run,stop_process,Cancelled,ProcessFailure,popen
 from .media import tool,validate_media
 from .composition import paint_frame,composition_warnings
 
@@ -68,7 +68,7 @@ def normalized_base(project:Project,directory:Path,cancel=lambda:False,progress=
 
 def _popen(args,**kwargs):
     flags={'creationflags':subprocess.CREATE_NEW_PROCESS_GROUP} if os.name=='nt' else {'start_new_session':True}
-    return subprocess.Popen(args,**kwargs,**flags)
+    return popen(args,**kwargs,**flags)
 
 
 def render_frames(base:Path,project:Project,target:Path,cancel,progress):

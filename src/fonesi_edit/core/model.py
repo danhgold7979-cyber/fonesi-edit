@@ -115,7 +115,9 @@ def interpolate(base: float, keys: list[Keyframe], t: int) -> float:
     if t <= keys[0].time:
         return keys[0].value
     for a, b in zip(keys, keys[1:]):
-        if t <= b.time:
+        if t == b.time:
+            return b.value
+        if t < b.time:
             u = (t - a.time) / max(1, b.time - a.time)
             if a.easing == 'ease-in':
                 u *= u

@@ -12,3 +12,6 @@ Canonical Pillow compositor shared by reference/export; text/font-glyph validati
 Full motion presets/path/easing UI, anchors/avoidance/random controls, advanced typography/shaping/style properties, all layer combinations, CJK font corpus, GPU and target-platform parity/performance remain open. Unsupported requested fields are rejected, not silently accepted.
 
 Baseline evidence is not clean-code evidence. No claim that an entire requirement group passes from a single example.
+
+## Checkpoint 2 — latest
+Motion preset generator and UI, seeded random layout/avoidance primitive, easing exact endpoint correction. Reference/CPU renderer remains validated on local corpus. Advanced styles/anchors/shaping and GPU/full parity corpus remain open.
