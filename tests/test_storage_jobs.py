@@ -1,7 +1,8 @@
 import sqlite3
 import time
 import pytest
-from fonesi_edit.domain import Composition, Layer
+from fonesi_edit.domain import Composition, Layer, checked_payload
+from fonesi_edit.worker import sanitize_error_message
 from fonesi_edit.jobs import Scheduler
 from fonesi_edit.storage import Store
 from fonesi_edit.prototypes.media import create_fixture, probe
@@ -96,3 +97,79 @@ def test_orphan_recovered_after_startup_and_live_worker_can_be_excluded(tmp_path
     with store.connect() as conn:conn.execute('UPDATE jobs SET heartbeat=0 WHERE id=?',(job,))
     assert store.recover(exclude=[job])==0
     scheduler.tick();assert store.job(job)['state']=='pending';scheduler.shutdown()
+
+
+
+@pytest.mark.parametrize("secret_key", [
+    "api-key",
+    "Authorization",
+    "session_cookie",
+    "clientSecret",
+    "refresh-token",
+    "bearerToken",
+    "ACCESS_TOKEN",
+    "passwd",
+    "private_key",
+])
+def test_secret_key_aliases_are_rejected_recursively(secret_key):
+    with pytest.raises(ValueError, match="Secret values cannot be stored"):
+        checked_payload({"nested": [{"safe": "ok", secret_key: "synthetic-secret-value"}]})
+
+
+def test_worker_error_sanitizer_removes_secrets_but_keeps_diagnostic_context():
+    message = (
+        "HTTP 403 for https://example.test/media/item?token=query-secret&signature=signed-secret "
+        "Authorization: Bearer bearer-secret api-key=api-secret "
+        "session_cookie=cookie-secret path=/media/item"
+    )
+    sanitized = sanitize_error_message(message)
+
+    for secret in (
+        "query-secret",
+        "signed-secret",
+        "bearer-secret",
+        "api-secret",
+        "cookie-secret",
+    ):
+        assert secret not in sanitized
+    assert "HTTP 403" in sanitized
+    assert "https://example.test/media/item" in sanitized
+    assert "path=/media/item" in sanitized
+
+
+def test_backup_is_validated_published_without_overwrite_and_cleans_temporary_files(tmp_path):
+    store = Store(tmp_path / "state.db")
+    job_id = store.submit("scan", {"url": "https://example.test/item"})
+    store.claim()
+    store.finish(job_id, {"items": [{"id": "synthetic-item"}]})
+
+    destination = tmp_path / "nested" / "backups" / "state.db"
+    store.backup(destination)
+    assert destination.is_file()
+    with sqlite3.connect(destination) as conn:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("SELECT state FROM jobs WHERE id=?", (job_id,)).fetchone()[0] == "succeeded"
+
+    original = destination.read_bytes()
+    with pytest.raises(FileExistsError):
+        store.backup(destination)
+    assert destination.read_bytes() == original
+    assert list(destination.parent.glob(".fonesi-backup-*.tmp")) == []
+
+
+def test_backup_publication_failure_does_not_leave_a_partial_backup(tmp_path, monkeypatch):
+    import fonesi_edit.storage as storage_module
+
+    store = Store(tmp_path / "state.db")
+    destination = tmp_path / "backup" / "state.db"
+    destination.parent.mkdir(parents=True)
+
+    def unsupported_link(*args, **kwargs):
+        raise OSError("operation not supported")
+
+    monkeypatch.setattr(storage_module.os, "link", unsupported_link)
+    with pytest.raises(RuntimeError, match="hard-link support"):
+        store.backup(destination)
+
+    assert not destination.exists()
+    assert list(destination.parent.glob(".fonesi-backup-*.tmp")) == []
