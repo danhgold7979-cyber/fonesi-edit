@@ -195,6 +195,20 @@ class Composition:
                 raise ValueError('Music loop crossfade must be a finite duration from 0 to 10 seconds')
             if crossfade and (track.get('mode','music')!='music' or not track.get('loop')):
                 raise ValueError('Music loop crossfade requires a looping music track')
+            repeats=track.get('repeat_count',1)
+            interval=track.get('repeat_interval',0)
+            if type(repeats) is not int or not 1<=repeats<=32:
+                raise ValueError('SFX repeat count must be an integer from 1 to 32')
+            if (type(interval) not in (int,float) or not math.isfinite(interval)
+                    or not 0<=interval<=3600):
+                raise ValueError('SFX repeat interval must be a finite duration from 0 to 3600 seconds')
+            if repeats>1:
+                if track.get('mode','music')!='sfx' or track.get('loop'):
+                    raise ValueError('SFX repeat requires a non-looping SFX track')
+                if interval==0:
+                    raise ValueError('SFX repeat interval must be greater than zero')
+            elif interval:
+                raise ValueError('SFX repeat interval requires repeat count > 1')
             end=track.get('trim_end')
             if end is not None and (not math.isfinite(end) or end<=track.get('trim_start',0)):raise ValueError('Invalid audio trim end')
             placement=track.get('placement','absolute')

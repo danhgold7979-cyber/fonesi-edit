@@ -308,6 +308,36 @@ def compile_graph(c:Composition,stage:Path):
         end=float(track.get('trim_end') or source_duration)
         if not 0<=start<end<=source_duration+.001:raise ValueError('Audio trim nằm ngoài nguồn')
         if not 0<=gain<=4:raise ValueError('Audio volume must be 0–4')
+        sfx_repeats=int(track.get('repeat_count',1))
+        if sfx_repeats>1:
+            interval=float(track['repeat_interval'])
+            if offset+(sfx_repeats-1)*interval >= total-1e-7:
+                raise ValueError('SFX repeat onset outside the output timeline')
+            fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
+            repeated=[]
+            for number in range(sfx_repeats):
+                index=idx
+                if number:
+                    index=inputs
+                    args+=['-i',str(path)]
+                    inputs+=1
+                onset=offset+number*interval
+                filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
+                         'asetpts=PTS-STARTPTS',f'volume={gain}',
+                         'aresample=48000','aformat=channel_layouts=stereo']
+                if fi>0:filters.append(f'afade=t=in:d={fi}')
+                if fo>0:
+                    filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
+                filters += [f'adelay={round(onset*1000)}:all=1',
+                            'apad',f'atrim=duration={total}']
+                label=f'sfxrepeat{i}_{number}'
+                graph.append(f'[{index}:a]'+','.join(filters)+f'[{label}]')
+                repeated.append(label)
+            joined=f'sfxrepeated{i}'
+            graph.append(''.join(f'[{label}]' for label in repeated)
+                         +f'amix=inputs={sfx_repeats}:normalize=0:duration=longest[{joined}]')
+            mix.append(joined);modes.append('sfx')
+            continue
         input_audio=f'{idx}:a'
         if loop_crossfade:
             segment_duration=end-start

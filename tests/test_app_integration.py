@@ -472,7 +472,7 @@ def test_audio_dialog_sfx_anchor_round_trip_and_input_validation(tmp_path,monkey
                 {'path':path,'mode':'sfx','volume':.8,
                  'placement':'percent','position_pct':65,'offset':.1}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==15
+        assert dialog.table.columnCount()==17
         assert dialog.table.cellWidget(0,11).currentData()=='percent'
         assert dialog.table.item(0,12).text()=='65'
         dialog.table.cellWidget(0,11).setCurrentIndex(
@@ -738,7 +738,7 @@ def test_audio_dialog_music_loop_crossfade_round_trip_and_mode_guard(tmp_path,mo
             clips=[Clip('video.mp4',end=1)],
             audio=[{'path':sample,'mode':'music','loop':True,'loop_crossfade':.2}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==15
+        assert dialog.table.columnCount()==17
         assert dialog.table.item(0,14).text()=='0.2'
         dialog.table.item(0,14).setText('0.15')
         dialog.apply()
@@ -751,5 +751,37 @@ def test_audio_dialog_music_loop_crossfade_round_trip_and_mode_guard(tmp_path,mo
         reopened.apply()
         assert warnings and 'crossfade' in warnings[-1]
         assert window.editor.composition.audio[0]['mode']=='music'
+    finally:
+        close(window)
+
+
+
+def test_sfx_repeat_audio_dialog_round_trip_and_invalid_count(tmp_path,monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from fonesi_edit.ui.dialogs import AudioDialog
+    window=MainWindow(tmp_path/'state')
+    try:
+        media=create_fixture(tmp_path/'media',duration=1)
+        source=str(media['source'])
+        window.editor.set_composition(Composition(width=320,height=180,
+            clips=[Clip(source,end=1)],audio=[
+                {'path':source,'mode':'sfx','repeat_count':2,'repeat_interval':.2}]))
+        dialog=AudioDialog(window.editor)
+        assert dialog.table.columnCount()==17
+        assert dialog.table.item(0,15).text()=='2'
+        assert dialog.table.item(0,16).text()=='0.2'
+        dialog.table.item(0,15).setText('3')
+        dialog.table.item(0,16).setText('0.25')
+        dialog.apply()
+        assert window.editor.composition.audio[0]['repeat_count']==3
+        assert window.editor.composition.audio[0]['repeat_interval']==.25
+        reopened=AudioDialog(window.editor)
+        assert reopened.table.item(0,15).text()=='3'
+        invalid=[]
+        monkeypatch.setattr(QMessageBox,'warning',lambda *args:invalid.append(args[2]))
+        reopened.table.item(0,15).setText('1.5')
+        reopened.apply()
+        assert invalid and 'SFX repeat count' in invalid[-1]
+        assert window.editor.composition.audio[0]['repeat_count']==3
     finally:
         close(window)

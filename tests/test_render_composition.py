@@ -224,3 +224,55 @@ def test_music_loop_crossfade_compiles_and_exports_real_audio(tmp_path):
     invalid.audio[0]['loop_crossfade']=.35  # Too long for a ~.6 s segment.
     with pytest.raises(ValueError,match='dài hơn hai lần'):
         compile_graph(invalid,tmp_path/'invalid')
+
+
+
+@pytest.mark.parametrize('track',[
+    {'mode':'sfx','repeat_count':0},
+    {'mode':'sfx','repeat_count':33},
+    {'mode':'sfx','repeat_count':2.5,'repeat_interval':.1},
+    {'mode':'sfx','repeat_count':True},
+    {'mode':'sfx','repeat_count':2,'repeat_interval':0},
+    {'mode':'sfx','repeat_count':2,'repeat_interval':-1},
+    {'mode':'sfx','repeat_count':2,'repeat_interval':float('nan')},
+    {'mode':'sfx','repeat_count':1,'repeat_interval':.2},
+    {'mode':'music','repeat_count':2,'repeat_interval':.2},
+    {'mode':'main','repeat_count':2,'repeat_interval':.2},
+    {'mode':'sfx','loop':True,'repeat_count':2,'repeat_interval':.2},
+])
+def test_repeated_sfx_invalid_configuration_is_rejected(track):
+    composition=Composition(clips=[Clip('unused.mp4',end=1)],
+        audio=[{'path':'sfx.wav',**track}])
+    with pytest.raises(ValueError,match='SFX repeat'):
+        composition.validate()
+
+
+def test_sfx_repeat_anchors_render_two_audible_events_without_leaking_outside(tmp_path):
+    from array import array
+    import subprocess
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.prototypes.tools import locate_tool
+    source=str(create_fixture(tmp_path/'media',duration=1)['source'])
+    composition=Composition(width=320,height=180,fps=25,encoder='cpu',
+        clips=[Clip(source,end=1)],mute_original=True,audio=[{
+            'path':source,'mode':'sfx','placement':'percent','position_pct':20,
+            'repeat_count':2,'repeat_interval':.4,'trim_end':.12,'volume':1}])
+    args,graph,total=compile_graph(composition,tmp_path/'graph')
+    assert abs(total-1)<.01
+    assert 'adelay=200:all=1' in graph and 'adelay=600:all=1' in graph
+    assert 'amix=inputs=2:normalize=0:duration=longest[sfxrepeated0]' in graph
+    assert args.count(source)==3  # Video input plus two independent SFX inputs.
+    result=render_composition(composition,tmp_path/'two-sfx.mp4')
+    assert result['validated']
+    decoded=subprocess.run([locate_tool('ffmpeg'),'-v','error',
+        '-i',str(tmp_path/'two-sfx.mp4'),'-vn','-ac','1','-ar','48000',
+        '-f','s16le','-'],capture_output=True,check=True).stdout
+    samples=array('h');samples.frombytes(decoded)
+    assert len(samples)>43000
+    def peak(start,end):
+        return max(abs(sample) for sample in samples[round(start*48000):round(end*48000)])
+    assert peak(.05,.12)<20 and peak(.40,.50)<20
+    assert peak(.23,.30)>100 and peak(.63,.70)>100
+    invalid=deepcopy(composition);invalid.audio[0]['repeat_interval']=.81
+    with pytest.raises(ValueError,match='outside the output timeline'):
+        compile_graph(invalid,tmp_path/'invalid')
