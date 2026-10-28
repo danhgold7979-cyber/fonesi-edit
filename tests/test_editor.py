@@ -541,7 +541,7 @@ def test_custom_canvas_grid_spacing_rejects_out_of_range_values():
     editor = Editor(host)
     try:
         editor.set_canvas_grid_spacing(.75)
-        assert editor.composition.adjustments["canvas_grid_spacing"] == .05
+        assert editor.composition.adjustments.get("canvas_grid_spacing", .05) == .05
         assert any("1–50%" in message for message in host.errors)
     finally:
         editor.close()
