@@ -34,6 +34,9 @@ class CropDialog(QDialog):
         self.lock_ratio = QCheckBox("Khóa tỷ lệ crop")
         self.lock_ratio.toggled.connect(lambda value: setattr(self, "ratio_locked", value))
         row.addWidget(self.lock_ratio)
+        self.handle_size = 8
+        self.handle_points = []
+
         for label, callback in (("Toàn khung", self.reset_crop), ("Giữa khung", self.center_crop)):
             button = QPushButton(label)
             button.clicked.connect(callback)
@@ -80,6 +83,15 @@ class CropDialog(QDialog):
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.setPen(QPen(QColor("#40d9ff"), 2))
         painter.drawRect(QRectF(x, y, w, h))
+        painter.setPen(QPen(QColor("#ffffff"), 1))
+        self.handle_points = []
+        for hx in (x, x+w/2, x+w):
+            for hy in (y, y+h/2, y+h):
+                if (hx, hy) not in ((x+w/2, y+h/2),):
+                    self.handle_points.append((int(hx), int(hy)))
+        painter.setBrush(QColor("#ffffff"))
+        for hx, hy in self.handle_points:
+            painter.drawRect(hx-4, hy-4, self.handle_size, self.handle_size)
         painter.setPen(QPen(QColor("#ffffff"), 1))
         for fx in (1/3, 2/3):
             painter.drawLine(int(x+fx*w), int(y), int(x+fx*w), int(y+h))
@@ -184,10 +196,33 @@ class ClipDialog(QDialog):
         for key,label,lo,hi,value in [('start','Cắt đầu tại s',0,100000,clip.start),('end','Cắt cuối tại s',.001,100000,clip.end or clip.source_duration or 1),('speed','Tốc độ (1=bình thường)',.1,10,clip.speed),('rotation','Xoay °',-360,360,clip.rotation),('volume','Âm gốc (0=tắt)',0,4,clip.volume),('freeze','Giữ khung cuối s',0,3600,clip.freeze)]:
             field=QDoubleSpinBox();field.setDecimals(3);field.setRange(lo,hi);field.setValue(value);self.fields[key]=field;form.addRow(label,field)
         self.flip=QCheckBox();self.flip.setChecked(clip.flip);form.addRow('Lật ngang',self.flip)
+        self.crop_rect = [clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height]
+        self.crop_button = QPushButton("Chọn vùng crop…")
+        self.crop_button.clicked.connect(self.edit_crop)
+        form.addRow("Crop thủ công", self.crop_button)
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);buttons.accepted.connect(self.apply);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
+    def edit_crop(self):
+        from dataclasses import replace
+        from ..domain import Clip
+        from pathlib import Path
+        source = self.editor.composition.clips[self.index]
+        draft = deepcopy(source)
+        for key, value in zip(("crop_x", "crop_y", "crop_width", "crop_height"), self.crop_rect):
+            setattr(draft, key, value)
+        try:
+            dialog = CropDialog(draft, self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self.crop_rect = list(dialog.rect)
+                self.crop_button.setText(
+                    f"Crop: {self.crop_rect[2]:.0%} × {self.crop_rect[3]:.0%}"
+                )
+        except (OSError, RuntimeError, ValueError) as exc:
+            QMessageBox.warning(self, "Không mở được crop", str(exc))
+
     def apply(self):
         c=deepcopy(self.editor.composition);clip=c.clips[self.index]
         for key,field in self.fields.items():setattr(clip,key,field.value())
+        clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height = self.crop_rect
         clip.flip=self.flip.isChecked();c.duration_target=None
         try:
             c.validate()

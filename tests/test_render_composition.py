@@ -114,6 +114,34 @@ def test_crop_dialog_has_preview_controls_and_cancel_preserves_clip(tmp_path, mo
     assert dialog.rect == [0.0, 0.0, 1.0, 1.0]
 
 
+def test_clip_dialog_crop_button_commits_crop_as_one_undo_step(tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QApplication, QDialog
+    from fonesi_edit.ui.dialogs import ClipDialog, CropDialog
+    from fonesi_edit.prototypes.media import MediaInfo
+    from fonesi_edit.ui.editor import Editor
+    from tempfile import TemporaryDirectory
+    app = QApplication.instance()
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    host = type("Host", (), {"workspace": TemporaryDirectory(), "message": lambda *args: None})()
+    editor = Editor(host)
+    editor.set_composition(Composition(clips=[Clip(str(source), end=1)]))
+    monkeypatch.setattr("fonesi_edit.ui.dialogs.probe", lambda path: MediaInfo(640, 360, 1, "25/1", "h264", None))
+    from PySide6.QtGui import QPixmap
+    monkeypatch.setattr("fonesi_edit.ui.dialogs.extract_frame", lambda source, dest, second=0: QPixmap(640, 360).save(str(dest)))
+    dialog = ClipDialog(editor, 0)
+    monkeypatch.setattr(CropDialog, "exec", lambda self: (setattr(self, "rect", [0.1, 0.1, 0.7, 0.7]) or QDialog.DialogCode.Accepted))
+    dialog.edit_crop()
+    dialog.apply()
+    assert editor.composition.clips[0].crop_x == 0.1
+    assert editor.composition.clips[0].crop_width == 0.7
+    assert editor.undo.count() == 1
+    editor.undo.undo()
+    assert editor.composition.clips[0].crop_width == 1.0
+    editor.close()
+    host.workspace.cleanup()
+
+
 def test_crossfade_speed_crop_and_reference_use_real_export(tmp_path):
     f=create_fixture(tmp_path/'media',duration=1)
     c=Composition(width=180,height=320,fps=25,encoder='cpu',fit='crop',transition=.1,
