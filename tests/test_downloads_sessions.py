@@ -130,3 +130,87 @@ def test_gallery_cookiejar_is_attached_after_extractor_session_exists(tmp_path,m
         assert Path(result['files'][0]['path']).is_file()
     finally:
         server.shutdown();server.server_close();thread.join(timeout=3)
+
+
+@pytest.mark.parametrize(('url','valid'),[
+    ('https://www.youtube.com/watch?v=Abc_123-xyz',True),
+    ('https://www.youtube.com/watch?v=Abc_123-xyz&list=PLtest001',True),
+    ('https://www.bilibili.com/video/BV1example',True),
+    ('http://127.0.0.1:8080/image.png',True),
+    ('https://cdn.example.test/file.mp4?token=private',False),
+    ('https://www.youtube.com/watch?v=abc&signature=private',False),
+    ('https://user:private@example.test/image.png',False),
+    ('https://example.test/image.png#hidden',False),
+    ('javascript:alert(1)',False),
+    ('/media/image.png',False),
+    ('https://www.youtube.com/watch?v=',False),
+])
+def test_scan_entries_only_persist_public_redownloadable_urls(url,valid):
+    from fonesi_edit.downloads import selectable_scan_url
+    assert (selectable_scan_url(url) == url) is valid
+
+
+def test_selected_download_payloads_preserve_account_and_settings_without_mutation():
+    from fonesi_edit.downloads import selected_download_payloads
+    original={'url':'https://www.youtube.com/playlist?list=PLtest001',
+              'folder':'D:/tải 中文','engine':'video','media':'both',
+              'limit':0,'height':720,'account_ref':'binding-original',
+              'expected_identity':'user-1','subtitles':True,
+              'workflow':{'translate':False,'preset':{}}}
+    item={'id':'video-id','kind':'video','title':'Video from scan',
+          'url':'https://www.youtube.com/watch?v=Abc_123-xyz','selectable':True}
+    scan={'kind':'scan','state':'succeeded','payload':original,
+          'result':{'platform':'YouTube','items':[item],'complete':None}}
+    requests=selected_download_payloads(scan,[0])
+    assert len(requests)==1 and requests[0]['url']==item['url']
+    assert requests[0]['account_ref']=='binding-original'
+    assert requests[0]['expected_identity']=='user-1'
+    assert requests[0]['height']==720 and requests[0]['subtitles'] is True
+    assert requests[0]['media']=='videos' and requests[0]['limit']==1
+    assert original['url'].startswith('https://www.youtube.com/playlist?')
+    assert original['limit']==0
+    with pytest.raises(ValueError,match='trùng lặp'):
+        selected_download_payloads(scan,[0,0])
+    with pytest.raises(ValueError,match='Chỉ số'):
+        selected_download_payloads(scan,[-1])
+    with pytest.raises(PermissionError,match='host khác'):
+        selected_download_payloads({**scan,'result':{'platform':'YouTube',
+            'items':[{'url':'https://cdn.example.test/public.mp4','kind':'video'}]}},[0])
+    with pytest.raises(ValueError,match='an toàn'):
+        selected_download_payloads({**scan,'result':{'platform':'YouTube',
+            'items':[{'url':None,'kind':'video','selectable':False}]}},[0])
+    with pytest.raises(ValueError,match='đã hoàn tất'):
+        selected_download_payloads({**scan,'state':'running'},[0])
+
+
+def test_local_gallery_scan_select_and_download_preserves_valid_media(tmp_path,monkeypatch):
+    from fonesi_edit.downloads import selected_download_payloads
+    from pathlib import Path
+    monkeypatch.setenv('NO_PROXY','127.0.0.1,localhost')
+    fixture=create_fixture(tmp_path/'served',duration=.5)
+    class Handler(SimpleHTTPRequestHandler):
+        def log_message(self,*args):pass
+    server=ThreadingHTTPServer(('127.0.0.1',0),
+        partial(Handler,directory=str(fixture['logo'].parent)))
+    thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+    store=Store(tmp_path/'state.db')
+    try:
+        payload={'url':f'http://127.0.0.1:{server.server_port}/logo.png',
+                 'folder':str(tmp_path/'tiếng Việt 中文'),'engine':'gallery',
+                 'media':'images','limit':1}
+        job_id=store.submit('scan',payload)
+        store.claim(allowed={'scan'})
+        scan=execute_download_job(store,{'kind':'scan','payload':payload},
+                                  lambda _:None,Event())
+        assert scan['count']==1 and scan['items'][0]['url']==payload['url']
+        store.finish(job_id,scan)
+        snapshot=store.job(job_id)
+        selected=selected_download_payloads(snapshot,[0])
+        assert selected[0]['engine']=='gallery'
+        assert selected[0]['url']==payload['url']
+        result=execute_download_job(store,{'kind':'download','payload':selected[0]},
+                                    lambda _:None,Event())
+        assert result['count']==1 and Path(result['files'][0]['path']).is_file()
+        assert Path(result['files'][0]['path']).read_bytes().startswith(b'\x89PNG')
+    finally:
+        server.shutdown();server.server_close();thread.join(timeout=3)
