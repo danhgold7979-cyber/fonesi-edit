@@ -431,6 +431,11 @@ class BatchPage(QWidget):
              if value]
         if not roots:raise ValueError('Chọn ít nhất một thư mục nguồn để quét')
         self.invalidate_plan()
+        # Never expose the previous selection when the new scan is pending or
+        # fails: pressing Plan must not accidentally process the old folders.
+        self.groups={}
+        self.tree.blockSignals(True);self.tree.clear();self.tree.blockSignals(False)
+        self.summary.setText('Đang quét các thư mục nguồn mới; danh sách cũ đã hủy.')
         self.host.background(lambda p,c:scan_multiple_folders(roots),self.scanned)
     def scanned(self,groups):
         self.invalidate_plan()
