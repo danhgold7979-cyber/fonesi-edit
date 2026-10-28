@@ -1,6 +1,6 @@
 """Downloader adapters. Live capability remains separate from implementation."""
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qsl
 import io
 import logging
 import re
@@ -26,6 +26,38 @@ def safe_name(value):
     name=re.sub(r'[<>:"/\\|?*\x00-\x1f]','_',str(value)).strip(' .')[:100]
     if not name or name.upper().split('.')[0] in {'CON','PRN','AUX','NUL',*[f'COM{i}' for i in range(1,10)],*[f'LPT{i}' for i in range(1,10)]}:name='_'+name
     return name
+
+
+def selectable_scan_url(value):
+    """Return a public, re-downloadable URL or None, never a signed media URL.
+
+    Playlist scan metadata may contain temporary CDN URLs with authentication
+    in query strings. Those must not be persisted into SQLite job results.
+    Only ordinary HTTP(S) links and canonical YouTube watch IDs are accepted.
+    """
+    if not isinstance(value, str) or not value or any(c.isspace() for c in value):
+        return None
+    try:
+        parts = urlsplit(value)
+        if (parts.scheme not in {'http', 'https'} or not parts.hostname
+                or parts.username is not None or parts.password is not None
+                or parts.fragment):
+            return None
+        if parts.query:
+            host = parts.hostname.lower()
+            if (host not in {'youtube.com', 'www.youtube.com', 'm.youtube.com'}
+                    or parts.path != '/watch'):
+                return None
+            pairs = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
+            if (not pairs or any(k not in {'v', 'list', 'index'} or
+                    not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', v)
+                    for k, v in pairs)):
+                return None
+        # Keep the original canonical link, including YouTube watch IDs,
+        # but never the URL fragment or a URL carrying other query keys.
+        return value
+    except (TypeError, ValueError):
+        return None
 
 
 class QuietLogger:
@@ -112,8 +144,18 @@ def execute_download_job(store,job,progress,cancel):
             for entry in entries or []:
                 if cancel.is_set():raise RuntimeError('Canceled')
                 if not entry:continue
-                item={k:entry.get(k) for k in ('id','title','webpage_url','duration','upload_date')}
-                item['url']=entry.get('webpage_url') or (entry.get('url') if entry.get('_type') in {'url','url_transparent'} else url)
+                item={k:entry.get(k) for k in ('id','title','duration','upload_date')}
+                candidates=[entry.get('webpage_url'),entry.get('original_url')]
+                if entry.get('_type') in {'url','url_transparent'}:
+                    candidates.append(entry.get('url'))
+                elif entry is info:
+                    candidates.append(url)
+                item['url']=next((safe for candidate in candidates
+                    if (safe:=selectable_scan_url(candidate))),None)
+                item['kind']='video'
+                item['selectable']=bool(item['url'])
+                if not item['selectable']:
+                    item['reason']='Không có URL tải lại an toàn; hãy mở bài trực tiếp'
                 items.append(item)
                 if limit and len(items)>=limit:break
             return {'platform':platform,'items':items,'count':len(items),'complete':False if limit and len(items)>=limit else None,'account_ref':binding,'live_channel_verified':False}
@@ -146,7 +188,16 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
         def handle_url(self,url,data):
             if cancel.is_set():raise RuntimeError('Canceled')
             data=metadata(data)
-            items.append({'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],'title':str(data.get('description',''))[:200]})
+            candidates=[data.get('post_url'),data.get('postlink'),
+                        data.get('webpage_url'),url]
+            safe=next((link for candidate in candidates
+                if (link:=selectable_scan_url(candidate))),None)
+            entry={'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],
+                   'title':str(data.get('description',''))[:200],
+                   'url':safe,'selectable':bool(safe)}
+            if not safe:
+                entry['reason']='URL media chỉ có dạng tạm/đã ký hoặc không hợp lệ'
+            items.append(entry)
             if len(items)>=limit:raise exception.StopExtraction()
     class Downloader(gallery_job.DownloadJob):
         def handle_directory(self,data):super().handle_directory(metadata(data))
