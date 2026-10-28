@@ -631,3 +631,29 @@ def test_reset_layer_properties_requires_unlocked_selected_layer():
         editor.close()
         host.workspace.cleanup()
 
+def test_dense_peer_snap_prefers_edge_alignment_on_equal_distance_and_is_order_stable():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    # The wide peer contributes an edge target at .4. The narrow peer's left
+    # edge creates a centre-to-edge target at .4195; both are equally distant.
+    peers = [(0.4, 0.4, 0.1, 0.1), (0.4695, 0.4, 0.001, 0.1)]
+    first = snap_layer_to_peers(.40975, .1, .1, .1, peers, tolerance=.02)
+    second = snap_layer_to_peers(.40975, .1, .1, .1, list(reversed(peers)), tolerance=.02)
+    assert first == pytest.approx((.4, .1))
+    assert second == pytest.approx(first)
+
+
+def test_dense_peer_snap_prefers_centre_alignment_over_mixed_alignment_on_tie():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    # Centre-to-centre target .4 ties with edge-to-centre target .42.
+    peers = [(0.43, 0.4, 0.04, 0.1)]
+    x, y = snap_layer_to_peers(.41, .1, .1, .1, peers, tolerance=.015)
+    assert x == pytest.approx(.4)
+    assert y == pytest.approx(.1)
+
+
+def test_dense_peer_snap_never_lets_guide_priority_override_a_closer_target():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    peers = [(0.4, 0.4, 0.1, 0.1), (0.4695, 0.4, 0.001, 0.1)]
+    x, _ = snap_layer_to_peers(.415, .1, .1, .1, peers, tolerance=.02)
+    assert x == pytest.approx(.4195)
+
