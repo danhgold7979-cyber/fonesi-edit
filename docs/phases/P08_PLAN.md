@@ -85,3 +85,13 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 - [x] GUI thêm folder và nhập nhiều đường dẫn, đổi folder/hủy scan cũ không được dùng lựa chọn/plan đã cũ; callback out-of-order bị bỏ.
 - [x] Test backend + Qt offscreen + packaged CI Linux/Windows [40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) PASS: 222 Linux, 221 Windows + 1 skip.
 - [ ] Filter metadata duration/resolution và corpus quy mô lớn còn mở, P08 chưa đủ điều kiện nghiệm thu toàn phase.
+
+## P08-01 — Lọc thời lượng/độ phân giải theo metadata FFprobe (28/10/2026)
+
+**Đối chiếu trước code:** Master `IMPLEMENTATION_PLAN.md` P08-01/P08-07; PRODUCT_REQUIREMENTS §5; COVERAGE hàng BAT-01…BAT-04; P08_RESULTS và P08 multi-root CI 40656796768. Bộ lọc hiện tại chỉ tìm tên/kênh và đuôi video. Cần tránh quét FFprobe đồng bộ trên main thread, tránh dùng kết quả cũ khi nguồn đổi và tránh thay checkbox ẩn.
+
+1. Backend `probe_batch_metadata(groups, progress, cancel)`: đọc FFprobe theo video đã hợp nhất, trả duration/width/height; báo lỗi riêng từng file không đọc được, không chặn toàn bộ lô hay sửa file nguồn. Không tự coi file lỗi là video đạt bộ lọc.
+2. BatchPage thêm giới hạn duration tối thiểu/tối đa (0 = không giới hạn) và độ phân giải theo **cạnh ngắn** (0/720/1080/2160 px; ảnh dọc không bị hiểu sai). Metadata chỉ đọc khi người dùng bật lọc; đọc trên worker và hiển thị rõ trạng thái chờ/lỗi; lọc chỉ ẩn mục, không mất checkbox hay kế hoạch đã lập.
+3. Gắn revision token cho callback metadata; thay folder hoặc quét lại vô hiệu hóa metadata, callback cũ không được ghi đè. Trong lúc bộ lọc chưa áp dụng xong hoặc khoảng giây sai, không cho tạo dry-run mới như thể đã lọc xong.
+4. Test media thật/corrupt qua FFprobe, Qt offscreen với duration/resolution, source đổi/callback ngoài thứ tự, checkbox và invalid interval; chạy check_plan, full suite, CI Linux/Windows + packaged proof.
+5. Chỉ nghiệm thu lát cắt khi cả hai hệ PASS; nghiệm thu P08 toàn diện vẫn mở cho corpus rất lớn/hiệu năng, metadata chuyên sâu, music crossfade, meter/solo, packaging Windows và live sources.
