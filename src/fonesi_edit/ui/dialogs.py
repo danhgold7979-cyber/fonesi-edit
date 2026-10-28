@@ -27,6 +27,125 @@ class CropCanvas(QLabel):
             self.crop_dialog._release(event)
 
 
+def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_size=.01):
+    """Return a bounded normalized crop rectangle for a drag gesture.
+
+    Ratio lock preserves the crop's normalized width/height ratio. Because the
+    source dimensions do not change during this gesture, that also preserves
+    the crop's pixel aspect ratio. For side handles, the opposite side stays
+    fixed and the orthogonal axis expands symmetrically around its centre.
+    """
+    if drag not in {"new", "move", "left", "right", "top", "bottom",
+                    "left_top", "left_bottom", "right_top", "right_bottom"}:
+        raise ValueError("Unknown crop drag handle")
+    values = tuple(start_rect) + tuple(start) + tuple(current) + (min_size,)
+    if (len(start_rect) != 4 or len(start) != 2 or len(current) != 2
+            or not all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                       and math.isfinite(float(value)) for value in values)):
+        raise ValueError("Crop drag geometry must contain finite numbers")
+    x, y, width, height = (float(value) for value in start_rect)
+    sx, sy = (max(0.0, min(1.0, float(value))) for value in start)
+    cx, cy = (max(0.0, min(1.0, float(value))) for value in current)
+    minimum = float(min_size)
+    if (minimum <= 0 or minimum > 0.5 or width <= 0 or height <= 0
+            or x < 0 or y < 0 or x + width > 1 or y + height > 1):
+        raise ValueError("Starting crop rectangle is outside normalized bounds")
+    dx, dy = cx - sx, cy - sy
+
+    if drag == "move":
+        return (max(0.0, min(1.0 - width, x + dx)),
+                max(0.0, min(1.0 - height, y + dy)), width, height)
+
+    if not ratio_locked:
+        if drag == "new":
+            x2, y2 = min(sx, cx), min(sy, cy)
+            width2, height2 = abs(dx), abs(dy)
+        else:
+            left, top, right, bottom = x, y, x + width, y + height
+            if "left" in drag:
+                left = max(0.0, min(right - minimum, x + dx))
+            if "right" in drag:
+                right = max(left + minimum, min(1.0, x + width + dx))
+            if "top" in drag:
+                top = max(0.0, min(bottom - minimum, y + dy))
+            if "bottom" in drag:
+                bottom = max(top + minimum, min(1.0, y + height + dy))
+            x2, y2, width2, height2 = left, top, right - left, bottom - top
+        x2 = max(0.0, min(1.0 - minimum, x2))
+        y2 = max(0.0, min(1.0 - minimum, y2))
+        width2 = max(minimum, min(1.0 - x2, width2))
+        height2 = max(minimum, min(1.0 - y2, height2))
+        return x2, y2, width2, height2
+
+    ratio = width / height
+    if drag == "new":
+        sign_x = 1 if dx >= 0 else -1
+        sign_y = 1 if dy >= 0 else -1
+        requested_width = max(minimum, abs(dx), abs(dy) * ratio)
+        available_width = (1.0 - sx) if sign_x > 0 else sx
+        available_height = (1.0 - sy) if sign_y > 0 else sy
+        max_width = min(available_width, available_height * ratio)
+        width2 = min(requested_width, max_width)
+        if width2 <= 0:
+            return x, y, width, height
+        height2 = width2 / ratio
+        x2 = sx if sign_x > 0 else sx - width2
+        y2 = sy if sign_y > 0 else sy - height2
+        return x2, y2, width2, height2
+
+    left_handle = "left" in drag
+    right_handle = "right" in drag
+    top_handle = "top" in drag
+    bottom_handle = "bottom" in drag
+    corner = (left_handle or right_handle) and (top_handle or bottom_handle)
+
+    if corner:
+        fixed_x = x + width if left_handle else x
+        fixed_y = y + height if top_handle else y
+        requested_width = max(minimum, width + (-dx if left_handle else dx))
+        requested_height = max(minimum, height + (-dy if top_handle else dy))
+        requested_width = max(requested_width, requested_height * ratio)
+        available_width = fixed_x if left_handle else 1.0 - fixed_x
+        available_height = fixed_y if top_handle else 1.0 - fixed_y
+        max_width = min(available_width, available_height * ratio)
+        width2 = min(requested_width, max_width)
+        if width2 <= 0:
+            return x, y, width, height
+        height2 = width2 / ratio
+        x2 = fixed_x - width2 if left_handle else fixed_x
+        y2 = fixed_y - height2 if top_handle else fixed_y
+        return x2, y2, width2, height2
+
+    if left_handle or right_handle:
+        fixed_x = x + width if left_handle else x
+        center_y = y + height / 2.0
+        requested_width = max(minimum, width + (-dx if left_handle else dx))
+        available_width = fixed_x if left_handle else 1.0 - fixed_x
+        available_height = 2.0 * min(center_y, 1.0 - center_y)
+        max_width = min(available_width, available_height * ratio)
+        width2 = min(requested_width, max_width)
+        if width2 <= 0:
+            return x, y, width, height
+        height2 = width2 / ratio
+        x2 = fixed_x - width2 if left_handle else fixed_x
+        y2 = center_y - height2 / 2.0
+        return x2, y2, width2, height2
+
+    fixed_y = y + height if top_handle else y
+    center_x = x + width / 2.0
+    requested_height = max(minimum, height + (-dy if top_handle else dy))
+    available_height = fixed_y if top_handle else 1.0 - fixed_y
+    available_width = 2.0 * min(center_x, 1.0 - center_x)
+    max_height = min(available_height, available_width / ratio)
+    height2 = min(requested_height, max_height)
+    if height2 <= 0:
+        return x, y, width, height
+    width2 = height2 * ratio
+    x2 = center_x - width2 / 2.0
+    y2 = fixed_y - height2 if top_handle else fixed_y
+    return x2, y2, width2, height2
+
+
 class CropDialog(QDialog):
     """Interactive crop editor; edits only its local normalized rectangle."""
 
@@ -169,30 +288,10 @@ class CropDialog(QDialog):
         pos = self._position(event)
         if pos is None:
             return
-        dx, dy = pos[0]-self._start[0], pos[1]-self._start[1]
-        x, y, w, h = self._start_rect
-        if self._drag == "new":
-            x2, y2 = min(self._start[0], pos[0]), min(self._start[1], pos[1])
-            w2, h2 = abs(dx), abs(dy)
-        elif self._drag == "move":
-            x2, y2 = max(0, min(1-w, x+dx)), max(0, min(1-h, y+dy))
-            w2, h2 = w, h
-        else:
-            left, top, right, bottom = x, y, x+w, y+h
-            if "left" in self._drag: left=max(0,min(right-.01,x+dx))
-            if "right" in self._drag: right=max(left+.01,min(1,x+w+dx))
-            if "top" in self._drag: top=max(0,min(bottom-.01,y+dy))
-            if "bottom" in self._drag: bottom=max(top+.01,min(1,y+h+dy))
-            x2, y2, w2, h2 = left, top, right-left, bottom-top
-        if self.ratio_locked:
-            ratio = max(.01, w) * self.info.width / (max(.01, h) * self.info.height)
-            if abs(dx) >= abs(dy):
-                h2 = min(1-y2, w2*self.info.width/(ratio*self.info.height))
-            else:
-                w2 = min(1-x2, h2*ratio*self.info.height/self.info.width)
-        x2=max(0,min(1-.01,x2));y2=max(0,min(1-.01,y2))
-        w2=max(.01,min(1-x2,w2));h2=max(.01,min(1-y2,h2))
-        self.rect=[x2,y2,w2,h2]
+        self.rect = list(crop_drag_rect(
+            self._start_rect, self._drag, self._start, pos,
+            ratio_locked=self.ratio_locked,
+        ))
         self._paint_crop()
 
     def _release(self, event):
