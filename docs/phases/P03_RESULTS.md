@@ -20,3 +20,7 @@ Vòng tích hợp đã thêm schema v2 có backup, thời điểm bắt đầu j
 - Payload validator chuẩn hóa tên trường và chặn thêm alias credential; worker error sanitizer che Bearer/Basic, trường credential, signature và query/fragment URL nhưng giữ lại mã lỗi/host/path cần chẩn đoán.
 
 **Giới hạn còn mở:** CI dùng media synthetic và localhost; không chứng minh mạng xã hội live, dịch API thật, Chrome session handoff, GPU/VRAM, installer trên máy người dùng hoặc soak/crash/power-loss dài hạn. P03 không được coi là nghiệm thu toàn bộ chỉ dựa trên lát cắt này.
+
+## P03-05 — Bảo vệ lỗi ở ranh giới SQLite (28/10/2026)
+
+`Store.fail` giờ áp dụng `sanitize_error_message` **trước khi INSERT/UPDATE lỗi vào SQLite**, kể cả caller không phải worker. Bảo vệ query URL token/signature, Bearer credentials và các alias khóa API; giữ mã lỗi/host/path phục vụ chẩn đoán. Test đọc trực tiếp SQLite cho job `failed` và `blocked`, bảo toàn trạng thái/chức năng. [CI 40652053745](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40652053745) PASS Linux/Windows và packaged proof. Chưa chứng minh mọi chuỗi credential lạ được lọc hoặc vận hành trên máy thật.

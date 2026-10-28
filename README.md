@@ -52,4 +52,4 @@ Theo yêu cầu người dùng: trước mỗi phase đọc master plan, lập p
 
 Xem [nhật ký thực hiện tích hợp](docs/PHASE_EXECUTION_LEDGER.md) để theo dõi từng phase, commit/CI proof và các cổng bắt buộc vẫn còn mở; các bản build/fixture không chứng minh 95 nhóm đã được nghiệm thu.
 
-Để xem bản build Windows thử nghiệm từ CI: [Desktop verification run 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) → Artifacts → `FonesiEdit-Windows-development` (có hạn lưu); xem [trạng thái nghiệm thu](docs/PHASE_EXECUTION_LEDGER.md) trước khi dùng.
+Để xem bản build Windows thử nghiệm từ CI: [Desktop verification run 40655116611](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40655116611) → Artifacts → `FonesiEdit-Windows-development` (có hạn lưu); xem [trạng thái nghiệm thu](docs/PHASE_EXECUTION_LEDGER.md) trước khi dùng.

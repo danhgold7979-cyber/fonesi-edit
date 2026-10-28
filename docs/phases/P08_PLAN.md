@@ -66,3 +66,11 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 2. Sau chỉnh checkbox/scan folder mới phải hủy kế hoạch dry-run cũ và yêu cầu người dùng bấm Lập kế hoạch lại trước Preview/Chạy toàn bộ. Hiển thị số file đang được chọn / tổng; không âm thầm chạy kế hoạch stale.
 3. Parent checkbox vẫn giữ Qt tristate theo con; chỉ thao tác lên leaf file khi chọn hiển thị; test Qt offscreen gồm search, extension filter, chọn/đảo, file ẩn vẫn giữ trạng thái và invalidation của plan.
 4. CI Linux/Windows full suite, frozen proof và ghi kết quả P08_RESULTS/COVERAGE sau khi PASS. Bộ lọc theo metadata độ dài/độ phân giải và phân trang nguồn rất lớn vẫn còn mở, không gắn đủ P08-01.
+
+### Kết quả P08-01/P08-04 cập nhật
+
+- [x] SFX có mốc absolute/percent/video-end/scene-start/scene-end; giữ tương thích offset cũ, reject dữ liệu sai; FFmpeg output kiểm tra bằng PCM và graph.
+- [x] AudioDialog sửa/round-trip các mốc, test Qt và cấm relative placement cho main/music.
+- [x] Batch tree tìm/lọc định dạng, chọn/bỏ/đảo file đang hiển thị, giữ file bị ẩn; hủy dry-run khi lựa chọn/preset thay đổi và chống stale background result.
+- [x] Regression và frozen proof Linux/Windows PASS [CI 40655116611](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40655116611) — 219 Linux; 218 Windows + 1 skip.
+- [ ] Filter duration/resolution, SFX repeat/trigger phức tạp, crossfade music, meter/solo nghe trên máy thật, ước lượng/benchmark vẫn mở.
