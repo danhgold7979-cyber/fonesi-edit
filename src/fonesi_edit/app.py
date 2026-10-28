@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 import json
 import os
+import sqlite3
 import sys
 import tempfile
 import time
@@ -379,7 +380,7 @@ class MainWindow(QMainWindow):
         # A failed write must not leave shortcuts different from the saved settings.
         try:
             self.store.set_setting('shortcuts', normalized)
-        except (OSError, RuntimeError, ValueError) as exc:
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.message(f"Không lưu được phím tắt: {exc}")
             return
         for name, value in normalized.items():
