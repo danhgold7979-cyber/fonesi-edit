@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLa
 
 from ..domain import Composition,Clip,Layer,identifier,canonical
 from ..prototypes.media import probe,extract_frame
+from ..thumbnails import thumbnail_identity,thumbnail_strip
 from .canvas import Canvas
 from .timeline import Timeline,clip_positions
 
@@ -42,7 +43,8 @@ class Editor(QWidget):
         super().__init__();self.host=host
         self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
         self.preview_fingerprint=None;self._loop_seeking=False
-        self.waveforms={};self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
+        self.waveforms={};self.thumbnails={};self._thumbnail_pending=set();self._thumbnail_failed=set()
+        self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
         actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
                  ('Vùng che',lambda:self.add_layer('mask')),('Nhân bản',self.duplicate),('Xóa layer',self.delete_layer),
@@ -61,6 +63,10 @@ class Editor(QWidget):
         self.loop_action.setCheckable(True)
         self.loop_action.setChecked(False)
         self.loop_action.toggled.connect(self.toggle_loop)
+        self.thumbnail_action=menu.addAction('Thumbnail video trên timeline (tạo nền)')
+        self.thumbnail_action.setCheckable(True)
+        self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
+        self.thumbnail_action.toggled.connect(self.set_timeline_thumbnails)
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
@@ -168,8 +174,13 @@ class Editor(QWidget):
             self.grid_action.blockSignals(True)
             self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
             self.grid_action.blockSignals(False)
+        if hasattr(self, 'thumbnail_action'):
+            self.thumbnail_action.blockSignals(True)
+            self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
+            self.thumbnail_action.blockSignals(False)
         self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
         self.load_waveforms()
+        self.load_thumbnails()
 
     def load_waveforms(self):
         if not hasattr(self.host,'background'):return
@@ -182,6 +193,60 @@ class Editor(QWidget):
                 try:return path,waveform(path,Path(self.host.workspace.name)/'waveforms',cancel)
                 except (ValueError,RuntimeError,OSError):return path,{}
             def done(data):self.waveforms[data[0]]=data[1];self.timeline.rebuild()
+            self.host.background(work,done)
+
+    def set_timeline_thumbnails(self,enabled):
+        if bool(self.composition.adjustments.get('timeline_thumbnails',False))==bool(enabled):
+            return
+        self._thumbnail_failed.clear()
+        self.begin()
+        self.composition.adjustments['timeline_thumbnails']=bool(enabled)
+        self.commit('Bật/tắt thumbnail trên timeline')
+
+    def thumbnail_assets(self,clip):
+        if not self.composition.adjustments.get('timeline_thumbnails',False):
+            return []
+        entry=self.thumbnails.get(clip.id)
+        if not entry:return []
+        try:key=thumbnail_identity(clip)
+        except (OSError,ValueError):return []
+        return entry.get('frames',[]) if entry.get('key')==key else []
+
+    def load_thumbnails(self):
+        if (not self.composition.adjustments.get('timeline_thumbnails',False)
+                or not hasattr(self.host,'background')
+                or not hasattr(self.host,'workspace')):
+            return
+        for clip in self.timeline.visible_clips(limit=8):
+            if len(self._thumbnail_pending)>=8:break
+            try:key=thumbnail_identity(clip)
+            except (OSError,ValueError):
+                continue
+            entry=self.thumbnails.get(clip.id)
+            if (entry and entry.get('key')==key
+                    or key in self._thumbnail_pending
+                    or key in self._thumbnail_failed):
+                continue
+            self._thumbnail_pending.add(key)
+            snapshot=deepcopy(clip)
+            destination=Path(self.host.workspace.name)/'thumbnails'
+            def work(progress,cancel,clip=snapshot,key=key):
+                try:return clip.id,key,thumbnail_strip(clip,destination,cancel),None
+                except (RuntimeError,ValueError,TimeoutError,OSError) as exc:
+                    return clip.id,key,None,str(exc)[:200]
+            def done(outcome):
+                clip_id,identity,data,error=outcome
+                self._thumbnail_pending.discard(identity)
+                if error:self._thumbnail_failed.add(identity)
+                else:
+                    current=next((c for c in self.composition.clips if c.id==clip_id),None)
+                    if current:
+                        try:matches=thumbnail_identity(current)==identity
+                        except (OSError,ValueError):matches=False
+                        if matches:self.thumbnails[clip_id]=data
+                if self.composition.adjustments.get('timeline_thumbnails',False):
+                    self.timeline.rebuild()
+                    self.load_thumbnails()
             self.host.background(work,done)
 
     def select_row(self,index):
