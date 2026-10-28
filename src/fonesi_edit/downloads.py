@@ -150,7 +150,13 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
                 if data['_fonesi_kind']=='videos':probe(path)
                 else:
                     from PySide6.QtGui import QImageReader
-                    if not QImageReader(str(path)).canRead():raise RuntimeError('Downloaded image is invalid')
+                    reader=QImageReader(str(path))
+                    if not reader.canRead():
+                        supported=','.join(bytes(fmt).decode('ascii','replace') for fmt in QImageReader.supportedImageFormats())
+                        detected=bytes(reader.format()).decode('ascii','replace')
+                        raise RuntimeError(f'Image decoder unavailable or image invalid (detected={detected or path.suffix.lstrip(".")}; supported={supported[:300]})')
+                    image=reader.read()
+                    if image.isNull():raise RuntimeError(f'Image decoder failed: {reader.errorString()[:240]}')
                 files.append({'path':str(path),'id':data['_fonesi_id'],'kind':data['_fonesi_kind']})
             if len(files)>=limit:raise exception.StopExtraction()
     instance=Scanner(payload['url'],file=io.StringIO()) if job['kind']=='scan' else Downloader(payload['url'])
