@@ -60,6 +60,54 @@ def selectable_scan_url(value):
         return None
 
 
+def selected_download_payloads(scan_job, indices):
+    """Turn verified scan row indices into individual frozen download requests.
+
+    Only selectable items from this *successful* scan are accepted. Account
+    binding and output settings are inherited from the scan snapshot, not from
+    whatever profile is currently selected in the desktop UI.
+    """
+    if scan_job.get('kind') != 'scan' or scan_job.get('state') != 'succeeded':
+        raise ValueError('Chỉ chọn mục từ job quét đã hoàn tất')
+    original = scan_job.get('payload') or {}
+    result = scan_job.get('result') or {}
+    source_platform = platform_for(original.get('url', ''))
+    if result.get('platform') != source_platform:
+        raise ValueError('Nguồn quét không trùng nền tảng trong snapshot')
+    entries = result.get('items')
+    if not isinstance(entries, list):
+        raise ValueError('Kết quả quét không có danh sách nội dung')
+    indices = list(indices)
+    if not indices or len(set(indices)) != len(indices):
+        raise ValueError('Chọn ít nhất một mục không trùng lặp')
+    requests = []
+    for index in indices:
+        if type(index) is not int or not 0 <= index < len(entries):
+            raise ValueError('Chỉ số nội dung quét không hợp lệ')
+        item = entries[index]
+        if not isinstance(item, dict):
+            raise ValueError('Nội dung quét không hợp lệ')
+        url = selectable_scan_url(item.get('url'))
+        if not url or item.get('selectable') is False:
+            raise ValueError('Mục đã chọn không có URL tải lại an toàn')
+        item_platform = platform_for(url)
+        if original.get('account_ref') and item_platform != source_platform:
+            raise PermissionError('Không chuyển phiên tài khoản sang host khác từ kết quả quét')
+        kind = item.get('kind', 'video')
+        if kind not in {'video', 'videos', 'images'}:
+            raise ValueError('Loại media chưa có adapter tải từng mục')
+        # A gallery extractor can carry video media too; do not switch it
+        # to yt-dlp and silently alter extractor behaviour.
+        engine = 'gallery' if kind == 'images' or kind == 'videos' and (
+            original.get('engine') == 'gallery' or source_platform in {'Instagram','Threads','X','Xiaohongshu'}
+        ) else 'video'
+        payload = {key:value for key,value in original.items() if key != '_tools'}
+        payload.update(url=url,engine=engine,
+                       media='images' if kind == 'images' else 'videos',limit=1)
+        requests.append(payload)
+    return requests
+
+
 class QuietLogger:
     def debug(self,message):pass
     def warning(self,message):pass
