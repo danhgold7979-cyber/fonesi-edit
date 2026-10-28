@@ -292,9 +292,9 @@ def test_peer_snap_aligns_edges_and_centres_within_tolerance():
     from fonesi_edit.ui.canvas import snap_layer_to_peers
     peers = [(0.4, 0.4, 0.2, 0.2)]
     # Moving left edge aligns to peer right edge; moving bottom aligns to peer top.
-    assert snap_layer_to_peers(.603, .303, .1, .1, peers) == (.6, .3)
+    assert snap_layer_to_peers(.603, .303, .1, .1, peers) == pytest.approx((.6, .3))
     # Moving centre aligns to peer centre on both axes.
-    assert snap_layer_to_peers(.442, .442, .1, .1, peers) == (.45, .45)
+    assert snap_layer_to_peers(.442, .442, .1, .1, peers) == pytest.approx((.45, .45))
 
 
 def test_peer_snap_respects_tolerance_and_alt_override():
