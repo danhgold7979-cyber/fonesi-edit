@@ -46,6 +46,17 @@ def main():
     if os.name=='nt':command+=['--windowed','--manifest','packaging/windows.manifest']
     command+=['scripts/app_entry.py'];subprocess.run(command,check=True)
     target=root/'dist/FonesiEdit'
+    # QImageReader is imported dynamically by the gallery downloader. Ensure
+    # image-format plugins are present in frozen builds, not only in the dev venv.
+    from PySide6 import __file__ as pyside6_file
+    image_plugin_source=Path(pyside6_file).resolve().parent/'Qt'/'plugins'/'imageformats'
+    image_plugin_files=sorted(p for p in image_plugin_source.glob('*') if p.is_file() and p.suffix.lower() in {'.dll','.so','.dylib'})
+    if not image_plugin_files or not any('png' in p.stem.lower() for p in image_plugin_files):
+        raise SystemExit(f'Qt imageformats plugins or PNG decoder not found: {image_plugin_source}')
+    image_plugin_target=target/'_internal'/'PySide6'/'Qt'/'plugins'/'imageformats'
+    image_plugin_target.mkdir(parents=True,exist_ok=True)
+    for plugin in image_plugin_files:
+        shutil.copy2(plugin,image_plugin_target/plugin.name)
     if sys.platform.startswith('linux'):isolate_linux_media(target,[ffmpeg,ffprobe])
     shutil.copyfile(root/'docs/USER_GUIDE.md',target/'USER_GUIDE.md')
     shutil.copytree(root/'docs',target/'docs',dirs_exist_ok=True)
@@ -54,6 +65,7 @@ def main():
     shutil.copyfile(root/'packaging/THIRD_PARTY_NOTICES.md',target/'THIRD_PARTY_NOTICES.md')
     inventory={name:version(name) for name in ['fonesi-edit','PySide6','yt-dlp','gallery-dl','pysubs2','psutil','fonttools','pyinstaller']}
     inventory['lock_sha256']=hashlib.sha256((root/'uv.lock').read_bytes()).hexdigest()
+    inventory['qt_imageformat_plugins']={p.name:hashlib.sha256((image_plugin_target/p.name).read_bytes()).hexdigest() for p in image_plugin_files}
     inventory['media_sha256']={Path(path).name:hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in (ffmpeg,ffprobe)}
     inventory['source_sha256']={str(path.relative_to(root)):hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((root/'src').rglob('*.py'))}
     (target/'build-info.json').write_text(json.dumps(inventory,indent=2),encoding='utf-8')
