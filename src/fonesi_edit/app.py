@@ -11,7 +11,7 @@ import tempfile
 import time
 
 from PySide6.QtCore import Qt,QTimer,QUrl,QByteArray
-from PySide6.QtGui import QAction,QKeySequence,QDesktopServices
+from PySide6.QtGui import QAction,QKeySequence,QDesktopServices,QInputMethodEvent
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QTabWidget,QLabel,QPushButton,
     QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle,
     QAbstractSpinBox,QComboBox,QAbstractItemView,QAbstractSlider,QAbstractButton)
@@ -137,7 +137,11 @@ class MainWindow(QMainWindow):
         self.autosave_timer=QTimer(self);self.autosave_timer.setSingleShot(True);self.autosave_timer.setInterval(700);self.autosave_timer.timeout.connect(self.guard(self.autosave))
         self.editor.changed.connect(lambda:self.autosave_timer.start() if not self._restoring else None)
         self.clock=QTimer(self);self.clock.setInterval(350);self.clock.timeout.connect(self.tick);self.clock.start()
-        self.actions={};self.shortcuts();self.restore();self.restore_ui_layout();self.automation.start()
+        self._ime_composing_widget=None
+        self.actions={};self.shortcuts();self.restore();self.restore_ui_layout()
+        QApplication.instance().installEventFilter(self)
+        QApplication.instance().focusChanged.connect(self._on_focus_changed)
+        self.automation.start()
         self.tray=QSystemTrayIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon),self)
         if QSystemTrayIcon.isSystemTrayAvailable():
             menu=QMenu();show=menu.addAction('Mở Fonesi Edit');show.triggered.connect(self.showNormal)
@@ -198,6 +202,40 @@ class MainWindow(QMainWindow):
         except (OSError,RuntimeError,ValueError,TypeError,sqlite3.Error) as exc:
             self.message(f'Không lưu được bố cục giao diện: {exc}')
             return False
+
+    def eventFilter(self, watched, event):
+        if isinstance(event,QInputMethodEvent):
+            if event.preeditString():
+                self._ime_composing_widget=watched
+            elif self._ime_composing_widget is watched:
+                self._ime_composing_widget=None
+        return super().eventFilter(watched,event)
+
+    @staticmethod
+    def _widgets_related(first,second):
+        if first is None or second is None:
+            return False
+        if first is second:
+            return True
+        try:
+            return bool(first.isAncestorOf(second) or second.isAncestorOf(first))
+        except RuntimeError:
+            return False
+
+    def _on_focus_changed(self,old,new):
+        composing=self._ime_composing_widget
+        if composing is not None and not self._widgets_related(composing,new):
+            self._ime_composing_widget=None
+
+    def ime_composition_active(self, target=None):
+        composing=self._ime_composing_widget
+        if composing is None:
+            return False
+        focused=QApplication.focusWidget()
+        if not self._widgets_related(composing,focused):
+            self._ime_composing_widget=None
+            return False
+        return target is None or self._widgets_related(composing,target)
 
     def guard(self,callback):
         def wrapped(*args):
@@ -469,6 +507,8 @@ class MainWindow(QMainWindow):
         for name,(default,callback) in keys.items():
             action=QAction(name,self);action.setShortcut(QKeySequence(remap.get(name,default)))
             def invoke(_checked=False,callback=callback,name=name):
+                if self.ime_composition_active(QApplication.focusWidget()):
+                    return
                 policy, target = shortcut_focus_policy(QApplication.focusWidget())
                 if not should_dispatch_editor_shortcut(name, policy):
                     native_methods = {
@@ -537,7 +577,13 @@ class MainWindow(QMainWindow):
         for task in list(self.pending_tasks):self.pending_tasks.remove(task);self.tasks.remove(task);task.deleteLater()
         if self.tasks or self.scheduler.active:
             event.ignore();QTimer.singleShot(150,self.close);return
-        self.clock.stop();self.editor.player.stop();self.editor.player.setSource(QUrl());self.tray.hide();self.workspace.cleanup();event.accept()
+        self.clock.stop();self.editor.player.stop();self.editor.player.setSource(QUrl());self.tray.hide()
+        app=QApplication.instance()
+        if app is not None:
+            app.removeEventFilter(self)
+            try:app.focusChanged.disconnect(self._on_focus_changed)
+            except (TypeError,RuntimeError):pass
+        self.workspace.cleanup();event.accept()
 
 
 def main(argv=None):
