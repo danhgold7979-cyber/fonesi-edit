@@ -1,4 +1,5 @@
 from copy import deepcopy
+import math
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QDialogButtonBox,QSpinBox,QDoubleSpinBox,QComboBox,
     QCheckBox,QTableWidget,QTableWidgetItem,QPushButton,QFileDialog,QMessageBox,QHeaderView,QScrollArea,QWidget,QLabel)
 from PySide6.QtCore import Qt
