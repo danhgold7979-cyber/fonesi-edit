@@ -715,6 +715,11 @@ class SettingsPage(QWidget):
         save=QPushButton('Lưu cấu hình dịch');save.clicked.connect(host.guard(self.save_provider));form.addRow(save);tabs.addTab(provider,'Dịch / chi phí')
         resources=QWidget();form=QFormLayout(resources);self.resource_profile=QComboBox();self.resource_profile.addItems(['quiet','balanced','max']);self.resource_profile.setCurrentText(host.store.setting('resource_profile','balanced'));form.addRow('Profile tài nguyên',self.resource_profile)
         self.parallel=QSpinBox();self.parallel.setRange(1,16);self.parallel.setValue(host.store.setting('parallel',2));form.addRow('Tối đa worker',self.parallel)
+        self.cache_budget_mb=QSpinBox();self.cache_budget_mb.setRange(128,65536)
+        self.cache_budget_mb.setValue(host.store.setting('proxy_cache_limit_mb',4096))
+        self.cache_budget_mb.setSuffix(' MiB');form.addRow('Giới hạn cache proxy',self.cache_budget_mb)
+        clean=QPushButton('Dọn cache proxy an toàn');clean.clicked.connect(host.guard(lambda:host.cleanup_cache(force=True)))
+        form.addRow(clean)
         self.job_limits={};limits=host.store.setting('job_limits',{'scan':2,'download':2,'render':1,'translate':1})
         for key,label in [('scan','Quét song song'),('download','Tải song song'),('render','Edit/render song song'),('translate','Dịch song song')]:
             field=QSpinBox();field.setRange(1,16);field.setValue(limits.get(key,1));self.job_limits[key]=field;form.addRow(label,field)
@@ -817,7 +822,13 @@ class SettingsPage(QWidget):
                 with self.host.store.connect() as c:c.execute('INSERT OR REPLACE INTO secrets VALUES(?,?)',('api:'+variable,protect(os.environ[variable].encode())))
         self.host.message('Đã lưu cấu hình; API key chỉ ở bộ nhớ phiên này trên Linux, dùng DPAPI khi lưu trên Windows')
     def save_resources(self):
-        self.host.store.set_setting('resource_profile',self.resource_profile.currentText());self.host.store.set_setting('parallel',self.parallel.value());self.host.store.set_setting('background',self.background.isChecked());self.host.store.set_setting('job_limits',{key:field.value() for key,field in self.job_limits.items()});self.host.scheduler.parallel=self.parallel.value();self.host.message('Đã lưu giới hạn tài nguyên')
+        self.host.store.set_setting('resource_profile',self.resource_profile.currentText())
+        self.host.store.set_setting('parallel',self.parallel.value())
+        self.host.store.set_setting('background',self.background.isChecked())
+        self.host.store.set_setting('job_limits',{key:field.value() for key,field in self.job_limits.items()})
+        self.host.store.set_setting('proxy_cache_limit_mb',self.cache_budget_mb.value())
+        self.host.scheduler.parallel=self.parallel.value()
+        self.host.message('Đã lưu giới hạn tài nguyên và quota cache proxy')
     def suggest_resources(self):
         data=metrics(self.host.data);recommended=recommended_parallel(data,self.resource_profile.currentText());self.parallel.setValue(max(1,recommended))
         for key,field in self.job_limits.items():field.setValue(1 if key in {'render','translate'} else max(1,min(3,recommended)))
