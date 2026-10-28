@@ -66,9 +66,11 @@ class DownloadsPage(QWidget):
         selector=QHBoxLayout();layout.addLayout(selector);selector.addWidget(QLabel('Lần quét'))
         self.scans=QComboBox();selector.addWidget(self.scans,1)
         self.scans.currentIndexChanged.connect(lambda _:self.load_scan())
-        buttons(layout,host,[('Chọn tất cả mục hợp lệ',lambda:self.check_scan_items(True)),('Bỏ chọn',lambda:self.check_scan_items(False)),('Tải mục đã chọn',self.download_selected)])
+        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
+        self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
         self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
+        self.scan_tree.itemChanged.connect(self.remember_scan_choice)
         self.scan_tree.setMinimumHeight(140);layout.addWidget(self.scan_tree,1)
         self.result=QPlainTextEdit();self.result.setReadOnly(True);self.result.setMaximumHeight(100);layout.addWidget(self.result)
         self.last_scan=None;self.refresh_accounts();self.refresh_scans()
@@ -104,11 +106,11 @@ class DownloadsPage(QWidget):
         for payload in payloads:
             key=self.host.store.submit(kind,payload)
             if kind=='scan':self.last_scan=key
-        if kind=='scan':self.refresh_scans()
+        if kind=='scan':self.refresh_scans(preferred=self.last_scan)
         self.host.message(f'Đã thêm {len(payloads)} tác vụ {kind}');self.host.activate_queue()
 
-    def refresh_scans(self):
-        selected=self.scans.currentData() or self.last_scan
+    def refresh_scans(self,preferred=None):
+        selected=preferred or self.scans.currentData() or self.last_scan
         self.scans.blockSignals(True);self.scans.clear()
         for job in self.host.store.jobs(limit=2000):
             if job['kind']!='scan':continue
@@ -123,43 +125,82 @@ class DownloadsPage(QWidget):
         self.load_scan()
 
     def load_scan(self):
+        self.scan_tree.blockSignals(True)
         self.scan_tree.clear()
         job_id=self.scans.currentData()
+        if job_id != self.loaded_scan_id:
+            self.loaded_scan_id=job_id;self.scan_page=0
         if not job_id:
             self.scan_note.setText('Chưa có kết quả quét')
-            self.result.clear()
+            self.result.clear();self.scan_tree.blockSignals(False)
             return
         job=self.host.store.job(job_id)
         if job['state']!='succeeded':
             self.scan_note.setText(f"Quét {job['state']}; chưa có danh sách xác nhận.")
             self.result.setPlainText('Lỗi: '+str(job['error'] or 'Chưa có kết quả'))
+            self.scan_tree.blockSignals(False)
             return
         data=job['result'] or {}
         items=data.get('items') or []
         complete=data.get('complete')
         completeness='đã xác nhận đủ' if complete is True else 'quét một phần' if complete is False else 'chưa rõ đã quét hết'
-        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục • {completeness}. Chọn từng mục trước khi tải.")
-        self.result.setPlainText('Chỉ tải mục đã đánh dấu; giữ nguyên tài khoản và thư mục từ job quét. Không tự tải lại toàn kênh.')
-        parent=QTreeWidgetItem([f"Job {job_id[:8]}",'Nguồn',completeness])
+        last_page=max(0,(len(items)-1)//self.scan_page_size)
+        self.scan_page=max(0,min(self.scan_page,last_page))
+        start=self.scan_page*self.scan_page_size;end=min(len(items),start+self.scan_page_size)
+        chosen=self.scan_selected.setdefault(job_id,set())
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Chỉ chọn mục được tải.")
+        self.result.setPlainText('Lựa chọn được giữ khi chuyển trang; tài khoản và thư mục lấy từ snapshot quét, không tự quét lại nguồn.')
+        parent=QTreeWidgetItem([f"Job {job_id[:8]} • {start+1 if items else 0}–{end}",'Nguồn',completeness])
         self.scan_tree.addTopLevelItem(parent)
-        seen_urls=set()
+        first_by_url={}
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            duplicate=bool(safe) and safe in seen_urls
+            if safe and safe not in first_by_url:
+                first_by_url[safe]=index
+        for index in range(start,end):
+            item=items[index]
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            duplicate=bool(safe) and first_by_url.get(safe)!=index
             selectable=bool(safe) and item.get('selectable') is not False and not duplicate
-            if safe:seen_urls.add(safe)
             label=str(item.get('title') or item.get('id') or 'Mục không tên')[:160]
             state='Có thể tải' if selectable else ('URL trùng trong lần quét' if duplicate else str(item.get('reason') or 'Thiếu URL tải lại an toàn'))
             child=QTreeWidgetItem([label,str(item.get('kind','video')),state])
             child.setData(0,Qt.ItemDataRole.UserRole,index)
             if selectable:
                 child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
-                child.setCheckState(0,Qt.CheckState.Unchecked)
+                child.setCheckState(0,Qt.CheckState.Checked if index in chosen else Qt.CheckState.Unchecked)
             else:
                 child.setFlags(child.flags() & ~(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable))
             parent.addChild(child)
         parent.setExpanded(True)
+        self.scan_tree.blockSignals(False)
+
+    def remember_scan_choice(self,item,column):
+        index=item.data(0,Qt.ItemDataRole.UserRole)
+        job_id=self.scans.currentData()
+        if type(index) is not int or not job_id:return
+        chosen=self.scan_selected.setdefault(job_id,set())
+        if item.checkState(0)==Qt.CheckState.Checked:chosen.add(index)
+        else:chosen.discard(index)
+        job=self.host.store.job(job_id)
+        data=job.get('result') or {}
+        count=len(data.get('items') or [])
+        total=max(1,(count-1)//self.scan_page_size+1)
+        completeness='quét một phần' if data.get('complete') is False else 'chưa rõ đã quét hết' if data.get('complete') is None else 'đã xác nhận đủ'
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {count} mục • {completeness} • trang {self.scan_page+1}/{total} • đã chọn {len(chosen)}")
+
+    def change_scan_page(self,delta):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        maximum=max(0,(len(items)-1)//self.scan_page_size)
+        target=max(0,min(maximum,self.scan_page+delta))
+        if target!=self.scan_page:
+            self.scan_page=target
+            self.load_scan()
 
     def check_scan_items(self,checked):
         root=self.scan_tree.topLevelItem(0)
@@ -173,12 +214,9 @@ class DownloadsPage(QWidget):
         job_id=self.scans.currentData()
         if not job_id:raise ValueError('Chưa chọn một lần quét')
         job=self.host.store.job(job_id)
-        parent=self.scan_tree.topLevelItem(0)
-        if parent is None:raise ValueError('Hãy xem kết quả quét trước khi chọn')
-        indexes=[parent.child(i).data(0,Qt.ItemDataRole.UserRole)
-            for i in range(parent.childCount())
-            if parent.child(i).flags() & Qt.ItemFlag.ItemIsUserCheckable
-            and parent.child(i).checkState(0)==Qt.CheckState.Checked]
+        if self.scan_tree.topLevelItem(0) is None:
+            raise ValueError('Hãy xem kết quả quét trước khi chọn')
+        indexes=sorted(self.scan_selected.get(job_id,set()))
         requests=selected_download_payloads(job,indexes)
         account=job['payload'].get('account_ref')
         if account:
