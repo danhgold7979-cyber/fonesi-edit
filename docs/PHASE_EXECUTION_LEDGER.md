@@ -15,7 +15,7 @@ Tài liệu này là sổ thực hiện theo phase, **không phải chứng nh�
 | P02 | Sửa gallery-dl console Unicode, packaged proof Linux/Windows | [40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40634117095) PASS | Live source, API dịch, Chrome, GPU, trải nghiệm máy đích |
 | P03 | SQLite backup integrity/no-overwrite, alias bí mật, lỗi worker lọc credential | [40637528724](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40637528724) PASS | Crash/power-loss soak, máy Windows thật |
 | P04 | Snap đúng tâm layer, kéo nhiều layer với delta chung, grid on/off có undo/persistence, QtTest kéo chuột | [40638454020](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638454020) PASS | Crop 9 neo, proxy nhiều mức, thumbnail strip, parity UI/HiDPI |
-| P05 | CookieJar gallery-dl khởi tạo đúng lifecycle, validate media/engine/limit và test localhost | [40638336882](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638336882) PASS | 10 nền tảng live, checkpoint nguyên kênh, Chrome/session thực |
+| P05 | Gallery session lifecycle, cây chọn item từ scan, trang 200 hàng/giữ chọn, download đúng adapter và account snapshot, chặn signed/duplicate URL, idempotent enqueue, localhost scan→PNG | [40641870092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40641870092) PASS: 162 Linux, 161 Windows + 1 skip và frozen proof | API/source pagination/checkpoint thật, album/live 10 nền tảng, Chrome/session thật, bulk-scale UI |
 | P06 | Phụ đề overwrite atomic, dịch cache không đổi vì daily_limit | [40638612141](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638612141) PASS | Chất lượng/chi phí dịch live, undo đầy đủ bảng cue, corpus lớn |
 | P07 | Validation chặn NaN/infinity âm lượng và FPS/canvas sai kiểu | [40638796940](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638796940) PASS (trước test thêm), [40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) PASS tích hợp | Font fallback, style parity, GPU/4K/soak |
 | P08 | Chặn policy khớp thời lượng không hợp lệ hoặc tự đổi thành speed | [40638929488](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638929488) PASS | Audio mapping/SFX/crossfade nâng cao, UI/dữ liệu lớn |
@@ -41,3 +41,7 @@ CI mới nhất cho bộ mã P11: [40639610919](https://github.com/danhgold7979-
 - Đọc lại master → cập nhật phase plan → code/test → ghi Pxx_RESULTS → chỉ PASS phần thật sự đã có evidence.
 - Không force push, không ghi secrets, browser profiles hoặc media runtime lên GitHub. Main giữ nguyên cho đến khi đủ điều kiện merge.
 - Mỗi lỗi kiểm thử phải phân biệt lỗi code với lỗi môi trường (ví dụ: Chocolatey 504), và được sửa hoặc ghi blocker, không vô hiệu hóa assertions.
+
+## Bằng chứng P05-03 cập nhật
+
+[CI run 40641870092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40641870092) PASS toàn suite: Linux 162 tests; Windows 161 tests + 1 skip POSIX; packaged proof hai hệ PASS. Phân trang UI/check chọn/anti-duplicate/account-snapshot và scan/download localhost là phần đã được kiểm chứng. Chưa có chứng cứ quét nhiều trang live của provider, OTP/Chrome thực, bản cài người dùng và các trường hợp tải hỗn hợp qua tài khoản live.

@@ -4,7 +4,7 @@
 
 | Nhóm ID | Đường chạy đang có | Còn mở |
 | --- | --- | --- |
-| SRC-01…SRC-10 | yt-dlp/gallery-dl, nhiều URL, ngày/limit/chất lượng/media/sub, folder Unicode theo kênh/ID, kiểm tra output, không ghi đè; tải lại localhost giữ tệp | Kiểm chứng nguyên kênh/phân trang/checkpoint và auth từng nền tảng; cây chọn từng bài, nâng chất lượng/bổ sung chỉ sub, mọi trường hợp đổi tên kênh |
+| SRC-01…SRC-10 | yt-dlp/gallery-dl, nhiều URL, ngày/limit/chất lượng/media/sub, folder Unicode theo kênh/ID, kiểm tra output/no-overwrite; scan→cây chọn từng mục/giữ chọn qua trang 200 hàng, tải item đúng adapter và tài khoản, chặn URL query ký/trùng, idempotent enqueue; localhost quét→tải PNG hợp lệ | Phân trang/checkpoint **nguồn** (khác UI pagination), scan toàn kênh từng nền tảng, Chrome/auth live, filter/sort nâng cao và chọn lô cực lớn; nâng chất lượng/bổ sung chỉ sub, album mỗi nguồn, đổi tên kênh |
 | SUB-01…SUB-04 | Ngôn ngữ tự nhập, SRT/VTT/ASS, chọn sub theo ID/ngôn ngữ, adapter Google/Libre, glossary/lock/cache/quota ký tự | Chất lượng dịch Trung–Việt, giá API và danh sách ngôn ngữ provider live; quy tắc ngữ cảnh/xưng hô nâng cao |
 | SUB-05…SUB-08 | Bảng gốc/dịch/time/lock, draft autosave, tìm/thay/tách/gộp/offset, dịch câu chọn, nạp kết quả giữ sửa tay, map trim/speed/loop; báo cue lỗi | Undo toàn lịch sử bảng cue, thao tác kéo từng cue và kiểm chứng corpus lớn |
 | SUB-09…SUB-10 | Sub rời/burn-in, song ngữ hai layer gốc/đích kéo/resize/xoay/style độc lập, batch bind theo role/ngôn ngữ, auto chỉ dịch track đích | Chất lượng layout cue dài/CJK, kiểm chứng provider và font thực trên Windows |

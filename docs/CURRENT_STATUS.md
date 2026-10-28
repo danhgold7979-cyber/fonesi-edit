@@ -8,7 +8,7 @@ Bản phát triển, chưa tuyên bố nghiệm thu toàn bộ 95 nhóm yêu c�
 | P02 | Source tests và frozen packaged proof Linux/Windows CI đạt; đã sửa lỗi gallery-dl Unicode console | Live nguồn/dịch, Chrome/session handoff, GPU/VRAM, installer/rollback và nghiệm thu trên máy Windows người dùng |
 | P03 | Domain/SQLite/snapshots/worker; backup có integrity/no-overwrite, credential alias checks và error redaction; CI Linux/Windows pass | Soak/crash/power-loss, filesystem không hỗ trợ hard link, installer và nghiệm thu máy Windows người dùng |
 | P04 | Canvas/inspector/timeline/undo/project và phím tắt nền | Hoàn thiện chi tiết tương tác/parity mọi trường hợp |
-| P05 | yt-dlp/gallery-dl, profile/binding, extension/native handoff | Live nguyên kênh, từng nền tảng và Chrome Windows |
+| P05 | yt-dlp/gallery-dl, profile/binding và bridge; thêm scan→cây checkbox theo trang, lựa chọn/tải item đúng engine/account, URL signed/duplicate bảo vệ; CI/packaged Linux/Windows PASS | Provider pagination/checkpoint và live 10 nền tảng, tài khoản Chrome/identity thực, batch lớn và filter/sort nâng cao |
 | P06 | SRT/VTT/ASS, sửa/lock/cache/quota/provider adapters | Chất lượng/chi phí dịch live và kiểm tra ngôn ngữ provider |
 | P07 | Compositor, motion/keyframes, font, mask, alpha, audio, reference | Từng tổ hợp style/OS/GPU, performance target |
 | P08 | Folder dry-run, output theo kênh, duration solver/loop/freeze | Corpus lớn và lỗi ngoài môi trường |
@@ -28,3 +28,7 @@ CI P02: [run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/acti
 Đã tiếp tục bổ sung code/kiểm thử theo phase P04–P10 và sửa CI P12 trên duy nhất nhánh `develop/fonesi-full`. [Sổ thực hiện](PHASE_EXECUTION_LEDGER.md) dẫn từng run và cổng còn mở. CI của bản tích hợp trước bộ test P11 mới nhất: [run 40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) đạt 140 tests Linux, 139 tests Windows + 1 skip fixture POSIX, cùng packaged proof cả hai nền tảng. P11 đang bổ sung kiểm tra 95 nhóm yêu cầu. Kết quả synthetic/localhost và runner Windows Server không thay nghiệm thu dùng thật hoặc xác nhận toàn bộ tính năng.
 
 **Bổ sung P11:** [CI 40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919) PASS (143 Linux, 142 Windows + 1 skip POSIX-fixture) cùng packaged proof binary hai hệ cho nhánh tổng. Bài kiểm tra 95 nhóm chỉ xác nhận mã truy vết/task/acceptance không rỗng, **không xác nhận 95 chức năng đã đủ hoặc sử dụng live đã hoạt động**.
+
+## Cập nhật P05: quét chọn từng item (28/10/2026)
+
+[CI run 40641870092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40641870092) **PASS 162 test Linux, 161 test Windows + 1 skip**, build/frozen packaged proof trên cả hai hệ. Đã có cây chọn item, phân trang UI 200 hàng, lựa chọn qua nhiều trang, bảo vệ URL tải và account snapshot, chống job trùng, test scan→tải file PNG trên localhost. Phân trang UI không đồng nghĩa quét đủ nhiều trang nguồn; chưa xác nhận 10 nền tảng/live Chrome hoặc nghiệm thu installer trên Windows máy người dùng. Xem [P05_RESULTS](phases/P05_RESULTS.md) và [coverage](IMPLEMENTATION_COVERAGE.md).

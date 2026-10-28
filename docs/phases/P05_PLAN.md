@@ -53,3 +53,14 @@ Quét nhiều trang nguyên kênh và checkpoint, cây chọn từng bài, ảnh
 ### P05-03 — Kiểm soát danh sách scan lớn trong UI
 
 Bảng Qt ban đầu tải mọi mục cùng lúc, gây nguy cơ treo UI khi scan hàng nghìn/hàng chục nghìn mục. Triển khai phân trang hiển thị (ví dụ 200 mục/trang), lưu các chỉ số đã tick trên nhiều trang trong phiên làm việc, báo số mục đã chọn và trang; chuyển lần quét không lẫn selection. Cần test dữ liệu synthetic trên nhiều trang, chọn chéo trang và tạo đủ job đúng snapshot, không bỏ mục ngoài màn hình hoặc nạp hàng nghìn item vào cây cùng lúc. Phân trang hiển thị **không phải** checkpoint quét ở provider; checkpoint live vẫn còn mở.
+
+### Bằng chứng nghiệm thu lát cắt
+
+- [x] UI có cây checkbox scan và hiển thị trạng thái chưa rõ tổng, không gắn complete giả.
+- [x] Download item riêng bảo toàn account/output snapshot, giữ adapter video/gallery đúng nguồn, job có idempotence.
+- [x] Các item URL ký hoặc trùng bị khóa, không lưu signed-query URL từ metadata scan làm link tải lại.
+- [x] UI paginated 200 item/trang, lưu lựa chọn across pages trong phiên và test Qt offscreen.
+- [x] `gallery-dl` scan → selected download file PNG thực với server localhost; hồi quy config và đóng gói qua CI cả Linux/Windows.
+- [ ] Quét nhiều trang từ provider thật/checkpoint resume, thử 10 nền tảng/đăng nhập Chrome live, chất lượng và chính sách tải toàn kênh, nghiệm thu PC Windows người dùng.
+
+**CI:** [run 40641870092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40641870092) — 162 Linux passed; 161 Windows passed + 1 skip có chủ đích. Lát cắt P05-03 đạt trong phạm vi synthetic/localhost, **phase P05 chưa đóng**.
