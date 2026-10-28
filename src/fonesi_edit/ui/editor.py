@@ -129,7 +129,23 @@ class Editor(QWidget):
         self.timeline=Timeline(self);self.timeline.seek.connect(lambda t:self.player.setPosition(round(t*1000)));middle.addWidget(self.timeline)
         self.player.positionChanged.connect(self.player_position_changed)
         split.addWidget(center)
-        self.inspector=QTabWidget();split.addWidget(self.inspector);self.fields={}
+        self.inspector=QTabWidget()
+        self.fields={};self.field_forms={};self.field_labels={}
+        self.inspector_panel=QWidget()
+        inspector_layout=QVBoxLayout(self.inspector_panel)
+        inspector_layout.setContentsMargins(4,4,4,4)
+        search_row=QHBoxLayout()
+        self.property_search=QLineEdit()
+        self.property_search.setPlaceholderText('Tìm thuộc tính…')
+        self.property_search.setClearButtonEnabled(True)
+        self.property_search.textChanged.connect(self.filter_properties)
+        search_row.addWidget(self.property_search,1)
+        self.reset_properties_button=QPushButton('Đặt lại thuộc tính')
+        self.reset_properties_button.clicked.connect(self.reset_layer_properties)
+        search_row.addWidget(self.reset_properties_button)
+        inspector_layout.addLayout(search_row)
+        inspector_layout.addWidget(self.inspector,1)
+        split.addWidget(self.inspector_panel)
         self.build_inspector();split.setSizes([170,740,300])
         self.refresh()
 
@@ -175,7 +191,48 @@ class Editor(QWidget):
         elif kind=='bool':widget=QCheckBox();widget.toggled.connect(lambda _:self.field_changed(key))
         elif kind=='choice':widget=QComboBox();widget.addItems(options);widget.currentTextChanged.connect(lambda _:self.field_changed(key))
         else:widget=QLineEdit();widget.editingFinished.connect(lambda:self.field_changed(key))
-        self.fields[key]=(widget,kind);form.addRow(label,widget)
+        self.fields[key]=(widget,kind)
+        self.field_forms[key]=form
+        self.field_labels[key]=label
+        form.addRow(label,widget)
+
+    def filter_properties(self, query):
+        """Filter inspector rows by property label/key without mutating the project."""
+        needle=str(query or '').strip().casefold()
+        for key,(widget,kind) in self.fields.items():
+            form=self.field_forms.get(key)
+            if form is None:
+                continue
+            row,_role=form.getWidgetPosition(widget)
+            if row < 0:
+                continue
+            label=form.labelForField(widget)
+            label_text=label.text() if label is not None else ''
+            matches=(not needle or needle in key.casefold()
+                     or needle in label_text.casefold())
+            form.setRowVisible(row,matches)
+
+    def reset_layer_properties(self):
+        """Reset editable properties as one undoable edit, preserving layer identity/content."""
+        layer=self.layer()
+        if layer is None:
+            self.host.message('Chọn một layer trước khi đặt lại thuộc tính.')
+            return
+        if layer.locked:
+            self.host.message('Layer đang khóa; hãy mở khóa trước khi đặt lại thuộc tính.')
+            return
+        defaults=Layer(kind=layer.kind)
+        if layer.kind=='mask':
+            defaults.x=.05;defaults.y=.75;defaults.width=.8;defaults.height=.12
+            defaults.style={'mode':'blur','radius':10}
+        self.begin()
+        for key in ('x','y','width','height','rotation','opacity','start','end','visible','locked'):
+            setattr(layer,key,deepcopy(getattr(defaults,key)))
+        layer.style=deepcopy(defaults.style)
+        layer.motion=deepcopy(defaults.motion)
+        layer.keyframes={}
+        self.commit('Đặt lại thuộc tính layer')
+        self.host.message('Đã đặt lại vị trí, kiểu, chuyển động và keyframe; nội dung, tệp nguồn và liên kết được giữ nguyên.')
 
     def layer(self):return next((x for x in self.composition.layers if x.id==self.selected_id),None)
     def begin(self):self._before=self.composition.to_dict()
