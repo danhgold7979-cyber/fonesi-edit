@@ -111,7 +111,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         width2 = min(requested_width, max_width)
         if width2 <= 0:
             return x, y, width, height
-        height2 = width2 * float(source_width) / (ratio * float(source_height))
+        height2 = width2 / ratio
         x2 = fixed_x - width2 if left_handle else fixed_x
         y2 = fixed_y - height2 if top_handle else fixed_y
         return x2, y2, width2, height2
@@ -126,7 +126,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         width2 = min(requested_width, max_width)
         if width2 <= 0:
             return x, y, width, height
-        height2 = width2 * float(source_width) / (ratio * float(source_height))
+        height2 = width2 / ratio
         x2 = fixed_x - width2 if left_handle else fixed_x
         y2 = center_y - height2 / 2.0
         return x2, y2, width2, height2
