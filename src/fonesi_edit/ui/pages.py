@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,batch_plan,enqueue_batch
-from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,row_composition,enqueue_rows
+from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
@@ -468,7 +468,7 @@ class MatrixPage(QWidget):
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
         self.allocation=QComboBox();self.allocation.addItems(['proportional','equal']);form.addRow('Chia thời lượng',self.allocation)
-        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
@@ -541,6 +541,16 @@ class MatrixPage(QWidget):
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
         self.table.viewport().update()
+    def statistics(self):
+        if not self.model.rows:raise ValueError('Chưa có ma trận để thống kê')
+        groups=angle_usage(self.model.scenes,self.model.rows)
+        lines=['Thống kê góc trong ma trận đã lập (không phải số video đã render thành công):']
+        for group in groups:
+            lines.append(f"C{group[0]['scene']}: "+
+                '  '.join(f"G{item['angle']}={item['uses']}" for item in group))
+        self.summary.setText('\n'.join(lines))
+        return groups
+
     def preview(self):
         row=self.table.currentIndex().row()
         if row<0:raise ValueError('Chọn một hàng')
