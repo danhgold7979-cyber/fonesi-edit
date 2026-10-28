@@ -619,3 +619,33 @@ def test_batch_page_multiple_roots_scan_all_selected_without_duplicate_files(tmp
         assert page.tree.topLevelItemCount()==0
     finally:
         close(window)
+
+
+
+def test_batch_async_scan_rejects_stale_results_when_source_roots_change(tmp_path,monkeypatch):
+    from threading import Event
+    window=MainWindow(tmp_path/'state')
+    try:
+        first=tmp_path/'first'
+        second=tmp_path/'second'
+        for root in (first,second):
+            (root/'videos').mkdir(parents=True)
+            (root/'videos'/'clip.mp4').write_bytes(b'placeholder')
+        page=window.batch
+        pending=[]
+        monkeypatch.setattr(window,'background',
+            lambda work,done:pending.append((work,done)))
+        page.folder.setText(str(first))
+        page.scan()
+        assert len(pending)==1
+        page.extra_roots.setPlainText(str(second))
+        assert page.selected()=={}
+        page.scan()
+        assert len(pending)==2
+        pending[0][1]({str(first):[str(first/'videos'/'clip.mp4')]})
+        assert page.selected()=={}
+        assert 'Bỏ kết quả quét cũ' in window.status.text()
+        pending[1][1](pending[1][0](lambda _:None,Event()))
+        assert sum(len(paths) for paths in page.selected().values())==2
+    finally:
+        close(window)
