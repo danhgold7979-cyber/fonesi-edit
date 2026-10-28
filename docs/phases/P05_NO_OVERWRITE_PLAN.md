@@ -18,3 +18,11 @@ Read `docs/IMPLEMENTATION_PLAN.md`, `docs/PRODUCT_REQUIREMENTS.md`, `docs/SETTIN
 ## Acceptance boundary
 
 No source-media mutation, no provider-specific claims, no new dependencies, and no change to download semantics unless the regression exposes a real overwrite defect.
+
+## Evidence — repeated gallery image no-overwrite (28/10/2026)
+
+- The localhost scan → select → download path was exercised twice into the same Unicode output directory. The test deliberately backdates the existing file before the second run, then asserts stable path, identical bytes and unchanged modification time.
+- CI [run 40735733292](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40735733292) **PASS**: 413 Linux tests; 412 Windows tests + 1 intentional POSIX-fixture skip. Frozen packaged proof passed on both runners.
+- Follow-up validation/session hardening [run 40736655575](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40736655575) **PASS**: 421 Linux / 420 Windows + 1 intentional skip; packaged proof passed on both runners.
+- This proves local gallery no-overwrite behavior only. It does not prove live provider policy or Chrome-authenticated downloads.
+

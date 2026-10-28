@@ -26,11 +26,11 @@
 
 ## 4. Điều kiện nghiệm thu lát cắt
 
-- [ ] Gallery-dl khởi tạo session trước khi gán CookieJar; fixture kiểm tra không crash.
-- [ ] URL/source và payload sai loại hoặc giới hạn bị chặn có thông báo dễ hiểu, không âm thầm hạ cấp.
-- [ ] Download localhost ảnh/video vẫn qua hai lần không ghi đè output tốt.
-- [ ] CI Linux/Windows source + binary proof không hồi quy.
-- [ ] Những cổng live phụ thuộc nguồn, trình duyệt, tài khoản và môi trường vẫn ghi PENDING/BLOCKED.
+- [x] Gallery-dl khởi tạo session trước khi gán CookieJar; fixture localhost yêu cầu cookie và xác nhận header được gửi.
+- [x] URL/source và payload sai loại hoặc giới hạn bị chặn có thông báo dễ hiểu, không âm thầm hạ cấp.
+- [x] Download localhost ảnh/video và scan-selected gallery image lặp lại không ghi đè output tốt; kiểm tra path/bytes/mtime.
+- [x] CI Linux/Windows source + binary proof không hồi quy; xem P05_RESULTS.
+- [x] Những cổng live phụ thuộc nguồn, trình duyệt, tài khoản và môi trường vẫn ghi PENDING/BLOCKED; P05 chưa đóng.
 
 ## 5. Cổng còn mở trong P05
 

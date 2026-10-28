@@ -16,3 +16,13 @@ Triển khai trên **một nhánh tích hợp** `develop/fonesi-full`, không t�
 **Bằng chứng CI:** [run 40641870092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40641870092) — **Linux 162 passed; Windows 161 passed + 1 skipped** (fixture lệnh shell chỉ chạy POSIX). Cả hai runner cũng build production app/native-host và chạy frozen packaged proof qua FFmpeg, batch/ma trận, tải video/ảnh từ localhost và Qt smoke/frame decode. Development binary cho Windows được lưu dưới artifact `FonesiEdit-Windows-development` có ngày hết hạn.
 
 **Không tuyên bố P05 đã hoàn tất toàn bộ.** Phân trang checkbox chỉ là phân trang **hiển thị**, không phải phân trang/checkpoint API nguồn. Chưa có live corpus quét nguyên kênh ở 10 nền tảng, Chrome→connector qua tài khoản thực, quyền nguồn/region, album ở mọi adapter, nâng chất lượng/bổ sung sub đơn lẻ, filter/sort đầy đủ, kiểm thử click chọn cực lớn, và test mạng/xác thực trên Windows người dùng.
+
+## P05-04/05 — strict payload validation, CookieJar transport and repeat-image safety (28/10/2026)
+
+- `execute_download_job` now rejects malformed job/payload/URL, engine and media types, booleans/floats/non-integer limits, negative limits and non-HTTP(S) URLs before creating the destination folder.
+- The gallery CookieJar fixture now requires the synthetic cookie on the localhost image endpoint, proving the initialized gallery session actually sends the selected cookie; it remains a synthetic transport test, not Chrome/live-account acceptance.
+- Added scan → select → download → repeat-download coverage for gallery images in a Unicode folder. The existing file path, bytes and modification time must remain unchanged; the file is checked as a readable PNG.
+- CI [run 40736655575](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40736655575) **PASS**: 421 Linux tests; 420 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- The dedicated repeat-image slice [run 40735733292](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40735733292) also passed: 413 Linux / 412 Windows + 1 intentional skip, packaged proof both systems.
+- Still open: provider pagination/checkpoint, live platform corpus, Chrome/session handoff on a real account, region/permission behavior and Windows user-machine acceptance. P05 is not fully closed.
+
