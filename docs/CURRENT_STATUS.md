@@ -26,3 +26,5 @@ CI P02: [run 40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/acti
 ## Cập nhật code và CI trên nhánh tổng 28/10/2026
 
 Đã tiếp tục bổ sung code/kiểm thử theo phase P04–P10 và sửa CI P12 trên duy nhất nhánh `develop/fonesi-full`. [Sổ thực hiện](PHASE_EXECUTION_LEDGER.md) dẫn từng run và cổng còn mở. CI của bản tích hợp trước bộ test P11 mới nhất: [run 40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) đạt 140 tests Linux, 139 tests Windows + 1 skip fixture POSIX, cùng packaged proof cả hai nền tảng. P11 đang bổ sung kiểm tra 95 nhóm yêu cầu. Kết quả synthetic/localhost và runner Windows Server không thay nghiệm thu dùng thật hoặc xác nhận toàn bộ tính năng.
+
+**Bổ sung P11:** [CI 40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919) PASS (143 Linux, 142 Windows + 1 skip POSIX-fixture) cùng packaged proof binary hai hệ cho nhánh tổng. Bài kiểm tra 95 nhóm chỉ xác nhận mã truy vết/task/acceptance không rỗng, **không xác nhận 95 chức năng đã đủ hoặc sử dụng live đã hoạt động**.

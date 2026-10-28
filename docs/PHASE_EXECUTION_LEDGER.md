@@ -21,10 +21,10 @@ Tài liệu này là sổ thực hiện theo phase, **không phải chứng nh�
 | P08 | Chặn policy khớp thời lượng không hợp lệ hoặc tự đổi thành speed | [40638929488](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40638929488) PASS | Audio mapping/SFX/crossfade nâng cao, UI/dữ liệu lớn |
 | P09 | Capacity trừ tổ hợp lịch sử **duy nhất**, validate scene/row locks | [40639076537](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639076537) PASS | Cân bằng lớn, regenerate hàng/weights UI, exFAT máy thật |
 | P10 | Validate resource profile, loại snapshot GPU cũ khi mất telemetry, lọc lỗi automation | [40639231968](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639231968) PASS | Task Scheduler, cache cleanup, GPU thật, installer |
-| P11 | Bổ sung validator truy vết 95 hàng/task/acceptance và unit tests | Chờ run cho commit P11 mới nhất | Chưa audit tương tác đầy đủ 95 nhóm, stress/corpus/soak |
+| P11 | Bổ sung validator truy vết 95 hàng/task/acceptance và unit tests | [40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919) PASS: 143 Linux, 142 Windows + 1 skip | Chưa audit tương tác đầy đủ 95 nhóm, stress/corpus/soak |
 | P12 | CI retry FFmpeg Chocolatey version 7.1.1 hữu hạn, không bỏ test khi hết retry; giữ native host | [40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) PASS | Máy Windows người dùng, installer/updater ký, Chrome/GPU/audio/HiDPI |
 
-CI [40639294385](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639294385) (trước mã P11 mới nhất): **140 tests PASS trên Linux; 139 PASS và 1 skip POSIX-fixture có lý do trên Windows**. Cả hai hệ chạy source regressions, build app/native host và frozen app proof bằng media synthetic/localhost: render batch và ma trận, video/ảnh, burn-in sub, rename/undo và UI smoke/frame decode. Đây là bằng chứng của những luồng kiểm thử cụ thể, không phải chứng nhận đầy đủ yêu cầu.
+CI mới nhất cho bộ mã P11: [40639610919](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40639610919): **143 tests PASS trên Linux; 142 PASS và 1 skip fixture POSIX có lý do trên Windows**. Cả hai hệ chạy source regressions, build app/native host và frozen app proof bằng media synthetic/localhost: render batch và ma trận, video/ảnh, burn-in sub, rename/undo và UI smoke/frame decode. Đây là bằng chứng của những luồng kiểm thử cụ thể, không phải chứng nhận đầy đủ yêu cầu.
 
 ## Các cổng bắt buộc chưa đủ bằng chứng
 
