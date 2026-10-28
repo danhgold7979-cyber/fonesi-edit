@@ -462,3 +462,46 @@ def test_crop_drag_free_ratio_keeps_independent_edge_resize_and_move_behavior():
         (0.3, 0.3, 0.4, 0.2)
     )
 
+@pytest.mark.parametrize("handle,start,current,anchor", [
+    ("left_top", (0.2, 0.2), (0.1, 0.1), (0.6, 0.4)),
+    ("left_bottom", (0.2, 0.4), (0.1, 0.5), (0.6, 0.2)),
+    ("right_top", (0.6, 0.2), (0.7, 0.1), (0.2, 0.4)),
+    ("right_bottom", (0.6, 0.4), (0.7, 0.5), (0.2, 0.2)),
+])
+def test_crop_ratio_locked_corner_keeps_opposite_corner_fixed(handle, start, current, anchor):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    x, y, width, height = crop_drag_rect(
+        (0.2, 0.2, 0.4, 0.2), handle, start, current, ratio_locked=True
+    )
+    expected_x, expected_y = anchor
+    fixed_x = x + width if "left" in handle else x
+    fixed_y = y + height if "top" in handle else y
+    assert fixed_x == pytest.approx(expected_x)
+    assert fixed_y == pytest.approx(expected_y)
+
+
+@pytest.mark.parametrize("handle,start,current,anchor", [
+    ("left", (0.2, 0.3), (0.1, 0.3), ("right", 0.6)),
+    ("right", (0.6, 0.3), (0.7, 0.3), ("left", 0.2)),
+    ("top", (0.4, 0.2), (0.4, 0.1), ("bottom", 0.4)),
+    ("bottom", (0.4, 0.4), (0.4, 0.5), ("top", 0.2)),
+])
+def test_crop_ratio_locked_side_keeps_opposite_edge_and_centres_other_axis(handle, start, current, anchor):
+    from fonesi_edit.ui.dialogs import crop_drag_rect
+    x, y, width, height = crop_drag_rect(
+        (0.2, 0.2, 0.4, 0.2), handle, start, current, ratio_locked=True
+    )
+    edge, value = anchor
+    if edge == "right":
+        assert x + width == pytest.approx(value)
+        assert y + height / 2 == pytest.approx(0.3)
+    elif edge == "left":
+        assert x == pytest.approx(value)
+        assert y + height / 2 == pytest.approx(0.3)
+    elif edge == "bottom":
+        assert y + height == pytest.approx(value)
+        assert x + width / 2 == pytest.approx(0.4)
+    else:
+        assert y == pytest.approx(value)
+        assert x + width / 2 == pytest.approx(0.4)
+
