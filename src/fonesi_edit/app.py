@@ -19,6 +19,7 @@ from .paths import data_directory
 from .storage import Store
 from .jobs import Scheduler
 from .automation import Automation,metrics,recommended_parallel
+from .cache import evict_proxy_cache
 from .prototypes.tools import configure_tools
 from .prototypes.media import extract_frame,probe
 from .render import reference_frame,render_composition
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
                     try:os.environ[row['key'][4:]]=protect(bytes(row['value']),decrypt=True).decode()
                     except PermissionError:pass
         self.workspace=tempfile.TemporaryDirectory(prefix='fonesi-desktop-');self.tasks=[];self.pending_tasks=[];self.failures=[];self.force_close=False;self._shutdown=False
+        self._cache_cleanup_busy=False;self._last_cache_cleanup=time.monotonic()
         self.project_id=None;self.project_file=None;self._restoring=False
         self.scheduler=Scheduler(self.store,self.store.setting('parallel',2));self.automation=Automation(self.store)
         self.status=QLabel('Sẵn sàng • Nguồn live, tài khoản, Windows và GPU có trạng thái kiểm chứng riêng.');self.status.setWordWrap(True)
@@ -92,6 +94,33 @@ class MainWindow(QMainWindow):
                 self.tasks.remove(task);task.deleteLater()
             else:task.start()
 
+    def cleanup_cache(self,force=False):
+        if self._cache_cleanup_busy:
+            if force:self.message('Cache đang được dọn trong một tác vụ nền')
+            return
+        if self.editor._proxy_pending or self.editor._thumbnail_pending:
+            if force:self.message('Proxy/thumbnail đang tạo; dọn cache khi việc đó hoàn tất')
+            return
+        maximum=int(self.store.setting('proxy_cache_limit_mb',4096))*1024**2
+        if maximum<128*1024**2 or maximum>65536*1024**2:
+            raise ValueError('Quota proxy cache ngoài khoảng 128–65536 MiB')
+        root=self.data/'cache'/'proxies'
+        current=self.editor.player.source().toLocalFile()
+        self._cache_cleanup_busy=True
+        def work(progress,cancel):
+            try:
+                return evict_proxy_cache(root,maximum,[current]),None
+            except (OSError,ValueError) as exc:
+                return None,str(exc)[:240]
+        def done(outcome):
+            self._cache_cleanup_busy=False
+            result,error=outcome
+            if error:self.message('Dọn cache không thành công: '+error)
+            elif force or result['deleted_bytes']:
+                mb=result['deleted_bytes']/1024**2
+                self.message(f'Cache proxy: giải phóng {mb:.1f} MiB; vượt quota: {result["over_budget"]} (file đang phát được giữ)')
+        self.background(work,done)
+
     def failed(self,error):self.failures.append(error);self.message('Lỗi: '+error)
     def activate_queue(self):self.nav.setCurrentWidget(self.queue)
 
@@ -111,6 +140,9 @@ class MainWindow(QMainWindow):
             self.overview.clear()
             for job in self.store.jobs(20):self.overview.addItem(f"{job['kind']} • {job['state']} • {job['progress']*100:.0f}% • {job['id'][:8]}")
             if self.automation.errors:self.message('Automation: '+self.automation.errors[-1])
+            if time.monotonic()-self._last_cache_cleanup>=300:
+                self._last_cache_cleanup=time.monotonic()
+                self.cleanup_cache()
         except Exception as exc:self.message('Scheduler: '+str(exc))
 
     def autosave(self):
