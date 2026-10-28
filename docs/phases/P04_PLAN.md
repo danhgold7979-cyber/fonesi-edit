@@ -62,3 +62,18 @@ Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ t�
 - [x] Source proxy Off/Nhanh/Cân bằng/Cao, không upscale, validated/no source overwrite.
 - [x] Full source/packaged Linux/Windows CI [run 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) PASS.
 - [ ] Crop handles/anchor, HiDPI/4K/VFR/seek/audio sync/phím tắt đầy đủ và nghiệm thu PC Windows người dùng còn mở. Không tick toàn bộ P04 trong master.
+
+
+## 8. P04-02 — Neo nhanh 9 vị trí cho layer/nhóm (28/10/2026)
+
+**Lý do:** ED-02/ED-04 trong `REQUIREMENTS_TRACEABILITY.md` yêu cầu neo đối tượng; mục 4 `EDITOR_SPEC.md` quy định chín vị trí nhanh và lề. `docs/IMPLEMENTATION_COVERAGE.md` vẫn ghi thao tác neo/crop chưa đầy đủ. Canvas hiện có kéo, resize, xoay và căn giữa riêng trục, nhưng chưa có bộ neo 3×3.
+
+**Phạm vi lát cắt này:**
+1. Thêm helper thuần để tính delta từ bounding box hợp của một hay nhiều layer đến neo trái/giữa/phải × trên/giữa/dưới; mặc định lề an toàn 5% mỗi cạnh, giảm lề tự động khi nhóm quá lớn nhưng vẫn vừa canvas, từ chối nếu nhóm vượt kích thước canvas.
+2. Thêm submenu “Đặt neo 9 vị trí” trong Editor. Hành động áp dụng cho layer đã chọn và các thành viên không khóa thuộc cùng group, dùng một delta chung để giữ khoảng cách tương đối; không di chuyển layer khóa.
+3. Một thao tác neo là một undo/redo nguyên tử; cập nhật canvas/inspector bằng đường refresh hiện có. Không đổi schema project, tọa độ xuất, hoặc tệp nguồn.
+4. Test helper cho đủ chín vị trí, lề, group-size biên và anchor không hợp lệ; test Qt cho group/locked layer, một bước undo/redo và menu.
+
+**Kiểm tra:** `uv run python scripts/check_plan.py`, `uv run pytest -q`, sau đó CI source + frozen proof Linux/Windows. Không ghi pass cho đến khi đọc kết quả của commit mới.
+
+**Không thuộc lát cắt:** crop bằng tay nắm và preview/export crop parity; các mục này tiếp tục mở trong coverage/master cho phase kế tiếp.
