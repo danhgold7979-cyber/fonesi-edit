@@ -49,3 +49,7 @@ Crop bằng tay nắm và tương tác đủ chín điểm neo, proxy chất lư
 4. Test unit giới hạn loop, thumbnail time-map/identity, PNG thật/không đổi nguồn, Qt offscreen thumbnail tiles/toggle undo và không tạo thumbnail khi tắt. CI full regressions + frozen proof Linux/Windows, chỉ ghi PASS phần có evidence.
 
 **Cổng còn mở:** proxy Nhanh/Cân bằng/Cao và cancellation/invalidation đủ chiến lược, long timeline 4K/HiDPI trên máy người dùng, audio/video sync trong các trường hợp VFR và crop handles/safe areas chưa đủ.
+
+## 7. P04-06 — Proxy phát nguồn local có ba mức (cùng đợt)
+
+Tách rõ **proxy nguồn** và **rendered composition preview**: proxy chỉ tăng tốc phát media gốc ở tab Playback, không thay thế compositor/FFmpeg export hoặc được công bố đã có hiệu ứng đầy đủ. Ba mức Nhanh (cạnh dài ≤640), Cân bằng (≤1280), Cao (≤1920), ngoài chế độ Tắt. FFmpeg transcode h264/aac bảo toàn thứ tự thời gian, không sửa nguồn. Cache trên user workspace, key path/stat/quality, viết tệp tạm + probe/kiểm tra duration + atomic publish, hủy/timeout, giữ bản cũ khi không hợp lệ. UI menu chọn mức, lưu trong project; khi switching clips chỉ tạo một proxy cần thiết qua background và không lạm dụng queue; dùng đúng bản proxy khi người dùng chọn, không áp dụng trên rendered preview. Test cache/invalidations/no source mutation, UI picker, actual media decode. Cổng Windows real-time performance và proxy long media vẫn cần nghiệm thu riêng.
