@@ -65,3 +65,7 @@
 ## 6. Điều kiện tiếp tục
 
 P03 có thể được đóng khi các cổng code/test của phase đạt và kết quả được ghi lại. Cổng bên ngoài như Chrome/session, nguồn live, GPU hoặc nghiệm thu máy Windows người dùng không được gắn PASS nhờ test storage. Sau P03, tiếp tục P04 theo master plan và lập phase plan riêng trước khi code.
+
+## Vòng bảo mật bổ sung 28/10/2026 — P03-05/P11
+
+Đối chiếu lại master P03-05 (log lọc bí mật), P11 (đường lỗi tích hợp) và `storage.Store.fail`: worker đã lọc error nhưng những caller khác có thể gọi Store.fail trực tiếp, khiến thông báo chứa token/URL query được ghi nguyên vào SQLite. Sửa tại **ranh giới ghi database**, dùng cùng sanitizer chuẩn của worker (import local để tránh vòng module) với giới hạn 3000 ký tự. Test synthetic kiểm chứng nội dung SQLite và `Store.job`, trạng thái failed/blocked không đổi; chạy suite/packaged proof hai hệ. Không đánh dấu nghiệm thu mạng/Windows máy thật.
