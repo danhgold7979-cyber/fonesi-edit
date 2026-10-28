@@ -34,3 +34,7 @@ Chứng minh solver constraints với corpus lớn, GUI regenerate từng hàng/
 ### P09-04 — Thống kê tần suất sau tạo/sửa hàng
 
 Cùng lát cắt bổ sung bảng thống kê góc từ **những hàng hiện có**: tất cả góc hợp lệ theo từng cảnh, số lần sử dụng (kể cả góc 0 lần), không cộng một job chưa render thành lượt thành công lịch sử. UI có nút xem tóm tắt không làm thay đổi ma trận. Test định lượng với số góc khác nhau giữa các cảnh; giữ `hash` làm ID thay vì tự suy ra theo filename.
+
+### P09-04 — Sửa một ô phải đồng bộ công thức và khóa chỉ áp dụng cho góc
+
+Kiểm tra trực tiếp trong MatrixModel: thay G ở một ô hiện chỉ phát `dataChanged` cho ô đó nên cột công thức C1G1+… có thể hiển thị cũ; thao tác Khóa có thể gắn cờ vào cột video/công thức vốn không phải góc. Sửa để chỉ scene columns (1…N) có thể edit/lock, phát tín hiệu cập nhật ô + công thức; nếu sửa vi phạm W/K/history thì rollback nguyên giá trị và không phát tín hiệu thành công. Test Qt với bảng synthetic và history.
