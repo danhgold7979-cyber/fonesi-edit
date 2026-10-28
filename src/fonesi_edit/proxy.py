@@ -21,7 +21,7 @@ def proxy_identity(source,quality):
     source=Path(source).resolve(strict=True)
     stat=source.stat()
     identity=[str(source),stat.st_size,stat.st_mtime_ns,
-              quality,*PROXY_LEVELS[quality],1]
+              quality,*PROXY_LEVELS[quality],2]
     return hashlib.sha256(json.dumps(identity).encode()).hexdigest()
 
 
@@ -40,6 +40,7 @@ def playback_proxy(source,directory,quality='fast',cancel=None):
     if cancel and cancel.is_set():
         raise RuntimeError('Proxy canceled')
     maximum,crf=PROXY_LEVELS[quality]
+    maximum=min(maximum,max(original.width,original.height))  # never upscale a source
     ffmpeg=locate_tool('ffmpeg')
     if not ffmpeg:
         raise FileNotFoundError('FFmpeg required to make local proxy')
