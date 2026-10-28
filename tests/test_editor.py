@@ -502,12 +502,47 @@ def test_canvas_grid_spacing_is_saved_undoable_and_falls_back_for_unknown_values
         assert Composition.from_dict(serialized).adjustments["canvas_grid_spacing"] == .2
         editor.undo.undo()
         assert editor.composition.adjustments.get("canvas_grid_spacing", .05) == .05
-        editor.composition.adjustments["canvas_grid_spacing"] = .15
+        editor.composition.adjustments["canvas_grid_spacing"] = .75
         editor.refresh()
         assert all(
             action.isChecked() == (value == .05)
             for value, action in editor.grid_spacing_actions.items()
         )
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+def test_custom_canvas_grid_spacing_aligns_snap_to_exact_step():
+    from fonesi_edit.ui.canvas import snap_layer_position
+    x, y = snap_layer_position(.071, .141, .1, .1, grid=True, grid_step=.07)
+    assert (x, y) == pytest.approx((.07, .14))
+
+
+def test_custom_canvas_grid_spacing_is_persisted_and_shown_in_menu():
+    host = Host()
+    editor = Editor(host)
+    try:
+        editor.set_canvas_grid_spacing(.07)
+        assert editor.composition.adjustments["canvas_grid_spacing"] == pytest.approx(.07)
+        assert editor.grid_spacing_custom_action.text() == "Tùy chỉnh (7%)"
+        assert not any(action.isChecked() for action in editor.grid_spacing_actions.values())
+        serialized = editor.composition.to_dict()
+        assert Composition.from_dict(serialized).adjustments["canvas_grid_spacing"] == pytest.approx(.07)
+        editor.undo.undo()
+        assert editor.composition.adjustments.get("canvas_grid_spacing", .05) == .05
+        assert editor.grid_spacing_actions[.05].isChecked()
+    finally:
+        editor.close()
+        host.workspace.cleanup()
+
+
+def test_custom_canvas_grid_spacing_rejects_out_of_range_values():
+    host = Host()
+    editor = Editor(host)
+    try:
+        editor.set_canvas_grid_spacing(.75)
+        assert editor.composition.adjustments["canvas_grid_spacing"] == .05
+        assert any("1–50%" in message for message in host.errors)
     finally:
         editor.close()
         host.workspace.cleanup()
