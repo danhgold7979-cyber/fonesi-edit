@@ -318,10 +318,18 @@ def compile_graph(c:Composition,stage:Path):
             if repeat_count>128:
                 raise ValueError('Nhạc lặp crossfade vượt 128 đoạn; chọn nguồn dài hơn hoặc giảm video')
             labels=[f'loop{i}_{number}' for number in range(repeat_count)]
-            split=f',asplit={repeat_count}' if repeat_count>1 else ''
-            graph.append(f'[{idx}:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,'
-                         f'aresample=48000,aformat=channel_layouts=stereo{split}'+
-                         ''.join(f'[{label}]' for label in labels))
+            # Feed each repetition from its own FFmpeg input. Reusing a single
+            # stream through asplit plus chained acrossfade crashes FFmpeg
+            # 7.1.1 on Windows (ffmpeg_filter.c: best_input assertion).
+            for number,label in enumerate(labels):
+                stream_index=idx
+                if number:
+                    stream_index=inputs
+                    args+=['-i',str(path)]
+                    inputs+=1
+                graph.append(f'[{stream_index}:a]atrim=start={start}:end={end},'
+                             f'asetpts=PTS-STARTPTS,aresample=48000,'
+                             f'aformat=channel_layouts=stereo[{label}]')
             input_audio=labels[0]
             for number in range(1,repeat_count):
                 joined=f'loopjoin{i}_{number}'

@@ -212,7 +212,8 @@ def test_music_loop_crossfade_compiles_and_exports_real_audio(tmp_path):
                 'volume':.3,'fade_in':.03,'fade_out':.05}])
     args,graph,total=compile_graph(comp,tmp_path/'stage')
     assert abs(total-2)<.01
-    assert 'asplit=' in graph and graph.count('acrossfade=d=0.1')>=2
+    assert 'asplit=' not in graph and graph.count('acrossfade=d=0.1')>=2
+    assert args.count(source)>len(comp.clips)+1  # Separate music inputs per repeat
     assert 'adelay=0:all=1' in graph
     assert '-stream_loop' not in args
     result=render_composition(comp,tmp_path/'with-crossfade.mp4')
