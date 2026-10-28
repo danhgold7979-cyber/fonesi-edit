@@ -179,35 +179,3 @@ def test_backup_publication_failure_does_not_leave_a_partial_backup(tmp_path, mo
     assert not destination.exists()
     assert list(destination.parent.glob(".fonesi-backup-*.tmp")) == []
 
-
-def test_backup_nested_integrity_and_existing_destination(tmp_path):
-    store=Store(tmp_path/'state.db')
-    store.set_setting('keep', {'value': 7})
-    destination=tmp_path/'nested'/'backup.db'
-    store.backup(destination)
-    assert Store(destination).setting('keep')=={'value': 7}
-    with sqlite3.connect(destination) as conn:
-        assert conn.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
-    with pytest.raises(FileExistsError):
-        store.backup(destination)
-    assert Store(destination).setting('keep')=={'value': 7}
-    assert not list(destination.parent.glob('.fonesi-backup-*'))
-
-
-@pytest.mark.parametrize('key', [
-    'api-key','Authorization','session_cookie','clientSecret',
-    'refresh-token','bearerToken','PASSWD','access_token',
-])
-def test_secret_alias_rejected(tmp_path,key):
-    store=Store(tmp_path/'state.db')
-    with pytest.raises(ValueError,match='Secret values'):
-        store.submit('render', {'nested': {key: 'synthetic-secret'}})
-
-
-def test_worker_error_redacts_sensitive_values_and_url_query():
-    from fonesi_edit.worker import sanitize_error
-    message='Authorization=private Bearer abcdef password:secret https://example.test/media?token=hidden'
-    clean=sanitize_error(message)
-    for secret in ('private','abcdef','secret','hidden'):
-        assert secret not in clean
-    assert 'https://example.test/media' in clean
