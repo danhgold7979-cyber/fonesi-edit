@@ -105,7 +105,7 @@ class Editor(QWidget):
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
-        split=QSplitter();layout.addWidget(split,1)
+        self.splitter=QSplitter();split=self.splitter;layout.addWidget(split,1)
         assets=QWidget();left=QVBoxLayout(assets);self.clips=QListWidget();self.layers=QListWidget()
         self.clips.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self.clips.currentRowChanged.connect(lambda _:self.load_proxy())
