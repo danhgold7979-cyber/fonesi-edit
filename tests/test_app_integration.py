@@ -387,3 +387,30 @@ def test_matrix_manual_durations_ui_rejects_missing_and_nonnumeric_values(tmp_pa
         assert page.duration_scene_lengths() is None
     finally:
         close(window)
+
+
+def test_proxy_preview_quality_is_source_only_and_runs_in_background(tmp_path):
+    from fonesi_edit.proxy import proxy_identity
+    files=create_fixture(tmp_path/'media',duration=.5)
+    source=files['source'];original_stamp=source.stat().st_mtime_ns
+    window=MainWindow(tmp_path/'state')
+    try:
+        comp=Composition(width=320,height=180,clips=[
+            Clip(str(source),end=.5,source_duration=.5)])
+        window.editor.set_composition(comp)
+        assert window.editor.proxy_actions['off'].isChecked()
+        window.editor.proxy_actions['fast'].trigger()
+        assert window.editor.composition.adjustments['playback_proxy_quality']=='fast'
+        wait_until(lambda:proxy_identity(source,'fast') in window.editor.proxy_cache,
+                   seconds=30)
+        expected=window.editor.proxy_cache[proxy_identity(source,'fast')]['path']
+        wait_until(lambda:window.editor.player.source().toLocalFile()==expected,
+                   seconds=10)
+        assert Path(expected).is_file()
+        assert probe(Path(expected)).duration>.4
+        assert source.stat().st_mtime_ns==original_stamp
+        assert window.editor.preview_fingerprint is None
+        window.editor.proxy_actions['off'].trigger()
+        assert window.editor.player.source().toLocalFile()==str(source.resolve())
+    finally:
+        close(window)
