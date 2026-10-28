@@ -481,6 +481,8 @@ class MatrixPage(QWidget):
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
         self.allocation=QComboBox();self.allocation.addItems(['proportional','equal','weights','manual']);form.addRow('Chia thời lượng',self.allocation)
+        self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min (ma trận)',self.minimum)
+        self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max (ma trận)',self.maximum)
         self.scene_weights=QLineEdit();self.scene_weights.setPlaceholderText('Trọng số từng cảnh, ví dụ: 1,2,1');form.addRow('Trọng số cảnh (nếu chọn weights)',self.scene_weights)
         self.scene_durations=QLineEdit();self.scene_durations.setPlaceholderText('Thời lượng mỗi cảnh (s), ví dụ: 2.5,4,3');form.addRow('Giây/cảnh (nếu chọn manual)',self.scene_durations)
         buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
@@ -605,14 +607,20 @@ class MatrixPage(QWidget):
         if row<0:raise ValueError('Chọn một hàng')
         preset=deepcopy(self.host.editor.composition);angles=self.model.rows[row];audio=self.audio.text() or None;allocation=self.allocation.currentText()
         weights=self.duration_weights();durations=self.duration_scene_lengths()
-        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,weights=weights,manual_durations=durations),self.host.preview_composition)
+        minimum,maximum=self.minimum.value(),self.maximum.value()
+        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,
+            minimum=minimum,maximum=maximum,weights=weights,manual_durations=durations),self.host.preview_composition)
     def enqueue(self):
         if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
         if not self.output.text():raise ValueError('Chọn thư mục xuất')
         rows=deepcopy(self.model.rows);preset=deepcopy(self.host.editor.composition);scope=self.scope();root=Path(self.output.text());audio=self.audio.text() or None;allocation=self.allocation.currentText()
         weights=self.duration_weights();durations=self.duration_scene_lengths()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
-        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,window=w,different=k,compare_window=compare,weights=weights,manual_durations=durations),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
+        minimum,maximum=self.minimum.value(),self.maximum.value()
+        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
+            minimum=minimum,maximum=maximum,window=w,different=k,
+            compare_window=compare,weights=weights,manual_durations=durations),
+            lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
         if path:

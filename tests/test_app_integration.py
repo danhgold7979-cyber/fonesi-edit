@@ -373,6 +373,9 @@ def test_matrix_manual_durations_ui_rejects_missing_and_nonnumeric_values(tmp_pa
         page=window.matrix
         scenes=[[Angle(1,1,'a','a')],[Angle(2,1,'b','b')]]
         page.model.replace(scenes,[[scenes[0][0],scenes[1][0]]])
+        assert page.minimum.value()==.5 and page.maximum.value()==2
+        page.minimum.setValue(.1);page.maximum.setValue(10)
+        assert page.minimum.value()==.1 and page.maximum.value()==10
         page.allocation.setCurrentText('manual')
         page.scene_durations.setText('0.25,0.75')
         assert page.duration_scene_lengths()==[.25,.75]
