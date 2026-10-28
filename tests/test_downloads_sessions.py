@@ -231,3 +231,27 @@ def test_flat_playlist_entries_can_be_selected_only_for_recognized_stable_ids():
     assert scan_video_item_url({'_type':'url','ie_key':'Youtube',
         'id':'AbcDef123_-','url':'https://cdn.example.test/m?token=private'}) == \
         'https://www.youtube.com/watch?v=AbcDef123_-'
+
+
+def test_mixed_source_scan_preserves_each_item_extractor_and_account_scope():
+    from fonesi_edit.downloads import selected_download_payloads
+    original={'url':'https://www.facebook.com/page',
+              'media':'both','engine':'auto','account_ref':'binding-facebook',
+              'expected_identity':'user-123','folder':'D:/media'}
+    scan={'kind':'scan','state':'succeeded','payload':original,
+          'result':{'platform':'Facebook','items':[
+              {'id':'v1','kind':'video','engine':'video',
+               'url':'https://www.facebook.com/watch/123','selectable':True},
+              {'id':'v2','kind':'videos','engine':'gallery',
+               'url':'https://www.facebook.com/posts/456','selectable':True},
+              {'id':'i1','kind':'images','engine':'gallery',
+               'url':'https://www.facebook.com/photo/789','selectable':True},
+          ]}}
+    requests=selected_download_payloads(scan,[0,1,2])
+    assert [p['engine'] for p in requests]==['video','gallery','gallery']
+    assert [p['media'] for p in requests]==['videos','videos','images']
+    assert all(p['account_ref']=='binding-facebook' for p in requests)
+    assert all(p['expected_identity']=='user-123' for p in requests)
+    scan['result']['items'][1]['engine']='invalid'
+    with pytest.raises(ValueError,match='adapter'):
+        selected_download_payloads(scan,[1])
