@@ -123,9 +123,14 @@ def selected_download_payloads(scan_job, indices):
             raise ValueError('Loại media chưa có adapter tải từng mục')
         # A gallery extractor can carry video media too; do not switch it
         # to yt-dlp and silently alter extractor behaviour.
-        engine = 'gallery' if kind == 'images' or kind == 'videos' and (
-            original.get('engine') == 'gallery' or source_platform in {'Instagram','Threads','X','Xiaohongshu'}
-        ) else 'video'
+        adapter=item.get('engine')
+        if adapter not in {None,'video','gallery'}:
+            raise ValueError('Kết quả quét có adapter không hợp lệ')
+        if kind == 'images' and adapter == 'video':
+            raise ValueError('Bộ tải video không hỗ trợ mục ảnh này')
+        # Keep the extractor that produced the scanned item, even when one
+        # source was scanned via both engines (Facebook/TikTok mixed media).
+        engine=adapter or ('gallery' if kind in {'images','videos'} else 'video')
         payload = {key:value for key,value in original.items() if key != '_tools'}
         payload.update(url=url,engine=engine,
                        media='images' if kind == 'images' else 'videos',limit=1)
@@ -220,6 +225,7 @@ def execute_download_job(store,job,progress,cancel):
                 item={k:entry.get(k) for k in ('id','title','duration','upload_date')}
                 item['url']=scan_video_item_url(entry,url,single=entry is info)
                 item['kind']='video'
+                item['engine']='video'
                 item['selectable']=bool(item['url'])
                 if not item['selectable']:
                     item['reason']='Không có URL tải lại an toàn; hãy mở bài trực tiếp'
@@ -260,7 +266,7 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
             safe=next((link for candidate in candidates
                 if (link:=selectable_scan_url(candidate))),None)
             entry={'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],
-                   'title':str(data.get('description',''))[:200],
+                   'engine':'gallery','title':str(data.get('description',''))[:200],
                    'url':safe,'selectable':bool(safe)}
             if not safe:
                 entry['reason']='URL media chỉ có dạng tạm/đã ký hoặc không hợp lệ'
