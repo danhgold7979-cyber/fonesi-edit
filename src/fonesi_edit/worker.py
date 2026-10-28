@@ -2,7 +2,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
 import re
-from urllib.parse import urlsplit
 from threading import Thread,Event
 from urllib.parse import urlsplit, urlunsplit
 
@@ -46,20 +45,6 @@ def sanitize_error_message(message, limit=3000):
 
     text = re.sub(r"https?://[^\s<>\"']+", safe_url, text)
     return text[:max(0, int(limit))]
-
-
-def sanitize_error(message):
-    value = str(message)
-    value = re.sub(r"(?i)\\bBearer\\s+[^\\s,;]+", "Bearer [redacted]", value)
-    value = re.sub(
-        r"(?i)\\b(password|passwd|token|api[_-]?key|cookie|secret|authorization|access[_-]?token|refresh[_-]?token)\\s*[:=]\\s*[^\\s&;,]+",
-        lambda m: m.group(1) + "=[redacted]", value)
-    value = re.sub(r"https?://[^\\s<>\\\"']+", lambda m: (
-        (lambda u: u.scheme + "://" + (u.hostname or "") + ((":" + str(u.port)) if u.port else "") + u.path)(
-            urlsplit(m.group(0).rstrip(".,;)")
-        )
-    ), value)
-    return value[-3000:]
 
 
 class Cancel:
