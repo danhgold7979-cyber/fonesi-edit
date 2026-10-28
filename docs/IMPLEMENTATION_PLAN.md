@@ -12,7 +12,7 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 | --- | --- | --- | --- |
 | P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
 | P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | CI source + packaged proof Linux/Windows đạt; cổng live/API/Chrome/GPU còn mở — xem phases/P02_RESULTS.md |
-| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Có code / QA local; xem CURRENT_STATUS.md |
+| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Code + storage/security hardening CI Linux/Windows pass; soak và nghiệm thu máy người dùng còn mở — xem CURRENT_STATUS.md |
 | P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Có code / QA local; xem CURRENT_STATUS.md |
 | P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Có code / QA local; xem CURRENT_STATUS.md |
 | P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | Có code / QA local; xem CURRENT_STATUS.md |
@@ -261,4 +261,4 @@ flowchart LR
 
 - Sau P02 mới ước lượng theo đầu việc/số đo, cập nhật khi engine/nguồn thay đổi; 12 phase không có nghĩa 12 ngày.
 - Chừa adapter/schema cho TTS/ASR/OCR/tracking, không xây tính năng giả hoặc mở rộng giữa lúc lõi chưa ổn định.
-- Báo riêng code/test/đóng gói/Windows/nguồn. Hiện tài liệu chỉ chứng minh kế hoạch đã chuẩn bị.
+- Báo riêng code/test/đóng gói/Windows/nguồn; mỗi kết luận cần evidence cụ thể và phải phân biệt synthetic với live.

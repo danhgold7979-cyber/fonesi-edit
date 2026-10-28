@@ -1,7 +1,7 @@
 # P03 — Kế hoạch chi tiết: độ bền dữ liệu và bảo vệ bí mật
 
 **Phiên bản kế hoạch:** 2.0 — 28/10/2026  
-**Trạng thái trước khi code:** đã rà soát master, kết quả P03, coverage và mã nguồn hiện có; chưa sửa source trong phase plan này.  
+**Trạng thái:** lát cắt hardening đã code; CI Linux/Windows pass trên commit 989368b9560b059c27c131c36ed12955f98c6602. Cổng soak/crash/power-loss và nghiệm thu máy Windows người dùng vẫn mở.  
 **Nhánh:** phase/p03-storage-durability-secrets
 
 ## 1. Đối chiếu master plan và trạng thái hiện tại
@@ -10,7 +10,7 @@
 
 - Master P03 có 9 task, tập trung schema/migration, project/job snapshot, scheduler/worker, recovery, output validation và bảo vệ dữ liệu.
 - Nền code P03 đã tồn tại; không scaffold lại, không xóa code và không tăng schema version nếu không cần thiết.
-- Suite gần nhất có 92 test. Các kiểm chứng trước đây không thay thế soak/crash/power-loss hoặc nghiệm thu máy Windows người dùng.
+- CI xác nhận 108 test pass trên Linux và 107 pass + 1 skip có chủ đích trên Windows. Các kiểm chứng này không thay thế soak/crash/power-loss hoặc nghiệm thu máy Windows người dùng.
 - Coverage vẫn mở về độ bền dài hạn, lỗi đĩa/quyền/mạng và log chẩn đoán đầy đủ. Lát cắt này xử lý các vấn đề có thể kiểm chứng tự động trước.
 
 ## 2. Phạm vi code
@@ -47,13 +47,13 @@
 
 ## 4. Tiêu chí nghiệm thu
 
-- [ ] Backup vào thư mục mới tạo được; integrity_check trả về ok và database mở lại đọc được.
-- [ ] Backup không ghi đè file đích có sẵn; thao tác lỗi không để file tạm như bản backup hợp lệ.
-- [ ] Migration v1 tạo bản backup trước khi đổi schema; test migration hiện tại vẫn qua.
-- [ ] Các alias như api-key, Authorization, session_cookie, clientSecret, refresh-token và bearerToken bị chặn khi nằm trong payload được kiểm tra.
-- [ ] Thông báo lỗi che Bearer token, các trường token/password/cookie/API key và query URL nhạy cảm; vẫn giữ được thông tin hữu ích cho chẩn đoán.
-- [ ] Toàn bộ test source pass; packaged proof Linux/Windows không hồi quy.
-- [ ] Không thay đổi schema hoặc định dạng project ngoài nhu cầu; không ghi bí mật, browser profiles, downloaded media hay runtime artifacts vào Git.
+- [x] Backup vào thư mục mới tạo được; integrity_check trả về ok và database mở lại đọc được.
+- [x] Backup không ghi đè file đích có sẵn; thao tác lỗi không để file tạm như bản backup hợp lệ.
+- [x] Migration v1 tạo bản backup trước khi đổi schema; test migration hiện tại vẫn qua.
+- [x] Các alias như api-key, Authorization, session_cookie, clientSecret, refresh-token và bearerToken bị chặn khi nằm trong payload được kiểm tra.
+- [x] Thông báo lỗi che Bearer token, các trường token/password/cookie/API key và query URL nhạy cảm; vẫn giữ được thông tin hữu ích cho chẩn đoán.
+- [x] Toàn bộ test source pass; packaged proof Linux/Windows không hồi quy.
+- [x] Không thay đổi schema hoặc định dạng project ngoài nhu cầu; không ghi bí mật, browser profiles, downloaded media hay runtime artifacts vào Git.
 
 ## 5. Rủi ro, rollback và giới hạn
 

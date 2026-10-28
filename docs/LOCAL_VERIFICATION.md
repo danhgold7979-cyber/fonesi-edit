@@ -25,7 +25,7 @@ uv run python scripts/verify_packaged.py --folder .local/packaged-new
 
 Mỗi proof cần folder mới. Build có `build-info.json` chứa phiên bản, hash lock/source và binary media; output có manifest/hash nguồn/cấu hình. CI Windows/Linux dùng cùng các bước, upload evidence riêng và gói Windows phát triển nếu toàn job thành công.
 
-## GitHub Actions — kiểm chứng frozen app trên Linux và Windows
+## GitHub Actions — P02 frozen-app verification
 
 Lần chạy mới nhất trên nhánh phase/p02-windows-packaged-proof: [Desktop verification #40634117095](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40634117095), commit ff3254ea8619bff5aefd4c2dac6e36bda637ac37.
 
@@ -34,6 +34,19 @@ Lần chạy mới nhất trên nhánh phase/p02-windows-packaged-proof: [Deskto
 - Cả hai proof đều dùng synthetic media và localhost; không chứng minh tải nguyên kênh mạng xã hội, dịch live, Chrome session handoff hoặc GPU. Một test installer POSIX được skip trên Windows và không được coi là nghiệm thu installer Windows.
 
 Root cause lỗi gallery-dl trước đó là worker in đường dẫn Unicode vào stdout Windows cp1252. Đã đặt gallery-dl output mode thành null trong worker GUI và thêm regression test dùng stdout cp1252 nghiêm ngặt.
+
+
+## GitHub Actions — P03 storage/security hardening
+
+Latest run: [Desktop verification #40635978628](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40635978628), commit 989368b9560b059c27c131c36ed12955f98c6602.
+
+- Linux: 108 tests pass; plan validation, build production/native host và frozen proof pass.
+- Windows runner: 107 tests pass, 1 POSIX installer-fixture test được skip có chủ đích; plan validation, build production/native host và frozen proof pass.
+- Proof trên cả hai OS gồm render batch/ma trận, tải video/ảnh synthetic qua localhost, phụ đề song ngữ, rename/undo, UI smoke và frame decode. Windows proof đánh dấu passed=true, frozen=true.
+- Regression test ban đầu phát hiện file backup tạm còn bị khóa trên Windows vì SQLite connection context manager không tự đóng connection. Đã đóng connection tường minh và chạy lại xanh trên cả hai OS.
+- Backup giờ kiểm tra integrity, không ghi đè, dọn file tạm; payload validator chặn alias credential; worker error sanitizer lọc credential và query URL. Không có bí mật hay runtime media được commit.
+
+Kết quả này không thay thế live source/translation, Chrome session handoff, GPU, installer trên máy người dùng hoặc soak/crash/power-loss.
 
 ## Cổng còn mở
 
