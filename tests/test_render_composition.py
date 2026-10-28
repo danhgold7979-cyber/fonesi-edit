@@ -184,3 +184,42 @@ def test_exported_sfx_is_audible_only_after_percent_anchor(tmp_path):
     assert len(samples)>40000
     assert max(abs(value) for value in samples[4800:14400])<20
     assert max(abs(value) for value in samples[30000:42000])>100
+
+
+
+@pytest.mark.parametrize('track',[
+    {'mode':'music','loop':True,'loop_crossfade':-1},
+    {'mode':'music','loop':True,'loop_crossfade':float('nan')},
+    {'mode':'music','loop':True,'loop_crossfade':11},
+    {'mode':'music','loop':False,'loop_crossfade':.1},
+    {'mode':'main','loop':True,'loop_crossfade':.1},
+    {'mode':'sfx','loop':True,'loop_crossfade':.1},
+])
+def test_music_loop_crossfade_invalid_inputs_are_rejected(track):
+    comp=Composition(clips=[Clip('unused.mp4',end=1)],
+        audio=[{'path':'unused.mp4',**track}])
+    with pytest.raises(ValueError,match='crossfade'):
+        comp.validate()
+
+
+def test_music_loop_crossfade_compiles_and_exports_real_audio(tmp_path):
+    from pathlib import Path
+    from fonesi_edit.render import compile_graph
+    source=str(create_fixture(tmp_path/'fixture',duration=.6)['source'])
+    comp=Composition(width=320,height=180,fps=25,encoder='cpu',mute_original=True,
+        clips=[Clip(source,end=.5) for _ in range(4)],
+        audio=[{'path':source,'mode':'music','loop':True,'loop_crossfade':.1,
+                'volume':.3,'fade_in':.03,'fade_out':.05}])
+    args,graph,total=compile_graph(comp,tmp_path/'stage')
+    assert abs(total-2)<.01
+    assert 'asplit=' in graph and graph.count('acrossfade=d=0.1')>=2
+    assert 'adelay=0:all=1' in graph
+    assert '-stream_loop' not in args
+    result=render_composition(comp,tmp_path/'with-crossfade.mp4')
+    assert result['validated']
+    media=probe(Path(result['output']))
+    assert media.audio_codec is not None and abs(media.duration-2)<.15
+    invalid=deepcopy(comp)
+    invalid.audio[0]['loop_crossfade']=.35  # Too long for a ~.6 s segment.
+    with pytest.raises(ValueError,match='dài hơn hai lần'):
+        compile_graph(invalid,tmp_path/'invalid')

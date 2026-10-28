@@ -189,6 +189,12 @@ class Composition:
             for key in ('volume','offset','trim_start','fade_in','fade_out'):
                 value=track.get(key,.2 if key=='volume' else 0)
                 if not isinstance(value,(int,float)) or not math.isfinite(value) or value<0 or key=='volume' and value>4:raise ValueError('Invalid audio '+key)
+            crossfade=track.get('loop_crossfade',0)
+            if (type(crossfade) not in (float,int) or not math.isfinite(crossfade)
+                    or not 0<=crossfade<=10):
+                raise ValueError('Music loop crossfade must be a finite duration from 0 to 10 seconds')
+            if crossfade and (track.get('mode','music')!='music' or not track.get('loop')):
+                raise ValueError('Music loop crossfade requires a looping music track')
             end=track.get('trim_end')
             if end is not None and (not math.isfinite(end) or end<=track.get('trim_start',0)):raise ValueError('Invalid audio trim end')
             placement=track.get('placement','absolute')

@@ -472,7 +472,7 @@ def test_audio_dialog_sfx_anchor_round_trip_and_input_validation(tmp_path,monkey
                 {'path':path,'mode':'sfx','volume':.8,
                  'placement':'percent','position_pct':65,'offset':.1}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==14
+        assert dialog.table.columnCount()==15
         assert dialog.table.cellWidget(0,11).currentData()=='percent'
         assert dialog.table.item(0,12).text()=='65'
         dialog.table.cellWidget(0,11).setCurrentIndex(
@@ -723,5 +723,33 @@ def test_batch_metadata_stale_callback_cannot_replace_new_scan(tmp_path,monkeypa
         assert page.media_metadata is not None and new in page.media_metadata
         assert old not in page.media_metadata
         assert page.selected()=={'new':[new]}
+    finally:
+        close(window)
+
+
+
+def test_audio_dialog_music_loop_crossfade_round_trip_and_mode_guard(tmp_path,monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from fonesi_edit.ui.dialogs import AudioDialog
+    window=MainWindow(tmp_path/'state')
+    try:
+        sample='audio.wav'
+        window.editor.set_composition(Composition(width=320,height=180,
+            clips=[Clip('video.mp4',end=1)],
+            audio=[{'path':sample,'mode':'music','loop':True,'loop_crossfade':.2}]))
+        dialog=AudioDialog(window.editor)
+        assert dialog.table.columnCount()==15
+        assert dialog.table.item(0,14).text()=='0.2'
+        dialog.table.item(0,14).setText('0.15')
+        dialog.apply()
+        assert window.editor.composition.audio[0]['loop_crossfade']==.15
+        reopened=AudioDialog(window.editor)
+        assert reopened.table.item(0,14).text()=='0.15'
+        reopened.table.cellWidget(0,1).setCurrentText('sfx')
+        warnings=[]
+        monkeypatch.setattr(QMessageBox,'warning',lambda *args:warnings.append(args[2]))
+        reopened.apply()
+        assert warnings and 'crossfade' in warnings[-1]
+        assert window.editor.composition.audio[0]['mode']=='music'
     finally:
         close(window)

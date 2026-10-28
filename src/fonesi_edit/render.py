@@ -298,7 +298,9 @@ def compile_graph(c:Composition,stage:Path):
     for i,track in enumerate(c.audio):
         if track.get('mute') or solo and not track.get('solo'):continue
         path=Path(track['path']).resolve();source_duration=audio_duration(path)
-        if track.get('loop') and not track.get('trim_end'):args+=['-stream_loop','-1']
+        loop_crossfade=float(track.get('loop_crossfade',0))
+        if track.get('loop') and not track.get('trim_end') and not loop_crossfade:
+            args+=['-stream_loop','-1']
         args+=['-i',str(path)];idx=inputs;inputs+=1
         start=max(0,float(track.get('trim_start',0)))
         offset=audio_timeline_offset(track,total,c.clips,clip_ranges)
@@ -306,15 +308,39 @@ def compile_graph(c:Composition,stage:Path):
         end=float(track.get('trim_end') or source_duration)
         if not 0<=start<end<=source_duration+.001:raise ValueError('Audio trim nằm ngoài nguồn')
         if not 0<=gain<=4:raise ValueError('Audio volume must be 0–4')
-        filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''), 'asetpts=PTS-STARTPTS',f'volume={gain}', 'aresample=48000','aformat=channel_layouts=stereo']
-        if track.get('loop') and track.get('trim_end'):
-            if end-start>600:raise ValueError('Đoạn âm thanh lặp sau trim giới hạn 10 phút để giữ RAM')
-            filters.append(f'aloop=loop=-1:size={round((end-start)*48000)}')
+        input_audio=f'{idx}:a'
+        if loop_crossfade:
+            segment_duration=end-start
+            if loop_crossfade*2>=segment_duration:
+                raise ValueError('Nhạc crossfade cần đoạn nguồn dài hơn hai lần thời lượng chuyển tiếp')
+            remaining=max(0,total-offset)
+            repeat_count=max(1,1+math.ceil((remaining-segment_duration)/(segment_duration-loop_crossfade)))
+            if repeat_count>128:
+                raise ValueError('Nhạc lặp crossfade vượt 128 đoạn; chọn nguồn dài hơn hoặc giảm video')
+            labels=[f'loop{i}_{number}' for number in range(repeat_count)]
+            split=f',asplit={repeat_count}' if repeat_count>1 else ''
+            graph.append(f'[{idx}:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,'
+                         f'aresample=48000,aformat=channel_layouts=stereo{split}'+
+                         ''.join(f'[{label}]' for label in labels))
+            input_audio=labels[0]
+            for number in range(1,repeat_count):
+                joined=f'loopjoin{i}_{number}'
+                graph.append(f'[{input_audio}][{labels[number]}]acrossfade='
+                             f'd={loop_crossfade}:c1=tri:c2=tri[{joined}]')
+                input_audio=joined
+            filters=[f'volume={gain}']
+        else:
+            filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
+                     'asetpts=PTS-STARTPTS',f'volume={gain}',
+                     'aresample=48000','aformat=channel_layouts=stereo']
+            if track.get('loop') and track.get('trim_end'):
+                if end-start>600:raise ValueError('Đoạn âm thanh lặp sau trim giới hạn 10 phút để giữ RAM')
+                filters.append(f'aloop=loop=-1:size={round((end-start)*48000)}')
         fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
         if fi>0:filters.append(f'afade=t=in:d={fi}')
         if fo>0:filters.append(f'afade=t=out:st={max(0,min(total-offset,total if track.get("loop") else end-start)-fo)}:d={fo}')
         filters += [f'adelay={round(offset*1000)}:all=1','apad',f'atrim=duration={total}']
-        graph.append(f'[{idx}:a]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
+        graph.append(f'[{input_audio}]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
     music=[i for i,mode in enumerate(modes) if mode=='music']
     if c.adjustments.get('ducking') and music:
         voice=modes.index('main') if 'main' in modes else 0

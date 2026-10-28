@@ -71,14 +71,14 @@ class AudioDialog(QDialog):
         delete=QPushButton('Bỏ track chọn');delete.clicked.connect(self.remove);row.addWidget(delete)
         self.mute=QCheckBox('Tắt tiếng video gốc');self.mute.setChecked(editor.composition.mute_original);row.addWidget(self.mute)
         layout.addWidget(QLabel('SFX: Offset là giây sau mốc (đầu cảnh / phần trăm), hoặc giây TRƯỚC mốc (cuối cảnh / cuối video). Cảnh đánh số từ 1.'))
-        self.table=QTableWidget(0,14);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Offset s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo','Mốc SFX','Vị trí %','Cảnh #']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
+        self.table=QTableWidget(0,15);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Offset s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo','Mốc SFX','Vị trí %','Cảnh #','Crossfade lặp (s)']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         for track in editor.composition.audio:self.add_track(track)
         row=QHBoxLayout();layout.addLayout(row);self.fit=QCheckBox('Khớp video theo âm thanh chính');row.addWidget(self.fit);self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);row.addWidget(self.policy)
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);buttons.accepted.connect(self.apply);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
     def add_track(self,track):
         row=self.table.rowCount();self.table.insertRow(row);self.table.setItem(row,0,QTableWidgetItem(track['path']))
         mode=QComboBox();mode.addItems(['main','music','sfx']);mode.setCurrentText(track.get('mode','music'));self.table.setCellWidget(row,1,mode)
-        for col,key,default in [(2,'volume',.2),(3,'offset',0),(5,'fade_in',0),(6,'fade_out',0),(7,'trim_start',0),(8,'trim_end',0),(12,'position_pct',50),(13,'scene_index',1)]:self.table.setItem(row,col,QTableWidgetItem(str(track.get(key) if track.get(key) is not None else default)))
+        for col,key,default in [(2,'volume',.2),(3,'offset',0),(5,'fade_in',0),(6,'fade_out',0),(7,'trim_start',0),(8,'trim_end',0),(12,'position_pct',50),(13,'scene_index',1),(14,'loop_crossfade',0)]:self.table.setItem(row,col,QTableWidgetItem(str(track.get(key) if track.get(key) is not None else default)))
         placement=QComboBox()
         for label,mode in [('Giây tuyệt đối','absolute'),('Theo % video','percent'),('Trước cuối video','video_end'),('Sau đầu cảnh','scene_start'),('Trước cuối cảnh','scene_end')]:placement.addItem(label,mode)
         choice=placement.findData(track.get('placement','absolute'))
@@ -96,7 +96,7 @@ class AudioDialog(QDialog):
             c=deepcopy(self.editor.composition);tracks=[]
             for row in range(self.table.rowCount()):
                 track={'path':self.table.item(row,0).text(),'mode':self.table.cellWidget(row,1).currentText(),'loop':self.table.item(row,4).checkState()==Qt.CheckState.Checked}
-                for col,key in [(2,'volume'),(3,'offset'),(5,'fade_in'),(6,'fade_out'),(7,'trim_start')]:
+                for col,key in [(2,'volume'),(3,'offset'),(5,'fade_in'),(6,'fade_out'),(7,'trim_start'),(14,'loop_crossfade')]:
                     value=float(self.table.item(row,col).text())
                     if value<0 or (key=='volume' and value>4):raise ValueError('Giá trị audio phải không âm; volume ≤4')
                     track[key]=value
