@@ -287,3 +287,26 @@ def test_nine_point_anchor_moves_group_atomically_and_respects_locked_layers():
     finally:
         editor.close()
         host.workspace.cleanup()
+
+def test_peer_snap_aligns_edges_and_centres_within_tolerance():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    peers = [(0.4, 0.4, 0.2, 0.2)]
+    # Moving left edge aligns to peer right edge; moving bottom aligns to peer top.
+    assert snap_layer_to_peers(.603, .303, .1, .1, peers) == (.6, .3)
+    # Moving centre aligns to peer centre on both axes.
+    assert snap_layer_to_peers(.442, .442, .1, .1, peers) == (.45, .45)
+
+
+def test_peer_snap_respects_tolerance_and_alt_override():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    peers = [(0.4, 0.4, 0.2, 0.2)]
+    assert snap_layer_to_peers(.625, .625, .1, .1, peers) == (.625, .625)
+    assert snap_layer_to_peers(.603, .303, .1, .1, peers, enabled=False) == (.603, .303)
+
+
+def test_peer_snap_rejects_nonfinite_geometry_and_ignores_out_of_canvas_peers():
+    from fonesi_edit.ui.canvas import snap_layer_to_peers
+    with pytest.raises(ValueError, match="finite"):
+        snap_layer_to_peers(float("nan"), .2, .1, .1, [])
+    assert snap_layer_to_peers(.603, .303, .1, .1, [(1.2, .4, .2, .2)]) == (.603, .303)
+
