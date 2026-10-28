@@ -18,10 +18,10 @@
 
 ## 3. Tiêu chí và cổng còn mở
 
-- [ ] Chế độ không hỗ trợ hoặc sai cấu hình phải bị từ chối trước khi tạo job.
-- [ ] Tùy chọn nguyên vẹn, không auto fallback khác chính sách đã chọn.
-- [ ] Test offline CPU/Windows/Linux đạt, không làm ảnh hưởng render/batch/ma trận hiện tại.
-- [ ] Mapping audio theo tên/list/random, SFX %, crossfade nhạc, meter realtime, thời lượng nhập tay toàn bộ UI và benchmark batch lớn vẫn giữ mở trong coverage.
+- [x] Chế độ không hỗ trợ hoặc sai cấu hình phải bị từ chối trước khi tạo job.
+- [x] Tùy chọn nguyên vẹn, không auto fallback khác chính sách đã chọn.
+- [x] Test offline CPU/Windows/Linux đạt, không làm ảnh hưởng render/batch/ma trận hiện tại.
+- [ ] Mapping audio theo tên/list/random đã có riêng ở lát cắt P08-04; SFX %, crossfade nhạc, meter realtime, thời lượng nhập tay toàn bộ UI và benchmark batch lớn vẫn giữ mở trong coverage.
 
 ## 4. Vòng P08-04 — Ánh xạ âm thanh chính theo tên/danh sách/random (28/10/2026)
 
@@ -32,3 +32,10 @@
 3. Giữ main audio snapshot riêng từng composition, không biến đổi preset đầu vào; tính duration theo âm thanh đã gán, giữ các music/SFX khác; render vẫn qua compositor chung.
 4. Test ánh xạ 2 video/2 audio với fixture ffmpeg thực, missing/duplicate/mismatched count, seed reproducible, thử render + audio codec và hồi quy all existing P08/ma trận.
 5. Chạy `check_plan` + source suite + packaged proof Linux/Windows. Lát cắt đạt khi mapping đúng và verified; không coi meter realtime, SFX trigger hoặc crossfade music đã xong.
+
+### Bằng chứng P08-04
+
+- [x] Mặc định shared/no-audio giữ tương thích; 3 chế độ by_name/ordered/random có từ Backend đến BatchPage.
+- [x] Dry-run mapping/snapshot đúng, kiểm tra ffprobe audio track và lỗi ambiguous/missing, output FFmpeg có âm thanh; không tự thay preset.
+- [x] Test CPU/Qt/Windows qua CI full-suite và frozen proof: [run 40642781347](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40642781347) — Linux 166 pass, Windows 165 pass + 1 skip.
+- [ ] Mapping nhạc/SFX cao cấp, meters, kiểm chứng output audio trên hệ Windows người dùng và benchmark corpus lớn vẫn mở.
