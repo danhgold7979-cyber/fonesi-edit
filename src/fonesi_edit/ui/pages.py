@@ -516,7 +516,11 @@ class MatrixPage(QWidget):
             # Async worker must never overwrite edits, locks or constraints
             # the user changed while regeneration was running.
             if ([combination(item) for item in self.model.rows]!=baseline
+                    or [[angle.hash for angle in scene] for scene in self.model.scenes]
+                       !=[[angle.hash for angle in scene] for scene in scenes]
                     or self.scope()!=scope
+                    or self.old_history!=previous
+                    or history(self.host.store,scope)!=previous
                     or (self.window.value(),self.different.value(),
                         self.compare.isChecked(),self.seed.value())!=(w,k,compare,seed)
                     or {column-1:self.model.rows[row][column-1].hash
