@@ -376,7 +376,7 @@ class SubtitlesPage(QWidget):
 
 class BatchPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.groups={};self.plans=[];layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Thư mục cha',host,True);self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
         self.audio_folder=file_row(form,'Thư mục nhiều audio (khi ghép riêng)',host,True)
         self.audio_mode=QComboBox()
@@ -410,6 +410,7 @@ class BatchPage(QWidget):
         host.editor.changed.connect(self.invalidate_plan)
 
     def invalidate_plan(self):
+        self._plan_revision+=1
         if self.plans:
             self.plans=[]
             self.summary.setText('Đã thay đổi nguồn hoặc preset: bản dry-run cũ bị hủy. Hãy lập kế hoạch lại trước khi preview/render.')
@@ -417,7 +418,8 @@ class BatchPage(QWidget):
     def scan(self):
         self.host.background(lambda p,c:scan_folders(Path(self.folder.text())),self.scanned)
     def scanned(self,groups):
-        self.groups=groups;self.plans=[]
+        self.invalidate_plan()
+        self.groups=groups
         self.tree.blockSignals(True)
         self.tree.clear()
         for channel,files in groups.items():
@@ -454,7 +456,7 @@ class BatchPage(QWidget):
 
     def selection_changed(self,item,column):
         if column!=0:return
-        self.plans=[]
+        self.invalidate_plan()
         self.update_selection_summary()
 
     def check_visible(self,mode):
@@ -481,13 +483,16 @@ class BatchPage(QWidget):
     def plan(self):
         groups=self.selected()
         if not groups:raise ValueError('Quét/chọn folder trước')
-        self.plans=[]
+        self.invalidate_plan()
+        revision=self._plan_revision
         self.summary.setText('Đang lập kế hoạch mới; không chạy lại snapshot cũ.')
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
         audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
         self.host.background(lambda p,c:batch_plan(groups,preset,audio,policy,minimum,maximum,
-                            audio_mode=audio_mode,audio_folder=audio_folder),self.planned)
+                            audio_mode=audio_mode,audio_folder=audio_folder),
+                            lambda plans:self.planned(plans) if revision==self._plan_revision
+                            else self.host.message('Đã bỏ bản dry-run cũ do cấu hình thay đổi trong lúc tính'))
     def planned(self,plans):
         self.plans=plans
         preview='\n'.join(p['output']+(' • audio: '+Path(p['audio_source']).name if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
