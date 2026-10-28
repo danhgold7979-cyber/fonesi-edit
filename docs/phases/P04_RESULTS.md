@@ -88,3 +88,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40728076508](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40728076508) **PASS**: 403 Linux tests; 402 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: dense-overlap guide priority, physical Windows/HiDPI/4K acceptance, and the remaining P04/P12 gates. This increment does not mark all of P04 complete.
 
+## P04-02 — Inspector search and reversible reset (28/10/2026)
+
+- Added case-insensitive property search across field labels/keys without rebuilding controls or mutating project data; clearing search restores all property rows.
+- Added a single-undo reset for transform, style, motion and keyframes. It preserves layer ID, name/content, source path, group and clip scope; locked layers are not reset.
+- CI [run 40729358428](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40729358428) **PASS**: 406 Linux tests; 405 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
+- Still open: persistent workspace layout, dense-overlap guide priority, real Windows/HiDPI acceptance and remaining P04/P12 gates.
+
