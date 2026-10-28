@@ -9,7 +9,7 @@ def test_complete_requirement_traceability_matches_master_plan():
     root = Path(__file__).resolve().parents[1]
     trace = (root / "docs/REQUIREMENTS_TRACEABILITY.md").read_text(encoding="utf-8")
     plan = (root / "docs/IMPLEMENTATION_PLAN.md").read_text(encoding="utf-8")
-    tasks = set(re.findall(r"^- \\[[ x]\\] (P\\d{2}-\\d{2}):", plan, re.M))
+    tasks = set(re.findall(r"^- \[[ x]\] (P\d{2}-\d{2}):", plan, re.M))
     requirements, errors = validate_traceability(trace, tasks, expected_count=95)
     assert len(requirements) == len(set(requirements)) == 95
     assert not errors, errors
