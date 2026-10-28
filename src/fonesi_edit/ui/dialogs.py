@@ -28,21 +28,22 @@ class CropCanvas(QLabel):
             self.crop_dialog._release(event)
 
 
-def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_size=.01):
+def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False,
+                   source_width=1, source_height=1, min_size=.01):
     """Return a bounded normalized crop rectangle for a drag gesture.
 
-    Ratio lock preserves the crop's normalized width/height ratio. Because the
-    source dimensions do not change during this gesture, that also preserves
-    the crop's pixel aspect ratio. For side handles, the opposite side stays
-    fixed and the orthogonal axis expands symmetrically around its centre.
+    Ratio lock preserves the crop's pixel aspect ratio using source dimensions.
+    For side handles, the opposite side stays fixed and the orthogonal axis
+    expands symmetrically around its centre.
     """
     if drag not in {"new", "move", "left", "right", "top", "bottom",
                     "left_top", "left_bottom", "right_top", "right_bottom"}:
         raise ValueError("Unknown crop drag handle")
-    values = tuple(start_rect) + tuple(start) + tuple(current) + (min_size,)
+    values = tuple(start_rect) + tuple(start) + tuple(current) + (min_size, source_width, source_height)
     if (len(start_rect) != 4 or len(start) != 2 or len(current) != 2
             or not all(isinstance(value, (int, float)) and not isinstance(value, bool)
-                       and math.isfinite(float(value)) for value in values)):
+                       and math.isfinite(float(value)) for value in values)
+            or source_width <= 0 or source_height <= 0):
         raise ValueError("Crop drag geometry must contain finite numbers")
     x, y, width, height = (float(value) for value in start_rect)
     sx, sy = (max(0.0, min(1.0, float(value))) for value in start)
@@ -78,7 +79,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         height2 = max(minimum, min(1.0 - y2, height2))
         return x2, y2, width2, height2
 
-    ratio = width / height
+    ratio = width * float(source_width) / (height * float(source_height))
     if drag == "new":
         sign_x = 1 if dx >= 0 else -1
         sign_y = 1 if dy >= 0 else -1
@@ -89,7 +90,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         width2 = min(requested_width, max_width)
         if width2 <= 0:
             return x, y, width, height
-        height2 = width2 / ratio
+        height2 = width2 * float(source_width) / (ratio * float(source_height))
         x2 = sx if sign_x > 0 else sx - width2
         y2 = sy if sign_y > 0 else sy - height2
         return x2, y2, width2, height2
@@ -112,7 +113,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         width2 = min(requested_width, max_width)
         if width2 <= 0:
             return x, y, width, height
-        height2 = width2 / ratio
+        height2 = width2 * float(source_width) / (ratio * float(source_height))
         x2 = fixed_x - width2 if left_handle else fixed_x
         y2 = fixed_y - height2 if top_handle else fixed_y
         return x2, y2, width2, height2
@@ -127,7 +128,7 @@ def crop_drag_rect(start_rect, drag, start, current, *, ratio_locked=False, min_
         width2 = min(requested_width, max_width)
         if width2 <= 0:
             return x, y, width, height
-        height2 = width2 / ratio
+        height2 = width2 * float(source_width) / (ratio * float(source_height))
         x2 = fixed_x - width2 if left_handle else fixed_x
         y2 = center_y - height2 / 2.0
         return x2, y2, width2, height2
@@ -292,6 +293,7 @@ class CropDialog(QDialog):
         self.rect = list(crop_drag_rect(
             self._start_rect, self._drag, self._start, pos,
             ratio_locked=self.ratio_locked,
+            source_width=self.info.width, source_height=self.info.height,
         ))
         self._paint_crop()
 
