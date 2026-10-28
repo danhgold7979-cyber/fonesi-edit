@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,batch_plan,enqueue_batch
+from ..batch import scan_folders,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
@@ -388,17 +388,77 @@ class BatchPage(QWidget):
         self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max',self.maximum)
         self.mute=QCheckBox('Tắt tiếng gốc');form.addRow(self.mute)
         buttons(layout,host,[('Quét folder',self.scan),('Lập kế hoạch / dry-run',self.plan),('Preview đầu ra đầu tiên',self.preview),('Chạy toàn bộ',self.enqueue),('Theo dõi folder tự động',self.watch)])
+        filter_row=QHBoxLayout();layout.addLayout(filter_row)
+        self.search=QLineEdit();self.search.setPlaceholderText('Tìm video hoặc kênh, không thay checkbox')
+        filter_row.addWidget(self.search,1)
+        self.format_filter=QComboBox();self.format_filter.addItem('Tất cả định dạng','')
+        for extension in sorted(VIDEO_EXTENSIONS):self.format_filter.addItem(extension,extension)
+        filter_row.addWidget(self.format_filter)
+        buttons(layout,host,[('Chọn mục đang hiện',lambda:self.check_visible('all')),('Bỏ chọn đang hiện',lambda:self.check_visible('none')),('Đảo chọn đang hiện',lambda:self.check_visible('invert'))])
         self.tree=QTreeWidget();self.tree.setHeaderLabels(['Kênh / video','Số tệp']);layout.addWidget(self.tree,1)
-        self.summary=QLabel('Preset lấy từ editor hiện tại; loại folder khỏi danh sách không xóa dữ liệu.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        self.search.textChanged.connect(lambda _:self.filter_batch())
+        self.format_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
+        self.tree.itemChanged.connect(self.selection_changed)
+        self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
 
     def scan(self):
         self.host.background(lambda p,c:scan_folders(Path(self.folder.text())),self.scanned)
     def scanned(self,groups):
-        self.groups=groups;self.tree.clear()
+        self.groups=groups;self.plans=[]
+        self.tree.blockSignals(True)
+        self.tree.clear()
         for channel,files in groups.items():
             parent=QTreeWidgetItem([channel,str(len(files))]);parent.setFlags(parent.flags()|Qt.ItemFlag.ItemIsUserCheckable|Qt.ItemFlag.ItemIsAutoTristate);parent.setCheckState(0,Qt.CheckState.Checked);self.tree.addTopLevelItem(parent)
             for file in files:
                 child=QTreeWidgetItem([file,'']);child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable);child.setCheckState(0,Qt.CheckState.Checked);parent.addChild(child)
+        self.tree.blockSignals(False)
+        self.filter_batch()
+
+    def filter_batch(self):
+        needle=self.search.text().strip().casefold()
+        extension=self.format_filter.currentData() or ''
+        for i in range(self.tree.topLevelItemCount()):
+            parent=self.tree.topLevelItem(i)
+            channel_match=bool(needle) and needle in parent.text(0).casefold()
+            visible=0
+            for j in range(parent.childCount()):
+                child=parent.child(j)
+                matches_text=not needle or channel_match or needle in child.text(0).casefold()
+                matches_type=not extension or Path(child.text(0)).suffix.casefold()==extension
+                child.setHidden(not (matches_text and matches_type))
+                visible+=not child.isHidden()
+            parent.setHidden(not bool(visible))
+        self.update_selection_summary()
+
+    def update_selection_summary(self):
+        chosen=sum(len(paths) for paths in self.selected().values())
+        total=sum(parent.childCount() for parent in (
+            self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())))
+        visible=sum(1 for i in range(self.tree.topLevelItemCount())
+            for parent in [self.tree.topLevelItem(i)] if not parent.isHidden()
+            for j in range(parent.childCount()) if not parent.child(j).isHidden())
+        self.summary.setText(f'{chosen}/{total} video đã chọn • {visible} mục đang hiển thị. Lọc không xóa tệp hoặc làm mất lựa chọn ở trang khác. Thay checkbox thì cần lập kế hoạch lại.')
+
+    def selection_changed(self,item,column):
+        if column!=0:return
+        self.plans=[]
+        self.update_selection_summary()
+
+    def check_visible(self,mode):
+        if mode not in {'all','none','invert'}:raise ValueError('Unsupported batch selection')
+        self.tree.blockSignals(True)
+        for i in range(self.tree.topLevelItemCount()):
+            parent=self.tree.topLevelItem(i)
+            if parent.isHidden():continue
+            for j in range(parent.childCount()):
+                child=parent.child(j)
+                if child.isHidden():continue
+                current=child.checkState(0)==Qt.CheckState.Checked
+                checked=True if mode=='all' else False if mode=='none' else not current
+                child.setCheckState(0,Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+        self.tree.blockSignals(False)
+        self.selection_changed(None,0)
+
     def selected(self):
         result={}
         for index in range(self.tree.topLevelItemCount()):
