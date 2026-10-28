@@ -34,3 +34,12 @@ Rà master P10-04/P10-05, `REQUIREMENTS_TRACEABILITY.md` AUTO-04…AUTO-06, `PRO
 3. UI Settings có `Giới hạn cache proxy (MiB)` và nút dọn bằng background; app định kỳ trigger khi rảnh và không có proxy/thumbnail đang tạo. Không thực hiện quét thư mục trên UI thread.
 4. Test tmp cache (file cũ/mới, protected file, suffix khác, symlink, root symlink, quota quá nhỏ, idempotence), Settings/store, callback và lỗi quyền nếu có. CI Linux/Windows full suite, frozen proof. Ghi P10_RESULTS, coverage/status chỉ với evidence.
 5. Chưa bao gồm quota cache downloader/translation, eviction đa máy hoặc Windows ACL/fault injection thật; giữ các cổng này mở.
+
+
+### Kết quả lát cắt cache quota P10-04/05 (28/10/2026)
+
+- [x] Eviction trong đúng cache proxy app, chỉ filename hash, không theo symlink/partial/foreign media.
+- [x] Dọn old-first theo quota; active playback protected, báo quá quota nếu cần.
+- [x] Settings persistent quota và manual/periodic background task, không khóa UI.
+- [x] Full Linux/Windows CI + packaged proof [40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) PASS.
+- [ ] GPU/VRAM thật, Task Scheduler, cache downloader/tool, Windows soak/installer/ACL còn mở.
