@@ -92,3 +92,9 @@ CI [40723004092](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/
 - CI [40728076508](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40728076508) **PASS**: 403 Linux / 402 Windows + 1 intentional skip; packaged proof passed on both runners.
 - Inspector search/reset, dense-overlap guide priority, physical Windows/HiDPI and remaining P04/P12 acceptance gates remain in progress.
 
+## P04 update — inspector property search/reset (28/10/2026)
+
+- Added view-only case-insensitive property filtering and a reversible reset for selected unlocked layer transform/style/motion/keyframes.
+- CI [40729358428](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40729358428) **PASS**: 406 Linux / 405 Windows + 1 intentional skip; packaged proof passed on both runners.
+- Workspace layout persistence and remaining P04/P12 acceptance gates remain in progress.
+
