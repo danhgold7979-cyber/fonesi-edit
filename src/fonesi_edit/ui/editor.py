@@ -67,10 +67,21 @@ class Editor(QWidget):
             action=anchor_menu.addAction(label)
             action.triggered.connect(
                 lambda checked=False,h=horizontal,v=vertical:self.anchor_selected(h,v))
-        self.grid_action=menu.addAction('Lưới căn chỉnh (5%)')
+        self.grid_action=menu.addAction('Lưới căn chỉnh')
         self.grid_action.setCheckable(True)
         self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
         self.grid_action.triggered.connect(self.set_canvas_grid)
+        grid_spacing_menu=menu.addMenu('Bước lưới')
+        self.grid_spacing_group=QActionGroup(self)
+        self.grid_spacing_group.setExclusive(True)
+        self.grid_spacing_actions={}
+        for label,value in [('5% (mịn)','0.05'),('10% (vừa)','0.1'),('20% (thưa)','0.2')]:
+            action=grid_spacing_menu.addAction(label)
+            action.setCheckable(True);action.setData(float(value))
+            action.setChecked(float(value)==self.composition.adjustments.get('canvas_grid_spacing',.05))
+            self.grid_spacing_group.addAction(action)
+            self.grid_spacing_actions[float(value)]=action
+        self.grid_spacing_group.triggered.connect(lambda action:self.set_canvas_grid_spacing(action.data()))
         self.loop_action=menu.addAction('Lặp đoạn In–Out (preview đã render)')
         self.loop_action.setCheckable(True)
         self.loop_action.setChecked(False)
@@ -212,6 +223,12 @@ class Editor(QWidget):
             self.grid_action.blockSignals(True)
             self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
             self.grid_action.blockSignals(False)
+        if hasattr(self, 'grid_spacing_actions'):
+            spacing=self.composition.adjustments.get('canvas_grid_spacing',.05)
+            if spacing not in self.grid_spacing_actions:
+                spacing=.05
+            for value,action in self.grid_spacing_actions.items():
+                action.blockSignals(True);action.setChecked(value==spacing);action.blockSignals(False)
         if hasattr(self, 'thumbnail_action'):
             self.thumbnail_action.blockSignals(True)
             self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
@@ -416,6 +433,16 @@ class Editor(QWidget):
         self.begin()
         self.composition.adjustments['canvas_grid']=enabled
         self.commit('Bật/tắt lưới căn chỉnh')
+
+    def set_canvas_grid_spacing(self, spacing):
+        if spacing not in {.05, .1, .2}:
+            self.host.message('Bước lưới không hợp lệ; giữ mức 5%.')
+            spacing=.05
+        if self.composition.adjustments.get('canvas_grid_spacing', .05)==spacing:
+            return
+        self.begin()
+        self.composition.adjustments['canvas_grid_spacing']=spacing
+        self.commit(f'Đổi bước lưới {spacing:.0%}')
 
     def add_video(self):
         paths,_=QFileDialog.getOpenFileNames(self,'Thêm media',filter='Video (*.mp4 *.mkv *.mov *.webm *.avi);;Tất cả (*)')
