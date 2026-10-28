@@ -1,4 +1,5 @@
 from copy import deepcopy
+import math
 from dataclasses import asdict,replace
 from pathlib import Path
 from uuid import uuid4
@@ -11,10 +12,19 @@ from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
     QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox)
 
-from ..domain import Composition,Clip,Layer,identifier
+from ..domain import Composition,Clip,Layer,identifier,canonical
 from ..prototypes.media import probe,extract_frame
 from .canvas import Canvas
 from .timeline import Timeline,clip_positions
+
+def loop_seek_target(milliseconds, start, end, *, enabled, verified):
+    """Seek only in a matching rendered composition preview, never raw source time."""
+    if not enabled or not verified or start is None or end is None:
+        return None
+    if (not all(math.isfinite(value) for value in (start, end))
+            or start < 0 or end <= start or end-start < .04):
+        return None
+    return round(start*1000) if milliseconds >= round(end*1000) else None
 
 
 class Snapshot(QUndoCommand):
@@ -31,6 +41,7 @@ class Editor(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host
         self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
+        self.preview_fingerprint=None;self._loop_seeking=False
         self.waveforms={};self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
         actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
@@ -46,6 +57,10 @@ class Editor(QWidget):
         self.grid_action.setCheckable(True)
         self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
         self.grid_action.triggered.connect(self.set_canvas_grid)
+        self.loop_action=menu.addAction('Lặp đoạn In–Out (preview đã render)')
+        self.loop_action.setCheckable(True)
+        self.loop_action.setChecked(False)
+        self.loop_action.toggled.connect(self.toggle_loop)
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
@@ -70,7 +85,7 @@ class Editor(QWidget):
         ref=QPushButton('Preview chất lượng xuất');ref.clicked.connect(self.reference);controls.addWidget(ref)
         self.frame_label=QLabel('');controls.addWidget(self.frame_label)
         self.timeline=Timeline(self);self.timeline.seek.connect(lambda t:self.player.setPosition(round(t*1000)));middle.addWidget(self.timeline)
-        self.player.positionChanged.connect(lambda milliseconds:self.timeline.position(milliseconds/1000))
+        self.player.positionChanged.connect(self.player_position_changed)
         split.addWidget(center)
         self.inspector=QTabWidget();split.addWidget(self.inspector);self.fields={}
         self.build_inspector();split.setSizes([170,740,300])
@@ -133,6 +148,7 @@ class Editor(QWidget):
         else:self.refresh()
 
     def set_composition(self,composition):
+        self.preview_fingerprint=None
         self.composition=composition;self.refresh();self.changed.emit()
 
     def refresh(self):
@@ -360,8 +376,49 @@ class Editor(QWidget):
             points.append({'time':t,'value':getattr(layer,key)});layer.keyframes[key]=sorted(points,key=lambda p:p['time'])
         self.commit('Đặt keyframe')
 
+    def toggle_loop(self,enabled):
+        if not enabled:return
+        if (self.in_point is None or self.out_point is None
+                or not math.isfinite(self.in_point) or not math.isfinite(self.out_point)
+                or self.in_point<0 or self.out_point<=self.in_point
+                or self.out_point-self.in_point<.04):
+            self.loop_action.blockSignals(True)
+            self.loop_action.setChecked(False)
+            self.loop_action.blockSignals(False)
+            self.host.message('Đặt In và Out hợp lệ (Out sau In ít nhất 40 ms) để lặp preview')
+            return
+        positions=clip_positions(self.composition)
+        duration=max((offset+length for _,offset,length in positions),default=0)
+        if self.out_point>duration+.002:
+            self.loop_action.blockSignals(True)
+            self.loop_action.setChecked(False)
+            self.loop_action.blockSignals(False)
+            self.host.message('Điểm Out vượt thời lượng composition')
+            return
+        if self.preview_fingerprint!=canonical(self.composition.to_dict()):
+            self.host.message('Để lặp đúng thời gian, hãy dựng Preview có âm thanh từ compositor')
+            if hasattr(self.host,'playback_preview'):
+                self.host.playback_preview(self.composition)
+
+    def player_position_changed(self,milliseconds):
+        self.timeline.position(milliseconds/1000)
+        if self._loop_seeking:return
+        verified=self.preview_fingerprint==canonical(self.composition.to_dict())
+        if self.player.playbackState()!=QMediaPlayer.PlaybackState.PlayingState:return
+        target=loop_seek_target(milliseconds,self.in_point,self.out_point,
+            enabled=self.loop_action.isChecked(),verified=verified)
+        if target is not None and target!=milliseconds:
+            self._loop_seeking=True
+            try:self.player.setPosition(target)
+            finally:self._loop_seeking=False
+
     def toggle_play(self):
         self.views.setCurrentIndex(1)
+        if (self.loop_action.isChecked()
+                and self.preview_fingerprint!=canonical(self.composition.to_dict())):
+            if hasattr(self.host,'playback_preview'):self.host.playback_preview(self.composition)
+            else:self.host.message('Lặp đoạn cần render preview composition trước')
+            return
         self.player.pause() if self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState else self.player.play()
 
     def request_render(self):self.render_requested.emit(self.composition.to_dict())
