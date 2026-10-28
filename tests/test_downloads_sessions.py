@@ -62,7 +62,16 @@ def test_real_generic_download_and_second_run_preserves_file(tmp_path,monkeypatc
         monkeypatch.setattr(sys,'stdout',LegacyWindowsConsole())
         images=execute_download_job(store,{'kind':'download','payload':image_payload},lambda p:None,Event())
         assert images['count']==1 and images['files'][0]['kind']=='images'
-        assert Path(images['files'][0]['path']).is_file()
+        image_output=Path(images['files'][0]['path'])
+        assert image_output.is_file()
+        from PySide6.QtGui import QImageReader
+        assert QImageReader(str(image_output)).canRead()
+        image_stamp=image_output.stat().st_mtime_ns
+        images_again=execute_download_job(store,{'kind':'download','payload':image_payload},lambda p:None,Event())
+        assert images_again['count']==1 and images_again['files'][0]['kind']=='images'
+        assert Path(images_again['files'][0]['path'])==image_output
+        assert image_output.stat().st_mtime_ns==image_stamp
+        assert QImageReader(str(image_output)).canRead()
     finally:server.shutdown();server.server_close();thread.join(timeout=3)
 
 
