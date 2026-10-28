@@ -24,3 +24,13 @@ Hiện có watcher, lịch chạy persist, workflow tải→dịch→render, adm
 - [ ] Đủ test CI và không làm hồi quy các workflow hiện có.
 
 **Ngoài phạm vi:** live Chrome/auth/installer, Windows Task Scheduler do người dùng bật, GPU/VRAM thực, soak dài hạn và mọi cổng release chưa có evidence. Giữ nguyên trong master plan.
+
+## 4. Vòng P10-04/05 — Dọn cache theo hạn mức, bảo vệ file đang dùng
+
+Rà master P10-04/P10-05, `REQUIREMENTS_TRACEABILITY.md` AUTO-04…AUTO-06, `PRODUCT_REQUIREMENTS.md` phần tài nguyên và `IMPLEMENTATION_COVERAGE.md`. Proxy local P04 được lưu tại `<app-data>/cache/proxies`. Hiện chưa có giới hạn dung lượng hoặc cơ chế dọn dẹp.
+
+1. Lập chính sách FIFO/LRU đơn giản theo `mtime_ns` cho **file proxy hoàn chỉnh** trong đúng thư mục cache app, giới hạn bytes từ Settings (mặc định 4 GiB); không theo symlink, không quét subdirectories, không dọn media nguồn, output render, browser profile hay cache tool installer.
+2. Dùng danh sách `protected` bảo vệ source QMediaPlayer đang phát. Nếu tổng protected > quota, ghi `over_budget` thay vì xóa file đang dùng; không xóa `.fonesi-proxy-*.` chưa publish.
+3. UI Settings có `Giới hạn cache proxy (MiB)` và nút dọn bằng background; app định kỳ trigger khi rảnh và không có proxy/thumbnail đang tạo. Không thực hiện quét thư mục trên UI thread.
+4. Test tmp cache (file cũ/mới, protected file, suffix khác, symlink, root symlink, quota quá nhỏ, idempotence), Settings/store, callback và lỗi quyền nếu có. CI Linux/Windows full suite, frozen proof. Ghi P10_RESULTS, coverage/status chỉ với evidence.
+5. Chưa bao gồm quota cache downloader/translation, eviction đa máy hoặc Windows ACL/fault injection thật; giữ các cổng này mở.
