@@ -214,3 +214,20 @@ def test_local_gallery_scan_select_and_download_preserves_valid_media(tmp_path,m
         assert Path(result['files'][0]['path']).read_bytes().startswith(b'\x89PNG')
     finally:
         server.shutdown();server.server_close();thread.join(timeout=3)
+
+
+def test_flat_playlist_entries_can_be_selected_only_for_recognized_stable_ids():
+    from fonesi_edit.downloads import scan_video_item_url
+    assert scan_video_item_url({'_type':'url','ie_key':'Youtube',
+        'id':'AbcDef123_-','url':'AbcDef123_-'}) == \
+        'https://www.youtube.com/watch?v=AbcDef123_-'
+    assert scan_video_item_url({'_type':'url','ie_key':'BiliBili',
+        'id':'BV1ab2345c6d','url':'BV1ab2345c6d'}) == \
+        'https://www.bilibili.com/video/BV1ab2345c6d'
+    assert scan_video_item_url({'_type':'url','ie_key':'UnverifiedIE',
+        'id':'AbcDef123_-','url':'AbcDef123_-'}) is None
+    assert scan_video_item_url({'_type':'url','ie_key':'Youtube',
+        'id':'wrong.id','url':'wrong.id'}) is None
+    assert scan_video_item_url({'_type':'url','ie_key':'Youtube',
+        'id':'AbcDef123_-','url':'https://cdn.example.test/m?token=private'}) == \
+        'https://www.youtube.com/watch?v=AbcDef123_-'
