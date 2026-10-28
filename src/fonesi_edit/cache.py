@@ -25,7 +25,7 @@ def evict_proxy_cache(directory,max_bytes,protected=()):
     for item in root.iterdir():
         # Ignore partials, other file types, nested folders and symlink files.
         if (item.is_symlink() or not item.is_file()
-                or not re.fullmatch(r'[0-9a-f]{64}\\.mp4',item.name)):
+                or not re.fullmatch(r'[0-9a-f]{64}\.mp4',item.name)):
             continue
         info=item.stat()
         files.append((info.st_mtime_ns,item.name,info.st_size,item))
