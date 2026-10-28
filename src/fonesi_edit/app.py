@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
     QProgressBar,QFileDialog,QInputDialog,QListWidget,QLineEdit,QPlainTextEdit,QTextEdit,QSystemTrayIcon,QMenu,QStyle,
     QAbstractSpinBox,QComboBox,QAbstractItemView,QAbstractSlider,QAbstractButton)
 
-from .domain import Composition,atomic_json,canonical
+from .domain import Composition,atomic_json,canonical,identifier
 from .paths import data_directory
 from .storage import Store
 from .jobs import Scheduler
@@ -249,6 +249,63 @@ class MainWindow(QMainWindow):
             self.project_file=Path(path)
         self.autosave();atomic_json(self.project_file,{'schema_version':1,'project_id':self.project_id,'composition':self.editor.composition.to_dict()});self.message('Đã lưu project')
 
+    def save_project_as(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, 'Lưu thành project mới', str(self.project_file or ''),
+            'Fonesi (*.fonesi)',
+        )
+        if not path:
+            return
+        target = Path(path)
+        if target.suffix.lower() != '.fonesi':
+            target = target.with_suffix('.fonesi')
+        if self.project_file:
+            try:
+                if target.resolve() == self.project_file.resolve():
+                    return self.save_project()
+            except OSError:
+                pass
+
+        # Save the active project first so Save As never discards the previous
+        # project record when the user branches to a new file.
+        try:
+            self.autosave()
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+            self.message(f'Không thể lưu project hiện tại trước Save As: {exc}')
+            return
+
+        composition = self.editor.composition.to_dict()
+        new_id = identifier()
+        try:
+            atomic_json(target, {
+                'schema_version': 1,
+                'project_id': new_id,
+                'composition': composition,
+            })
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
+            self.message(f'Không ghi được file project mới: {exc}')
+            return
+
+        try:
+            self.store.save_named('projects', target.stem, composition, new_id)
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+            self.message(
+                f'Đã ghi file {target}, nhưng chưa đăng ký được trong danh sách project: {exc}'
+            )
+            return
+
+        # Switch only after both the standalone file and named project record exist.
+        self.project_id = new_id
+        self.project_file = target
+        try:
+            self.autosave()
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+            self.message(
+                f'Project đã lưu tại {target}, nhưng chưa cập nhật được trạng thái khôi phục: {exc}'
+            )
+            return
+        self.message('Đã lưu thành project mới')
+
     def save_preset(self):
         name,ok=QInputDialog.getText(self,'Lưu preset','Tên preset')
         if ok:
@@ -346,6 +403,7 @@ class MainWindow(QMainWindow):
 
     def shortcuts(self):
         menu=self.menuBar().addMenu('Thao tác');keys={'Mở project':('Ctrl+O',self.open_project),'Lưu project':('Ctrl+S',self.save_project),
+            'Lưu thành project mới':('Ctrl+Shift+S',self.save_project_as),
             'Cài đặt':('Ctrl+,',lambda:self.nav.setCurrentWidget(self.settings)), 'Undo':('Ctrl+Z',self.editor.undo.undo),'Redo':('Ctrl+Shift+Z',self.editor.undo.redo),
             'Thêm video':('Ctrl+Shift+O',self.editor.add_video),'Nhân bản':('Ctrl+D',self.editor.duplicate),'Split':('Ctrl+B',self.editor.split),
             'Đưa vào hàng đợi':('Ctrl+Return',self.editor.request_render),'Phát/dừng':('Space',self.editor.toggle_play),'Marker':('M',self.add_marker),
