@@ -181,8 +181,11 @@ class DownloadsPage(QWidget):
             and parent.child(i).checkState(0)==Qt.CheckState.Checked]
         requests=selected_download_payloads(job,indexes)
         account=job['payload'].get('account_ref')
-        if account and account not in {item['id'] for item in bindings(self.host.store)}:
-            raise PermissionError('Tài khoản quét đã bị xóa; không tự chuyển sang công khai')
+        if account:
+            binding=next((item for item in bindings(self.host.store)
+                          if item['id']==account),None)
+            if not binding or binding['platform']!=platform_for(job['payload']['url']):
+                raise PermissionError('Tài khoản quét không tồn tại hoặc khác nền tảng; không chuyển sang công khai')
         for payload in requests:
             # Stable per-scan identity means pressing Download twice does not
             # enqueue the same selected source twice; use Queue/Retry instead.
