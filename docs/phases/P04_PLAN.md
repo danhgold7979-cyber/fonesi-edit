@@ -54,3 +54,30 @@ Interactive Windows HiDPI/IME/audio timing cannot be certified offscreen.
 
 ## Result recording
 Record implemented code paths, exact command/commit, pass/fail/not-run/skipped, remaining UI/subproperties and external prerequisites in `P04_RESULTS.md`. No task/group passes because only one example works.
+
+## Execution addendum — timeline clip operations (2026-10-28)
+
+**Status: plan first; implementation has not started in this tranche.**
+
+### Scope
+Complete a small, user-visible subset of P04-05 by wiring the existing tested domain operations into the timeline UI:
+1. Select a clip from the Video track and synchronize the playhead to the clicked time.
+2. Split the selected/current clip at the playhead using the project's rational speed/time map.
+3. Delete a selected clip while preserving the resulting gap, or explicitly choose ripple-delete.
+4. Keep each action one undoable command; reject locked clips and invalid ripple operations without changing project state.
+5. Keep selection/render/cache state consistent after edits; never delete source media.
+
+### Source and dependency review
+- Read `docs/REBUILD_MASTER_PLAN.md`, the P04 task list/results, `docs/EDITOR_SPEC.md` timeline requirements and the current `services/editing.py`, `ui/timeline.py`, `ui/editor.py`, `ui/window.py`, and UI/editing tests.
+- Reuse `split_clip` and `delete_clip`; do not duplicate timeline-time arithmetic in the UI.
+- Make ripple deletion validate overlaps before mutating the project so an exception cannot leave a partially deleted clip.
+
+### Required tests
+- Timeline click selects the correct clip and seeks to the clicked time.
+- Split respects playhead position, speed mapping and one-command undo.
+- Gap-delete leaves later offsets unchanged; ripple-delete shifts subsequent clips and maps cues/layers/markers.
+- Locked clips and invalid ripple operations fail without mutating the project.
+- Existing Linux and Windows source tests remain green.
+
+### Acceptance and remaining scope
+This tranche does not complete P04. Direct crop/anchors/groups/alignment, full trim/split/gap/ripple controls, proxy quality/cancel/seek edge cases, shortcuts/IME/HiDPI and target Windows interaction remain separately open.
