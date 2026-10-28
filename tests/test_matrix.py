@@ -203,6 +203,11 @@ def test_matrix_manual_scene_durations_without_audio_and_explicit_audio_mismatch
     actual=[(clip.end-clip.start)/clip.speed for clip in comp.clips]
     assert all(abs(a-b)<.002 for a,b in zip(actual,[.25,.75]))
     assert abs(comp.duration_target-1)<.002
+    from fonesi_edit.render import render_composition
+    from fonesi_edit.prototypes.media import probe
+    output=tmp_path/'manual-scene-durations.mp4'
+    assert render_composition(comp,output)['validated']
+    assert abs(probe(output).duration-1)<.12
     with pytest.raises(ValueError,match='sum to target'):
         row_composition(angles,preset,source,allocation='manual',
                         minimum=.1,maximum=10,manual_durations=[.2,.3])
