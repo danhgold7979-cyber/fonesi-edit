@@ -587,3 +587,32 @@ def test_batch_dry_run_is_invalidated_by_settings_and_async_stale_result(tmp_pat
         assert not page.plans
     finally:
         close(window)
+
+
+
+def test_batch_page_multiple_roots_scan_all_selected_without_duplicate_files(tmp_path,monkeypatch):
+    from threading import Event
+    window=MainWindow(tmp_path/'state')
+    try:
+        root_a=tmp_path/'Channel A'
+        root_b=tmp_path/'Channel B'
+        for root,name in [(root_a,'one.mp4'),(root_b,'two.mp4')]:
+            target=root/'videos'/name;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(b'mock-input')
+        page=window.batch
+        page.folder.setText(str(root_a))
+        page.extra_roots.setPlainText(str(root_b)+'\n'+str(root_a))
+        tasks={}
+        monkeypatch.setattr(window,'background',
+            lambda work,done:tasks.update(work=work,done=done))
+        page.scan()
+        groups=tasks['work'](lambda progress:None,Event())
+        tasks['done'](groups)
+        selected=page.selected()
+        assert len(selected)==2
+        assert sum(len(paths) for paths in selected.values())==2
+        page.plans=[{'output':'stale'}]
+        page.extra_roots.setPlainText(str(root_a))
+        assert not page.plans
+    finally:
+        close(window)
