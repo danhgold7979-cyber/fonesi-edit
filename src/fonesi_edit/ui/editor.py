@@ -10,7 +10,7 @@ from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QA
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
-    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox)
+    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox,QInputDialog)
 
 from ..domain import Composition,Clip,Layer,identifier,canonical
 from ..prototypes.media import probe,extract_frame
@@ -82,6 +82,8 @@ class Editor(QWidget):
             self.grid_spacing_group.addAction(action)
             self.grid_spacing_actions[float(value)]=action
         self.grid_spacing_group.triggered.connect(lambda action:self.set_canvas_grid_spacing(action.data()))
+        self.grid_spacing_custom_action=grid_spacing_menu.addAction('Tùy chỉnh…')
+        self.grid_spacing_custom_action.triggered.connect(self.choose_canvas_grid_spacing)
         self.loop_action=menu.addAction('Lặp đoạn In–Out (preview đã render)')
         self.loop_action.setCheckable(True)
         self.loop_action.setChecked(False)
@@ -225,10 +227,17 @@ class Editor(QWidget):
             self.grid_action.blockSignals(False)
         if hasattr(self, 'grid_spacing_actions'):
             spacing=self.composition.adjustments.get('canvas_grid_spacing',.05)
-            if spacing not in self.grid_spacing_actions:
+            if (not isinstance(spacing,(int,float)) or isinstance(spacing,bool)
+                    or not math.isfinite(float(spacing)) or not .01 <= float(spacing) <= .5):
                 spacing=.05
+            spacing=float(spacing)
             for value,action in self.grid_spacing_actions.items():
                 action.blockSignals(True);action.setChecked(value==spacing);action.blockSignals(False)
+            if hasattr(self,'grid_spacing_custom_action'):
+                self.grid_spacing_custom_action.setText(
+                    'Tùy chỉnh…' if spacing in self.grid_spacing_actions
+                    else f'Tùy chỉnh ({spacing*100:g}%)'
+                )
         if hasattr(self, 'thumbnail_action'):
             self.thumbnail_action.blockSignals(True)
             self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
@@ -434,15 +443,29 @@ class Editor(QWidget):
         self.composition.adjustments['canvas_grid']=enabled
         self.commit('Bật/tắt lưới căn chỉnh')
 
+    def choose_canvas_grid_spacing(self):
+        current=self.composition.adjustments.get('canvas_grid_spacing',.05)
+        if (not isinstance(current,(int,float)) or isinstance(current,bool)
+                or not math.isfinite(float(current)) or not .01 <= float(current) <= .5):
+            current=.05
+        percent,ok=QInputDialog.getDouble(
+            self,'Bước lưới tùy chỉnh','Khoảng cách lưới (%):',
+            float(current)*100,1.0,50.0,1
+        )
+        if ok:
+            self.set_canvas_grid_spacing(percent/100.0)
+
     def set_canvas_grid_spacing(self, spacing):
-        if spacing not in {.05, .1, .2}:
-            self.host.message('Bước lưới không hợp lệ; giữ mức 5%.')
+        if (not isinstance(spacing,(int,float)) or isinstance(spacing,bool)
+                or not math.isfinite(float(spacing)) or not .01 <= float(spacing) <= .5):
+            self.host.message('Bước lưới phải nằm trong khoảng 1–50%; giữ mức 5%.')
             spacing=.05
+        spacing=float(spacing)
         if self.composition.adjustments.get('canvas_grid_spacing', .05)==spacing:
             return
         self.begin()
         self.composition.adjustments['canvas_grid_spacing']=spacing
-        self.commit(f'Đổi bước lưới {spacing:.0%}')
+        self.commit(f'Đổi bước lưới {spacing*100:g}%')
 
     def add_video(self):
         paths,_=QFileDialog.getOpenFileNames(self,'Thêm media',filter='Video (*.mp4 *.mkv *.mov *.webm *.avi);;Tất cả (*)')
