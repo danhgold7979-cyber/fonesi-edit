@@ -7,6 +7,26 @@ from ..render import audio_duration
 from ..prototypes.media import extract_frame, probe
 
 
+class CropCanvas(QLabel):
+    """QLabel that forwards real Qt mouse events to its crop dialog."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.crop_dialog = None
+
+    def mousePressEvent(self, event):
+        if self.crop_dialog is not None:
+            self.crop_dialog._press(event)
+
+    def mouseMoveEvent(self, event):
+        if self.crop_dialog is not None:
+            self.crop_dialog._move(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.crop_dialog is not None:
+            self.crop_dialog._release(event)
+
+
 class CropDialog(QDialog):
     """Interactive crop editor; edits only its local normalized rectangle."""
 
@@ -22,13 +42,11 @@ class CropDialog(QDialog):
         self._start_rect = None
         self._frame_size = (self.info.width, self.info.height)
         layout = QVBoxLayout(self)
-        self.canvas = QLabel()
+        self.canvas = CropCanvas(self)
+        self.canvas.crop_dialog = self
         self.canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.canvas.setMinimumSize(560, 320)
         self.canvas.setMouseTracking(True)
-        self.canvas.mousePressEvent = self._press
-        self.canvas.mouseMoveEvent = self._move
-        self.canvas.mouseReleaseEvent = self._release
         layout.addWidget(self.canvas, 1)
         row = QHBoxLayout()
         self.lock_ratio = QCheckBox("Khóa tỷ lệ crop")

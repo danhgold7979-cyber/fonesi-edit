@@ -77,7 +77,7 @@ def test_clip_crop_compiles_before_flip_rotation_and_renders(tmp_path):
     stage = tmp_path / "crop-stage"
     stage.mkdir()
     _, graph, _ = compile_graph(composition, stage)
-    joined = ";".join(graph)
+    joined = graph
     # Derive the expected geometry from the same probed source dimensions as
     # the compositor; this also catches incorrect metadata/orientation handling.
     from fonesi_edit.render import crop_rect_pixels
