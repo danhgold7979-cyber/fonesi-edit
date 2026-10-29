@@ -1491,3 +1491,69 @@ def test_scan_subtitle_only_action_keeps_account_and_is_idempotent(tmp_path):
         assert len([j for j in window.store.jobs() if j['kind']=='download'])==2
     finally:
         close(window)
+
+
+
+def test_quality_upgrade_scan_ui_preserves_snapshot_and_separates_modes(tmp_path):
+    from PySide6.QtCore import Qt
+    from fonesi_edit.prototypes.media import create_fixture
+    import shutil
+    import pytest
+    fixture=create_fixture(tmp_path/'fixture',duration=.5)
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        output=tmp_path/'media'
+        original=output/'Generic'/'Creator__id'/'videos'/'video-id.mp4'
+        original.parent.mkdir(parents=True)
+        shutil.copyfile(fixture['source'],original)
+        source_payload={'url':'https://example.test/video/123','folder':str(output),
+                        'engine':'video','media':'videos','limit':1,
+                        'height':360,'account_ref':None}
+        source_id=window.store.submit('download',source_payload)
+        window.store.claim(allowed={'download'})
+        window.store.finish(source_id,{'platform':'Generic','count':1,'files':[{
+            'id':'video-id','path':str(original),'kind':'video'}]})
+        scan_payload={'url':'https://example.test/channel','folder':str(output),
+                      'engine':'video','media':'videos','limit':2,'height':360,
+                      'account_ref':None}
+        scan_id=window.store.submit('scan',scan_payload)
+        window.store.claim(allowed={'scan'})
+        items=[{'id':'video-id','title':'Video 1','kind':'video','engine':'video',
+                'url':source_payload['url'],'selectable':True},
+               {'id':'img','title':'Image','kind':'images','engine':'gallery',
+                'url':'https://example.test/photo','selectable':True}]
+        window.store.finish(scan_id,{'platform':'Generic','items':items,
+                                     'count':2,'complete':None})
+        page=window.downloads
+        page.show_scan()
+        page.height.setValue(720)
+        page.scan_tree.topLevelItem(0).child(0).setCheckState(0,Qt.CheckState.Checked)
+        page.download_quality_upgrade_selected()
+        page.download_quality_upgrade_selected()
+        upgrades=[j for j in window.store.jobs()
+                  if j['payload'].get('download_mode')=='quality_upgrade']
+        assert len(upgrades)==1
+        p=upgrades[0]['payload']
+        assert p['upgrade_from_job_id']==source_id and p['height']==720
+        assert p['url']==source_payload['url'] and p['folder']==source_payload['folder']
+        assert p['engine']=='video' and p['media']=='videos' and p['limit']==1
+        assert 'workflow' not in p and p['subtitles'] is False
+        assert p['thumbnail'] is False
+        page.download_subtitles_selected()
+        page.download_selected()
+        modes=[j['payload'].get('download_mode','media')
+               for j in window.store.jobs()
+               if j['kind']=='download']
+        assert modes.count('quality_upgrade')==1
+        assert modes.count('subtitles_only')==1
+        # The baseline and regular download requests keep the default media mode.
+        assert modes.count('media')==2
+        page.scan_tree.topLevelItem(0).child(1).setCheckState(0,Qt.CheckState.Checked)
+        with pytest.raises(ValueError,match='Chỉ nâng chất lượng'):
+            page.download_quality_upgrade_selected()
+        assert len([j for j in window.store.jobs()
+                    if j['payload'].get('download_mode')=='quality_upgrade'])==1
+        assert original.read_bytes()==fixture['source'].read_bytes()
+    finally:
+        close(window)
