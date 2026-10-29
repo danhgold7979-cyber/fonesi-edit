@@ -1387,3 +1387,56 @@ def test_scan_chronological_sort_keeps_unknown_last_ties_stable_and_selection(tm
         assert set(urls) == {"https://example.test/p/0", "https://example.test/p/4"}
     finally:
         close(window)
+
+
+
+def test_bounded_scan_next_ui_is_idempotent_and_keeps_original_selection(tmp_path):
+    from PySide6.QtCore import Qt
+    from fonesi_edit.downloads import SCAN_WINDOW_MODE
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        payload={'url':'https://example.test/channel','folder':str(tmp_path/'files'),
+                 'engine':'video','media':'videos','limit':2}
+        parent_id=window.store.submit('scan',payload)
+        window.store.claim(allowed={'scan'})
+        first=[{'id':str(i),'title':f'Video {i}','kind':'video','engine':'video',
+                'url':f'https://example.test/video/{i}','selectable':True}
+               for i in range(2)]
+        first_result={'platform':'Generic','items':first,'count':2,'complete':False,
+                      'scan_window':{'mode':SCAN_WINDOW_MODE,'start':1,'limit':2,'next_start':3}}
+        window.store.finish(parent_id,first_result)
+        page=window.downloads
+        page.scan_page_size=2
+        page.show_scan()
+        page.scan_tree.topLevelItem(0).child(0).setCheckState(0,Qt.CheckState.Checked)
+        assert page.scan_selected[parent_id]=={0}
+        page.continue_scan()
+        next_id=page.scans.currentData()
+        assert next_id!=parent_id and window.store.job(next_id)['state']=='pending'
+        assert window.store.job(next_id)['payload']['scan_parent_id']==parent_id
+        page.scans.setCurrentIndex(page.scans.findData(parent_id))
+        page.continue_scan()
+        assert page.scans.currentData()==next_id
+        assert len([j for j in window.store.jobs() if j['kind']=='scan'])==2
+        window.store.claim(allowed={'scan'})
+        combined=first+[{'id':str(i),'title':f'Video {i}','kind':'video','engine':'video',
+                         'url':f'https://example.test/video/{i}','selectable':True}
+                        for i in (2,3)]
+        window.store.finish(next_id,{'platform':'Generic','items':combined,'count':4,
+                'complete':False,'scan_window':{
+                    'mode':SCAN_WINDOW_MODE,'start':3,'limit':2,'next_start':5}})
+        page.load_scan()
+        assert page.scan_selected[next_id]=={0}
+        page.scan_search.setText('Video 2')
+        assert page._scan_visible_indexes(combined)==[2]
+        page.select_all_filtered()
+        assert page.scan_selected[next_id]=={0,2}
+        page.download_selected()
+        jobs=[job for job in window.store.jobs() if job['kind']=='download']
+        assert len(jobs)==2
+        assert {j['payload']['url'] for j in jobs}=={
+            'https://example.test/video/0','https://example.test/video/2'}
+        assert all('scan_parent_id' not in j['payload'] for j in jobs)
+    finally:
+        close(window)

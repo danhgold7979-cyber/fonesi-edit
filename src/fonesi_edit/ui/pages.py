@@ -22,7 +22,7 @@ from ..matrix import scan_scenes,generate,history,combination,valid_against,matr
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
                          parse_scan_metadata_filters,scan_matches_metadata,
-                         normalize_scan_metadata)
+                         normalize_scan_metadata,continuation_scan_payload)
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -108,7 +108,7 @@ class DownloadsPage(QWidget):
         metadata_row.addWidget(self.scan_include_missing)
         self.scan_filter_error=None
         buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
-        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered)])
+        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
         self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
@@ -192,6 +192,19 @@ class DownloadsPage(QWidget):
         last_page=max(0,(len(visible_indexes)-1)//self.scan_page_size)
         self.scan_page=max(0,min(self.scan_page,last_page))
         start=self.scan_page*self.scan_page_size;end=min(len(visible_indexes),start+self.scan_page_size)
+        if job_id not in self.scan_selected:
+            parent_id=(job.get('payload') or {}).get('scan_parent_id')
+            if parent_id in self.scan_selected:
+                try:
+                    parent=self.host.store.job(parent_id)
+                    prior=(parent.get('result') or {}).get('items')
+                    if (parent.get('state')=='succeeded' and isinstance(prior,list)
+                            and items[:len(prior)]==prior):
+                        self.scan_selected[job_id]={
+                            index for index in self.scan_selected[parent_id]
+                            if type(index) is int and 0 <= index < len(prior)}
+                except KeyError:
+                    pass
         chosen=self.scan_selected.setdefault(job_id,set())
         self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục gốc • hiển thị {len(visible_indexes)} • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Lọc không bỏ chọn mục đang ẩn.{filter_warning}")
         self.result.setPlainText('Lựa chọn được giữ theo chỉ số gốc khi lọc/sắp xếp/chuyển trang; tài khoản và thư mục lấy từ snapshot quét. Tìm kiếm chỉ dùng tiêu đề/ID, không tìm hoặc hiển thị URL.')
@@ -373,6 +386,22 @@ class DownloadsPage(QWidget):
             item=root.child(index)
             if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
                 item.setCheckState(0,Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+
+    def continue_scan(self):
+        job_id=self.scans.currentData()
+        if not job_id:
+            raise ValueError('Chưa chọn lần quét để quét tiếp')
+        previous=self.host.store.job(job_id)
+        payload=continuation_scan_payload(previous)
+        next_id=submit_once(self.host.store,'scan',payload,
+                            f'scan-next:{job_id}:{payload["scan_start"]}')
+        self.last_scan=next_id
+        self.refresh_scans(preferred=next_id)
+        self.load_scan()
+        self.host.message(
+            f'Đã xếp scan tiếp từ vị trí {payload["scan_start"]}; '
+            'đây là khoảng yt-dlp, không phải checkpoint hoặc xác nhận đủ kênh.')
+        self.host.activate_queue()
 
     def download_selected(self):
         job_id=self.scans.currentData()

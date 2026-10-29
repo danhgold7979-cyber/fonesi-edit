@@ -6,6 +6,7 @@ import logging
 import math
 import re
 from datetime import date, datetime
+from copy import deepcopy
 
 from .browser import cookie_jar,DOMAINS
 from .prototypes.media import probe
@@ -212,6 +213,66 @@ def scan_matches_metadata(item, filters):
     return True
 
 
+MAX_SCAN_PAGE_SIZE = 200
+MAX_SCAN_SNAPSHOT_ITEMS = 2000
+SCAN_WINDOW_MODE = 'yt-dlp-index-window-v1'
+
+
+def continuation_scan_payload(scan_job):
+    """Generate a frozen next-window request only from a verified scan snapshot.
+
+    The cursor is an yt-dlp playlist index window, NOT a provider checkpoint.
+    A source can change ordering or ignore playliststart; full-channel
+    completion is never inferred from this cursor.
+    """
+    if not isinstance(scan_job, dict) or scan_job.get('kind') != 'scan' or scan_job.get('state') != 'succeeded':
+        raise ValueError('Chỉ quét tiếp từ kết quả scan đã hoàn tất')
+    original = scan_job.get('payload')
+    result = scan_job.get('result')
+    if not isinstance(original, dict) or not isinstance(result, dict):
+        raise ValueError('Thiếu snapshot quét trước')
+    if original.get('engine') != 'video':
+        raise ValueError('Quét tiếp chỉ hỗ trợ playlist với bộ tải video yt-dlp được chọn rõ')
+    limit = original.get('limit')
+    window = result.get('scan_window')
+    if (type(limit) is not int or not 1 <= limit <= MAX_SCAN_PAGE_SIZE
+            or not isinstance(window, dict)
+            or window.get('mode') != SCAN_WINDOW_MODE
+            or type(window.get('start')) is not int
+            or type(window.get('limit')) is not int
+            or window['limit'] != limit
+            or window['start'] < 1):
+        raise ValueError('Lần quét không có khoảng yt-dlp có thể tiếp tục (cần giới hạn 1–200)')
+    start = window['start']
+    next_start = window.get('next_start')
+    if (type(next_start) is not int or next_start != start + limit
+            or next_start > MAX_SCAN_SNAPSHOT_ITEMS + 1):
+        raise ValueError('Không có vị trí quét tiếp hợp lệ; nguồn có thể chưa hỗ trợ hoặc đã dừng')
+    if 'scan_parent_id' in original or 'scan_start' in original:
+        if (not isinstance(original.get('scan_parent_id'), str)
+                or type(original.get('scan_start')) is not int
+                or original['scan_start'] != start):
+            raise ValueError('Chuỗi quét có thông tin trang trước không hợp lệ')
+    elif start != 1:
+        raise ValueError('Vị trí bắt đầu không khớp scan gốc')
+    if result.get('platform') != platform_for(original.get('url')):
+        raise ValueError('Nền tảng trong snapshot quét không khớp nguồn')
+    items = result.get('items')
+    if (not isinstance(items, list) or not items
+            or len(items) > MAX_SCAN_SNAPSHOT_ITEMS - limit
+            or any(not isinstance(item, dict) or
+                   (item.get('url') is not None and not selectable_scan_url(item.get('url')))
+                   for item in items)):
+        raise ValueError('Snapshot quét đầy, không hợp lệ hoặc chứa URL không an toàn')
+    scan_id = scan_job.get('id')
+    if not isinstance(scan_id, str) or not scan_id:
+        raise ValueError('Thiếu ID scan gốc')
+    payload = deepcopy({key:value for key,value in original.items()
+                        if key not in {'_tools', 'scan_parent_id', 'scan_start'}})
+    payload.update(scan_parent_id=scan_id, scan_start=next_start)
+    return payload
+
+
 def selected_download_payloads(scan_job, indices):
     """Turn verified scan row indices into individual frozen download requests.
 
@@ -262,7 +323,8 @@ def selected_download_payloads(scan_job, indices):
         # Keep the extractor that produced the scanned item, even when one
         # source was scanned via both engines (Facebook/TikTok mixed media).
         engine=adapter or ('gallery' if kind in {'images','videos'} else 'video')
-        payload = {key:value for key,value in original.items() if key != '_tools'}
+        payload = {key:value for key,value in original.items()
+                   if key not in {'_tools','scan_parent_id','scan_start'}}
         payload.update(url=url,engine=engine,
                        media='images' if kind == 'images' else 'videos',limit=1)
         requests.append(payload)
@@ -301,6 +363,24 @@ def execute_download_job(store,job,progress,cancel):
     limit=int(raw_limit)
     if limit<0:
         raise ValueError('Download limit must be a nonnegative integer')
+    scan_parent = None
+    scan_start = 1
+    has_cursor = 'scan_parent_id' in payload or 'scan_start' in payload
+    if has_cursor:
+        if (job['kind'] != 'scan'
+                or not isinstance(payload.get('scan_parent_id'), str)
+                or type(payload.get('scan_start')) is not int
+                or payload['scan_start'] <= 1):
+            raise ValueError('Scan continuation requires a valid parent scan and positive offset')
+        try:
+            scan_parent = store.job(payload['scan_parent_id'])
+        except KeyError as exc:
+            raise ValueError('Không tìm thấy scan gốc để quét tiếp') from exc
+        expected = continuation_scan_payload(scan_parent)
+        actual = {key:value for key,value in payload.items() if key != '_tools'}
+        if actual != expected:
+            raise ValueError('Scan continuation snapshot mismatch: URL, account or options changed')
+        scan_start = payload['scan_start']
     binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
     if engine=='auto' and payload.get('media')=='both' and platform in {'Facebook','TikTok','Douyin','Kuaishou'}:
         combined=[];warnings=[]
@@ -337,7 +417,8 @@ def execute_download_job(store,job,progress,cancel):
         'subtitleslangs':payload.get('languages',['vi','zh.*','en']),'subtitlesformat':'srt/vtt/best',
         'writethumbnail':bool(payload.get('thumbnail',False)),'writeinfojson':False,
         'format':f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
-        'merge_output_format':'mp4','playlistend':limit or None,
+        'merge_output_format':'mp4','playliststart':scan_start,
+        'playlistend':(scan_start + limit - 1) if limit else None,
         'extract_flat':'in_playlist' if job['kind']=='scan' else False,'lazy_playlist':True}
     runtime=locate_tool('node')
     if runtime:options['js_runtimes']={'node':{'path':runtime}}
@@ -360,11 +441,23 @@ def execute_download_job(store,job,progress,cancel):
         info=ydl.extract_info(url,download=job['kind']=='download')
         if not info:raise RuntimeError('Source returned no accessible items')
         if job['kind']=='scan':
-            entries=info.get('entries') if info.get('_type') in {'playlist','multi_video'} else [info]
-            items=[]
+            is_playlist=info.get('_type') in {'playlist','multi_video'}
+            if scan_parent and not is_playlist:
+                raise ValueError('Nguồn không trả playlist cho vị trí quét tiếp đã yêu cầu')
+            entries=info.get('entries') if is_playlist else [info]
+            previous=(scan_parent.get('result') or {}).get('items',[]) if scan_parent else []
+            # Do not modify the parent snapshot; original scan indices remain
+            # stable across the new, cumulative job.
+            items=list(previous)
+            seen_urls={item.get('url') for item in items
+                       if isinstance(item,dict) and selectable_scan_url(item.get('url'))}
+            seen_signatures={(str(item.get('id')),item.get('url')) for item in items
+                             if isinstance(item,dict)}
+            fresh=0
+            page_items=[]
             for entry in entries or []:
                 if cancel.is_set():raise RuntimeError('Canceled')
-                if not entry:continue
+                if not isinstance(entry,dict):continue
                 item={k:entry.get(k) for k in ('id','title')}
                 item.update(normalize_scan_metadata(entry))
                 item['url']=scan_video_item_url(entry,url,single=entry is info)
@@ -373,9 +466,30 @@ def execute_download_job(store,job,progress,cancel):
                 item['selectable']=bool(item['url'])
                 if not item['selectable']:
                     item['reason']='Không có URL tải lại an toàn; hãy mở bài trực tiếp'
-                items.append(item)
-                if limit and len(items)>=limit:break
-            return {'platform':platform,'items':items,'count':len(items),'complete':False if limit and len(items)>=limit else None,'account_ref':binding,'live_channel_verified':False}
+                signature=(str(item.get('id')),item['url'])
+                if signature not in seen_signatures:
+                    fresh+=1
+                seen_signatures.add(signature)
+                if item['url'] and item['url'] in seen_urls:
+                    item['selectable']=False
+                    item['reason']='URL đã có trong khoảng quét trước; bỏ qua tải trùng'
+                if item['url']:
+                    seen_urls.add(item['url'])
+                page_items.append(item)
+                if limit and len(page_items)>=limit:break
+            items.extend(page_items)
+            can_continue=(payload.get('engine')=='video' and is_playlist
+                          and 1<=limit<=MAX_SCAN_PAGE_SIZE)
+            next_start=(scan_start+limit if can_continue and
+                        len(page_items)==limit and fresh>0 and
+                        len(items)+limit<=MAX_SCAN_SNAPSHOT_ITEMS else None)
+            result={'platform':platform,'items':items,'count':len(items),
+                    'complete':False if limit and len(page_items)>=limit else None,
+                    'account_ref':binding,'live_channel_verified':False}
+            if can_continue:
+                result['scan_window']={'mode':SCAN_WINDOW_MODE,'start':scan_start,
+                                       'limit':limit,'next_start':next_start}
+            return result
     if not files:raise RuntimeError('Downloader finished without a validated media artifact')
     progress(1)
     return {'platform':platform,'files':files,'count':len(files),'account_ref':binding,'live_channel_verified':False}
