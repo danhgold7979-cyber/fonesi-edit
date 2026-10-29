@@ -14,7 +14,14 @@ Reviewed AGENTS.md, README.md, docs/IMPLEMENTATION_PLAN.md P08-02/P08-07 and P11
 4. Verify check_plan, source tests, desktop/native-host/frozen proof on exact code/test SHA Linux and Windows. Record results only after CI; real Windows filesystem/ACL/AV and race-with-concurrent-writer remain external gates.
 
 ## Acceptance
-- [ ] Existing file, directory, symlink, dangling symlink do not enqueue, and original output remains unchanged.
-- [ ] Batch group is all-or-none on collision; Qt retry works; no regression to no-overwrite finalizer.
-- [ ] CI Linux/Windows and packaged proofs PASS on exact source/test SHA.
+- [x] Existing file, directory, symlink, dangling symlink do not enqueue, and original output remains unchanged.
+- [x] Batch group is all-or-none on collision; Qt retry works; no regression to no-overwrite finalizer.
+- [x] CI Linux/Windows and packaged proofs PASS on exact source/test SHA.
 - [ ] Physical Windows, installer, live providers, Chrome/GPU, large-corpus render ETA and SQLite issue #6 remain OPEN.
+
+
+## Implementation and confirmed CI (29–30/10/2026)
+
+[code/test b845a4c](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b845a4c38c9514794dce82eada8e867f8e9b4c9e) adds a preflight check to `enqueue_batch` before `Store.submit_many`: existing output files/directories and symlinks (including dangling) refuse the entire enqueue without touching outputs or queue. The final renderer still enforces atomic no-overwrite against races. SQLite and Qt regressions verify an earlier unrelated job is retained, no new partial jobs are inserted, the output file content/mtime is unchanged, and retry using a new destination works. Tests covering unavailable symlink support are skipped only on environments where the OS disallows the synthetic fixture.
+
+[CI 40919530634](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40919530634) **SUCCESS on exact source/test SHA b845a4c**: **635 Linux passed; 634 Windows passed + 1 intentional POSIX-only skip**; phase reference validator, benchmark of 128 synthetic FFprobe files, production desktop/native-host builds and frozen packaged synthetic/localhost proof PASS on both runners; Windows development artifact uploaded. This is not physical Windows user-machine or power-loss/ACL acceptance. P08/P11 and issue #6 remain OPEN.
