@@ -33,3 +33,12 @@ Triển khai trên **một nhánh tích hợp** `develop/fonesi-full`, không t�
 - CI [run 40738678506](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40738678506) **PASS**: 422 Linux / 421 Windows + 1 intentional POSIX-fixture skip; packaged proof passed on both runners.
 - Provider pagination/checkpoint, advanced metadata filters, huge bulk-selection UX, live platform corpus and real Chrome/session acceptance remain open.
 
+
+## P05-02/03 — Lọc metadata kết quả quét (29/10/2026)
+
+- \`downloads.py\` chỉ lấy metadata hợp lệ từ extractor (\`upload_date\`, \`duration\`, \`width\`, \`height\`); hỗ trợ ngày \`YYYYMMDD\`/\`YYYY-MM-DD\` và ngày dạng \`date/datetime\` từ gallery-dl, không suy đoán metadata bị thiếu và không sao chép URL/CDN query hoặc cookie từ metadata thô.
+- DownloadsPage lọc ngày đăng từ/đến, thời lượng giây tối thiểu/tối đa, chiều cao pixel tối đa. Bộ lọc chạy cục bộ sau scan, kết hợp tìm kiếm/loại media/trạng thái URL/sắp xếp/phân trang. Mặc định giữ mục thiếu metadata; có lựa chọn loại mục thiếu. Ngày sai, số không hữu hạn, giới hạn nghịch hoặc giá trị nhập dở được báo lỗi ở UI mà không làm hỏng chọn mục.
+- Chọn/tải tiếp tục dùng **chỉ số scan gốc**, kiểm tra URL an toàn, account/adapter/output snapshot. Các mục bị ẩn khi lọc vẫn được chọn nếu đã chọn trước đó; bulk chọn/bỏ chọn chỉ tác động những mục khớp bộ lọc trong giới hạn 500.
+- Thêm \`tests/test_scan_metadata.py\` cho biên ngày, metadata gallery-style, bộ lọc nhiều điều kiện, thiếu/sai metadata và đầu vào không hợp lệ; \`tests/test_app_integration.py\` cho điều kiện kết hợp, UI Qt, phân trang và selection xuyên lọc. Không cần nguồn live hoặc tài khoản thực.
+- **Bằng chứng:** [CI 40837035435](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40837035435) **SUCCESS đúng commit [a73a1dc](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a73a1dc41840ff981047f2d8aadf4fa313e70d4d)**: 449 Linux PASS; 448 Windows PASS + 1 POSIX-only skip; plan validator, production desktop/native-host build và frozen packaged proof đạt trên cả hai runner.
+- **Chưa đóng P05 tổng thể:** metadata từng nguồn thực chưa đủ xác nhận; provider-side pagination/checkpoint, 10-platform live corpus, Chrome/session handoff tài khoản thực, quyền/region, chất lượng/sub-only upgrade, album và kiểm thử Windows máy người dùng vẫn mở. Đây là lọc metadata đã quét, không phải kiểm chứng quét hết kênh.

@@ -3,7 +3,7 @@
 **Ngày:** 29/10/2026  
 **Repository:** `danhgold7979-cyber/fonesi-edit`  
 **Nhánh tích hợp:** `develop/fonesi-full`  
-**Trạng thái:** kế hoạch trước khi sửa; chưa nghiệm thu.
+**Trạng thái:** lát cắt đã triển khai và kiểm thử qua [CI 40837035435](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40837035435); P05 tổng thể vẫn chưa nghiệm thu.
 
 ## 1. Rà soát trước khi triển khai
 
@@ -31,12 +31,12 @@ Kết quả quét hiện đã có tìm kiếm tiêu đề/ID, lọc ảnh/video/
 
 ## 4. Tiêu chí nghiệm thu lát cắt
 
-- [ ] Ngày ISO/compact được chuẩn hóa đúng; ngày vô hiệu không bị chấp nhận.
-- [ ] Date range, duration range và maximum height áp dụng đúng; giá trị biên được kiểm tra.
-- [ ] Metadata thiếu được giữ mặc định và chỉ bị loại khi người dùng bỏ chọn giữ metadata thiếu.
-- [ ] Search, loại media, trạng thái selectable, sort và pagination phối hợp đúng.
-- [ ] Lựa chọn ẩn bởi bộ lọc vẫn tồn tại; chỉ số gốc và account snapshot không thay đổi.
-- [ ] Không có yêu cầu mạng ngoài; source suite, validator và frozen CI Linux/Windows đều PASS.
+- [x] Ngày ISO/compact được chuẩn hóa đúng; ngày vô hiệu không bị chấp nhận.
+- [x] Date range, duration range và maximum height áp dụng đúng; giá trị biên được kiểm tra.
+- [x] Metadata thiếu được giữ mặc định và chỉ bị loại khi người dùng bỏ chọn giữ metadata thiếu.
+- [x] Search, loại media, trạng thái selectable, sort và pagination phối hợp đúng.
+- [x] Lựa chọn ẩn bởi bộ lọc vẫn tồn tại; chỉ số gốc và account snapshot không thay đổi.
+- [x] Không có yêu cầu mạng ngoài; source suite, validator và frozen CI Linux/Windows đều PASS.
 
 ## 5. Cổng chưa được đóng bởi lát cắt này
 
