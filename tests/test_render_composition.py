@@ -239,12 +239,24 @@ def test_multiclip_trim_speed_crossfade_scoped_bilingual_cues_and_real_preview(t
     # output because the 0.1-second transition overlaps the first clip.
     expected_first=[(75,225,'source-0'),(250,300,'source-1')]
     expected_second=[(350,650,'source-0'),(700,800,'source-1')]
+    def serialized_ass_ms(value):
+        # The compositing graph uses rational millisecond cue timing, but ASS
+        # stores centiseconds. pysubs2 rounds a 5 ms midpoint upward.
+        return ((value+5)//10)*10
+
     for role_offset,prefix in ((0,'source'),(2,'target')):
         for clip_index,expected in ((0,expected_first),(1,expected_second)):
             actual=pysubs2.load(str(stage/f'layer-{role_offset+clip_index}.ass'))
             assert [(cue.start,cue.end,cue.plaintext) for cue in actual]==[
-                (a,b,text.replace('source',prefix)) for a,b,text in expected
+                (serialized_ass_ms(a),serialized_ass_ms(b),
+                 text.replace('source',prefix)) for a,b,text in expected
             ]
+            # Explicit format-derived tolerance: quantization may move each
+            # edge by at most 5 ms, never by a video frame or clip offset.
+            assert all(
+                abs(serialized_ass_ms(edge)-edge)<=5
+                for start,end,_ in expected for edge in (start,end)
+            )
     preview=reference_frame(comp,tmp_path/'reference',second=.35)
     assert preview.is_file() and preview.stat().st_size>1000
     output=tmp_path/'bilingual-multiclip.mp4'
