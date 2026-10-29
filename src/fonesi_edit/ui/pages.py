@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
+from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
                          caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
@@ -859,7 +859,7 @@ class SubtitlesPage(QWidget):
 
 class BatchPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.groups={};self.plans=[];self._plan_revision=0;self._scan_revision=0;self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.groups={};self.plans=[];self.plan_failures=[];self._plan_revision=0;self._scan_revision=0;self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Thư mục gốc (tùy chọn nếu có nhiều folder)',host,True)
         self.extra_roots=QPlainTextEdit();self.extra_roots.setPlaceholderText('Các folder nguồn bổ sung, mỗi dòng một đường dẫn');self.extra_roots.setMaximumHeight(90);form.addRow('Folder nguồn bổ sung',self.extra_roots)
         self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
@@ -929,6 +929,7 @@ class BatchPage(QWidget):
 
     def invalidate_plan(self):
         self._plan_revision+=1
+        self.plan_failures=[]
         if self.plans:
             self.plans=[]
             self.summary.setText('Đã thay đổi nguồn hoặc preset: bản dry-run cũ bị hủy. Hãy lập kế hoạch lại trước khi preview/render.')
@@ -1116,14 +1117,27 @@ class BatchPage(QWidget):
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
         audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
-        self.host.background(lambda p,c:batch_plan(groups,preset,audio,policy,minimum,maximum,
+        self.host.background(lambda p,c:batch_plan_report(groups,preset,audio,policy,minimum,maximum,
                             audio_mode=audio_mode,audio_folder=audio_folder),
-                            lambda plans:self.planned(plans) if revision==self._plan_revision
+                            lambda report:self.planned(report) if revision==self._plan_revision
                             else self.host.message('Đã bỏ bản dry-run cũ do cấu hình thay đổi trong lúc tính'))
-    def planned(self,plans):
+    def planned(self,report):
+        # Legacy list results are accepted for caller compatibility; the Batch
+        # worker now returns both valid plans and explicit per-video failures.
+        plans=report['plans'] if isinstance(report,dict) else report
+        self.plan_failures=report.get('failures',[]) if isinstance(report,dict) else []
         self.plans=plans
         preview='\n'.join(p['output']+(' • audio: '+Path(p['audio_source']).name if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
-        self.summary.setText(f'{len(plans)} đầu ra. '+preview)
+        skipped=''
+        if self.plan_failures:
+            detail=', '.join(Path(f['source']).name+' ('+f['reason']+')'
+                             for f in self.plan_failures[:3])
+            skipped=f' • Bỏ qua {len(self.plan_failures)} video lỗi: {detail}'
+            if len(self.plan_failures)>3:skipped+=' ...'
+        if not plans:
+            self.summary.setText('Không có video hợp lệ để lập kế hoạch.'+skipped)
+        else:
+            self.summary.setText(f'{len(plans)} đầu ra.'+skipped+'\n'+preview)
     def preview(self):
         if not self.plans:raise ValueError('Lập kế hoạch trước')
         self.host.preview_composition(Composition.from_dict(self.plans[0]['composition']))

@@ -277,27 +277,60 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
     return selection
 
 
-def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2,audio_mode='shared',audio_folder=None):
+def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2,
+               audio_mode='shared',audio_folder=None,*,failures=None):
+    """Build immutable render snapshots; optionally isolate per-video input faults.
+
+    Default callers remain fail-fast. Only callers explicitly supplying a
+    failures list can skip invalid sources. Audio assignment is a whole-batch
+    preflight: bad mapping is never silently changed or downgraded.
+    """
     assignments=batch_audio_assignments(groups,audio_mode,audio_path,audio_folder,preset.seed)
     plans=[]
     for channel,paths in sorted(groups.items(),key=lambda p:natural_key(p[0])):
         channel=Path(channel);output_root=channel.with_name(channel.name+' edit')/'videos'
         for source in paths:
-            path=Path(source);info=probe(path);c=deepcopy(preset)
-            for layer in c.layers:layer.clip_ids=[]
-            clip_id=hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:32]
-            c.clips=[configured_clip(path,info,c,clip_id)]
-            audio_binding=assignments.get(str(path.resolve()))
-            if audio_binding:
-                sound,length=audio_binding
-                c.audio=[{'path':sound,'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
-                c=fit_duration(c,length,policy,minimum,maximum)
-            elif c.duration_target:c=fit_duration(c,c.duration_target,policy,minimum,maximum)
-            warnings=bind_source_subtitles(c,channel)
-            key=hashlib.sha256(canonical(c.to_dict()).encode()).hexdigest()[:10]
-            output=output_root/(path.stem[:120]+'_'+key+'.mp4')
-            plans.append({'source':str(path),'audio_source':audio_binding[0] if audio_binding else None,'output':str(output),'composition':c.to_dict(),'warnings':warnings})
+            path=Path(source)
+            try:
+                info=probe(path);c=deepcopy(preset)
+                for layer in c.layers:layer.clip_ids=[]
+                clip_id=hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:32]
+                c.clips=[configured_clip(path,info,c,clip_id)]
+                audio_binding=assignments.get(str(path.resolve()))
+                if audio_binding:
+                    sound,length=audio_binding
+                    c.audio=[{'path':sound,'mode':'main','volume':1}]+[a for a in c.audio if a.get('mode')!='main']
+                    c=fit_duration(c,length,policy,minimum,maximum)
+                elif c.duration_target:c=fit_duration(c,c.duration_target,policy,minimum,maximum)
+                warnings=bind_source_subtitles(c,channel)
+                key=hashlib.sha256(canonical(c.to_dict()).encode()).hexdigest()[:10]
+                output=output_root/(path.stem[:120]+'_'+key+'.mp4')
+                planned={'source':str(path),
+                         'audio_source':audio_binding[0] if audio_binding else None,
+                         'output':str(output),'composition':c.to_dict(),
+                         'warnings':warnings}
+            except (OSError,ValueError,MediaError) as exc:
+                if failures is None:
+                    raise
+                # Do not show arbitrary third-party error messages, which can
+                # include paths, signed URLs or credentials in other adapters.
+                reason=('Không đọc được media' if isinstance(exc,MediaError)
+                        else 'Không truy cập được tệp' if isinstance(exc,OSError)
+                        else 'Cấu hình clip không hợp lệ')
+                failures.append({'source':str(path),'reason':reason,
+                                 'error_type':type(exc).__name__})
+                continue
+            plans.append(planned)
     return plans
+
+
+def batch_plan_report(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,
+                      maximum=2,audio_mode='shared',audio_folder=None):
+    """Report bad individual videos without hiding failures or altering audio maps."""
+    failures=[]
+    plans=batch_plan(groups,preset,audio_path,policy,minimum,maximum,
+                     audio_mode,audio_folder,failures=failures)
+    return {'plans':plans,'failures':failures}
 
 
 def enqueue_batch(store,plans):return [store.submit('render',{'composition':p['composition'],'output':p['output'],'warnings':p.get('warnings',[])}) for p in plans]
