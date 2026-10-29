@@ -2737,3 +2737,30 @@ def test_qt_batch_enqueue_sqlite_failure_keeps_dry_run_and_queue_unchanged(tmp_p
         with window.store.connect() as conn:
             conn.execute('DROP TRIGGER IF EXISTS fail_qt_batch_second')
         close(window)
+
+
+
+def test_qt_batch_existing_output_collision_keeps_dry_run_for_retry(tmp_path):
+    import pytest
+    from fonesi_edit.batch import enqueue_batch
+    window=MainWindow(tmp_path/'state')
+    try:
+        window.scheduler.paused=True
+        page=window.batch
+        window.nav.setCurrentWidget(page)
+        occupied=tmp_path/'existing.mp4'
+        occupied.write_bytes(b'original output')
+        snapshot=Composition(width=320,height=180,fps=25,encoder='cpu').to_dict()
+        page.plans=[{'output':str(occupied),'composition':snapshot}]
+        with pytest.raises(FileExistsError,match='already exists'):
+            page.enqueue()
+        assert window.nav.currentWidget() is page
+        assert window.store.jobs()==[]
+        assert occupied.read_bytes()==b'original output'
+        assert len(page.plans)==1
+        page.plans=[{'output':str(tmp_path/'new.mp4'),'composition':snapshot}]
+        page.enqueue()
+        assert window.nav.currentWidget() is window.queue
+        assert len(window.store.jobs())==1
+    finally:
+        close(window)

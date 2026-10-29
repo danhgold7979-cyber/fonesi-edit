@@ -385,7 +385,12 @@ def enqueue_batch(store,plans):
             raise ValueError('Batch render plan has no output path')
         # Path equality uses platform semantics (Windows case-insensitive).
         # Duplicate targets would collide in the no-overwrite renderer.
-        target=Path(output).expanduser().resolve()
+        lexical=Path(output).expanduser()
+        # Check before resolve: resolving a dangling symlink can hide the
+        # existing directory entry that the renderer must never overwrite.
+        if lexical.is_symlink() or lexical.exists():
+            raise FileExistsError('Batch output already exists')
+        target=lexical.resolve()
         if target in seen:
             raise ValueError('Duplicate Batch output path')
         seen.add(target)

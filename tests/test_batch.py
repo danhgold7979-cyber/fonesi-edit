@@ -483,3 +483,38 @@ def test_batch_enqueue_is_atomic_and_rejects_duplicate_or_missing_destinations(t
         enqueue_batch(store,[plans[0],{**plans[1],'composition':None}])
     assert {j['id'] for j in store.jobs()}==before
     assert enqueue_batch(store,[])==[]
+
+
+
+@pytest.mark.parametrize('kind',['file','directory','dangling_symlink'])
+def test_batch_enqueue_preflight_preserves_existing_output_and_queue(tmp_path,kind):
+    from fonesi_edit.batch import enqueue_batch
+    from fonesi_edit.storage import Store
+    target=tmp_path/'existing.mp4'
+    if kind=='file':
+        target.write_bytes(b'keep this existing output')
+    elif kind=='directory':
+        target.mkdir()
+    else:
+        try:
+            target.symlink_to(tmp_path/'missing-output.mp4')
+        except (OSError,NotImplementedError) as exc:
+            pytest.skip(f'Symlink unavailable in fixture: {type(exc).__name__}')
+    source_state=(target.read_bytes(),target.stat().st_mtime_ns) if kind=='file' else None
+    store=Store(tmp_path/'state.db')
+    previous=store.submit('scan',{})
+    composition=Composition(width=320,height=180,fps=25,encoder='cpu').to_dict()
+    valid={'composition':composition,'output':str(tmp_path/'future.mp4')}
+    occupied={'composition':composition,'output':str(target)}
+    with pytest.raises(FileExistsError,match='already exists'):
+        enqueue_batch(store,[valid,occupied])
+    assert [job['id'] for job in store.jobs()]==[previous]
+    assert not (tmp_path/'future.mp4').exists()
+    if kind=='file':
+        assert (target.read_bytes(),target.stat().st_mtime_ns)==source_state
+    elif kind=='directory':
+        assert target.is_dir()
+    else:
+        assert target.is_symlink() and not target.exists()
+    ids=enqueue_batch(store,[valid])
+    assert len(ids)==1 and store.job(ids[0])['payload']['output']==valid['output']
