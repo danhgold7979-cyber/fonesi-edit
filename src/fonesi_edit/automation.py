@@ -147,6 +147,8 @@ class Automation:
         replacement is recorded; Queue retry/manual correction is required.
         """
         from .sync import selectable_sync_indices, plan_new_only_sync, sync_media_identity
+        from .downloads import (platform_for, continuation_scan_payload,
+                                MAX_SCAN_SNAPSHOT_ITEMS, SCAN_WINDOW_MODE)
         with self.store.connect() as conn:
             schedule_ids=[row['id'] for row in conn.execute('SELECT id FROM schedules')]
         processed=[]
@@ -162,10 +164,37 @@ class Automation:
             if self.store.cached(marker):
                 continue
             result=scan.get('result')
-            if not isinstance(result,dict) or not isinstance(result.get('items'),list):
-                raise ValueError('Scan theo lịch chưa có danh sách kết quả hợp lệ; chưa đồng bộ')
-            indices=selectable_sync_indices(result['items'])
-            # Reuse the same validated snapshot/account/URL checks as manual sync.
+            payload=scan['payload']
+            if (not isinstance(result,dict) or not isinstance(result.get('items'),list)
+                    or result.get('platform')!=platform_for(payload.get('url'))):
+                raise ValueError('Scan theo lịch chưa có danh sách và nền tảng hợp lệ; chưa đồng bộ')
+            items=result['items']
+            start_index=0
+            parent_id=payload.get('scan_parent_id')
+            if parent_id is not None:
+                try:
+                    parent=self.store.job(parent_id)
+                except KeyError:
+                    raise ValueError('Không tìm thấy lần quét cha của lịch đồng bộ') from None
+                expected=continuation_scan_payload(parent)
+                actual={key:value for key,value in payload.items() if key!='_tools'}
+                previous=(parent.get('result') or {}).get('items')
+                window=result.get('scan_window')
+                if actual!=expected:
+                    raise ValueError('Lần quét tiếp theo lịch có snapshot/phiên khác scan cha')
+                if (not isinstance(previous,list) or len(items)<len(previous)
+                        or items[:len(previous)]!=previous
+                        or len(items)-len(previous)>payload['limit']
+                        or len(items)>MAX_SCAN_SNAPSHOT_ITEMS):
+                    raise ValueError('Scan theo lịch thay đổi danh sách trang trước hoặc vượt giới hạn')
+                if (not isinstance(window,dict)
+                        or window.get('mode')!=SCAN_WINDOW_MODE
+                        or window.get('start')!=payload['scan_start']
+                        or window.get('limit')!=payload['limit']):
+                    raise ValueError('Scan theo lịch trả khoảng quét tiếp không khớp snapshot')
+                start_index=len(previous)
+            indices=selectable_sync_indices(items,start_index=start_index)
+            # Reuse verified history and only reconcile newly appended rows.
             if indices:
                 from .downloads import selected_download_payloads
                 selected=selected_download_payloads(scan,indices)
@@ -209,21 +238,37 @@ class Automation:
             interval=data.get('interval')
             if type(interval) not in {int,float} or not 60<=interval<=6_000_000:
                 raise ValueError('Khoảng lịch đồng bộ phải là số giây hợp lệ')
+            effective_limit=100 if limit==0 else min(200,limit)
             existing=self.store.cached('schedule-active:'+row['id'])
+            previous=None
             if isinstance(existing,dict) and existing.get('job'):
                 previous=self.store.job(existing['job'])
                 if previous['kind']=='scan':
-                    # Failed/canceled scans stay blocked pending explicit retry;
-                    # succeeded scans must be reconciled before the next cycle.
+                    # Failed/canceled scans require explicit Queue retry. No
+                    # future window starts before reconciliation succeeds.
                     if (previous['state']!='succeeded'
                             or not self.store.cached('schedule-synced:'+previous['id'])):
                         continue
+                    stored=previous.get('payload') or {}
+                    base_snapshot={key:value for key,value in stored.items()
+                        if key not in {'_tools','sync_schedule_id','sync_schedule_slot',
+                                       'scan_parent_id','scan_start'}}
+                    if (stored.get('sync_schedule_id')!=row['id']
+                            or base_snapshot!={**base,'limit':effective_limit}):
+                        raise ValueError('Lịch đồng bộ khác URL/tài khoản/cấu hình scan trước')
                 elif previous['state'] in {'pending','running','blocked'}:
                     # Legacy direct-download schedule already running.
                     continue
             slot=int(row['next_run'])
-            scan_payload={**base,'limit':100 if limit==0 else min(200,limit),
+            scan_payload={**base,'limit':effective_limit,
                           'sync_schedule_id':row['id'],'sync_schedule_slot':slot}
+            if previous is not None and previous['kind']=='scan':
+                window=(previous.get('result') or {}).get('scan_window')
+                if isinstance(window,dict) and window.get('next_start') is not None:
+                    # Keep the ORIGINAL slot/parent snapshot: the worker
+                    # compares continuation payloads for exact equality.
+                    from .downloads import continuation_scan_payload
+                    scan_payload=continuation_scan_payload(previous)
             key=f'schedule-scan:{row["id"]}:{slot}'
             job_id=submit_once(self.store,'scan',scan_payload,key)
             self.store.cache('schedule-active:'+row['id'],{'job':job_id})
