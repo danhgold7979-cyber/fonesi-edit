@@ -14,7 +14,8 @@ CAPTIONS = "1\n00:00:00,000 --> 00:00:01,500\nXin chào!\n\n"
 
 
 def make_fake_ydl(monkeypatch, platform_root, *, missing=False, corrupt=False,
-                  external=False, no_filepath=False, media_marker=None):
+                  external=False, no_filepath=False, media_marker=None,
+                  temporary_filepath=False):
     import yt_dlp
     import fonesi_edit.downloads as downloads
     calls=[]
@@ -33,8 +34,9 @@ def make_fake_ydl(monkeypatch, platform_root, *, missing=False, corrupt=False,
             raise AssertionError('Sub-only must not install a video recorder')
 
         def prepare_filename(self, info, outtmpl_type=None):
-            assert outtmpl_type=='subtitle'
-            return str(platform_root/'Creator__id'/'subtitles'/'video-id.mp4')
+            assert outtmpl_type in (None,'subtitle')
+            kind='subtitles' if outtmpl_type=='subtitle' else 'videos'
+            return str(platform_root/'Creator__id'/kind/'video-id.mp4')
 
         def extract_info(self, url, *, download):
             assert download is True and url=='https://example.test/video'
@@ -53,7 +55,9 @@ def make_fake_ydl(monkeypatch, platform_root, *, missing=False, corrupt=False,
                 target.write_text('not a caption' if corrupt else CAPTIONS,encoding='utf-8')
             spec={'ext':'srt'}
             if not no_filepath:
-                spec['filepath']=str(platform_root.parent/'foreign.en.srt' if external else target)
+                spec['filepath']=str(platform_root.parent/'foreign.en.srt' if external
+                                     else (platform_root/'Creator__id'/'videos'/'video-id.en.srt'
+                                           if temporary_filepath else target))
             if media_marker is not None:
                 assert media_marker.read_bytes()==b'original video'
             return {'id':'video-id','ext':'mp4','requested_subtitles':{'en':spec}}
@@ -214,3 +218,16 @@ def test_subtitle_validator_rejects_wrong_path_empty_and_symlink(tmp_path):
         correct.symlink_to(outside)
         with pytest.raises(ValueError,match='Đường dẫn'):
             verified_subtitle_artifacts(info,YDL(),root)
+
+
+def test_subtitle_only_recognizes_yt_dlp_temp_to_final_move(tmp_path,monkeypatch):
+    store=Store(tmp_path/'state.db')
+    folder=tmp_path/'out'
+    make_fake_ydl(monkeypatch,folder/'Generic',temporary_filepath=True)
+    result=execute_download_job(store,{'kind':'download','payload':{
+        'url':'https://example.test/video','folder':str(folder),
+        'engine':'video','media':'videos','limit':1,
+        'download_mode':'subtitles_only'}},lambda _p:None,Event())
+    assert result['count']==1
+    assert Path(result['files'][0]['path']).parent.name=='subtitles'
+    assert not (folder/'Generic'/'Creator__id'/'videos'/'video-id.en.srt').exists()

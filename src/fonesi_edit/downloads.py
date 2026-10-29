@@ -356,11 +356,16 @@ def verified_subtitle_artifacts(info, ydl, platform_root):
     if len(requested) > 32:
         raise ValueError('Danh sách track phụ đề quá lớn')
     platform_root = Path(platform_root).resolve()
+    from yt_dlp.utils import subtitles_filename
     try:
-        template = Path(ydl.prepare_filename(info, 'subtitle'))
-    except (TypeError, ValueError, KeyError, OSError) as exc:
+        # yt-dlp writes to the default/video template first, then moves the
+        # sidecar to its dedicated subtitle template in after_move.
+        temp_base = ydl.prepare_filename(info)
+        final_base = ydl.prepare_filename(info, 'subtitle')
+    except (TypeError, ValueError, KeyError, OSError):
         raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ') from None
-    base = str(template.with_suffix(''))
+    if not temp_base or not final_base:
+        raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ')
     results = []
     from .subtitles import read_captions
     for language, track in requested.items():
@@ -372,18 +377,23 @@ def verified_subtitle_artifacts(info, ydl, platform_root):
         if not isinstance(ext, str) or ext.lower() not in SUBTITLE_EXTENSIONS:
             raise ValueError('Định dạng phụ đề chưa được hỗ trợ để kiểm tra')
         ext = ext.lower()
-        expected = Path(f'{base}.{language}.{ext}')
+        expected = Path(subtitles_filename(final_base, language, ext, info.get('ext')))
+        temporary = Path(subtitles_filename(temp_base, language, ext, info.get('ext')))
         raw = track.get('filepath', str(expected))
         if not isinstance(raw, str) or not raw:
             raise ValueError('Đường dẫn phụ đề thiếu hoặc không hợp lệ')
-        candidate = Path(raw)
-        # Compare the extractor-reported path to the expected template *before*
-        # reading any file. Reject substitutions, symlinks and path traversal.
-        if (candidate.resolve() != expected.resolve()
-                or candidate.is_symlink()
-                or candidate.parent.name != 'subtitles'
-                or not candidate.resolve().is_relative_to(platform_root)):
+        reported = Path(raw)
+        # The extractor's raw filepath may be its original temp location, or
+        # the final path when the file already existed. Neither may point
+        # outside the exact names derived from yt-dlp's output templates.
+        if (reported.resolve() not in {temporary.resolve(), expected.resolve()}
+                or reported.is_symlink()
+                or expected.is_symlink()
+                or expected.parent.name != 'subtitles'
+                or not expected.resolve().is_relative_to(platform_root)):
             raise ValueError('Đường dẫn phụ đề không khớp thư mục đầu ra')
+        # After extract_info returns, accept only the final moved sidecar.
+        candidate = expected
         if not candidate.is_file():
             raise RuntimeError('Không có tệp phụ đề đã tải để kiểm tra')
         size = candidate.stat().st_size
