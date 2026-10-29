@@ -17,10 +17,16 @@ Existing editor canvas Undo uses its own QUndoStack; the subtitle table currentl
 
 ## 3. Acceptance and limits
 
-- [ ] Source and translated text, timing strings (including invalid drafts), lock state, row identities and row counts round-trip via Undo/Redo.
-- [ ] Bulk actions are single Undo steps, no spurious history from programmatic refresh, and new edits invalidate Redo.
-- [ ] Subtitle Undo/Redo does not consume the Editor's own history. Native text editing/IME gets priority when focused.
-- [ ] Draft persistence and recovery reflect the restored state; loaded new documents reset history.
-- [ ] Plan checker, focused tests, full Linux/Windows CI, native-host build and packaged app proof pass on the exact code/test SHA.
+- [x] Source and translated text, timing strings (including invalid drafts), lock state, row identities and row counts round-trip via Undo/Redo.
+- [x] Bulk actions are single Undo steps, no spurious history from programmatic refresh, and new edits invalidate Redo.
+- [x] Subtitle Undo/Redo does not consume the Editor's own history. Native text editing/IME gets priority when focused.
+- [x] Draft persistence and recovery reflect the restored state; loaded new documents reset history.
+- [x] Plan checker, focused tests, full Linux/Windows CI, native-host build and packaged app proof pass on the exact code/test SHA.
 
 This is **bounded in-session** history (last 100 states), not an unlimited persisted edit journal. Remaining P06 acceptance stays **OPEN**: per-cue timeline drag, live provider translation/quality/cost, large corpora, real Windows user/HiDPI/font/GPU, Chrome-authenticated source access and power-loss/long soak. Known intermittent Windows SQLite [issue #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) remains a separate unresolved blocker. Do not merge to `main`.
+
+## 4. Verified implementation and acceptance (29/10/2026)
+
+- [Source/test commit 39dc892](https://github.com/danhgold7979-cyber/fonesi-edit/commit/39dc8927cb6b372974f8e1e599331374d4f0a389) adds bounded raw-cell history, atomic bulk refresh, draft persistence and tab-aware shortcuts. [Initial CI 40867002996](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40867002996) found exactly one failed focus assumption on both runners: an editable `QComboBox` owned focus instead of its internal `QLineEdit`; this was not a production crash. [Fix 8bfddb8](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8bfddb8eef811b4421e7c2d7e2a3c02d197a3c3f) makes native Undo work for either focus proxy and updates the assertion without dropping the test.
+- [CI 40867450628](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40867450628) **SUCCESS on exact fix SHA `8bfddb8`**: **568 Linux passed**, **567 Windows passed + 1 intentional POSIX fixture skip**. Plan validation, production desktop/native-host builds and frozen packaged proof PASSED on both runners; a Windows development artifact was uploaded.
+- Implementation is a **100-entry, in-session** cue-table history. It covers table cells, locks, bulk edit operations, translations and raw invalid draft timestamps. It does **not** persist Undo commands across app restarts, provide unlimited history or add draggable per-cue time segments. Those full acceptance gates remain open.
