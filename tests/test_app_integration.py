@@ -152,6 +152,42 @@ def test_subtitle_attach_rejects_linked_generated_sidecar_without_touching_edito
         close(window)
 
 
+def test_subtitle_table_split_merge_preserves_bilingual_cjk_and_lock(tmp_path):
+    import pytest
+    from PySide6.QtWidgets import QTableWidgetSelectionRange
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.subtitles
+        source='Tiếng Việt cần giữ đầy đủ'
+        target='漢字沒有空格'
+        page.captions=[Caption(0,600,target,source,locked=True)]
+        page.refresh()
+        page.table.setCurrentCell(0,0)
+        page.split()
+        pieces=page.collect()
+        assert len(pieces)==2
+        assert ''.join(c.text for c in pieces)==target
+        assert ''.join(c.source_text for c in pieces)==source
+        assert pieces[0].end_ms==pieces[1].start_ms
+        assert all(c.locked for c in pieces)
+        page.table.setRangeSelected(QTableWidgetSelectionRange(0,0,1,4),True)
+        page.merge()
+        merged=page.collect()
+        assert len(merged)==1
+        assert merged[0].text.replace('\n','')==target
+        assert merged[0].source_text.replace('\n','')==source
+        assert merged[0].locked and merged[0].end_ms==600
+        page.captions=[Caption(0,1,'字甲','Nguồn')];page.refresh()
+        page.table.setCurrentCell(0,0)
+        original=page.collect()[0]
+        with pytest.raises(ValueError,match='quá ngắn'):
+            page.split()
+        assert page.collect()[0]==original and page.table.rowCount()==1
+    finally:
+        close(window)
+
+
 def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor);window.editor.add_layer('text')
     try:
