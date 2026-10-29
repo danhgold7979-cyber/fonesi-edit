@@ -25,3 +25,25 @@ def test_trim_intersection_speed_and_offset_use_same_time_map():
 
 def test_fractional_speed_does_not_accumulate_float_error():
     assert map_trimmed_cues([Cue(1000, 4000, 'x')], 0, 5000, Fraction(3, 2)) == [Cue(667, 2667, 'x')]
+
+
+def test_fractional_speed_cues_keep_absolute_clip_offset_and_adjacency():
+    source=[
+        Cue(0,120,'outside before'),Cue(200,400,'first'),
+        Cue(400,700,'second'),Cue(800,1000,'outside after'),
+    ]
+    expected=[Cue(500,633,'first'),Cue(633,833,'second')]
+    assert map_trimmed_cues(source,200,700,Fraction(3,2),500)==expected
+    assert source[1].start_ms==200 and source[2].end_ms==700
+    assert map_trimmed_cues([Cue(10,20,'outside')],100,500)==[]
+
+
+def test_positive_source_cue_is_never_silently_dropped_by_time_quantization():
+    # At 10x speed, a real 1 ms source cue (100–101 ms) becomes 0.1 ms,
+    # collapsing to one output millisecond tick under rounding.
+    cues=[Cue(100,101,'must not vanish'),Cue(300,400,'visible')]
+    with pytest.raises(ValueError,match=r'Cue 1: duration collapses below 1 ms'):
+        map_trimmed_cues(cues,0,500,Fraction(10))
+    # The same cue remains representable at normal speed and with a clip offset.
+    assert map_trimmed_cues(cues,0,500,Fraction(1),250)[0]==Cue(
+        350,351,'must not vanish')
