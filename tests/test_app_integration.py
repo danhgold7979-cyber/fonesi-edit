@@ -1554,6 +1554,32 @@ def test_quality_upgrade_scan_ui_preserves_snapshot_and_separates_modes(tmp_path
             page.download_quality_upgrade_selected()
         assert len([j for j in window.store.jobs()
                     if j['payload'].get('download_mode')=='quality_upgrade'])==1
+        # Simulate an FFprobe-verified first variant. The next request must
+        # bind to this variant's job rather than falling back to the original.
+        page.scan_tree.topLevelItem(0).child(1).setCheckState(0,Qt.CheckState.Unchecked)
+        first_id=upgrades[0]['id']
+        variant=output/'Generic'/'Creator__id'/'quality-upgrades'/'720p'/'videos'/'video-id.mp4'
+        variant.parent.mkdir(parents=True)
+        from fonesi_edit.prototypes.media import run_checked, probe
+        run_checked(['ffmpeg','-v','error','-nostdin','-n','-i',str(original),
+                     '-vf','scale=960:540','-c:v','libx264','-threads','2',
+                     '-an',str(variant)])
+        assert probe(variant).height==540
+        claimed=window.store.claim(allowed={'download'})
+        assert claimed['id']==first_id
+        window.store.finish(first_id,{'platform':'Generic','count':1,
+            'download_mode':'quality_upgrade','source_height':360,
+            'actual_height':540,'target_height':720,'account_ref':None,
+            'files':[{'id':'video-id','path':str(variant),'kind':'video',
+                      'source_height':360,'height':540}]})
+        page.height.setValue(1080)
+        page.download_quality_upgrade_selected()
+        page.download_quality_upgrade_selected()
+        chained=[j for j in window.store.jobs()
+                 if j['payload'].get('download_mode')=='quality_upgrade']
+        assert len(chained)==2
+        assert next(j for j in chained if j['id']!=first_id)['payload']['upgrade_from_job_id']==first_id
+        assert next(j for j in chained if j['id']!=first_id)['payload']['height']==1080
         assert original.read_bytes()==fixture['source'].read_bytes()
     finally:
         close(window)
