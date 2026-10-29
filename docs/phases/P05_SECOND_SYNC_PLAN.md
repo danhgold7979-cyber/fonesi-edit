@@ -2,7 +2,7 @@
 
 **Ngày:** 29/10/2026  
 **Repository/nhánh:** `danhgold7979-cyber/fonesi-edit` / `develop/fonesi-full`  
-**Trạng thái:** kế hoạch trước code, chưa nghiệm thu.
+**Trạng thái:** manual new-only and atomic follow-up verified on synthetic Linux/Windows CI; full P05 remains OPEN.
 
 ## 1. Căn cứ
 
@@ -26,10 +26,16 @@ Nút `Tải mục đã chọn` dùng `submit_once` theo ID scan, do đó quét l
 
 ## 4. Checklist
 
-- [ ] Sync lại cùng URL không tạo thêm media job nếu file cũ hợp lệ.
-- [ ] Missing/corrupt, job failed/canceled và xung đột account/adapter không bỏ qua hoặc enqueue âm thầm; không sửa file nguồn.
-- [ ] Qt filter/pagination/checkbox/cap 500 và SQLite history sâu có regression.
-- [ ] Source/Qt, build, frozen CI Linux/Windows PASS trên code SHA.
+- [x] Sync lại cùng URL không tạo thêm media job nếu file cũ hợp lệ.
+- [x] Missing/corrupt, job failed/canceled và xung đột account/adapter không bỏ qua hoặc enqueue âm thầm; không sửa file nguồn.
+- [x] Qt filter/pagination/checkbox/cap 500 và SQLite history sâu có regression.
+- [x] Source/Qt, build, frozen CI Linux/Windows PASS trên code SHA.
 - [ ] Provider live/full-channel, URL alias, Chrome/account thực, vùng/quyền, Windows máy người dùng, sửa tệp hỏng và issue SQLite #6 vẫn mở.
 
 **Giới hạn:** Dùng URL HTTP(S) an toàn **chính xác**, không suy đoán provider ID/alias, không khẳng định toàn kênh hoàn thành. Khi lịch sử không chắc hoặc có tệp hỏng, yêu cầu xử lý rõ ràng. Sub-only và quality upgrade giữ các luồng riêng.
+
+## Verified manual repeat-scan evidence (29/10/2026)
+
+- `sync.py`, SQLite complete URL history and Qt filtered new-only action compare exact URL/account/engine/folder, use FFprobe/QImageReader for valid files, reject corrupt/foreign/failed outputs and preserve hidden checkbox selection. Synthetic tests cover >2,000 old jobs and real media.
+- Atomic follow-up [c0405c4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c0405c45bb8646874bf6b1a2046a6a907b5fdc9e) uses one transaction for up to 500 new jobs, injected-second-INSERT rollback, immutable key/snapshot checks, safe duplicate scan rows and symlink-chain rejection. [CI 40855868306](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40855868306) **SUCCESS attempt 1** on the code/test SHA: **537 Linux /536 Windows +1 intentional skip**, desktop/native-host build and packaged proof both OS PASS.
+- This is **not** evidence of provider-native pagination, actual full-channel completion, Chrome or real Windows user-device acceptance.

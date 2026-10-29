@@ -1,6 +1,6 @@
 # P05-06 / P10-02 — Bounded scan-first scheduled new-only synchronization
 
-**Checked:** 2026-10-29. **Repository:** `danhgold7979-cyber/fonesi-edit`, integration `develop/fonesi-full`. **Initial code HEAD:** `c0405c45bb8646874bf6b1a2046a6a907b5fdc9e`. **Status:** plan before scheduled-sync implementation; full P05/P10 OPEN.
+**Checked:** 2026-10-29. **Repository:** `danhgold7979-cyber/fonesi-edit`, integration `develop/fonesi-full`. **Initial code HEAD:** `c0405c45bb8646874bf6b1a2046a6a907b5fdc9e`. **Status:** implemented with Linux/Windows source and packaged CI evidence at SHA `23f750a8b7c9b9238ca766ee1c1c8cd287379f99`; full P05/P10 OPEN.
 
 ## Master alignment and actual gap
 
@@ -18,3 +18,12 @@ Checked `AGENTS.md`, `README.md`, `IMPLEMENTATION_PLAN.md` P05-02/03/06 and P10-
 ## Remaining external gates
 
 True provider pagination/checkpoint, live ten-platform channels, Chrome identity/permission/region behavior, user-machine Windows/installer/GPU tests, corrupted media repair, URL-alias/channel rename reconciliation, unattended OS service/Task Scheduler while app closed, and intermittent SQLite issue #6 remain OPEN. A finite scan window never proves full-channel synchronization.
+
+## Verified results — 29/10/2026
+
+- [x] UI stores `scan_new_only` mode; legacy mode-less schedule rows execute scan-first, never as unconditional recurring channel downloads.
+- [x] Each due cycle bounds the scan at 100 items when unlimited, maximum 200 when a limit is specified; retained source/account/slot identity and one active unprocessed scan per schedule prevent silent overlap.
+- [x] A successful scan uses safe URL dedupe, validated exact history, the same atomic batch job identity as manual sync, a persisted processed marker, explicit Retry for failed scans and no-overwrite of media.
+- [x] Synthetic backend/Qt tests cover old+new media, corrupt old output, retry, account binding, 501-item cap, historical mode-less schedules and replay without duplicates.
+- [x] [CI 40857385183](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40857385183) **SUCCESS attempt 1** on [23f750a](https://github.com/danhgold7979-cyber/fonesi-edit/commit/23f750a8b7c9b9238ca766ee1c1c8cd287379f99): **546 Linux PASS /545 Windows PASS+1 intentional POSIX skip**, desktop/native-host/frozen proof both systems PASS.
+- [ ] Full provider checkpoint/channel coverage, Chrome/account/region, OS scheduling after app closure, physical Windows/GPU/installer, issue #6 and corrupt-artifact repair remain OPEN.

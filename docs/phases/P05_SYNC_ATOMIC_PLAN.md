@@ -1,6 +1,6 @@
 # P05-06 — Atomic cross-scan new-only enqueue and selectable-row reconciliation
 
-**Checked:** 2026-10-29. **Repository:** `danhgold7979-cyber/fonesi-edit`. **Integration branch:** `develop/fonesi-full`. **State:** plan before implementation; full P05 OPEN.
+**Checked:** 2026-10-29. **Repository:** `danhgold7979-cyber/fonesi-edit`. **Integration branch:** `develop/fonesi-full`. **State:** implemented and verified by synthetic CI on SHA `c0405c45bb8646874bf6b1a2046a6a907b5fdc9e`; full P05 OPEN.
 
 ## Master requirements and previous implementation
 
@@ -18,3 +18,11 @@ Reviewed `AGENTS.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md` P05-02/03/04/05
 ## Not yet accepted
 
 Automated schedule currently schedules direct channel downloads and is **not** equivalent to scan-first new-only sync; fix separately with plan and tests (P05-06/P10). Provider-native pagination/checkpoints, moving/renamed channel and URL alias reconciliation, 10-platform/Chrome-account/region tests, damaged old artifact repair, installer/physical Windows/GPU, and intermittent SQLite issue #6 remain OPEN. CI synthetic success is not live acceptance.
+
+## Verified results — 29/10/2026
+
+- [x] One SQLite `BEGIN IMMEDIATE` transaction covers the 1–500 new-job group, rejecting changed/duplicate identities and rolling back every INSERT if a later row fails.
+- [x] Qt filtered sync accurately reports newly created/reused jobs and keeps hidden checkboxes; disabled duplicate URL rows cannot obscure later selectable safe rows.
+- [x] Existing media under symlinked channel ancestors are not considered valid; FFprobe/QImageReader and original-file preservation regressions retained.
+- [x] [CI 40855868306](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40855868306) **SUCCESS attempt 1 on [c0405c4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c0405c45bb8646874bf6b1a2046a6a907b5fdc9e)**: **537 Linux /536 Windows +1 skip**, desktop/native-host build and frozen packaged proof PASS both.
+- [ ] Live provider/full-channel/real Chrome/physical Windows and intermittent SQLite issue #6 remain open.
