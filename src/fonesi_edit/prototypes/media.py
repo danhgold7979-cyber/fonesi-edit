@@ -30,6 +30,9 @@ class MediaInfo:
     fps: str
     video_codec: str
     audio_codec: str | None
+    # Container Display Matrix rotation applied automatically by FFmpeg input.
+    # Optional trailing field keeps existing six-argument fixture calls valid.
+    display_rotation: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -87,8 +90,24 @@ def probe(path: Path, ffprobe: str = "ffprobe") -> MediaInfo:
         rate = video.get("r_frame_rate", "25/1")
     if Fraction(rate) <= 0:
         raise MediaError("FPS không hợp lệ")
+    # FFmpeg autorotates decoded frames before passing them into filter graphs.
+    # Keep encoded dimensions, but report Display Matrix rotation separately so
+    # callers using source-normalized coordinates can transform them reliably.
+    matrix = next((entry for entry in video.get("side_data_list", [])
+                   if isinstance(entry, dict)
+                   and entry.get("side_data_type") == "Display Matrix"
+                   and "rotation" in entry), None)
+    rotation_value = (matrix["rotation"] if matrix is not None else
+                      video.get("tags", {}).get("rotate", 0))
+    try:
+        rotation = float(rotation_value)
+    except (ValueError, TypeError, OverflowError):
+        raise MediaError("Invalid video display rotation metadata") from None
+    if not math.isfinite(rotation):
+        raise MediaError("Invalid video display rotation metadata")
     return MediaInfo(int(video["width"]), int(video["height"]), duration, rate,
-                     video["codec_name"], audio["codec_name"] if audio else None)
+                     video["codec_name"], audio["codec_name"] if audio else None,
+                     rotation)
 
 
 def find_font() -> Path:
