@@ -167,8 +167,8 @@ def test_bilingual_split_preserves_every_character_timing_and_lock():
     assert {first.id,second.id}.isdisjoint({original.id})
     assert '…' not in first.text+second.text
     merged=merge_captions([first,second])
-    assert merged.text.replace('\\n','')==original.text
-    assert merged.source_text.replace('\\n','')==original.source_text
+    assert merged.text.replace('\n','')==original.text
+    assert merged.source_text.replace('\n','')==original.source_text
     assert merged.locked
     assert (merged.start_ms,merged.end_ms)==(original.start_ms,original.end_ms)
 
@@ -187,8 +187,8 @@ def test_merge_maintains_all_source_text_and_cue_time_coverage():
     second=Caption(300,900,'Dịch hai','',locked=False)
     merged=merge_captions([first,second])
     assert merged.start_ms==300 and merged.end_ms==1500
-    assert merged.text=='Dịch một\\nDịch hai'
-    assert merged.source_text=='Nguồn một\\nDịch hai'
+    assert merged.text=='Dịch một\nDịch hai'
+    assert merged.source_text=='Nguồn một\nDịch hai'
     assert merged.locked
     with pytest.raises(ValueError,match='ít nhất hai'):
         merge_captions([first])
