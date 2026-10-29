@@ -207,6 +207,77 @@ def test_draggable_subtitle_layer_maps_source_trim_speed_and_output_time(tmp_pat
     assert render_composition(comp,tmp_path/'subtitle.mp4')['validated']
 
 
+def test_multiclip_trim_speed_crossfade_scoped_bilingual_cues_and_real_preview(tmp_path):
+    """Each role/clip uses its own source-to-export time map, including overlap."""
+    import pysubs2
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.subtitles import Caption,write_captions
+    fixture=create_fixture(tmp_path/'media',duration=1)
+    source=fixture['source']
+    before=source.read_bytes()
+    source_sub=tmp_path/'source.srt'
+    target_sub=tmp_path/'target.srt'
+    timed=[(250,550),(600,700)]
+    write_captions(source_sub,[Caption(a,b,f'source-{i}') for i,(a,b) in enumerate(timed)])
+    write_captions(target_sub,[Caption(a,b,f'target-{i}') for i,(a,b) in enumerate(timed)])
+    first=Clip(str(source),start=.1,end=.9,speed=2)
+    second=Clip(str(source),start=.2,end=.8,speed=1)
+    layers=[
+        Layer(kind='subtitle',path=str(source_sub),clip_ids=[first.id,second.id],
+              x=.1,y=.6,style={'font_size':18,'subtitle_role':'source'}),
+        Layer(kind='subtitle',path=str(target_sub),clip_ids=[first.id,second.id],
+              x=.1,y=.8,style={'font_size':18,'subtitle_role':'target'}),
+    ]
+    comp=Composition(width=320,height=180,fps=25,encoder='cpu',transition=.1,
+                     mute_original=True,clips=[first,second],layers=layers)
+    stage=tmp_path/'timing-graph'
+    stage.mkdir()
+    _,graph,total=compile_graph(comp,stage)
+    assert abs(total-.9)<1e-8
+    assert 'xfade=' in graph and 'acrossfade=' in graph
+    # Clip one: source [0.1,0.9] at 2x. Clip two starts at 0.3 in
+    # output because the 0.1-second transition overlaps the first clip.
+    expected_first=[(75,225,'source-0'),(250,300,'source-1')]
+    expected_second=[(350,650,'source-0'),(700,800,'source-1')]
+    for role_offset,prefix in ((0,'source'),(2,'target')):
+        for clip_index,expected in ((0,expected_first),(1,expected_second)):
+            actual=pysubs2.load(str(stage/f'layer-{role_offset+clip_index}.ass'))
+            assert [(cue.start,cue.end,cue.plaintext) for cue in actual]==[
+                (a,b,text.replace('source',prefix)) for a,b,text in expected
+            ]
+    preview=reference_frame(comp,tmp_path/'reference',second=.35)
+    assert preview.is_file() and preview.stat().st_size>1000
+    output=tmp_path/'bilingual-multiclip.mp4'
+    result=render_composition(comp,output)
+    assert result['validated'] and abs(probe(output).duration-total)<.15
+    assert source.read_bytes()==before
+    assert render_composition(comp,output)['reused']
+
+
+@pytest.mark.parametrize('placement',['clip','layer'])
+def test_renderer_rejects_a_visible_cue_lost_at_high_speed(tmp_path,placement):
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.subtitles import Caption,write_captions
+    fixture=create_fixture(tmp_path/'media',duration=.6)
+    sub=tmp_path/'micro.srt'
+    write_captions(sub,[Caption(100,101,'A cue that must not silently disappear')])
+    clip=Clip(str(fixture['source']),end=.5,speed=10,
+              subtitles=str(sub) if placement=='clip' else None)
+    layers=[Layer(kind='subtitle',path=str(sub),clip_ids=[clip.id],
+                  style={'font_size':18})] if placement=='layer' else []
+    comp=Composition(width=320,height=180,fps=25,encoder='cpu',
+                     clips=[clip],layers=layers,mute_original=True)
+    stage=tmp_path/'stage'
+    stage.mkdir()
+    with pytest.raises(ValueError,match=r'Cue 1: duration collapses below 1 ms'):
+        compile_graph(comp,stage)
+    output=tmp_path/'must-not-be-success.mp4'
+    with pytest.raises(ValueError,match=r'Cue 1: duration collapses below 1 ms'):
+        render_composition(comp,output)
+    assert not output.exists()
+    assert sub.is_file()
+
+
 def test_solo_track_excludes_original_audio_in_actual_output(tmp_path):
     import subprocess
     from fonesi_edit.prototypes.tools import locate_tool
