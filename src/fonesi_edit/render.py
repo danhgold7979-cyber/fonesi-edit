@@ -186,36 +186,28 @@ def crop_rect_pixels(clip, source_width: int, source_height: int):
 
 
 def crop_rect_after_autorotate(clip, info):
-    """Map a crop in unrotated source pixels onto FFmpeg's rotated input.
+    """Apply display-space crop coordinates to FFmpeg's autorotated frames.
 
-    FFmpeg defaults to auto-applying a container Display Matrix before the
-    filter graph. `crop_rect_pixels` is intentionally source-space so Editor
-    crop UI and older projects keep the same normalized coordinate semantics.
+    CropDialog displays a frame decoded by FFmpeg with autorotation enabled;
+    its normalized crop rectangle therefore already refers to the oriented
+    display, not the unrotated encoded image. Only the width/height must
+    change for 90-degree metadata: do not rotate the rectangle a second time.
     """
-    raw = crop_rect_pixels(clip, info.width, info.height)
-    if raw is None:
-        return None
+    full_frame = (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == (
+        0.0, 0.0, 1.0, 1.0)
     angle = info.display_rotation
     quarter_turns = round(angle / 90)
     if not math.isclose(angle, quarter_turns * 90, abs_tol=1e-3):
+        if full_frame:
+            return None  # Uncropped FFmpeg autorotation remains supported.
         raise ValueError(
             'Metadata xoay không vuông góc; không thể crop chính xác nguồn'
         )
-    turns = quarter_turns % 4
-    if turns == 0:
-        return raw
-    if info.width % 2 or info.height % 2:
-        raise ValueError(
-            'Khung hình có chiều lẻ và metadata xoay; không thể crop '
-            'yuv420p an toàn theo tọa độ nguồn'
-        )
-    width, height, x, y = raw
-    if turns == 1:  # +90: source left half becomes display bottom half.
-        return height, width, y, info.width - (x + width)
-    if turns == 2:
-        return width, height, info.width - (x + width), info.height - (y + height)
-    # -90 (or +270): source left half becomes display top half.
-    return height, width, info.height - (y + height), x
+    if quarter_turns % 2:
+        display_width, display_height = info.height, info.width
+    else:
+        display_width, display_height = info.width, info.height
+    return crop_rect_pixels(clip, display_width, display_height)
 
 
 def compile_graph(c:Composition,stage:Path):
