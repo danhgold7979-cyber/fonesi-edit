@@ -192,3 +192,36 @@ def test_merge_maintains_all_source_text_and_cue_time_coverage():
     assert merged.locked
     with pytest.raises(ValueError,match='ít nhất hai'):
         merge_captions([first])
+
+
+def test_ass_import_reports_non_roundtrippable_style_without_mutating_source(tmp_path):
+    import pysubs2
+    from fonesi_edit.subtitles import (
+        ASS_PRESENTATION_WARNING,read_captions_with_warnings)
+    path=tmp_path/'source.ass'
+    document=pysubs2.SSAFile()
+    document.styles['Custom']=pysubs2.SSAStyle(
+        fontname='Arial',fontsize=34)
+    document.events.append(pysubs2.SSAEvent(
+        start=100,end=1200,style='Custom',
+        text=r'{\\pos(100,120)}Tiếng Việt\\N中文'))
+    document.save(str(path),encoding='utf-8')
+    initial_bytes=path.read_bytes()
+    captions,warnings=read_captions_with_warnings(path)
+    assert len(captions)==1
+    assert (captions[0].start_ms,captions[0].end_ms)==(100,1200)
+    assert 'Tiếng Việt' in captions[0].text and '中文' in captions[0].text
+    assert ASS_PRESENTATION_WARNING in warnings
+    assert read_captions(path)[0].text==captions[0].text
+    assert path.read_bytes()==initial_bytes  # Read-only import
+
+
+def test_plain_srt_import_does_not_invent_style_loss_warning(tmp_path):
+    from fonesi_edit.subtitles import read_captions_with_warnings
+    path=tmp_path/'plain.srt'
+    write_captions(path,[Caption(100,800,'Văn bản thường 中文')])
+    captions,warnings=read_captions_with_warnings(path)
+    assert not warnings
+    assert len(captions)==1
+    assert (captions[0].start_ms,captions[0].end_ms)==(100,800)
+    assert captions[0].text=='Văn bản thường 中文'
