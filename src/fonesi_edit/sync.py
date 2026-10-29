@@ -9,6 +9,34 @@ from .downloads import platform_for, selected_download_payloads
 from .prototypes.media import probe
 
 MAX_SYNC_ITEMS = 500
+
+
+def selectable_sync_indices(items):
+    """Select each safe URL once, ignoring earlier explicitly disabled rows."""
+    from .downloads import selectable_scan_url
+    if not isinstance(items,list):
+        raise ValueError('Danh sách nội dung scan không hợp lệ')
+    seen=set()
+    indices=[]
+    for index,item in enumerate(items):
+        if not isinstance(item,dict) or item.get('selectable') is False:
+            continue
+        url=selectable_scan_url(item.get('url'))
+        if url and url not in seen:
+            seen.add(url)
+            indices.append(index)
+            if len(indices)>MAX_SYNC_ITEMS:
+                raise ValueError(f'Tối đa {MAX_SYNC_ITEMS} mục có thể đồng bộ trong một chu kỳ')
+    return indices
+
+
+def sync_media_identity(payload):
+    """Same stable identity for manual and scheduled new-only media jobs."""
+    from .domain import canonical
+    return 'sync-media-v1:'+canonical([
+        payload['url'],payload['folder'],payload['engine'],payload['media'],
+        payload.get('account_ref'),payload.get('expected_identity')])
+
 _ACTIVE = frozenset({'pending', 'running'})
 _NEEDS_ATTENTION = frozenset({'failed', 'canceled', 'blocked'})
 

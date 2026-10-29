@@ -120,7 +120,7 @@ class Automation:
                 from .worker import sanitize_error_message
                 self.errors=(self.errors+[sanitize_error_message(exc,limit=400)])[-20:]
     def tick(self):
-        self.watch();self.schedules();self.completed_downloads()
+        self.watch();self.completed_scheduled_scans();self.schedules();self.completed_downloads()
     def watch(self):
         watches=self.store.setting('watches',[])
         for watch in watches:
@@ -139,15 +139,101 @@ class Automation:
                     plans=batch_plan({str(current.parent if current.name=='videos' else current):[str(path)]},Composition.from_dict(watch['preset']))
                     for plan in plans:submit_once(self.store,'render',plan,'watch:'+digest)
                     self.store.cache('watch:'+digest,{'enqueued':True})
+    def completed_scheduled_scans(self):
+        """Safely reconcile a successful scheduled scan before the next period.
+
+        The active pointer and processed receipt persist across app restarts.
+        If history is unsafe or a job failed, neither progress nor schedule
+        replacement is recorded; Queue retry/manual correction is required.
+        """
+        from .sync import selectable_sync_indices, plan_new_only_sync, sync_media_identity
+        with self.store.connect() as conn:
+            schedule_ids=[row['id'] for row in conn.execute('SELECT id FROM schedules')]
+        processed=[]
+        for schedule_id in schedule_ids:
+            active=self.store.cached('schedule-active:'+schedule_id)
+            if not isinstance(active,dict) or not active.get('job'):
+                continue
+            scan=self.store.job(active['job'])
+            if (scan['kind']!='scan' or scan['state']!='succeeded'
+                    or (scan.get('payload') or {}).get('sync_schedule_id')!=schedule_id):
+                continue
+            marker='schedule-synced:'+scan['id']
+            if self.store.cached(marker):
+                continue
+            result=scan.get('result')
+            if not isinstance(result,dict) or not isinstance(result.get('items'),list):
+                raise ValueError('Scan theo lịch chưa có danh sách kết quả hợp lệ; chưa đồng bộ')
+            indices=selectable_sync_indices(result['items'])
+            # Reuse the same validated snapshot/account/URL checks as manual sync.
+            if indices:
+                from .downloads import selected_download_payloads
+                selected=selected_download_payloads(scan,indices)
+                history=self.store.download_jobs_for_urls([p['url'] for p in selected])
+                plan=plan_new_only_sync(scan,indices,history)
+            else:
+                plan={'payloads':[],'already_valid':0,'already_queued':0,'total':0}
+            batch=[]
+            for request in plan['payloads']:
+                payload={key:value for key,value in request.items()
+                         if key not in {'sync_schedule_id','sync_schedule_slot'}}
+                batch.append((payload,sync_media_identity(payload)))
+            posted=submit_many_once(self.store,'download',batch)
+            receipt={'scan_job':scan['id'],'count':plan['total'],
+                     'new_jobs':posted['created'],'reused_jobs':posted['existing'],
+                     'already_valid':plan['already_valid'],
+                     'already_queued':plan['already_queued'],
+                     'complete':result.get('complete')}
+            # Marker is written only after the batch transaction succeeded.
+            # On crash before this write, the stable key prevents duplicates.
+            self.store.cache(marker,receipt)
+            processed.append(receipt)
+        return processed
+
     def schedules(self):
-        with self.store.connect() as conn:rows=[dict(r) for r in conn.execute('SELECT * FROM schedules WHERE next_run<=?',(time.time(),))]
+        """Run bounded scan-first schedules; never repeatedly download a channel."""
+        with self.store.connect() as conn:
+            rows=[dict(r) for r in conn.execute(
+                'SELECT * FROM schedules WHERE next_run<=?',(time.time(),))]
+        scheduled=[]
         for row in rows:
-            data=json.loads(row['data']);slot=int(row['next_run']);key=f'schedule:{row["id"]}:{slot}'
+            data=json.loads(row['data'])
+            if not isinstance(data,dict) or data.get('mode','scan_new_only')!='scan_new_only':
+                raise ValueError('Chỉ hỗ trợ lịch quét rồi đồng bộ mục mới')
+            base=data.get('payload')
+            if not isinstance(base,dict) or base.get('download_mode','media')!='media':
+                raise ValueError('Lịch chỉ được quét nguồn media thông thường')
+            limit=base.get('limit',0)
+            if type(limit) is not int or limit<0:
+                raise ValueError('Giới hạn quét theo lịch không hợp lệ')
+            interval=data.get('interval')
+            if type(interval) not in {int,float} or not 60<=interval<=6_000_000:
+                raise ValueError('Khoảng lịch đồng bộ phải là số giây hợp lệ')
             existing=self.store.cached('schedule-active:'+row['id'])
-            if existing and self.store.job(existing['job'])['state'] in {'pending','running','blocked'}:continue
-            job=submit_once(self.store,'download',data['payload'],key)
-            self.store.cache('schedule-active:'+row['id'],{'job':job})
-            with self.store.connect() as conn:conn.execute('UPDATE schedules SET last_run=?,next_run=? WHERE id=?',(time.time(),time.time()+max(60,data['interval']),row['id']))
+            if isinstance(existing,dict) and existing.get('job'):
+                previous=self.store.job(existing['job'])
+                if previous['kind']=='scan':
+                    # Failed/canceled scans stay blocked pending explicit retry;
+                    # succeeded scans must be reconciled before the next cycle.
+                    if (previous['state']!='succeeded'
+                            or not self.store.cached('schedule-synced:'+previous['id'])):
+                        continue
+                elif previous['state'] in {'pending','running','blocked'}:
+                    # Legacy direct-download schedule already running.
+                    continue
+            slot=int(row['next_run'])
+            scan_payload={**base,'limit':100 if limit==0 else min(200,limit),
+                          'sync_schedule_id':row['id'],'sync_schedule_slot':slot}
+            key=f'schedule-scan:{row["id"]}:{slot}'
+            job_id=submit_once(self.store,'scan',scan_payload,key)
+            self.store.cache('schedule-active:'+row['id'],{'job':job_id})
+            now=time.time()
+            with self.store.connect() as conn:
+                conn.execute('UPDATE schedules SET last_run=?,next_run=? WHERE id=?',
+                             (now,now+max(60,interval),row['id']))
+            scheduled.append(job_id)
+        return scheduled
+
     def completed_downloads(self):
         for job in self.store.jobs(limit=2000):
             if job['kind']!='download' or job['state']!='succeeded' or not job['payload'].get('workflow'):continue

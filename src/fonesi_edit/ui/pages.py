@@ -24,7 +24,7 @@ from ..downloads import (platform_for,selectable_scan_url,selected_download_payl
                          parse_scan_metadata_filters,scan_matches_metadata,
                          normalize_scan_metadata,continuation_scan_payload,
                          selected_quality_upgrade_payloads)
-from ..sync import plan_new_only_sync
+from ..sync import plan_new_only_sync,sync_media_identity
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -458,10 +458,7 @@ class DownloadsPage(QWidget):
         batch=[]
         for payload in plan['payloads']:
             # Stable across scans. One transaction, not one INSERT per item.
-            identity='sync-media-v1:'+canonical([
-                payload['url'],payload['folder'],payload['engine'],
-                payload['media'],payload.get('account_ref'),
-                payload.get('expected_identity')])
+            identity=sync_media_identity(payload)
             batch.append((payload,identity))
         submitted=submit_many_once(self.host.store,'download',batch)
         report={**plan,'newly_enqueued':submitted['created'],
@@ -523,8 +520,8 @@ class DownloadsPage(QWidget):
         with self.host.store.connect() as conn:
             for p in payloads:
                 key=hashlib.sha256(canonical(p).encode()).hexdigest()[:32]
-                conn.execute('INSERT OR REPLACE INTO schedules(id,data,next_run) VALUES(?,?,?)',(key,canonical({'payload':p,'interval':minutes*60}),time.time()))
-        self.host.message('Đã đặt lịch. App cần đang chạy hoặc được bật chế độ nền.')
+                conn.execute('INSERT OR REPLACE INTO schedules(id,data,next_run) VALUES(?,?,?)',(key,canonical({'mode':'scan_new_only','payload':p,'interval':minutes*60}),time.time()))
+        self.host.message('Đã đặt lịch quét rồi chỉ đồng bộ mục mới; tối đa 200 mục nguồn mỗi lần quét, không khẳng định đủ kênh. App cần đang chạy hoặc bật chế độ nền.')
 
 
 class SubtitlesPage(QWidget):
