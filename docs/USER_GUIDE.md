@@ -82,3 +82,9 @@ Khi dùng **Mở SRT/VTT/ASS** với phụ đề **ASS/SSA**, Fonesi Edit đọc
 Khi render, cue từ tệp sub được cắt theo khoảng source đã chọn rồi ánh xạ sang thời gian output theo speed và vị trí clip (bao gồm vùng chồng khi chuyển cảnh). Cue **hoàn toàn ngoài** đoạn trim bị loại theo lựa chọn cắt; nếu một cue vẫn giao với đoạn giữ lại nhưng bị nén ngắn đến mức **không thể biểu diễn bằng 1 ms**, ứng dụng báo lỗi số cue thay vì xuất video thành công mà mất chữ. Hãy điều chỉnh thời điểm cue hoặc tốc độ của clip đó rồi chạy lại.
 
 Phụ đề ASS ở bước ghép vào video có mốc thời gian **10 ms**, có thể làm tròn tối đa khoảng **5 ms** mỗi biên cue. Kiểm thử synthetic với hai clip/transition đã xác nhận logic này, không thay thế kiểm tra đồng bộ hình/âm thanh trên media VFR, rotation, dài hoặc máy Windows thực.
+
+## Crop video có metadata xoay và clip VFR
+
+Khi video nguồn có metadata xoay 90°/180°/270°, Fonesi Edit hiển thị frame đã được FFmpeg xoay đúng hướng trong **Crop video nguồn**. Tọa độ crop là tọa độ theo **khung đang nhìn thấy**: chọn nửa dưới trong cửa sổ crop sẽ cắt nửa dưới của hình đã xoay, không phải nửa dưới của video mã hóa trước xoay. Bản render dùng cùng tọa độ hiển thị. Nếu video có metadata xoay lệch góc vuông mà không thể tính crop hình chữ nhật chính xác, ứng dụng báo lỗi rõ thay vì xuất vùng sai; thử đặt lại crop toàn khung hoặc xử lý metadata nguồn theo quy trình được kiểm chứng.
+
+Bộ kiểm thử hiện đã xác nhận synthetic video có Display Matrix +90° và video với frame timestamps không đều (VFR) ghép cùng clip 24 FPS, xuất ở 25 FPS với sub đúng thời gian. Kết quả này không bảo đảm mọi codec điện thoại, audio-sync VFR, GPU hoặc HiDPI/4K trên PC Windows người dùng đã được kiểm chứng.

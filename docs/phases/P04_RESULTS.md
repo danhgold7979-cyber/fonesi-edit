@@ -109,3 +109,10 @@ Vòng tích hợp thêm multi-select/nhóm/căn/phân bố/copy style, double-cl
 - CI [run 40734016363](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40734016363) **PASS**: 413 Linux tests; 412 Windows tests + 1 intentional POSIX-fixture skip. Production desktop/native host and frozen proof passed on both runners.
 - Still open: physical OS/IME keyboard testing, multi-monitor/HiDPI/4K acceptance, and the remaining P04/P12 gates.
 
+## P04-02 / P11-01 — Crop selection matches autorotated preview (29/10/2026)
+
+Source videos can carry a container Display Matrix even though FFprobe reports raw encoded width/height. `CropDialog` displays the FFmpeg-autorotated frame. The compiler now uses **display-space** dimensions when converting the already display-normalized crop to an even-pixel FFmpeg rectangle: +90°/-90° swaps width and height; the crop is not inadvertently rotated a second time. Unsupported non-orthogonal display metadata with a non-full crop is explicitly rejected. A synthetic red/blue +90° MP4 is tested at a reference-frame pixel and at the same pixel in a real output MP4, preserving the input bytes.
+
+[CI 40885720673](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40885720673) **SUCCESS on exact code/test SHA `5ab1bcad`**: 595 Linux tests, 594 Windows tests + 1 intentional skip; production desktop/native-host and frozen packaged proof both OS PASS.
+
+**Not accepted:** physical Windows crop drags with source files from phones (including mirrored/non-orthogonal matrices), HiDPI/4K, GPU and complete preview/export parity across all effects.
