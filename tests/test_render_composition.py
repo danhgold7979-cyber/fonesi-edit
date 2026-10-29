@@ -55,6 +55,133 @@ def test_clip_crop_rejects_invalid_normalized_regions(values):
         Composition(clips=[Clip("unused.mp4", **values)]).validate()
 
 
+
+@pytest.mark.parametrize(('rotation','expected'),[
+    (0,(320,90,0,90)),
+    (90,(180,160,0,160)),
+    (-90,(180,160,0,160)),
+    (180,(320,90,0,90)),
+    (270,(180,160,0,160)),
+])
+def test_display_metadata_crop_uses_preview_oriented_coordinates(rotation,expected):
+    from fonesi_edit.prototypes.media import MediaInfo
+    from fonesi_edit.render import crop_rect_after_autorotate
+    info=MediaInfo(320,180,.8,'25/1','h264',None,rotation)
+    clip=Clip('synthetic.mp4',crop_x=0,crop_y=.5,
+              crop_width=1,crop_height=.5)
+    assert crop_rect_after_autorotate(clip,info)==expected
+    # The previous unrotated crop helper stays unchanged for legacy callers.
+    from fonesi_edit.render import crop_rect_pixels
+    assert crop_rect_pixels(clip,320,180)==(320,90,0,90)
+
+
+def test_metadata_crop_rejects_uncertain_nonorthogonal_display_matrix():
+    from fonesi_edit.prototypes.media import MediaInfo
+    from fonesi_edit.render import crop_rect_after_autorotate
+    info=MediaInfo(320,180,1,'25/1','h264',None,45)
+    clip=Clip('synthetic.mp4',crop_x=.1,crop_width=.8)
+    with pytest.raises(ValueError,match='Metadata xoay không vuông góc'):
+        crop_rect_after_autorotate(clip,info)
+    assert crop_rect_after_autorotate(Clip('synthetic.mp4'),info) is None
+
+
+def test_real_rotated_display_metadata_crop_matches_ui_frame_and_render(tmp_path):
+    """CropDialog shows FFmpeg-autorotated frames; crop is display-relative."""
+    from PySide6.QtGui import QImage
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.prototypes.media import run_checked,extract_frame
+    raw=tmp_path/'encoded-landscape.mp4'
+    rotated=tmp_path/'display-rotated.mp4'
+    run_checked(['ffmpeg','-v','error','-nostdin','-n',
+                 '-f','lavfi','-i','color=c=red:s=320x180:r=25:d=0.8',
+                 '-vf','drawbox=x=160:y=0:w=160:h=180:color=blue:t=fill',
+                 '-c:v','libx264','-threads','2','-pix_fmt','yuv420p',str(raw)])
+    # Metadata-only remux: pixels remain unrotated in the encoded stream.
+    run_checked(['ffmpeg','-v','error','-nostdin','-n','-display_rotation','90',
+                 '-i',str(raw),'-c','copy',str(rotated)])
+    info=probe(rotated)
+    assert (info.width,info.height)==(320,180)
+    assert info.display_rotation==pytest.approx(90,abs=.001)
+    untouched=rotated.read_bytes()
+    clip=Clip(str(rotated),end=.6,crop_x=0,crop_y=.5,
+              crop_width=1,crop_height=.5)
+    comp=Composition(width=320,height=180,fps=25,encoder='cpu',
+                     mute_original=True,clips=[clip])
+    stage=tmp_path/'graph'
+    stage.mkdir()
+    _,graph,total=compile_graph(comp,stage)
+    assert 'crop=180:160:0:160' in graph
+    assert total==pytest.approx(.6)
+    preview=reference_frame(comp,tmp_path/'preview',second=.2)
+    output=tmp_path/'cropped-upright.mp4'
+    assert render_composition(comp,output)['validated']
+    rendered_frame=tmp_path/'rendered-frame.png'
+    extract_frame(output,rendered_frame,second=.2)
+    for image_path in (preview,rendered_frame):
+        image=QImage(str(image_path))
+        assert not image.isNull()
+        assert (image.width(),image.height())==(320,180)
+        pixel=image.pixelColor(160,90)
+        # Source left side is red. +90 display rotation moves it to bottom,
+        # which must match the bottom-half rectangle in CropDialog.
+        assert pixel.red()>175 and pixel.blue()<90 and pixel.green()<90
+    assert rotated.read_bytes()==untouched
+
+
+def test_true_vfr_and_mixed_fps_no_audio_keep_subtitle_output_timeline(tmp_path):
+    import json
+    import pysubs2
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.subtitles import Caption,write_captions
+    from fonesi_edit.prototypes.media import run_checked
+    vfr=tmp_path/'variable-frame-times.mp4'
+    cfr=tmp_path/'fixed-24fps.mp4'
+    run_checked(['ffmpeg','-v','error','-nostdin','-n',
+                 '-f','lavfi','-i','testsrc2=size=320x180:rate=30:duration=1.2',
+                 '-vf','select=not(eq(mod(n\\,4)\\,2))','-fps_mode','vfr',
+                 '-c:v','libx264','-threads','2','-pix_fmt','yuv420p',
+                 '-an',str(vfr)])
+    run_checked(['ffmpeg','-v','error','-nostdin','-n',
+                 '-f','lavfi','-i','testsrc2=size=320x180:rate=24:duration=1.0',
+                 '-c:v','libx264','-threads','2','-pix_fmt','yuv420p',
+                 '-an',str(cfr)])
+    data=json.loads(run_checked(['ffprobe','-v','error','-select_streams','v:0',
+                  '-show_entries','frame=best_effort_timestamp_time',
+                  '-of','json',str(vfr)]).stdout)
+    stamps=[float(x['best_effort_timestamp_time']) for x in data['frames']]
+    assert len(stamps)>8
+    assert len({round(right-left,3) for left,right in zip(stamps,stamps[1:])})>1
+    assert probe(vfr).audio_codec is None and probe(cfr).audio_codec is None
+    assert probe(cfr).fps=='24/1'
+    first_sub=tmp_path/'vfr-sub.srt'
+    second_sub=tmp_path/'cfr-sub.srt'
+    write_captions(first_sub,[Caption(100,550,'VFR cue')])
+    write_captions(second_sub,[Caption(50,350,'CFR cue')])
+    first=Clip(str(vfr),start=.1,end=.7,speed=1.5,subtitles=str(first_sub))
+    second=Clip(str(cfr),start=0,end=.6,speed=1,subtitles=str(second_sub))
+    comp=Composition(width=320,height=180,fps=25,encoder='cpu',
+                     clips=[first,second],mute_original=True)
+    stage=tmp_path/'mixed-graph'
+    stage.mkdir()
+    _,graph,total=compile_graph(comp,stage)
+    assert 'fps=25' in graph and total==pytest.approx(1.0)
+    actual=pysubs2.load(str(stage/'captions.ass'))
+    assert [(cue.start,cue.end,cue.plaintext) for cue in actual]==[
+        (0,300,'VFR cue'),(450,750,'CFR cue')]
+    before=(vfr.read_bytes(),cfr.read_bytes())
+    preview=reference_frame(comp,tmp_path/'mixed-preview',second=.5)
+    assert preview.is_file() and preview.stat().st_size>1000
+    output=tmp_path/'mixed-fps.mp4'
+    result=render_composition(comp,output)
+    assert result['validated']
+    encoded=probe(output)
+    assert (encoded.width,encoded.height)==(320,180)
+    assert encoded.fps=='25/1'
+    assert encoded.audio_codec is not None  # Generated silent audio is intentional.
+    assert encoded.duration==pytest.approx(total,abs=.08)
+    assert (vfr.read_bytes(),cfr.read_bytes())==before
+
+
 def test_crop_rect_pixels_uses_even_source_pixel_bounds():
     from fonesi_edit.render import crop_rect_pixels
     clip = Clip("unused.mp4", crop_x=0.25, crop_y=0.1,
