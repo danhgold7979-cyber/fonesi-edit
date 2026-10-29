@@ -337,8 +337,7 @@ class MainWindow(QMainWindow):
         try:
             self.project_id=self.store.save_named(
                 'projects',self.project_file.stem if self.project_file else 'Project đang làm',
-                snapshot,self.project_id)
-            self.store.set_setting('last_project',self.project_id)
+                snapshot,self.project_id,select_as_last=True)
         except (OSError,RuntimeError,ValueError,sqlite3.Error):
             try:write_recovery()
             except (OSError,RuntimeError,ValueError):

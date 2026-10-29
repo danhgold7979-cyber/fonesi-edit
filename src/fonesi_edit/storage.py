@@ -124,14 +124,21 @@ class Store:
         with self.connect() as conn:
             conn.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, data))
 
-    def save_named(self, table, name, data, item_id=None):
+    def save_named(self, table, name, data, item_id=None, *, select_as_last=False):
         if table not in {"projects", "presets"}:
             raise ValueError("Invalid table")
+        if select_as_last and table != "projects":
+            raise ValueError("Only projects can be selected as last_project")
         item_id = item_id or identifier()
         data = canonical(checked_payload(data))
         with self.connect() as conn:
             conn.execute(f"INSERT INTO {table} VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,data=excluded.data,updated=excluded.updated",
                          (item_id, name, data, time.time()))
+            if select_as_last:
+                # One SQLite transaction: never publish a project row with a
+                # missing/stale last_project pointer after a partial autosave.
+                conn.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                             ("last_project", canonical(item_id)))
         return item_id
 
     def list_named(self, table):

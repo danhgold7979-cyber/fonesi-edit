@@ -2512,3 +2512,47 @@ def test_schedule_form_uses_scan_first_new_only_mode(tmp_path,monkeypatch):
         assert not [j for j in window.store.jobs() if j['kind']=='download']
     finally:
         close(window)
+
+
+def test_qt_autosave_last_project_failure_keeps_sqlite_and_new_recovery(tmp_path):
+    """An actual SQLite second-statement failure must roll back the project row."""
+    import sqlite3
+    import pytest
+
+    window = MainWindow(tmp_path / "state")
+    try:
+        window.editor.set_composition(Composition(layers=[Layer(text="Bản lưu an toàn")]))
+        window.autosave()
+        project_id = window.project_id
+        initial = window.store.list_named("projects")
+        assert len(initial) == 1
+        assert window.store.setting("last_project") == project_id
+
+        window.editor.set_composition(Composition(layers=[Layer(text="Bản sửa chưa lưu")]))
+        window.autosave_timer.stop()
+        with window.store.connect() as conn:
+            conn.execute(
+                "CREATE TRIGGER fail_selection BEFORE UPDATE OF value ON settings "
+                "WHEN NEW.key='last_project' BEGIN "
+                "SELECT RAISE(ABORT, 'synthetic Qt selection failure'); END"
+            )
+        with pytest.raises(sqlite3.DatabaseError, match="synthetic Qt selection failure"):
+            window.autosave()
+        assert window.project_id == project_id
+        assert window.store.setting("last_project") == project_id
+        assert window.store.list_named("projects") == initial
+        recovery = json.loads((window.data / "recovery.json").read_text(encoding="utf-8"))
+        assert recovery["project_id"] == project_id
+        assert recovery["composition"]["layers"][0]["text"] == "Bản sửa chưa lưu"
+
+        with window.store.connect() as conn:
+            conn.execute("DROP TRIGGER fail_selection")
+        window.autosave()
+        saved = window.store.list_named("projects")
+        assert len(saved) == 1 and saved[0]["id"] == project_id
+        assert saved[0]["data"]["layers"][0]["text"] == "Bản sửa chưa lưu"
+    finally:
+        # Unblock the final close even if an assertion above raised.
+        with window.store.connect() as conn:
+            conn.execute("DROP TRIGGER IF EXISTS fail_selection")
+        close(window)

@@ -263,3 +263,50 @@ def test_store_connection_rollback_behavior_stays_intact(tmp_path):
         conn.execute('INSERT INTO settings(key,value) VALUES(?,?)',
                      ('committed','42'))
     assert store.setting('committed')==42
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_project_selection_and_save_rollback_together_after_sqlite_fault(tmp_path, existing):
+    """A failed last_project write must never leave a committed orphan/stale row."""
+    store = Store(tmp_path / "state.db")
+    project_id = "a" * 32
+    initial = {"layers": [{"text": "Bản SQLite cũ"}]}
+    if existing:
+        store.save_named("projects", "Original", initial, project_id, select_as_last=True)
+    before = store.list_named("projects")
+    selected_before = store.setting("last_project")
+    action = "UPDATE OF value" if existing else "INSERT"
+    with store.connect() as conn:
+        conn.execute(
+            f"CREATE TRIGGER fail_selection BEFORE {action} ON settings "
+            "WHEN NEW.key='last_project' BEGIN "
+            "SELECT RAISE(ABORT, 'synthetic last_project failure'); END"
+        )
+
+    changed = {"layers": [{"text": "Bản mới không được ghi nửa chừng"}]}
+    with pytest.raises(sqlite3.DatabaseError, match="synthetic last_project failure"):
+        store.save_named("projects", "New", changed, project_id, select_as_last=True)
+    # Both row and pointer are exactly the previous committed values.
+    assert store.list_named("projects") == before
+    assert store.setting("last_project") == selected_before
+    with sqlite3.connect(store.path) as conn:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+    with store.connect() as conn:
+        conn.execute("DROP TRIGGER fail_selection")
+    assert store.save_named("projects", "New", changed, project_id, select_as_last=True) == project_id
+    assert store.setting("last_project") == project_id
+    rows = store.list_named("projects")
+    assert len(rows) == 1 and rows[0]["id"] == project_id
+    assert rows[0]["name"] == "New" and rows[0]["data"] == changed
+
+
+def test_selected_project_save_is_opt_in_and_presets_cannot_be_selected(tmp_path):
+    store = Store(tmp_path / "state.db")
+    project = store.save_named("projects", "Unselected", {"a": 1})
+    preset = store.save_named("presets", "Keep", {"b": 2})
+    assert project != preset and store.setting("last_project") is None
+    with pytest.raises(ValueError, match="Only projects"):
+        store.save_named("presets", "Rejected", {"b": 3}, select_as_last=True)
+    assert [row["id"] for row in store.list_named("presets")] == [preset]
+    assert store.setting("last_project") is None
