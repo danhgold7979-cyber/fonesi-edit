@@ -231,3 +231,51 @@ def test_subtitle_only_recognizes_yt_dlp_temp_to_final_move(tmp_path,monkeypatch
     assert result['count']==1
     assert Path(result['files'][0]['path']).parent.name=='subtitles'
     assert not (folder/'Generic'/'Creator__id'/'videos'/'video-id.en.srt').exists()
+
+
+
+def test_real_ytdlp_subtitle_sidecar_writer_and_move_no_overwrite(tmp_path):
+    """Exercise pinned yt-dlp sidecar naming/writing, without any network/Chrome."""
+    from yt_dlp import YoutubeDL
+    root=tmp_path/'tải 中文'/'Generic'
+    creator=root/'Creator__id'
+    options={
+        'quiet':True,'no_warnings':True,'overwrites':False,'windowsfilenames':True,
+        'writesubtitles':True,'writeautomaticsub':True,
+        'outtmpl':{
+            'default':str(creator/'videos'/'%(id)s.%(ext)s'),
+            'subtitle':str(creator/'subtitles'/'%(id)s.%(ext)s'),
+        },
+    }
+    info={'id':'video-id','ext':'mp4','title':'Fixture','requested_subtitles':{
+        'en':{'ext':'srt','data':CAPTIONS},
+    }}
+    with YoutubeDL(options) as ydl:
+        temp=Path(ydl.prepare_filename(info))
+        temp.parent.mkdir(parents=True,exist_ok=True)
+        # Real yt-dlp writes to the default path and asks after_move to
+        # relocate it into the selected subtitle output template.
+        moves=ydl._write_subtitles(info,str(temp))
+        assert len(moves)==1
+        for source,final in moves:
+            final_path=Path(final)
+            final_path.parent.mkdir(parents=True,exist_ok=True)
+            if Path(source)!=final_path:
+                os.replace(source,final_path)
+        result=verified_subtitle_artifacts(info,ydl,root)
+        assert result[0]['kind']=='subtitle' and result[0]['cues']==1
+        output=Path(result[0]['path'])
+        assert output.parent.name=='subtitles'
+        assert output.name=='video-id.en.srt'
+        assert not (creator/'videos'/'video-id.mp4').exists()
+        initial=output.read_bytes()
+        stamp=output.stat()
+        prior=max(1,stamp.st_mtime_ns-60_000_000_000)
+        os.utime(output,ns=(stamp.st_atime_ns,prior))
+        again=ydl._write_subtitles(info,str(temp))
+        assert len(again)==1
+        for source,final in again:
+            if Path(source)!=Path(final):
+                os.replace(source,final)
+        assert verified_subtitle_artifacts(info,ydl,root)[0]['path']==str(output)
+        assert output.read_bytes()==initial and output.stat().st_mtime_ns==prior
