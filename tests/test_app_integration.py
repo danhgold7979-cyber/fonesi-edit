@@ -2610,6 +2610,7 @@ def test_batch_codec_fps_bitrate_filter_keeps_hidden_selection_and_rejects_bad_r
         page.bitrate_min.setValue(0)
         assert [parent.child(i).isHidden() for i in range(4)]==[False,True,True,False]
         page.fps_min.setValue(0)
+        page.codec_filter.setCurrentIndex(page.codec_filter.findData(''))
         assert [parent.child(i).isHidden() for i in range(4)]==[False,False,False,False]
         assert len(page.selected()[channel])==4
     finally:
