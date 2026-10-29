@@ -92,3 +92,7 @@ Bộ kiểm thử hiện đã xác nhận synthetic video có Display Matrix +90
 ## Bảo toàn thuật ngữ trong dịch phụ đề
 
 Khi cấu hình từ điển thuật ngữ, Fonesi Edit bảo vệ tên riêng/bản dịch đã định nghĩa bằng token tạm trong yêu cầu dịch và khôi phục chúng sau phản hồi. Việc so khớp ưu tiên từ dài hơn và chỉ chạy trên văn bản gốc, tránh thay nhầm các mã bảo vệ xuất hiện trong nội dung. Nếu bộ dịch trả thiếu hoặc lặp token, tác vụ báo lỗi cần kiểm tra thay vì âm thầm ghi bản dịch sai vào cache. Đây là kiểm chứng bằng fake transport; chất lượng/ngân sách của dịch vụ API thật vẫn cần được thử riêng.
+
+## Khi SQLite không lưu được lúc thoát
+
+Nếu SQLite bị khóa/hỏng hoặc ổ đĩa không ghi được trong lúc thoát, ứng dụng sẽ **không đóng cửa sổ và không coi project đã lưu thành công**. Hãy đọc thông báo trạng thái, kiểm tra dung lượng/quyền ghi rồi thử đóng/lưu lại; tránh ép tắt khi việc đang chạy chưa được xử lý. Khi lỗi ghi SQLite xảy ra, Fonesi Edit **thử** ghi bản chụp composition mới nhất vào `recovery.json` trong thư mục dữ liệu ứng dụng bằng thao tác thay thế nguyên tử. Đây là đường dự phòng có thể kiểm tra/giữ lại để cứu cấu hình, **không phải đảm bảo tự phục hồi** nếu cả SQLite và filesystem đều lỗi hoặc nếu không thể khởi tạo app từ database. Không tự xóa/đổi tên `state.db`, `state.db-wal` hoặc `state.db-shm` khi chưa sao lưu/điều tra nguyên nhân.

@@ -116,3 +116,9 @@ Source videos can carry a container Display Matrix even though FFprobe reports r
 [CI 40885720673](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40885720673) **SUCCESS on exact code/test SHA `5ab1bcad`**: 595 Linux tests, 594 Windows tests + 1 intentional skip; production desktop/native-host and frozen packaged proof both OS PASS.
 
 **Not accepted:** physical Windows crop drags with source files from phones (including mirrored/non-orthogonal matrices), HiDPI/4K, GPU and complete preview/export parity across all effects.
+
+## P04-06 / P03-07 — Background proxy shutdown and SQLite stress (29/10/2026)
+
+Qt integration now covers a bounded three-cycle same-database lifecycle with changing playback proxy quality. Two rounds generate actual local FFmpeg proxies; another holds a cancel-aware background task in flight until window shutdown. Each lifecycle validates SQLite `journal_mode=wal`, `PRAGMA integrity_check=ok` before and after close, latest stored project snapshot after reopen and unchanged source media bytes/mtime. WAL and SHM sidecars are never manually renamed/deleted.
+
+[CI 40897627521](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40897627521) **SUCCESS** at exact SHA [50a0137](https://github.com/danhgold7979-cyber/fonesi-edit/commit/50a0137dcbc75bb0042e3b02c9ffe5cc4162a440): Linux 604/Windows 603+1 skip; source and frozen desktop/native-host proofs PASS. This does not reproduce or explain [open SQLite issue #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6); it is not physical Windows soak/power-loss/GPU/IME acceptance.

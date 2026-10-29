@@ -18,9 +18,19 @@ The observed issue #6 traceback occurs at `closeEvent → autosave → Store.sav
 
 ## Acceptance and exclusions
 
-- [ ] Injection at `Store.save_named` makes the close fail safely but writes a validated latest recovery snapshot; original SQLite error is not silently discarded by direct autosave.
-- [ ] Safe repeated proxy/background close/reopen yields `integrity_check=ok` and no lost project/media data; observed DB/WAL lifetimes documented.
-- [ ] Same exact code SHA passes full Linux/Windows CI, desktop/native-host and frozen proof, without disabling tests.
+- [x] Injection at `Store.save_named` makes the close fail safely but writes a validated latest recovery snapshot; original SQLite error is not silently discarded by direct autosave.
+- [x] Safe repeated proxy/background close/reopen yields `integrity_check=ok` and no lost project/media data; observed DB/WAL lifetimes documented.
+- [x] Same exact code SHA passes full Linux/Windows CI, desktop/native-host and frozen proof, without disabling tests.
 - [ ] Root cause of the intermittent Windows corruption remains OPEN unless deterministically reproduced and tied to a verified repair. Stress non-reproduction only narrows the investigation.
 
 **External blockers:** physical Windows NTFS/ACL/power-loss/antivirus interference, long soak and actual user media, live accounts/Chrome/GPU. No database schema change, no copying private files into Git, no `main` merge.
+
+## Verified implementation, CI and bounded conclusion (29/10/2026)
+
+[Production commit 085aa52](https://github.com/danhgold7979-cyber/fonesi-edit/commit/085aa5278ccb2d2d128b94371e10668e790d4ff1) updates `MainWindow.autosave` to take one immutable composition snapshot, attempt normal SQLite writes, and, when SQLite/OSError persistence fails, atomically write the same snapshot into user-local `recovery.json` before re-raising the original database error. The existing recovery file writer is also used for successful saves; no SQLite schema or WAL setting changed. The close handler attempts autosave first and, if persistence fails, ignores the close event, shows an exception-class-only diagnostic, and keeps the window/workers available for retry rather than prematurely marking the application shut down.
+
+[Regression commit 50a0137](https://github.com/danhgold7979-cyber/fonesi-edit/commit/50a0137dcbc75bb0042e3b02c9ffe5cc4162a440) adds a real-Qt fault-injected final autosave failure, verifies latest recovery JSON and closed-window retry, and runs three bounded cycles opening the same test-local WAL database: two real FFmpeg proxy quality jobs, one guaranteed cancellation-aware background job, repeated project snapshots, `journal_mode=wal`, `integrity_check=ok`, no source mutation and deterministic worker shutdown. Optional WAL/SHM presence is observed but never removed, renamed or interpreted as mandatory persistence.
+
+[CI 40897627521](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40897627521) **SUCCESS on exact source/test SHA 50a0137**: **604 Linux passed / 603 Windows passed + 1 intentional POSIX-only skip**, plan validator, production desktop/native-host build and frozen app proof passed both runners, Windows development artifact uploaded.
+
+**Issue #6 is still OPEN**: this bounded nonreproduction and recovery safety mitigation do **not** reveal the root cause of intermittent `database disk image is malformed`. Follow-up requires repeated Windows native/NTFS stress with filesystem and WAL lifetime instrumentation, external interference/power-loss conditions, and an attributable cause-specific regression. No destructive SQLite cleanup or full P03/P04/P11 acceptance is claimed.
