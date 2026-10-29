@@ -21,7 +21,8 @@ from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batc
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
-                         parse_scan_metadata_filters,scan_matches_metadata)
+                         parse_scan_metadata_filters,scan_matches_metadata,
+                         normalize_scan_metadata)
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -83,7 +84,8 @@ class DownloadsPage(QWidget):
         self.scan_kind_filter.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
         filter_row.addWidget(self.scan_kind_filter,1)
         self.scan_sort=QComboBox()
-        for label,value in [('Thứ tự nguồn','source'),('Tên A–Z','title'),('Loại media','kind')]:
+        for label,value in [('Thứ tự nguồn','source'),('Tên A–Z','title'),('Loại media','kind'),
+                            ('Ngày cũ trước','date_asc'),('Ngày mới trước','date_desc')]:
             self.scan_sort.addItem(label,value)
         self.scan_sort.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
         filter_row.addWidget(self.scan_sort,1)
@@ -265,14 +267,22 @@ class DownloadsPage(QWidget):
                 continue
             if kind_filter=='unselectable' and selectable:
                 continue
-            visible.append((index,title.casefold(),kind))
+            visible.append((index,title.casefold(),kind,
+                            normalize_scan_metadata(item).get('upload_date')))
         if sort_mode=='title':
             visible.sort(key=lambda value:(value[1],value[0]))
         elif sort_mode=='kind':
             visible.sort(key=lambda value:(value[2],value[1],value[0]))
+        elif sort_mode=='date_asc':
+            # Unknown or invalid dates always sort after known dates.
+            visible.sort(key=lambda value:(value[3] is None,value[3] or '',value[0]))
+        elif sort_mode=='date_desc':
+            visible.sort(key=lambda value:(value[3] is None,
+                                           -int(value[3]) if value[3] else 0,
+                                           value[0]))
         else:
             visible.sort(key=lambda value:value[0])
-        return [index for index,_,_ in visible]
+        return [value[0] for value in visible]
 
     def reset_scan_filter_page(self):
         self.scan_page=0

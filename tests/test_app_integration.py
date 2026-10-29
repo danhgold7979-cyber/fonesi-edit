@@ -1331,3 +1331,59 @@ def test_scan_metadata_filters_keep_hidden_selections_and_validate_partial_input
         assert set(requests) == {"https://example.test/a", "https://example.test/b"}
     finally:
         close(window)
+
+
+
+def test_scan_chronological_sort_keeps_unknown_last_ties_stable_and_selection(tmp_path):
+    from PySide6.QtCore import Qt
+    window = MainWindow(tmp_path / "state")
+    window.scheduler.paused = True
+    try:
+        payload = {"url": "https://example.test/gallery", "folder": str(tmp_path / "output"),
+                   "engine": "gallery"}
+        scan_id = window.store.submit("scan", payload)
+        window.store.claim(allowed={"scan"})
+        dates = ("20240201", "20240101", None, "20240230", "2024-02-01")
+        items = []
+        for i, day in enumerate(dates):
+            item = {"id": str(i), "title": f"Item {i}", "kind": "images",
+                    "engine": "gallery", "url": f"https://example.test/p/{i}",
+                    "selectable": True}
+            if day is not None:
+                item["upload_date"] = day
+            items.append(item)
+        window.store.finish(scan_id, {"platform": "Generic", "items": items,
+                                      "count": len(items), "complete": None})
+        page = window.downloads
+        page.scan_page_size = 2
+        page.show_scan()
+        page.scan_tree.topLevelItem(0).child(0).setCheckState(0, Qt.CheckState.Checked)
+        assert page.scan_selected[scan_id] == {0}
+        page.scan_sort.setCurrentIndex(page.scan_sort.findData("date_asc"))
+        assert page._scan_visible_indexes(items) == [1, 0, 4, 2, 3]
+        page.change_scan_page(1)
+        assert page.scan_tree.topLevelItem(0).child(0).data(
+            0, Qt.ItemDataRole.UserRole) == 4
+
+        page.scan_sort.setCurrentIndex(page.scan_sort.findData("date_desc"))
+        assert page._scan_visible_indexes(items) == [0, 4, 1, 2, 3]
+        root = page.scan_tree.topLevelItem(0)
+        assert root.child(0).checkState(0) == Qt.CheckState.Checked
+        root.child(1).setCheckState(0, Qt.CheckState.Checked)
+        assert page.scan_selected[scan_id] == {0, 4}
+        page.change_scan_page(2)
+        root = page.scan_tree.topLevelItem(0)
+        assert [root.child(i).data(0, Qt.ItemDataRole.UserRole)
+                for i in range(root.childCount())] == [3]
+
+        page.scan_after.setText("20240201")
+        assert page._scan_visible_indexes(items) == [0, 4, 2, 3]
+        page.scan_include_missing.setChecked(False)
+        assert page._scan_visible_indexes(items) == [0, 4]
+        assert page.scan_selected[scan_id] == {0, 4}
+        page.download_selected()
+        urls = [job["payload"]["url"] for job in window.store.jobs()
+                if job["kind"] == "download"]
+        assert set(urls) == {"https://example.test/p/0", "https://example.test/p/4"}
+    finally:
+        close(window)
