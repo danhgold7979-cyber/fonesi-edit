@@ -269,7 +269,13 @@ class Automation:
                     # compares continuation payloads for exact equality.
                     from .downloads import continuation_scan_payload
                     scan_payload=continuation_scan_payload(previous)
-            key=f'schedule-scan:{row["id"]}:{slot}'
+            # A due slot alone is not a stable identity if its next scan
+            # window changes after reconciliation (e.g. clock skew/replay).
+            # Include the frozen payload; same-slot replay of the *same*
+            # snapshot is still idempotent, but a new parent/window is not
+            # accidentally mapped to the prior scan's job.
+            snapshot_hash=hashlib.sha256(canonical(scan_payload).encode()).hexdigest()
+            key=f'schedule-scan:{row["id"]}:{slot}:{snapshot_hash}'
             job_id=submit_once(self.store,'scan',scan_payload,key)
             self.store.cache('schedule-active:'+row['id'],{'job':job_id})
             now=time.time()
