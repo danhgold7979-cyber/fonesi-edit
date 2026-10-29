@@ -197,3 +197,69 @@ def test_storage_failure_boundary_redacts_secrets_from_sqlite(tmp_path, blocked,
     with store.connect() as conn:
         persisted=conn.execute('SELECT error FROM jobs WHERE id=?',(job,)).fetchone()[0]
     assert persisted==row['error']
+
+
+@pytest.mark.parametrize('failing_pragma',[
+    'PRAGMA journal_mode=WAL',
+    'PRAGMA busy_timeout=15000',
+])
+def test_wal_initialization_errors_always_close_sqlite_handles(tmp_path,monkeypatch,failing_pragma):
+    """A PRAGMA failure before yield must not leak a Windows database handle."""
+    import fonesi_edit.storage as storage_module
+    store=Store(tmp_path/'durable-state.db')
+    original_connect=storage_module.sqlite3.connect
+    created=[]
+    class TracedConnection:
+        def __init__(self,*args,**kwargs):
+            self.inner=original_connect(*args,**kwargs)
+            self.close_count=0
+            self.rollback_count=0
+        @property
+        def row_factory(self):
+            return self.inner.row_factory
+        @row_factory.setter
+        def row_factory(self,value):
+            self.inner.row_factory=value
+        def execute(self,statement,*args):
+            if statement==failing_pragma:
+                raise sqlite3.OperationalError('synthetic PRAGMA setup failure')
+            return self.inner.execute(statement,*args)
+        def close(self):
+            self.close_count+=1
+            self.inner.close()
+        def commit(self):
+            return self.inner.commit()
+        def rollback(self):
+            self.rollback_count+=1
+            return self.inner.rollback()
+    def traced_connect(*args,**kwargs):
+        wrapped=TracedConnection(*args,**kwargs)
+        created.append(wrapped)
+        return wrapped
+    with monkeypatch.context() as patch:
+        patch.setattr(storage_module.sqlite3,'connect',traced_connect)
+        with pytest.raises(sqlite3.OperationalError,match='PRAGMA setup failure'):
+            with store.connect():
+                pytest.fail('SQLite context must never yield after PRAGMA failure')
+    assert len(created)==1
+    assert created[0].close_count==1
+    assert created[0].rollback_count==0  # No transaction has been entered.
+    # A normal connection must remain usable after the injected setup fault.
+    store.set_setting('healthy',{'after':'failure'})
+    assert store.setting('healthy')=={'after':'failure'}
+    with sqlite3.connect(store.path) as conn:
+        assert conn.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+
+
+def test_store_connection_rollback_behavior_stays_intact(tmp_path):
+    store=Store(tmp_path/'durable-state.db')
+    with pytest.raises(RuntimeError,match='synthetic rollback'):
+        with store.connect() as conn:
+            conn.execute('INSERT INTO settings(key,value) VALUES(?,?)',
+                         ('interrupted','42'))
+            raise RuntimeError('synthetic rollback')
+    assert store.setting('interrupted') is None
+    with store.connect() as conn:
+        conn.execute('INSERT INTO settings(key,value) VALUES(?,?)',
+                     ('committed','42'))
+    assert store.setting('committed')==42
