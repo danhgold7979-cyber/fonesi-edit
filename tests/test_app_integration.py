@@ -1258,3 +1258,76 @@ def test_bulk_scan_selection_over_cap_is_atomic_and_does_not_enqueue_partial_job
     finally:
         close(window)
 
+
+
+
+def test_scan_metadata_filters_keep_hidden_selections_and_validate_partial_input(tmp_path):
+    from PySide6.QtCore import Qt
+    window = MainWindow(tmp_path / "state")
+    window.scheduler.paused = True
+    try:
+        payload = {"url": "https://example.test/channel", "folder": str(tmp_path / "files")}
+        scan_id = window.store.submit("scan", payload)
+        window.store.claim(allowed={"scan"})
+        items = [
+            {"id": "a", "title": "Older video", "kind": "video", "engine": "video",
+             "url": "https://example.test/a", "selectable": True,
+             "upload_date": "20240131", "duration": 59, "height": 1080},
+            {"id": "b", "title": "Recent photo", "kind": "images", "engine": "gallery",
+             "url": "https://example.test/b", "selectable": True,
+             "upload_date": "20240229", "height": 720},
+            {"id": "c", "title": "Oversize video", "kind": "video", "engine": "video",
+             "url": "https://example.test/c", "selectable": True,
+             "upload_date": "20240301", "duration": 120, "height": 2160},
+            {"id": "d", "title": "Unknown metadata", "kind": "video", "engine": "video",
+             "url": "https://example.test/d", "selectable": True},
+            {"id": "e", "title": "Invalid metadata", "kind": "video", "engine": "video",
+             "url": "https://example.test/e", "selectable": True,
+             "upload_date": "20240230", "duration": -1, "height": "bad"},
+        ]
+        window.store.finish(scan_id, {"platform": "Generic", "items": items,
+                                      "count": len(items), "complete": None})
+        page = window.downloads
+        page.scan_page_size = 2
+        page.show_scan()
+        first = page.scan_tree.topLevelItem(0).child(0)
+        first.setCheckState(0, Qt.CheckState.Checked)
+        assert page.scan_selected[scan_id] == {0}
+
+        page.scan_after.setText("20240201")
+        page.scan_before.setText("2024-03-01")
+        page.scan_duration_min.setText("60")
+        page.scan_height_max.setText("1080")
+        assert page._scan_visible_indexes(items) == [1, 3, 4]
+        assert page.scan_tree.topLevelItem(0).childCount() == 2
+        page.change_scan_page(1)
+        assert page.scan_tree.topLevelItem(0).child(0).data(
+            0, Qt.ItemDataRole.UserRole) == 4
+        assert page.scan_selected[scan_id] == {0}
+        page.scan_include_missing.setChecked(False)
+        assert page._scan_visible_indexes(items) == []
+        assert page.scan_selected[scan_id] == {0}
+        page.scan_duration_min.clear()
+        assert page._scan_visible_indexes(items) == [1]
+        page.scan_search.setText("photo")
+        page.scan_kind_filter.setCurrentIndex(page.scan_kind_filter.findData("images"))
+        page.select_all_filtered()
+        assert page.scan_selected[scan_id] == {0, 1}
+
+        page.scan_before.setText("2024-02-30")
+        assert page._scan_visible_indexes(items) == []
+        assert "Bộ lọc metadata không hợp lệ" in page.scan_note.text()
+        assert page.scan_selected[scan_id] == {0, 1}
+        page.scan_before.setText("20240229")
+        page.scan_duration_min.setText("70")
+        page.scan_duration_max.setText("10")
+        assert page._scan_visible_indexes(items) == []
+        assert "Thời lượng tối thiểu" in page.scan_note.text()
+        page.scan_duration_min.clear()
+        page.scan_duration_max.clear()
+        page.download_selected()
+        requests = [job['payload']['url'] for job in window.store.jobs()
+                    if job['kind'] == 'download']
+        assert set(requests) == {"https://example.test/a", "https://example.test/b"}
+    finally:
+        close(window)

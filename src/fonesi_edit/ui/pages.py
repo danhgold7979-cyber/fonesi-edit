@@ -20,7 +20,8 @@ from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
-from ..downloads import platform_for,selectable_scan_url,selected_download_payloads
+from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
+                         parse_scan_metadata_filters,scan_matches_metadata)
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -86,6 +87,24 @@ class DownloadsPage(QWidget):
             self.scan_sort.addItem(label,value)
         self.scan_sort.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
         filter_row.addWidget(self.scan_sort,1)
+        metadata_row=QHBoxLayout();layout.addLayout(metadata_row)
+        for attr,label,placeholder in (
+                ('scan_after','Đăng từ','YYYYMMDD'),
+                ('scan_before','Đến','YYYY-MM-DD'),
+                ('scan_duration_min','Giây ≥','0'),
+                ('scan_duration_max','Giây ≤','3600'),
+                ('scan_height_max','Cao ≤ px','1080')):
+            metadata_row.addWidget(QLabel(label))
+            field=QLineEdit();field.setPlaceholderText(placeholder)
+            field.setMaximumWidth(110)
+            setattr(self,attr,field)
+            field.textChanged.connect(lambda *_:self.reset_scan_filter_page())
+            metadata_row.addWidget(field)
+        self.scan_include_missing=QCheckBox('Giữ mục thiếu metadata')
+        self.scan_include_missing.setChecked(True)
+        self.scan_include_missing.toggled.connect(lambda *_:self.reset_scan_filter_page())
+        metadata_row.addWidget(self.scan_include_missing)
+        self.scan_filter_error=None
         buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
         buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
@@ -166,11 +185,13 @@ class DownloadsPage(QWidget):
         complete=data.get('complete')
         completeness='đã xác nhận đủ' if complete is True else 'quét một phần' if complete is False else 'chưa rõ đã quét hết'
         visible_indexes=self._scan_visible_indexes(items)
+        filter_warning=(' • Bộ lọc metadata không hợp lệ: '+self.scan_filter_error
+                        if self.scan_filter_error else '')
         last_page=max(0,(len(visible_indexes)-1)//self.scan_page_size)
         self.scan_page=max(0,min(self.scan_page,last_page))
         start=self.scan_page*self.scan_page_size;end=min(len(visible_indexes),start+self.scan_page_size)
         chosen=self.scan_selected.setdefault(job_id,set())
-        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục gốc • hiển thị {len(visible_indexes)} • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Lọc không bỏ chọn mục đang ẩn.")
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục gốc • hiển thị {len(visible_indexes)} • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Lọc không bỏ chọn mục đang ẩn.{filter_warning}")
         self.result.setPlainText('Lựa chọn được giữ theo chỉ số gốc khi lọc/sắp xếp/chuyển trang; tài khoản và thư mục lấy từ snapshot quét. Tìm kiếm chỉ dùng tiêu đề/ID, không tìm hoặc hiển thị URL.')
         parent=QTreeWidgetItem([f"Job {job_id[:8]} • hàng hiển thị {start+1 if visible_indexes else 0}–{end}",'Nguồn',completeness])
         self.scan_tree.addTopLevelItem(parent)
@@ -212,12 +233,24 @@ class DownloadsPage(QWidget):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
             if safe and safe not in first_by_url:first_by_url[safe]=index
+        try:
+            metadata_filter=parse_scan_metadata_filters(
+                after=self.scan_after.text(),before=self.scan_before.text(),
+                duration_min=self.scan_duration_min.text(),
+                duration_max=self.scan_duration_max.text(),
+                max_height=self.scan_height_max.text(),
+                include_missing=self.scan_include_missing.isChecked())
+        except ValueError as exc:
+            self.scan_filter_error=str(exc)
+            return []
+        self.scan_filter_error=None
         query=self.scan_search.text().strip().casefold()
         kind_filter=self.scan_kind_filter.currentData()
         sort_mode=self.scan_sort.currentData()
         visible=[]
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
+            if not scan_matches_metadata(item,metadata_filter):continue
             title=str(item.get('title') or '')
             stable_id=str(item.get('id') or '')
             if query and query not in title.casefold() and query not in stable_id.casefold():

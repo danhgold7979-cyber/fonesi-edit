@@ -3,7 +3,9 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qsl
 import io
 import logging
+import math
 import re
+from datetime import date, datetime
 
 from .browser import cookie_jar,DOMAINS
 from .prototypes.media import probe
@@ -83,6 +85,131 @@ def scan_video_item_url(entry, source_url=None, *, single=False):
         if re.fullmatch(r'BV[A-Za-z0-9]{10}', source_id):
             return f'https://www.bilibili.com/video/{source_id}'
     return None
+
+
+def normalize_scan_date(value):
+    """Return a calendar-validated YYYYMMDD date, or None for unknown metadata."""
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return value.strftime('%Y%m%d')
+    if not isinstance(value, str) or not re.fullmatch(
+            r'(?:[0-9]{8}|[0-9]{4}-[0-9]{2}-[0-9]{2})', value):
+        return None
+    try:
+        return datetime.strptime(value.replace('-', ''), '%Y%m%d').strftime('%Y%m%d')
+    except ValueError:
+        return None
+
+
+def _scan_number(value, *, integer=False, positive=False):
+    """Reject booleans, nonfinite/negative numbers and malformed numeric strings."""
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        return None
+    if isinstance(value, str) and not re.fullmatch(
+            r'[0-9]+(?:\.[0-9]+)?', value.strip()):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(number) or number < 0 or (positive and number == 0):
+        return None
+    if integer:
+        return int(number) if number.is_integer() else None
+    return number
+
+
+def normalize_scan_metadata(data):
+    """Keep only safe, known metadata from an extractor; never its raw URLs."""
+    if not isinstance(data, dict):
+        return {}
+    metadata = {}
+    for candidate in (data.get('upload_date'), data.get('date')):
+        date_value = normalize_scan_date(candidate)
+        if date_value is not None:
+            metadata['upload_date'] = date_value
+            break
+    for key in ('duration', 'width', 'height'):
+        number = _scan_number(data.get(key), integer=key != 'duration',
+                              positive=key != 'duration')
+        if number is not None:
+            metadata[key] = number
+    return metadata
+
+
+def parse_scan_metadata_filters(*, after='', before='', duration_min='',
+                                duration_max='', max_height='', include_missing=True):
+    """Validate user inputs atomically; an unfinished edit is not a valid filter."""
+    if not isinstance(include_missing, bool):
+        raise ValueError('Giữ metadata thiếu phải là lựa chọn đúng/sai')
+
+    def date_bound(value, label):
+        if not isinstance(value, str):
+            raise ValueError(label + ': ngày không hợp lệ')
+        if not value.strip():
+            return None
+        result = normalize_scan_date(value.strip())
+        if result is None:
+            raise ValueError(label + ': dùng YYYYMMDD hoặc YYYY-MM-DD hợp lệ')
+        return result
+
+    def number_bound(value, label, *, integer=False, positive=False):
+        if not isinstance(value, str):
+            raise ValueError(label + ': số không hợp lệ')
+        if not value.strip():
+            return None
+        result = _scan_number(value, integer=integer, positive=positive)
+        if result is None:
+            raise ValueError(label + ': nhập số hữu hạn ' +
+                             ('nguyên dương' if integer else 'không âm'))
+        return result
+
+    parsed = {
+        'after': date_bound(after, 'Ngày từ'),
+        'before': date_bound(before, 'Ngày đến'),
+        'duration_min': number_bound(duration_min, 'Thời lượng tối thiểu'),
+        'duration_max': number_bound(duration_max, 'Thời lượng tối đa'),
+        'max_height': number_bound(max_height, 'Chiều cao tối đa',
+                                   integer=True, positive=True),
+        'include_missing': include_missing,
+    }
+    if parsed['after'] and parsed['before'] and parsed['after'] > parsed['before']:
+        raise ValueError('Ngày từ phải không muộn hơn ngày đến')
+    if (parsed['duration_min'] is not None and parsed['duration_max'] is not None
+            and parsed['duration_min'] > parsed['duration_max']):
+        raise ValueError('Thời lượng tối thiểu phải không lớn hơn tối đa')
+    return parsed
+
+
+def scan_matches_metadata(item, filters):
+    """Inclusive local filtering; missing metadata passes only when opted in."""
+    values = normalize_scan_metadata(item)
+    missing_allowed = filters['include_missing']
+    after, before = filters['after'], filters['before']
+    if after is not None or before is not None:
+        uploaded = values.get('upload_date')
+        if uploaded is None:
+            if not missing_allowed:
+                return False
+        elif (after is not None and uploaded < after) or (before is not None and uploaded > before):
+            return False
+    lower, upper = filters['duration_min'], filters['duration_max']
+    if lower is not None or upper is not None:
+        duration = values.get('duration')
+        if duration is None:
+            if not missing_allowed:
+                return False
+        elif (lower is not None and duration < lower) or (upper is not None and duration > upper):
+            return False
+    if filters['max_height'] is not None:
+        height = values.get('height')
+        if height is None:
+            if not missing_allowed:
+                return False
+        elif height > filters['max_height']:
+            return False
+    return True
 
 
 def selected_download_payloads(scan_job, indices):
@@ -238,7 +365,8 @@ def execute_download_job(store,job,progress,cancel):
             for entry in entries or []:
                 if cancel.is_set():raise RuntimeError('Canceled')
                 if not entry:continue
-                item={k:entry.get(k) for k in ('id','title','duration','upload_date')}
+                item={k:entry.get(k) for k in ('id','title')}
+                item.update(normalize_scan_metadata(entry))
                 item['url']=scan_video_item_url(entry,url,single=entry is info)
                 item['kind']='video'
                 item['engine']='video'
@@ -284,6 +412,7 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
             entry={'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],
                    'engine':'gallery','title':str(data.get('description',''))[:200],
                    'url':safe,'selectable':bool(safe)}
+            entry.update(normalize_scan_metadata(data))
             if not safe:
                 entry['reason']='URL media chỉ có dạng tạm/đã ký hoặc không hợp lệ'
             items.append(entry)
