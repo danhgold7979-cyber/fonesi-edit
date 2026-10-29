@@ -160,6 +160,32 @@ class Store:
                          (job_id, kind, data, int(priority), now, now, canonical(list(depends_on))))
         return job_id
 
+    def submit_many(self, kind, payloads, priority=0):
+        """Atomically enqueue independently snapshotted jobs; no partial batch."""
+        if kind not in {'render','scan','download','translate'}:
+            raise ValueError('Unknown job kind')
+        requests=list(payloads)
+        if not requests:
+            return []
+        tools=self.setting('tool_paths',{})
+        priority=int(priority)
+        now=time.time()
+        prepared=[]
+        for payload in requests:
+            if type(payload) is not dict:
+                raise ValueError('Job payload must be an object')
+            # Capture tool paths once, just like Store.submit, and validate
+            # *every* payload before the first SQLite INSERT can occur.
+            serialized=canonical(checked_payload({**payload,'_tools':tools}))
+            prepared.append((identifier(),kind,serialized,priority,now,now,'[]'))
+        with self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            for item in prepared:
+                conn.execute(
+                    "INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) "
+                    "VALUES(?,?,'pending',?,?,?,?,?)",item)
+        return [item[0] for item in prepared]
+
     def job(self, job_id):
         with self.connect() as conn:
             row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()

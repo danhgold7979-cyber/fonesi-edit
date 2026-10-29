@@ -373,4 +373,25 @@ def batch_plan_report(groups,preset:Composition,audio_path=None,policy='speed',m
     return {'plans':plans,'failures':failures}
 
 
-def enqueue_batch(store,plans):return [store.submit('render',{'composition':p['composition'],'output':p['output'],'warnings':p.get('warnings',[])}) for p in plans]
+def enqueue_batch(store,plans):
+    """Publish all validated Batch render requests or none of them."""
+    payloads=[]
+    seen=set()
+    for plan in plans:
+        if type(plan) is not dict or type(plan.get('composition')) is not dict:
+            raise ValueError('Batch render plan has no composition')
+        output=plan.get('output')
+        if type(output) is not str or not output.strip():
+            raise ValueError('Batch render plan has no output path')
+        # Path equality uses platform semantics (Windows case-insensitive).
+        # Duplicate targets would collide in the no-overwrite renderer.
+        target=Path(output).expanduser().resolve()
+        if target in seen:
+            raise ValueError('Duplicate Batch output path')
+        seen.add(target)
+        payloads.append({
+            'composition':plan['composition'],
+            'output':output,
+            'warnings':plan.get('warnings',[]),
+        })
+    return store.submit_many('render',payloads)
