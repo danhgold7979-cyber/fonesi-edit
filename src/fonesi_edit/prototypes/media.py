@@ -33,6 +33,8 @@ class MediaInfo:
     # Container Display Matrix rotation applied automatically by FFmpeg input.
     # Optional trailing field keeps existing six-argument fixture calls valid.
     display_rotation: float = 0.0
+    # Video stream bitrate, not container bitrate (which includes audio).
+    video_bitrate: int | None = None
 
 
 @dataclass(frozen=True)
@@ -105,9 +107,17 @@ def probe(path: Path, ffprobe: str = "ffprobe") -> MediaInfo:
         raise MediaError("Invalid video display rotation metadata") from None
     if not math.isfinite(rotation):
         raise MediaError("Invalid video display rotation metadata")
+    # Some codecs omit stream bitrate or report N/A. Unknown remains None;
+    # never substitute format.bit_rate, which also includes audio.
+    try:
+        video_bitrate=int(video.get("bit_rate"))
+    except (TypeError,ValueError,OverflowError):
+        video_bitrate=None
+    if video_bitrate is not None and video_bitrate<=0:
+        video_bitrate=None
     return MediaInfo(int(video["width"]), int(video["height"]), duration, rate,
                      video["codec_name"], audio["codec_name"] if audio else None,
-                     rotation)
+                     rotation, video_bitrate)
 
 
 def find_font() -> Path:

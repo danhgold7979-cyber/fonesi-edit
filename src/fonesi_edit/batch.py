@@ -1,4 +1,5 @@
 from copy import deepcopy
+from fractions import Fraction
 from pathlib import Path
 import hashlib
 import math
@@ -128,7 +129,18 @@ def probe_batch_metadata(groups, progress=None, cancel=None):
             info=probe(Path(source))
             if info.width<=0 or info.height<=0:
                 raise ValueError('Invalid video dimensions')
-            media[source]={'duration':info.duration,'width':info.width,'height':info.height}
+            fps=float(Fraction(info.fps))
+            if not math.isfinite(fps) or fps<=0:
+                raise ValueError('Invalid video FPS')
+            codec=info.video_codec.casefold()
+            if not codec:
+                raise ValueError('Missing video codec')
+            bitrate=info.video_bitrate
+            media[source]={
+                'duration':info.duration,'width':info.width,'height':info.height,
+                'fps':fps,'codec':codec,
+                'video_bitrate_kbps':bitrate/1000 if bitrate is not None else None,
+            }
         except (OSError,ValueError,KeyError,TypeError,ZeroDivisionError,MediaError) as exc:
             errors[source]=type(exc).__name__
         if progress is not None:

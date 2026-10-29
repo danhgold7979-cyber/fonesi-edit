@@ -888,6 +888,22 @@ class BatchPage(QWidget):
         for label,pixels in [('Mọi độ phân giải',0),('Cạnh ngắn ≥ 720px',720),('Cạnh ngắn ≥ 1080px',1080),('Cạnh ngắn ≥ 2160px',2160)]:
             self.short_edge.addItem(label,pixels)
         metadata_row.addWidget(self.short_edge)
+        advanced_row=QHBoxLayout();layout.addLayout(advanced_row)
+        self.codec_filter=QComboBox()
+        for name,codec in [('Mọi codec',''),('H.264','h264'),('H.265 / HEVC','hevc'),
+                           ('VP9','vp9'),('AV1','av1'),('MPEG-4','mpeg4')]:
+            self.codec_filter.addItem(name,codec)
+        advanced_row.addWidget(QLabel('Codec'));advanced_row.addWidget(self.codec_filter)
+        self.fps_min=QDoubleSpinBox();self.fps_max=QDoubleSpinBox()
+        for spin in (self.fps_min,self.fps_max):
+            spin.setRange(0,240);spin.setDecimals(2);spin.setSpecialValueText('Bất kỳ')
+        advanced_row.addWidget(QLabel('FPS từ'));advanced_row.addWidget(self.fps_min)
+        advanced_row.addWidget(QLabel('FPS đến'));advanced_row.addWidget(self.fps_max)
+        self.bitrate_min=QSpinBox();self.bitrate_max=QSpinBox()
+        for spin in (self.bitrate_min,self.bitrate_max):
+            spin.setRange(0,1000000);spin.setSpecialValueText('Bất kỳ')
+        advanced_row.addWidget(QLabel('Video kb/s từ'));advanced_row.addWidget(self.bitrate_min)
+        advanced_row.addWidget(QLabel('Đến'));advanced_row.addWidget(self.bitrate_max)
         buttons(layout,host,[('Chọn mục đang hiện',lambda:self.check_visible('all')),('Bỏ chọn đang hiện',lambda:self.check_visible('none')),('Đảo chọn đang hiện',lambda:self.check_visible('invert'))])
         self.tree=QTreeWidget();self.tree.setHeaderLabels(['Kênh / video','Số tệp']);layout.addWidget(self.tree,1)
         self.search.textChanged.connect(lambda _:self.filter_batch())
@@ -895,6 +911,9 @@ class BatchPage(QWidget):
         for spin in (self.duration_min,self.duration_max):
             spin.valueChanged.connect(lambda _:self.filter_batch())
         self.short_edge.currentIndexChanged.connect(lambda _:self.filter_batch())
+        self.codec_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
+        for spin in (self.fps_min,self.fps_max,self.bitrate_min,self.bitrate_max):
+            spin.valueChanged.connect(lambda _:self.filter_batch())
         self.tree.itemChanged.connect(self.selection_changed)
         self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
         self.folder.textChanged.connect(lambda _:self.source_changed())
@@ -958,7 +977,19 @@ class BatchPage(QWidget):
         self.filter_batch()
 
     def metadata_filter_active(self):
-        return bool(self.duration_min.value() or self.duration_max.value() or self.short_edge.currentData())
+        return bool(self.duration_min.value() or self.duration_max.value()
+                    or self.short_edge.currentData() or self.codec_filter.currentData()
+                    or self.fps_min.value() or self.fps_max.value()
+                    or self.bitrate_min.value() or self.bitrate_max.value())
+
+    def metadata_range_error(self):
+        if self.duration_max.value() and self.duration_max.value()<self.duration_min.value():
+            return 'Khoảng thời lượng không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        if self.fps_max.value() and self.fps_max.value()<self.fps_min.value():
+            return 'Khoảng FPS không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        if self.bitrate_max.value() and self.bitrate_max.value()<self.bitrate_min.value():
+            return 'Khoảng bitrate không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        return ''
 
     def request_metadata(self):
         if self.media_metadata is not None or self._metadata_loading or not self.groups:
@@ -985,9 +1016,14 @@ class BatchPage(QWidget):
         minimum_duration=self.duration_min.value()
         maximum_duration=self.duration_max.value()
         minimum_side=self.short_edge.currentData() or 0
-        invalid_interval=bool(maximum_duration and maximum_duration<minimum_duration)
+        codec=self.codec_filter.currentData() or ''
+        minimum_fps=self.fps_min.value()
+        maximum_fps=self.fps_max.value()
+        minimum_bitrate=self.bitrate_min.value()
+        maximum_bitrate=self.bitrate_max.value()
+        invalid_error=self.metadata_range_error()
         metadata_active=self.metadata_filter_active()
-        if metadata_active and not invalid_interval:
+        if metadata_active and not invalid_error:
             self.request_metadata()
         for i in range(self.tree.topLevelItemCount()):
             parent=self.tree.topLevelItem(i)
@@ -998,18 +1034,29 @@ class BatchPage(QWidget):
                 matches_text=not needle or channel_match or needle in child.text(0).casefold()
                 matches_type=not extension or Path(child.text(0)).suffix.casefold()==extension
                 matches_metadata=True
-                if metadata_active and not invalid_interval and self.media_metadata is not None:
+                if metadata_active and not invalid_error and self.media_metadata is not None:
                     info=self.media_metadata.get(str(Path(child.text(0)).resolve()))
-                    matches_metadata=(info is not None
-                        and (not minimum_duration or info['duration']>=minimum_duration)
-                        and (not maximum_duration or info['duration']<=maximum_duration)
-                        and (not minimum_side or min(info['width'],info['height'])>=minimum_side))
+                    if info is None:
+                        matches_metadata=False
+                    else:
+                        fps=info.get('fps')
+                        bitrate=info.get('video_bitrate_kbps')
+                        matches_metadata=(
+                            (not minimum_duration or info['duration']>=minimum_duration)
+                            and (not maximum_duration or info['duration']<=maximum_duration)
+                            and (not minimum_side or min(info['width'],info['height'])>=minimum_side)
+                            and (not codec or info.get('codec')==codec)
+                            and (not minimum_fps or fps is not None and fps>=minimum_fps)
+                            and (not maximum_fps or fps is not None and fps<=maximum_fps)
+                            and (not minimum_bitrate or bitrate is not None and bitrate>=minimum_bitrate)
+                            and (not maximum_bitrate or bitrate is not None and bitrate<=maximum_bitrate)
+                        )
                 child.setHidden(not (matches_text and matches_type and matches_metadata))
                 visible+=not child.isHidden()
             parent.setHidden(not bool(visible))
         self.update_selection_summary()
-        if invalid_interval:
-            self.summary.setText('Khoảng thời lượng không hợp lệ: giới hạn đến phải ≥ giới hạn từ; chưa áp dụng lọc metadata.')
+        if invalid_error:
+            self.summary.setText(invalid_error+'; chưa áp dụng lọc metadata.')
 
     def update_selection_summary(self):
         chosen=sum(len(paths) for paths in self.selected().values())
@@ -1021,7 +1068,7 @@ class BatchPage(QWidget):
         note=''
         if self.metadata_filter_active():
             if self._metadata_loading:
-                note=' • Đang đọc FFprobe; lọc thời lượng/độ phân giải CHƯA áp dụng.'
+                note=' • Đang đọc FFprobe; lọc metadata CHƯA áp dụng.'
             elif self.media_metadata is None:
                 note=' • Chưa có metadata; bộ lọc chưa áp dụng.'
             elif self.media_metadata_errors:
@@ -1055,8 +1102,9 @@ class BatchPage(QWidget):
             if files:result[parent.text(0)]=files
         return result
     def plan(self):
-        if self.duration_max.value() and self.duration_max.value()<self.duration_min.value():
-            raise ValueError('Khoảng thời lượng không hợp lệ: giới hạn đến nhỏ hơn giới hạn từ')
+        error=self.metadata_range_error()
+        if error:
+            raise ValueError(error)
         if self.metadata_filter_active() and self.media_metadata is None:
             self.request_metadata()
             raise ValueError('Đang chờ đọc metadata FFprobe trước khi lập kế hoạch; bộ lọc chưa áp dụng')
