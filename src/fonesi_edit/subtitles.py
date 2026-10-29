@@ -71,6 +71,56 @@ def write_captions(path:Path,captions,overwrite=False):
         Path(temporary).unlink(missing_ok=True)
 
 
+def _split_caption_text(value):
+    """Split without dropping whitespace or inventing new source/target text."""
+    import unicodedata
+    if not isinstance(value,str) or len(value)<2:
+        raise ValueError('Câu quá ngắn để tách mà không mất nội dung')
+    middle=len(value)//2
+    candidates=[]
+    for point in range(1,len(value)):
+        # Avoid splitting combining marks or a zero-width-joiner sequence.
+        if (unicodedata.combining(value[point]) or value[point] in '\ufe0e\ufe0f\u200d'
+                or value[point-1]=='\u200d'):
+            continue
+        if value[:point].strip() and value[point:].strip():
+            candidates.append(point)
+    if not candidates:
+        raise ValueError('Câu không có vị trí tách giữ nguyên cả hai phần')
+    boundary=[point for point in candidates
+              if value[point-1].isspace() or value[point].isspace()]
+    point=min(boundary or candidates,key=lambda item:(abs(item-middle),item))
+    return value[:point],value[point:]
+
+
+def split_caption(cue):
+    """Split a bilingual cue into two positive intervals while preserving text."""
+    if cue.end_ms-cue.start_ms<2:
+        raise ValueError('Cue quá ngắn để tách thành hai khoảng dương')
+    first,second=_split_caption_text(cue.text)
+    if cue.source_text:
+        original_first,original_second=_split_caption_text(cue.source_text)
+    else:
+        original_first=original_second=''
+    middle=(cue.start_ms+cue.end_ms)//2
+    return (Caption(cue.start_ms,middle,first,original_first,cue.locked),
+            Caption(middle,cue.end_ms,second,original_second,cue.locked))
+
+
+def merge_captions(cues):
+    """Merge selected rows without silently discarding bilingual source text."""
+    cues=list(cues)
+    if len(cues)<2:
+        raise ValueError('Cần ít nhất hai cue để gộp')
+    original=('\n'.join(c.source_text or c.text for c in cues)
+              if any(c.source_text for c in cues) else '')
+    return Caption(min(c.start_ms for c in cues),
+                   max(c.end_ms for c in cues),
+                   '\n'.join(c.text for c in cues),
+                   original,
+                   any(c.locked for c in cues))
+
+
 def caption_warnings(captions,duration_ms=None):
     warnings=[];last_end=0
     for i,cue in enumerate(captions,1):
