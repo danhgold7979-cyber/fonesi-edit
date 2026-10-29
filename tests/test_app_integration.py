@@ -2664,3 +2664,41 @@ def test_batch_ui_reports_partial_and_all_failed_sources_without_enqueue(tmp_pat
         assert 'Đã bỏ bản dry-run cũ' in window.status.text()
     finally:
         close(window)
+
+def test_real_qt_batch_cancel_discards_partial_plans_and_preserves_selection(tmp_path,monkeypatch):
+    """The real Task Event/worker path is cancelled by its public cancel flag."""
+    from threading import Event
+    from fonesi_edit import batch as batch_module
+    from fonesi_edit.prototypes.media import MediaInfo
+
+    window=MainWindow(tmp_path/'state')
+    entered=Event();release=Event()
+    try:
+        page=window.batch
+        channel=str(tmp_path/'channel')
+        sources=[str(tmp_path/'channel'/f'video_{i:02d}.mp4') for i in range(3)]
+        page.scanned({channel:sources})
+        calls=[]
+        def held_probe(path):
+            calls.append(str(path))
+            entered.set()
+            assert release.wait(10), 'Synthetic probe was not released'
+            return MediaInfo(320,180,1,'25/1','h264',None)
+        monkeypatch.setattr(batch_module,'probe',held_probe)
+        page.plan()
+        task=window.tasks[-1]
+        wait_until(lambda:entered.is_set())
+        task.cancel.set()  # Same Event used by the UI cancellation button.
+        release.set()
+        wait_until(lambda:'Đã hủy lập kế hoạch Batch' in page.summary.text())
+        wait_until(lambda:not window.tasks)
+        assert len(calls)==1
+        assert page.plans==[] and page.plan_failures==[]
+        assert page.selected()=={channel:sources}
+        assert window.store.jobs()==[]
+        import pytest
+        with pytest.raises(ValueError,match='Lập kế hoạch trước'):
+            page.enqueue()
+    finally:
+        release.set()
+        close(window)

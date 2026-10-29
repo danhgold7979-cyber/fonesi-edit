@@ -361,3 +361,85 @@ def test_batch_plan_report_isolates_infeasible_clip_but_not_global_audio_errors(
     # audio file or report it as two independent video failures.
     with pytest.raises(ValueError,match='Chọn thư mục audio'):
         batch_plan_report(groups,preset,audio_mode='ordered',audio_folder=None)
+
+def test_large_logical_batch_plan_progress_and_order(tmp_path,monkeypatch):
+    """512 logical sources exercise planner scale without timing assertions."""
+    from fonesi_edit import batch as module
+    from fonesi_edit.prototypes.media import MediaInfo
+
+    channel=tmp_path/'channel'
+    paths=[str(channel/f'video_{index:04d}.mp4') for index in range(512)]
+    groups={str(channel):paths[:]}
+    calls=[]
+    monkeypatch.setattr(module,'probe',lambda path: (
+        calls.append(str(path)) or MediaInfo(320,180,1,'25/1','h264',None)))
+    fractions=[]
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+    report=module.batch_plan_report(groups,preset,progress=fractions.append)
+    assert len(report['plans'])==512 and not report['failures']
+    assert len(calls)==512 and calls==paths
+    assert len(fractions)==513
+    assert all(0<=v<=.99 for v in fractions[:-1])
+    assert fractions==sorted(fractions) and fractions[-1]==1.
+    assert len({p['output'] for p in report['plans']})==512
+    assert groups[str(channel)]==paths and not channel.exists()
+    assert not any(Path(p['output']).exists() for p in report['plans'])
+
+
+def test_batch_cancel_during_planning_discards_every_partial_plan(tmp_path,monkeypatch):
+    from threading import Event
+    from fonesi_edit import batch as module
+    from fonesi_edit.prototypes.media import MediaInfo
+
+    sources=[str(tmp_path/f'video_{i:02d}.mp4') for i in range(16)]
+    groups={str(tmp_path):sources[:]}
+    visited=[]
+    monkeypatch.setattr(module,'probe',lambda path: (
+        visited.append(str(path)) or MediaInfo(320,180,1,'25/1','h264',None)))
+    canceled=Event();fractions=[]
+    def observe(value):
+        fractions.append(value)
+        if len(fractions)==4:
+            canceled.set()
+    report=module.batch_plan_report(groups,Composition(),progress=observe,cancel=canceled)
+    assert report=={'plans':[],'failures':[],'cancelled':True}
+    assert visited==sources[:4] and len(fractions)==4
+    assert fractions[-1]<1 and fractions==sorted(fractions)
+    assert groups[str(tmp_path)]==sources
+    assert not any(Path(s).exists() for s in sources)
+
+    before=Event();before.set()
+    visited.clear();fractions.clear()
+    assert module.batch_plan_report(groups,Composition(),progress=fractions.append,cancel=before)==report
+    assert not visited and not fractions
+
+
+def test_batch_cancel_during_audio_preflight_never_probes_video(tmp_path,monkeypatch):
+    from threading import Event
+    from fonesi_edit import batch as module
+
+    sound_folder=tmp_path/'audio'
+    sound_folder.mkdir()
+    for i in range(2):
+        (sound_folder/f'a{i}.wav').write_bytes(b'synthetic audio mapping only')
+    groups={str(tmp_path):[str(tmp_path/'a.mp4'),str(tmp_path/'b.mp4')]}
+    cancel=Event();seen=[]
+    def audio_probe(path):
+        seen.append(path)
+        cancel.set()
+        return 1.
+    monkeypatch.setattr(module,'audio_duration',audio_probe)
+    monkeypatch.setattr(module,'probe',lambda _:pytest.fail('Video probe after cancelled audio preflight'))
+    fractions=[]
+    outcome=module.batch_plan_report(groups,Composition(),audio_mode='ordered',
+                                      audio_folder=str(sound_folder),
+                                      cancel=cancel,progress=fractions.append)
+    assert outcome=={'plans':[],'failures':[],'cancelled':True}
+    assert len(seen)==1 and fractions==[]
+
+
+def test_benchmark_batch_rejects_unsupported_corpus_count():
+    from scripts.benchmark_batch import benchmark
+    for size in (0,-1,1001,1.1,True):
+        with pytest.raises(ValueError,match='copies'):
+            benchmark(size)
