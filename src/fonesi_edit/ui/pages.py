@@ -602,9 +602,24 @@ class SubtitlesPage(QWidget):
         bilingual=self.bilingual.isChecked()
         if bilingual and not any(c.source_text and c.source_text!=c.text for c in captions):raise ValueError('Chưa có bản gốc khác bản dịch; dịch/nhập bản gốc trước khi bật song ngữ')
         key=hashlib.sha256(canonical([asdict(c) for c in captions]).encode()).hexdigest()[:20];path=self.host.data/'subtitles'/(key+'.srt')
-        if not path.exists():write_captions(path,captions)
+        def verify_or_create_sidecar(destination,expected):
+            # A hash-derived name is not proof the file still has those bytes.
+            # Never attach externally edited/corrupt output as a different cue.
+            if destination.is_symlink():
+                raise ValueError('Tệp phụ đề liên kết ngoài không được dùng tự động: '+destination.name)
+            if destination.exists():
+                actual=[(c.start_ms,c.end_ms,c.text) for c in read_captions(destination)]
+                requested=[(c.start_ms,c.end_ms,c.text) for c in expected]
+                if actual!=requested:
+                    raise FileExistsError('Tệp phụ đề đã có nội dung khác; không thay thế: '+destination.name)
+            else:
+                write_captions(destination,expected)
+        verify_or_create_sidecar(path,captions)
         original_path=path.with_name(key+'.source.srt')
-        if bilingual and not original_path.exists():write_captions(original_path,[Caption(c.start_ms,c.end_ms,c.source_text or c.text) for c in captions])
+        if bilingual:
+            originals=[Caption(c.start_ms,c.end_ms,c.source_text or c.text) for c in captions]
+            verify_or_create_sidecar(original_path,originals)
+        # Do not change the editor until all requested sidecars are validated.
         index=max(0,editor.clips.currentRow());clip=editor.composition.clips[index];editor.begin();clip.subtitles=None
         for role,sub_path,language in [('target',path,self.target.currentText()),*([('source',original_path,self.source.currentText())] if bilingual else [])]:
             existing=next((layer for layer in editor.composition.layers if layer.kind=='subtitle' and clip.id in layer.clip_ids and layer.style.get('subtitle_role','target')==role),None)
