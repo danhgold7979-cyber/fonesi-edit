@@ -126,3 +126,56 @@ def test_watcher_does_not_auto_edit_quality_upgrade_variants(tmp_path):
     assert len(render_jobs)==1
     assert str(original) in render_jobs[0]['payload']['composition']['clips'][0]['path']
     assert upgrade.is_file()
+
+
+def test_submit_many_once_single_transaction_rollback_and_idempotence(tmp_path):
+    """An injected failure on the second INSERT never leaves a partial sync."""
+    import sqlite3
+    from fonesi_edit.automation import submit_many_once
+    store=Store(tmp_path/'batch-state.db')
+    old={'url':'https://example.test/first','folder':str(tmp_path/'media'),
+         'engine':'video','media':'videos'}
+    new={**old,'url':'https://example.test/second'}
+    batch=[(old,'sync:first'),(new,'sync:second')]
+    with store.connect() as conn:
+        conn.execute("""
+            CREATE TRIGGER deny_second_sync BEFORE INSERT ON jobs
+            WHEN json_extract(NEW.payload,'$.url')='https://example.test/second'
+            BEGIN SELECT RAISE(ABORT, 'injected-second-insert'); END
+        """)
+    with pytest.raises(sqlite3.IntegrityError,match='injected-second-insert'):
+        submit_many_once(store,'download',batch)
+    assert store.jobs()==[]
+    with store.connect() as conn:
+        conn.execute('DROP TRIGGER deny_second_sync')
+    accepted=submit_many_once(store,'download',batch)
+    assert accepted['created']==2 and accepted['existing']==0
+    assert len(set(accepted['ids']))==2
+    repeated=submit_many_once(store,'download',batch)
+    assert repeated['ids']==accepted['ids']
+    assert repeated['created']==0 and repeated['existing']==2
+    assert len(store.jobs())==2
+    with pytest.raises(ValueError,match='snapshot khác'):
+        submit_many_once(store,'download',[
+            ({**old,'account_ref':'changed-account'},'sync:first'),
+            ({**new,'url':'https://example.test/third'},'sync:third')])
+    with pytest.raises(ValueError,match='snapshot khác'):
+        submit_many_once(store,'scan',[(old,'sync:first')])
+    assert len(store.jobs())==2
+    assert all(j['kind']=='download' for j in store.jobs())
+
+
+def test_submit_many_once_rejects_untrusted_and_duplicate_batch_before_writing(tmp_path):
+    from fonesi_edit.automation import submit_many_once
+    store=Store(tmp_path/'batch-state.db')
+    good={'url':'https://example.test/first','folder':str(tmp_path/'media')}
+    with pytest.raises(ValueError,match='Secret'):
+        submit_many_once(store,'download',[
+            (good,'safe'),
+            ({'api_key':'do-not-store'},'second')])
+    assert store.jobs()==[]
+    with pytest.raises(ValueError,match='trùng'):
+        submit_many_once(store,'download',[(good,'repeated'),(good,'repeated')])
+    with pytest.raises(ValueError,match='500'):
+        submit_many_once(store,'download',[(good,str(i)) for i in range(501)])
+    assert store.jobs()==[]

@@ -180,3 +180,22 @@ def test_media_job_symlink_is_not_accepted_as_existing_download(tmp_path,monkeyp
                         lambda path: True if path==media else original(path))
     with pytest.raises(ValueError,match='không còn hợp lệ'):
         plan_new_only_sync(scan,[0],store.download_jobs_for_urls([OLD]))
+
+
+def test_existing_media_rejects_symlinked_channel_directory(tmp_path,monkeypatch):
+    """A symlink in the directory chain must not masquerade as valid history."""
+    fixture=create_fixture(tmp_path/'fixture',duration=.5)
+    root=tmp_path/'out'
+    file=root/'Generic'/'Creator__id'/'videos'/'old.mp4'
+    file.parent.mkdir(parents=True)
+    shutil.copyfile(fixture['source'],file)
+    store=Store(tmp_path/'db.sqlite')
+    scan=scan_snapshot(root,(OLD,))
+    finish_video(store,selected_download_payloads(scan,[0])[0],file)
+    actual_is_symlink=Path.is_symlink
+    channel=file.parent.parent
+    monkeypatch.setattr(Path,'is_symlink',
+        lambda path: path==channel or actual_is_symlink(path))
+    with pytest.raises(ValueError,match='không còn hợp lệ'):
+        plan_new_only_sync(scan,[0],store.download_jobs_for_urls([OLD]))
+    assert file.read_bytes()==fixture['source'].read_bytes()

@@ -1677,3 +1677,80 @@ def test_second_scan_sync_aborts_atomically_on_corrupt_file_or_over_limit(tmp_pa
         assert len([j for j in window.store.jobs() if j['kind']=='download'])==1
     finally:
         close(window)
+
+
+def test_sync_selects_first_safe_duplicate_even_if_earlier_row_is_disabled(tmp_path):
+    """Disabled duplicate URLs may not make later valid rows disappear."""
+    from PySide6.QtCore import Qt
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        root=tmp_path/'output'
+        url='https://example.test/video/same'
+        scan=window.store.submit('scan',{'url':'https://example.test/channel',
+            'folder':str(root),'engine':'video','media':'videos','limit':2})
+        window.store.claim(allowed={'scan'})
+        window.store.finish(scan,{'platform':'Generic','items':[
+            {'id':'disabled','title':'Dòng bị khóa','kind':'video','engine':'video',
+             'url':url,'selectable':False,'reason':'Unverified source'},
+            {'id':'valid','title':'Dòng hợp lệ','kind':'video','engine':'video',
+             'url':url,'selectable':True}],
+            'count':2,'complete':None})
+        page=window.downloads
+        page.scan_page_size=1
+        page.show_scan()
+        combo=page.scan_kind_filter
+        combo.setCurrentIndex(combo.findData('selectable'))
+        assert page._scan_visible_indexes(window.store.job(scan)['result']['items'])==[1]
+        page.select_all_filtered()
+        assert page.scan_selected[scan]=={1}
+        result=page.sync_new_filtered()
+        assert result['newly_enqueued']==1 and result['total']==1
+        assert result['already_valid']==0
+        assert page.scan_selected[scan]=={1}
+        downloads=[j for j in window.store.jobs() if j['kind']=='download']
+        assert len(downloads)==1 and downloads[0]['payload']['url']==url
+        second=page.sync_new_filtered()
+        assert second['newly_enqueued']==0 and second['already_queued']==1
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==1
+    finally:
+        close(window)
+
+
+def test_sync_sqlite_failure_on_second_insert_does_not_enqueue_partial_group(tmp_path):
+    """The Qt path uses a single SQLite transaction, not per-row submits."""
+    import sqlite3
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        first='https://example.test/video/first'
+        second='https://example.test/video/second'
+        scan=window.store.submit('scan',{'url':'https://example.test/channel',
+            'folder':str(tmp_path/'out'),'engine':'video','media':'videos'})
+        window.store.claim(allowed={'scan'})
+        window.store.finish(scan,{'platform':'Generic','items':[
+            {'id':str(i),'title':f'Video {i}','kind':'video','engine':'video',
+             'url':url,'selectable':True}
+            for i,url in enumerate((first,second))],
+            'count':2,'complete':None})
+        page=window.downloads
+        page.show_scan()
+        with window.store.connect() as conn:
+            conn.execute("""
+                CREATE TRIGGER deny_second_ui BEFORE INSERT ON jobs
+                WHEN kind='download'
+                AND json_extract(NEW.payload, '$.url')='https://example.test/video/second'
+                BEGIN SELECT RAISE(ABORT, 'injected-second-download'); END
+            """)
+        with pytest.raises(sqlite3.IntegrityError,match='injected-second-download'):
+            page.sync_new_filtered()
+        assert [j for j in window.store.jobs() if j['kind']=='download']==[]
+        with window.store.connect() as conn:
+            conn.execute('DROP TRIGGER deny_second_ui')
+        result=page.sync_new_filtered()
+        assert result['newly_enqueued']==2
+        assert {j['payload']['url'] for j in window.store.jobs()
+                if j['kind']=='download'}=={first,second}
+    finally:
+        close(window)
