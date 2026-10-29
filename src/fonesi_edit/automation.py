@@ -59,6 +59,55 @@ def submit_once(store,kind,payload,key,depends_on=()):
     return job_id
 
 
+def submit_many_once(store, kind, requests):
+    """Atomically enqueue a bounded list of idempotent jobs.
+
+    Each request is (payload, stable_key). All validation happens before the
+    first write. Existing keys are reused only with exactly the same kind and
+    canonical snapshot; an unrelated or changed job never silently replaces
+    the requested work. One SQL error rolls back the *whole* batch.
+    """
+    if kind not in {'render', 'scan', 'download', 'translate'}:
+        raise ValueError('Loại job hàng loạt không hợp lệ')
+    if not isinstance(requests, (list, tuple)) or len(requests) > 500:
+        raise ValueError('Chỉ enqueue tối đa 500 job đồng bộ một lần')
+    tool_paths = store.setting('tool_paths', {})
+    prepared = []
+    identities = set()
+    for item in requests:
+        if (not isinstance(item, (tuple, list)) or len(item) != 2
+                or not isinstance(item[0], dict) or type(item[1]) is not str
+                or not 1 <= len(item[1]) <= 4096):
+            raise ValueError('Snapshot hoặc khóa idempotent hàng loạt không hợp lệ')
+        payload, key = item
+        job_id = hashlib.sha256(key.encode()).hexdigest()[:32]
+        if job_id in identities:
+            raise ValueError('Khóa job bị trùng trong cùng nhóm đồng bộ')
+        identities.add(job_id)
+        encoded = canonical(checked_payload({**payload, '_tools': tool_paths}))
+        prepared.append((job_id, encoded))
+    created = existing = 0
+    with store.connect() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        for job_id, encoded in prepared:
+            row = conn.execute('SELECT kind,payload FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if row is not None:
+                if row['kind'] != kind or row['payload'] != encoded:
+                    raise ValueError(
+                        'Khóa job đồng bộ đã tồn tại với loại hoặc snapshot khác; '
+                        'không ghi đè hoặc đổi tài khoản')
+                existing += 1
+                continue
+            now = time.time()
+            conn.execute(
+                "INSERT INTO jobs(id,kind,state,payload,created,updated,depends_on) "
+                "VALUES(?,?,'pending',?,?,?,?)",
+                (job_id, kind, encoded, now, now, canonical([])))
+            created += 1
+    return {'ids': [job_id for job_id, _ in prepared],
+            'created': created, 'existing': existing}
+
+
 class Automation:
     def __init__(self,store):self.store=store;self.stop_event=Event();self.thread=None;self.errors=[];self.seen={}
     def start(self):

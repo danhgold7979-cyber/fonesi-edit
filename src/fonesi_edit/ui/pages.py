@@ -29,7 +29,7 @@ from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pair
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
 from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses
-from ..automation import metrics,recommended_parallel,submit_once
+from ..automation import metrics,recommended_parallel,submit_once,submit_many_once
 
 
 MAX_SCAN_SELECTION = 500
@@ -217,7 +217,9 @@ class DownloadsPage(QWidget):
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            if safe and safe not in first_by_url:first_by_url[safe]=index
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
         for index in visible_indexes[start:end]:
             item=items[index]
             if not isinstance(item,dict):continue
@@ -250,7 +252,9 @@ class DownloadsPage(QWidget):
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            if safe and safe not in first_by_url:first_by_url[safe]=index
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
         try:
             metadata_filter=parse_scan_metadata_filters(
                 after=self.scan_after.text(),before=self.scan_before.text(),
@@ -349,7 +353,9 @@ class DownloadsPage(QWidget):
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            if safe and safe not in first_by_url:first_by_url[safe]=index
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
         selectable=[]
         for index in visible:
             item=items[index]
@@ -422,7 +428,9 @@ class DownloadsPage(QWidget):
         for index,item in enumerate(items):
             if not isinstance(item,dict):continue
             safe=selectable_scan_url(item.get('url'))
-            if safe and safe not in first_by_url:first_by_url[safe]=index
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
         indexes=[]
         for index in visible:
             item=items[index]
@@ -447,21 +455,25 @@ class DownloadsPage(QWidget):
                     'Tài khoản scan đã đổi/mất; không đồng bộ bằng phiên công khai')
         history=self.host.store.download_jobs_for_urls([request['url'] for request in requests])
         plan=plan_new_only_sync(scan,indexes,history)
+        batch=[]
         for payload in plan['payloads']:
-            # A stable cross-scan key, unlike the ordinary per-scan item key.
+            # Stable across scans. One transaction, not one INSERT per item.
             identity='sync-media-v1:'+canonical([
                 payload['url'],payload['folder'],payload['engine'],
                 payload['media'],payload.get('account_ref'),
                 payload.get('expected_identity')])
-            submit_once(self.host.store,'download',payload,identity)
+            batch.append((payload,identity))
+        submitted=submit_many_once(self.host.store,'download',batch)
+        report={**plan,'newly_enqueued':submitted['created'],
+                'already_queued':plan['already_queued']+submitted['existing']}
         self.host.message(
             f"Đồng bộ {plan['total']} mục đã quét: "
-            f"{len(plan['payloads'])} mới, {plan['already_valid']} tệp hợp lệ, "
-            f"{plan['already_queued']} job đang chờ/chạy. "
+            f"{report['newly_enqueued']} job mới, {report['already_valid']} tệp hợp lệ, "
+            f"{report['already_queued']} job đã có/đang chờ. "
             'Chưa xác nhận đã quét hết kênh.')
-        if plan['payloads']:
+        if report['newly_enqueued']:
             self.host.activate_queue()
-        return plan
+        return report
 
     def download_subtitles_selected(self):
         return self.download_selected(subtitles_only=True)

@@ -34,6 +34,13 @@ def _verified_download_files(job, request):
             return False
         try:
             relative = path.resolve(strict=True).relative_to(root)
+            # Path.resolve() alone follows symlinked channel directories;
+            # do not mark artifacts through those aliases as verified.
+            for ancestor in (path, *path.parents):
+                if ancestor.is_symlink():
+                    return False
+                if ancestor == root:
+                    break
             if (len(relative.parts) != 3 or relative.parts[1] != wanted
                     or path.stat().st_size <= 0):
                 return False
