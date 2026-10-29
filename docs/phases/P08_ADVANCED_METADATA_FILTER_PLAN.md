@@ -18,7 +18,13 @@ The earlier [P03 source CI 40905102578](https://github.com/danhgold7979-cyber/fo
 
 ## Bounded acceptance
 
-- [ ] Codec/FPS/video bitrate are extracted from FFprobe without inventing missing video bitrate values.
-- [ ] Filtering and invalid-range handling work in BatchPage without modifying selected files, settings, original media or stale jobs.
-- [ ] Tests and both packaged CI runners PASS at the exact code/test SHA, evidence recorded honestly.
+- [x] Codec/FPS/video bitrate are extracted from FFprobe without inventing missing video bitrate values.
+- [x] Filtering and invalid-range handling work in BatchPage without modifying selected files, settings, original media or stale jobs.
+- [x] Tests and both packaged CI runners PASS at the exact code/test SHA, evidence recorded honestly.
 - [ ] P08 remains OPEN for large corpus benchmarks, audio meters/playlist/solo and physical Windows user-device/installer/Chrome/GPU/live-source acceptance.
+
+## Verified source, tests and CI (29/10/2026)
+
+[P08 plan](https://github.com/danhgold7979-cyber/fonesi-edit/blob/develop/fonesi-full/docs/phases/P08_ADVANCED_METADATA_FILTER_PLAN.md) preceded [code 6307042](https://github.com/danhgold7979-cyber/fonesi-edit/commit/630704259e38e3ed829817230344ce7a14c993bd), then [tests 81952fd / a0d9e74](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a0d9e74e4fd356568ecaf60c49a5edc0a2bc9d6f). `MediaInfo.video_bitrate` is optional and read only from the FFprobe video stream; missing, N/A, zero or malformed stream values stay unknown (`None`), even if the **container** reports a bitrate. `probe_batch_metadata` now also produces normalized codec, rational FPS converted to a numeric value and optional video kb/s; no media is mutated. BatchPage adds codec + FPS + video-bitrate range controls. Invalid ranges fail clearly; unreadable/unknown necessary facts fail closed when the corresponding filter is active; hidden checkbox state and stale callback protection remain unchanged.
+
+[CI 40908188050](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40908188050) **SUCCESS on exact SHA a0d9e74**: Linux **618 passed**; Windows **617 passed, 1 intentional POSIX-only skip**. Phase references, production desktop/native-host builds and frozen packaged synthetic/localhost proof PASS on both runners; Windows development build and evidence artifacts uploaded. New tests cover synthetic FFprobe stream-vs-container bitrate, 29.97 FPS rational conversion, optional bitrate legacy constructor, real media and Qt filters/unknown bitrates/range validation/selection stability. This is bounded proof, not corpus-scale throughput/ETA, live providers, Chrome/auth, full Windows user device or GPU acceptance; P08 remains OPEN.
