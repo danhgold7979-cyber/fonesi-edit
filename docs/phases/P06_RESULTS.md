@@ -61,3 +61,11 @@ The CI fixture verifies **two clips with different trims/speeds**, a 100 ms cros
 **Verified final:** [CI 40881166137](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40881166137) **SUCCESS** on exact commit [e8656dc8](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e8656dc8af45f80246c8a35624cad1ec602a8f40). Linux **587 passed**; Windows **586 passed + 1 intentional skip**. Source plan/test, desktop/native-host build and frozen packaged synthetic proof PASS both runners.
 
 **P06 remains IN PROGRESS:** frame/pixel-level parity for real VFR/mixed-FPS/rotation, complete subtitle duration policies, live translation cost/quality and provider/platform permissions, user-device Windows/HiDPI/IME/Chrome, 4K/long projects, persistent Undo, filesystem/power-loss and SQLite issue #6 are not accepted.
+
+## P06-03 — Glossary markers resist text collisions and provider corruption (29/10/2026)
+
+[Plan](P06_GLOSSARY_MARKER_PLAN.md), [code 256c4a0](https://github.com/danhgold7979-cyber/fonesi-edit/commit/256c4a0d6b1816bc546d609f04afd18fd67e6caf), [one-pass correction 31c439b](https://github.com/danhgold7979-cyber/fonesi-edit/commit/31c439b44e60fe220cda8e332117b84177e4d1ab), and [final tests 1a2347b](https://github.com/danhgold7979-cyber/fonesi-edit/commit/1a2347b4b653fcc2cb5e20340fcb3ee54fd827a8) implement protected glossary substitutions that cannot rewrite a literal old placeholder in the source or reprocess a newly generated token. Longest terms match first; provider marker deletion/duplication fails explicitly before caching that invalid cue. Locked cues/cache reuse remain in existing regression.
+
+[CI 40893822256](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40893822256) **SUCCESS exact source/test SHA 1a2347b**: Linux **602 PASS**, Windows **601 PASS + 1 intentional skip**; plan checker, desktop/native-host build and frozen packaged synthetic proof passed both. Tests use fake transport, no live/paid calls.
+
+P06 **NOT fully complete**: provider-live Chinese–Vietnamese translation accuracy, cost/billing and account/language support, editor corpus, Windows physical acceptance, Chrome/auth/GPU and SQLite [#6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) are separate open gates.

@@ -88,3 +88,7 @@ Phụ đề ASS ở bước ghép vào video có mốc thời gian **10 ms**, c�
 Khi video nguồn có metadata xoay 90°/180°/270°, Fonesi Edit hiển thị frame đã được FFmpeg xoay đúng hướng trong **Crop video nguồn**. Tọa độ crop là tọa độ theo **khung đang nhìn thấy**: chọn nửa dưới trong cửa sổ crop sẽ cắt nửa dưới của hình đã xoay, không phải nửa dưới của video mã hóa trước xoay. Bản render dùng cùng tọa độ hiển thị. Nếu video có metadata xoay lệch góc vuông mà không thể tính crop hình chữ nhật chính xác, ứng dụng báo lỗi rõ thay vì xuất vùng sai; thử đặt lại crop toàn khung hoặc xử lý metadata nguồn theo quy trình được kiểm chứng.
 
 Bộ kiểm thử hiện đã xác nhận synthetic video có Display Matrix +90° và video với frame timestamps không đều (VFR) ghép cùng clip 24 FPS, xuất ở 25 FPS với sub đúng thời gian. Kết quả này không bảo đảm mọi codec điện thoại, audio-sync VFR, GPU hoặc HiDPI/4K trên PC Windows người dùng đã được kiểm chứng.
+
+## Bảo toàn thuật ngữ trong dịch phụ đề
+
+Khi cấu hình từ điển thuật ngữ, Fonesi Edit bảo vệ tên riêng/bản dịch đã định nghĩa bằng token tạm trong yêu cầu dịch và khôi phục chúng sau phản hồi. Việc so khớp ưu tiên từ dài hơn và chỉ chạy trên văn bản gốc, tránh thay nhầm các mã bảo vệ xuất hiện trong nội dung. Nếu bộ dịch trả thiếu hoặc lặp token, tác vụ báo lỗi cần kiểm tra thay vì âm thầm ghi bản dịch sai vào cache. Đây là kiểm chứng bằng fake transport; chất lượng/ngân sách của dịch vụ API thật vẫn cần được thử riêng.
