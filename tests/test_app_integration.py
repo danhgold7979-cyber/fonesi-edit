@@ -312,7 +312,9 @@ def test_subtitle_native_line_edit_undo_takes_priority_over_cue_history(tmp_path
         entry.setText('zh')
         entry.setFocus()
         APP.processEvents()
-        assert QApplication.focusWidget() is entry
+        # Qt/OS may focus either the editable combo itself or its line edit.
+        # Both must route to native text undo, not cue/canvas history.
+        assert QApplication.focusWidget() in (entry,page.source)
         entry.insert('x')
         window.actions['Undo'].trigger()
         assert entry.text()=='zh'

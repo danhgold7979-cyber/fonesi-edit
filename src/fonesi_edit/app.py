@@ -525,8 +525,15 @@ class MainWindow(QMainWindow):
                     # Subtitle table history is separate from the canvas. When
                     # a live text editor owns focus (including a cue delegate),
                     # its native text history takes precedence over table Undo.
-                    if policy=='text':
-                        method=getattr(target,'undo' if name=='Undo' else 'redo',None)
+                    input_widget=target
+                    # An editable Qt combo/spin may own focus on behalf of its
+                    # internal line edit; treat that as native text input too.
+                    if policy=='control' and isinstance(target,QAbstractSpinBox):
+                        input_widget=target.lineEdit()
+                    elif policy=='control' and isinstance(target,QComboBox) and target.isEditable():
+                        input_widget=target.lineEdit()
+                    if policy=='text' or input_widget is not target:
+                        method=getattr(input_widget,'undo' if name=='Undo' else 'redo',None)
                         if callable(method):method()
                     else:
                         action=self.subtitles.undo_cues if name=='Undo' else self.subtitles.redo_cues
