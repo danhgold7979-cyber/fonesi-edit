@@ -1118,10 +1118,16 @@ class BatchPage(QWidget):
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
         audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
         self.host.background(lambda p,c:batch_plan_report(groups,preset,audio,policy,minimum,maximum,
-                            audio_mode=audio_mode,audio_folder=audio_folder),
+                            audio_mode=audio_mode,audio_folder=audio_folder,progress=p,cancel=c),
                             lambda report:self.planned(report) if revision==self._plan_revision
                             else self.host.message('Đã bỏ bản dry-run cũ do cấu hình thay đổi trong lúc tính'))
     def planned(self,report):
+        if isinstance(report,dict) and report.get('cancelled'):
+            # A canceled worker must never offer the subset it prepared for
+            # Preview/Enqueue; normal revision guards also reject stale workers.
+            self.plans=[];self.plan_failures=[]
+            self.summary.setText('Đã hủy lập kế hoạch Batch; không có bản kế hoạch được phép chạy.')
+            return
         # Legacy list results are accepted for caller compatibility; the Batch
         # worker now returns both valid plans and explicit per-video failures.
         plans=report['plans'] if isinstance(report,dict) else report

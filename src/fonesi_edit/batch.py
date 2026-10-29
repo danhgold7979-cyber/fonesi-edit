@@ -213,17 +213,29 @@ def fit_duration(composition:Composition,target,policy='speed',minimum=.5,maximu
 
 
 
-def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder=None, seed=0):
+class BatchPlanCancelled(Exception):
+    """Cooperative preparation cancellation; never publish an incomplete plan."""
+
+
+def _check_batch_cancel(cancel):
+    if cancel is not None and cancel.is_set():
+        raise BatchPlanCancelled()
+
+
+def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder=None,
+                            seed=0, *, cancel=None):
     """Pick audio for every selected video without modifying source media.
 
     Return {resolved video path: (resolved audio path, validated duration)}.
     Ordering follows selected source order within natural-sorted channels;
     random is stable for the same source path and project seed.
     """
+    _check_batch_cancel(cancel)
     if mode not in {'shared','by_name','ordered','random'}:
         raise ValueError('Unknown audio assignment mode')
     sources=[str(Path(source).resolve()) for channel,paths in sorted(
         groups.items(),key=lambda pair:natural_key(pair[0])) for source in paths]
+    _check_batch_cancel(cancel)
     if mode=='shared':
         if not audio_path:
             return {}
@@ -231,6 +243,7 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         if not sound.is_file():
             raise FileNotFoundError('Âm thanh chung không tồn tại: '+sound.name)
         length=audio_duration(sound)
+        _check_batch_cancel(cancel)
         return {source:(str(sound),length) for source in sources}
     if not audio_folder:
         raise ValueError('Chọn thư mục audio khi dùng ghép theo tên/danh sách/random')
@@ -245,10 +258,12 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
     # Validate real audio tracks before generating *any* batch plan.
     durations={}
     for sound in paths:
+        _check_batch_cancel(cancel)
         try:
             length=audio_duration(sound)
         except (OSError,ValueError,RuntimeError) as exc:
             raise ValueError('Tệp audio không có track hợp lệ: '+sound.name) from exc
+        _check_batch_cancel(cancel)
         if not math.isfinite(length) or length<=0:
             raise ValueError('Thời lượng audio không hợp lệ: '+sound.name)
         durations[str(sound.resolve())]=length
@@ -258,6 +273,7 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         for sound in paths:
             matched.setdefault(sound.stem.casefold(),[]).append(sound)
         for source in sources:
+            _check_batch_cancel(cancel)
             found=matched.get(Path(source).stem.casefold(),[])
             if len(found)!=1:
                 raise ValueError('Ghép theo tên cần đúng một audio: '+Path(source).name)
@@ -267,29 +283,38 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         if len(paths)!=len(sources):
             raise ValueError('Ghép theo danh sách cần số audio bằng số video được chọn')
         for source,sound in zip(sources,paths,strict=True):
+            _check_batch_cancel(cancel)
             sound=sound.resolve()
             selection[source]=(str(sound),durations[str(sound)])
     else:
         for source in sources:
+            _check_batch_cancel(cancel)
             number=int(hashlib.sha256(f'{seed}:{source}'.encode()).hexdigest()[:16],16)
             sound=paths[number%len(paths)].resolve()
             selection[source]=(str(sound),durations[str(sound)])
+    _check_batch_cancel(cancel)
     return selection
 
 
 def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2,
-               audio_mode='shared',audio_folder=None,*,failures=None):
+               audio_mode='shared',audio_folder=None,*,failures=None,progress=None,cancel=None):
     """Build immutable render snapshots; optionally isolate per-video input faults.
 
     Default callers remain fail-fast. Only callers explicitly supplying a
     failures list can skip invalid sources. Audio assignment is a whole-batch
     preflight: bad mapping is never silently changed or downgraded.
     """
-    assignments=batch_audio_assignments(groups,audio_mode,audio_path,audio_folder,preset.seed)
+    _check_batch_cancel(cancel)
+    assignments=batch_audio_assignments(groups,audio_mode,audio_path,audio_folder,preset.seed,
+                                        cancel=cancel)
+    _check_batch_cancel(cancel)
+    total=sum(len(paths) for paths in groups.values())
+    processed=0
     plans=[]
     for channel,paths in sorted(groups.items(),key=lambda p:natural_key(p[0])):
         channel=Path(channel);output_root=channel.with_name(channel.name+' edit')/'videos'
         for source in paths:
+            _check_batch_cancel(cancel)
             path=Path(source)
             try:
                 info=probe(path);c=deepcopy(preset)
@@ -319,17 +344,32 @@ def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=
                         else 'Cấu hình clip không hợp lệ')
                 failures.append({'source':str(path),'reason':reason,
                                  'error_type':type(exc).__name__})
-                continue
-            plans.append(planned)
+            else:
+                plans.append(planned)
+            # This check is after the expensive probe/composition work, so a
+            # cancel during one FFprobe call cannot publish a partial result.
+            _check_batch_cancel(cancel)
+            processed+=1
+            if progress is not None and total:
+                # Reserve 100% for successful completion, including preflight.
+                progress(min(.99,processed/total))
+            _check_batch_cancel(cancel)
+    _check_batch_cancel(cancel)
+    if progress is not None:
+        progress(1.0)
     return plans
 
 
 def batch_plan_report(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,
-                      maximum=2,audio_mode='shared',audio_folder=None):
-    """Report bad individual videos without hiding failures or altering audio maps."""
+                      maximum=2,audio_mode='shared',audio_folder=None,*,progress=None,cancel=None):
+    """Report per-video errors; cancellation never exposes partial render plans."""
     failures=[]
-    plans=batch_plan(groups,preset,audio_path,policy,minimum,maximum,
-                     audio_mode,audio_folder,failures=failures)
+    try:
+        plans=batch_plan(groups,preset,audio_path,policy,minimum,maximum,
+                         audio_mode,audio_folder,failures=failures,
+                         progress=progress,cancel=cancel)
+    except BatchPlanCancelled:
+        return {'plans':[],'failures':[],'cancelled':True}
     return {'plans':plans,'failures':failures}
 
 
