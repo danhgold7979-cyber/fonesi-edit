@@ -83,6 +83,75 @@ def test_attach_bilingual_creates_independent_draggable_tracks(tmp_path):
     close(window)
 
 
+
+def test_subtitle_attach_rejects_modified_generated_sidecars_before_editor_mutation(tmp_path):
+    import pytest
+    from fonesi_edit.subtitles import Caption,write_captions
+    fixture=create_fixture(tmp_path/'media',duration=.5)
+    window=MainWindow(tmp_path/'state')
+    try:
+        window.editor.set_composition(Composition(
+            clips=[Clip(str(fixture['source']),end=.5)]))
+        page=window.subtitles
+        page.captions=[Caption(0,400,'Bản dịch','Original')]
+        page.refresh()
+        page.bilingual.setChecked(True)
+        page.attach()
+        layers={layer.style['subtitle_role']:layer
+                for layer in window.editor.composition.layers}
+        assert set(layers)=={'target','source'}
+        for role,expected in (('target','Bản dịch'),('source','Original')):
+            sidecar=Path(layers[role].path)
+            assert sidecar.is_file()
+            write_captions(sidecar,[Caption(0,400,'User edited '+role)],overwrite=True)
+            user_bytes=sidecar.read_bytes()
+            frozen=window.editor.composition.to_dict()
+            with pytest.raises(FileExistsError,match='nội dung khác'):
+                page.attach()
+            assert sidecar.read_bytes()==user_bytes
+            assert window.editor.composition.to_dict()==frozen
+            # Restore exactly the expected bytes for the next independent case.
+            write_captions(sidecar,[Caption(0,400,expected)],overwrite=True)
+        clean={role:Path(layer.path).read_bytes() for role,layer in layers.items()}
+        page.attach()  # Matching existing source and target files may be reused.
+        assert {role:Path(layer.path).read_bytes() for role,layer in layers.items()}==clean
+        assert len([layer for layer in window.editor.composition.layers
+                    if layer.kind=='subtitle'])==2
+    finally:
+        close(window)
+
+
+def test_subtitle_attach_rejects_linked_generated_sidecar_without_touching_editor(tmp_path,monkeypatch):
+    import pytest
+    from fonesi_edit.subtitles import Caption
+    fixture=create_fixture(tmp_path/'media',duration=.5)
+    window=MainWindow(tmp_path/'state')
+    try:
+        window.editor.set_composition(Composition(
+            clips=[Clip(str(fixture['source']),end=.5)]))
+        page=window.subtitles
+        page.captions=[Caption(0,400,'Bản dịch','Original')]
+        page.refresh()
+        page.attach()
+        attached=next(layer for layer in window.editor.composition.layers
+                      if layer.kind=='subtitle')
+        target=Path(attached.path)
+        original=target.read_bytes()
+        frozen=window.editor.composition.to_dict()
+        actual_is_symlink=Path.is_symlink
+        with monkeypatch.context() as patch:
+            # Cross-platform fixture for the filesystem-link rejection branch:
+            # Windows CI need not require permission to create a real symlink.
+            patch.setattr(Path,'is_symlink',
+                          lambda path: path==target or actual_is_symlink(path))
+            with pytest.raises(ValueError,match='liên kết ngoài'):
+                page.attach()
+        assert target.read_bytes()==original
+        assert window.editor.composition.to_dict()==frozen
+    finally:
+        close(window)
+
+
 def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor);window.editor.add_layer('text')
     try:
