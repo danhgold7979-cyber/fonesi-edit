@@ -1739,7 +1739,7 @@ def test_sync_sqlite_failure_on_second_insert_does_not_enqueue_partial_group(tmp
         with window.store.connect() as conn:
             conn.execute("""
                 CREATE TRIGGER deny_second_ui BEFORE INSERT ON jobs
-                WHEN kind='download'
+                WHEN NEW.kind='download'
                 AND json_extract(NEW.payload, '$.url')='https://example.test/video/second'
                 BEGIN SELECT RAISE(ABORT, 'injected-second-download'); END
             """)
