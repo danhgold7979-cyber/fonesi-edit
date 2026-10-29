@@ -185,6 +185,39 @@ def crop_rect_pixels(clip, source_width: int, source_height: int):
     return crop_width, crop_height, left, top
 
 
+def crop_rect_after_autorotate(clip, info):
+    """Map a crop in unrotated source pixels onto FFmpeg's rotated input.
+
+    FFmpeg defaults to auto-applying a container Display Matrix before the
+    filter graph. `crop_rect_pixels` is intentionally source-space so Editor
+    crop UI and older projects keep the same normalized coordinate semantics.
+    """
+    raw = crop_rect_pixels(clip, info.width, info.height)
+    if raw is None:
+        return None
+    angle = info.display_rotation
+    quarter_turns = round(angle / 90)
+    if not math.isclose(angle, quarter_turns * 90, abs_tol=1e-3):
+        raise ValueError(
+            'Metadata xoay không vuông góc; không thể crop chính xác nguồn'
+        )
+    turns = quarter_turns % 4
+    if turns == 0:
+        return raw
+    if info.width % 2 or info.height % 2:
+        raise ValueError(
+            'Khung hình có chiều lẻ và metadata xoay; không thể crop '
+            'yuv420p an toàn theo tọa độ nguồn'
+        )
+    width, height, x, y = raw
+    if turns == 1:  # +90: source left half becomes display bottom half.
+        return height, width, y, info.width - (x + width)
+    if turns == 2:
+        return width, height, info.width - (x + width), info.height - (y + height)
+    # -90 (or +270): source left half becomes display top half.
+    return height, width, info.height - (y + height), x
+
+
 def compile_graph(c:Composition,stage:Path):
     c.validate()
     if not c.clips:raise ValueError('Chưa có clip')
@@ -202,7 +235,7 @@ def compile_graph(c:Composition,stage:Path):
             segments.append((label+'v',label+'a',gap))
         args+=['-i',str(Path(clip.path).resolve())];idx=inputs;inputs+=1
         vf=[f'trim=start={clip.start:.8f}:end={end:.8f}',f'setpts=(PTS-STARTPTS)/{clip.speed:.8f}',f'fps={c.fps}','settb=AVTB']
-        crop = crop_rect_pixels(clip, info.width, info.height)
+        crop = crop_rect_after_autorotate(clip, info)
         if crop:
             crop_width, crop_height, crop_x, crop_y = crop
             vf.append(f'crop={crop_width}:{crop_height}:{crop_x}:{crop_y}')
