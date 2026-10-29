@@ -53,6 +53,116 @@ def test_menu_shortcut_callback_does_not_receive_checked_as_function(tmp_path):
     close(window)
 
 
+def test_newer_recovery_snapshot_replays_after_faulted_sqlite_autosave(tmp_path,monkeypatch):
+    """Recover the actual fallback produced on a failed SQLite project write."""
+    import sqlite3
+    import pytest
+    state=tmp_path/'state'
+    window=MainWindow(state)
+    reopened=None
+    try:
+        window.editor.set_composition(Composition(layers=[Layer(text='SQLite cũ')]))
+        window.autosave()
+        identity=window.project_id
+        record=next(p for p in window.store.list_named('projects') if p['id']==identity)
+        assert record['data']['layers'][0]['text']=='SQLite cũ'
+        window.editor.set_composition(Composition(layers=[Layer(text='Khôi phục mới')]))
+        window.autosave_timer.stop()
+        with monkeypatch.context() as patch:
+            patch.setattr(window.store,'save_named',lambda *_args,**_kwargs:(
+                _ for _ in ()).throw(sqlite3.DatabaseError('synthetic WAL failure')))
+            with pytest.raises(sqlite3.DatabaseError,match='synthetic WAL failure'):
+                window.autosave()
+        recovery=state/'recovery.json'
+        saved=json.loads(recovery.read_text(encoding='utf-8'))
+        assert saved['project_id']==identity
+        assert saved['composition']['layers'][0]['text']=='Khôi phục mới'
+        # Use a clear later filesystem mtime on both NTFS and Linux.
+        os.utime(recovery,(record['updated']+60,record['updated']+60))
+        reopened=MainWindow(state)
+        assert reopened.project_id==identity
+        assert reopened.editor.composition.layers[0].text=='Khôi phục mới'
+        assert 'Đã khôi phục' in reopened.status.text()
+        assert next(p for p in reopened.store.list_named('projects')
+                    if p['id']==identity)['data']['layers'][0]['text']=='SQLite cũ'
+        # Replay is memory-only until a normal project save.
+        reopened.autosave()
+        assert next(p for p in reopened.store.list_named('projects')
+                    if p['id']==identity)['data']['layers'][0]['text']=='Khôi phục mới'
+    finally:
+        if reopened is not None:close(reopened)
+        close(window)
+
+
+def test_recovery_snapshot_refuses_stale_wrong_project_and_malformed_file(tmp_path):
+    from fonesi_edit.domain import atomic_json,identifier
+    state=tmp_path/'state'
+    window=MainWindow(state)
+    try:
+        window.editor.set_composition(Composition(layers=[Layer(text='Database đúng')]))
+        window.autosave()
+        identity=window.project_id
+        row=next(p for p in window.store.list_named('projects') if p['id']==identity)
+    finally:
+        close(window)
+    recovery=state/'recovery.json'
+    newer=Composition(layers=[Layer(text='Không được áp dụng')]).to_dict()
+    for kind in ('stale','wrong_id','malformed','ambiguous'):
+        if kind=='malformed':
+            recovery.write_text('{không phải JSON',encoding='utf-8')
+        else:
+            atomic_json(recovery,{'schema_version':1,
+                'project_id':identifier() if kind=='wrong_id' else identity,
+                'composition':newer})
+            stamp=row['updated']-60 if kind=='stale' else row['updated']+60
+            os.utime(recovery,(stamp,stamp))
+        if kind=='ambiguous':
+            from fonesi_edit.storage import Store
+            Store(state/'state.db').set_setting('last_project',None)
+        reopened=MainWindow(state)
+        try:
+            if kind=='ambiguous':
+                assert reopened.project_id is None
+                assert not reopened.editor.composition.layers
+            else:
+                assert reopened.project_id==identity
+                assert reopened.editor.composition.layers[0].text=='Database đúng'
+            assert 'Đã khôi phục' not in reopened.status.text()
+        finally:
+            # Closing writes a fresh normal project snapshot. Re-select the
+            # original identity before the next independent policy case.
+            close(reopened)
+            from fonesi_edit.storage import Store
+            Store(state/'state.db').set_setting('last_project',identity)
+
+
+def test_recovery_can_restore_valid_snapshot_into_empty_sqlite_store(tmp_path):
+    from fonesi_edit.domain import atomic_json,identifier
+    state=tmp_path/'empty-state'
+    state.mkdir()
+    identity=identifier()
+    atomic_json(state/'recovery.json',{
+        'schema_version':1,'project_id':identity,
+        'composition':Composition(layers=[Layer(text='Chỉ còn file phục hồi')]).to_dict()
+    })
+    window=MainWindow(state)
+    try:
+        assert window.project_id==identity
+        assert window.editor.composition.layers[0].text=='Chỉ còn file phục hồi'
+        assert 'Đã khôi phục' in window.status.text()
+        assert not window.store.list_named('projects')  # No implicit DB write.
+        window.autosave()
+        assert window.store.list_named('projects')[0]['id']==identity
+    finally:
+        close(window)
+    reopened=MainWindow(state)
+    try:
+        assert reopened.project_id==identity
+        assert reopened.editor.composition.layers[0].text=='Chỉ còn file phục hồi'
+    finally:
+        close(reopened)
+
+
 def test_subtitle_draft_keeps_unsaved_raw_edits_and_restores(tmp_path):
     from fonesi_edit.subtitles import Caption
     window=MainWindow(tmp_path/'state');window.subtitles.captions=[Caption(0,500,'Nội dung')];window.subtitles.refresh()
