@@ -214,27 +214,39 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
         if cancel and cancel.is_set():raise RuntimeError('Canceled')
         batch=missing[start:start+32];texts=[];protected=[]
         for _,_,original in batch:
-            protected_text=original;terms=[]
-            # Prefer the longest source terms so a shorter overlapping entry
-            # cannot consume part of a longer glossary name.
-            sorted_terms=sorted(glossary.items(),key=lambda item:-len(item[0]))
+            terms=[]
+            # Match against the ORIGINAL cue in one pass. Sequential .replace
+            # can corrupt a marker if a different glossary key matches part of
+            # its generated token.
+            sorted_terms=sorted(
+                [(term,value) for term,value in glossary.items() if term],
+                key=lambda item:-len(item[0]))
+            markers={}
             for number,(term,value) in enumerate(sorted_terms):
-                if not term or term not in protected_text:
-                    continue
                 salt=0
                 while True:
                     digest=hashlib.sha256(
                         canonical([original,number,salt]).encode()).hexdigest()[:24]
                     marker=f'FONESIPROTECTED{digest}END'
-                    if (marker not in original
+                    if (marker not in original and marker not in markers.values()
                             and all(marker not in key and marker not in replacement
                                     for key,replacement in glossary.items())):
                         break
                     salt+=1
-                count=protected_text.count(term)
-                protected_text=protected_text.replace(term,marker)
-                terms.append((marker,value,count))
-            texts.append(protected_text);protected.append(terms)
+                markers[term]=marker
+                terms.append([marker,value,0])
+            counters={term:index for index,(term,_) in enumerate(sorted_terms)}
+            if sorted_terms:
+                pattern=re.compile('|'.join(re.escape(term) for term,_ in sorted_terms))
+                def protect(match):
+                    term=match.group()
+                    terms[counters[term]][2]+=1
+                    return markers[term]
+                protected_text=pattern.sub(protect,original)
+            else:
+                protected_text=original
+            texts.append(protected_text)
+            protected.append([item for item in terms if item[2]])
         chars=sum(len(text) for text in texts)
         quota=int(config.get('daily_limit',100000))
         usage_key='translation_usage:'+config.get('provider','google')+':'+time.strftime('%Y-%m-%d',time.gmtime())
