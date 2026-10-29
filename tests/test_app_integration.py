@@ -436,6 +436,63 @@ def test_cue_timeline_mouse_drag_moves_selected_cue_with_single_undo(tmp_path):
         close(window)
 
 
+def test_cue_timeline_drag_start_end_handles_and_escape_cancel(tmp_path):
+    from PySide6.QtCore import QPoint,QPointF,Qt
+    from PySide6.QtTest import QTest
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    window.show()
+    try:
+        page=window.subtitles
+        page.captions=[Caption(1000,3000,'Tiếng Việt','中文')]
+        page.refresh()
+        window.nav.setCurrentWidget(page)
+        page.table.setCurrentCell(0,0)
+        APP.processEvents()
+        view=page.cue_timeline
+        assert view.bar is not None
+        baseline=len(page.cue_history.past)
+
+        def drag_at_edge(edge,delta):
+            bar=view.bar
+            width=bar.rect().width()
+            local=QPointF(3 if edge=='start' else width-3,bar.rect().height()/2)
+            origin=view.mapFromScene(bar.mapToScene(local))
+            target=origin+QPoint(delta,0)
+            QTest.mousePress(view.viewport(),Qt.MouseButton.LeftButton,
+                             Qt.KeyboardModifier.NoModifier,origin)
+            QTest.mouseMove(view.viewport(),target)
+            QTest.mouseRelease(view.viewport(),Qt.MouseButton.LeftButton,
+                               Qt.KeyboardModifier.NoModifier,target)
+            APP.processEvents()
+
+        drag_at_edge('end',35)
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1000,4000)
+        assert len(page.cue_history.past)==baseline+1
+        drag_at_edge('start',-35)
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(0,4000)
+        assert len(page.cue_history.past)==baseline+2
+        baseline=len(page.cue_history.past)
+        middle=view.mapFromScene(view.bar.sceneBoundingRect().center())
+        QTest.mousePress(view.viewport(),Qt.MouseButton.LeftButton,
+                         Qt.KeyboardModifier.NoModifier,middle)
+        QTest.mouseMove(view.viewport(),middle+QPoint(35,0))
+        QTest.keyClick(view,Qt.Key.Key_Escape)
+        QTest.mouseRelease(view.viewport(),Qt.MouseButton.LeftButton,
+                           Qt.KeyboardModifier.NoModifier,middle+QPoint(35,0))
+        APP.processEvents()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(0,4000)
+        assert len(page.cue_history.past)==baseline
+        assert page.undo_cues()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1000,4000)
+        assert page.undo_cues()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1000,3000)
+        assert page.collect()[0].text=='Tiếng Việt'
+        assert page.collect()[0].source_text=='中文'
+    finally:
+        close(window)
+
+
 def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor);window.editor.add_layer('text')
     try:
