@@ -29,9 +29,36 @@ class Caption:
         if self.start_ms<0 or self.end_ms<=self.start_ms:raise ValueError('Invalid caption interval')
 
 
-def read_captions(path:Path):
+ASS_PRESENTATION_WARNING=(
+    'ASS/SSA: bảng cue không giữ style, vị trí, hiệu ứng hoặc karaoke; '
+    'xuất lại có thể mất định dạng, tệp gốc không đổi.'
+)
+INLINE_FORMAT_WARNING=(
+    'Phụ đề chứa thẻ định dạng nội dòng; bảng cue chỉ giữ văn bản thuần, '
+    'cần kiểm tra lại trước khi xuất.'
+)
+KNOWN_IMPORT_WARNINGS=frozenset({ASS_PRESENTATION_WARNING,INLINE_FORMAT_WARNING})
+
+
+def read_captions_with_warnings(path:Path):
+    """Read editable plain cues and report formatting that cannot round-trip."""
+    path=Path(path)
     data=pysubs2.load(str(path),encoding='utf-8-sig')
-    return [Caption(event.start,event.end,event.plaintext) for event in data if not event.is_comment and event.plaintext.strip()]
+    events=[event for event in data if not event.is_comment and event.plaintext.strip()]
+    captions=[Caption(event.start,event.end,event.plaintext) for event in events]
+    warnings=[]
+    if events and path.suffix.lower() in {'.ass','.ssa'}:
+        # ASS styles, override tags and positional effects do not belong to
+        # our Caption model, even when the default style was customized.
+        warnings.append(ASS_PRESENTATION_WARNING)
+    elif any(re.search(r'\{\\[^}]*\}',event.text) for event in events):
+        warnings.append(INLINE_FORMAT_WARNING)
+    return captions,warnings
+
+
+def read_captions(path:Path):
+    # Existing worker/render callers deliberately receive only plain cues.
+    return read_captions_with_warnings(path)[0]
 
 
 def write_captions(path:Path,captions,overwrite=False):
