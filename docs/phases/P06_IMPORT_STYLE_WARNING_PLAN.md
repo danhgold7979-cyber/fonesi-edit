@@ -17,9 +17,9 @@ The app already reads SRT/VTT/ASS via `pysubs2`, normalizes each event to `Capti
 
 ## Acceptance gates
 
-- [ ] Styled ASS import explicitly warns that visual styling/position/effects are not carried into the editable cue model.
-- [ ] Text, Unicode, timing, and source file bytes are preserved; clean plain SRT avoids a false warning.
-- [ ] Format warning remains visible through editing and draft recovery but clears when a new plain document is loaded.
-- [ ] Linux and Windows full CI, native-host/desktop builds and synthetic frozen proof PASS on the implementation commit.
+- [x]  Styled ASS import explicitly warns that visual styling/position/effects are not carried into the editable cue model.
+- [x]  Text, Unicode, timing, and source file bytes are preserved; clean plain SRT avoids a false warning.
+- [x]  Format warning remains visible through editing and draft recovery but clears when a new plain document is loaded.
+- [x]  Linux and Windows full CI, native-host/desktop builds and synthetic frozen proof PASS on the implementation commit.
 
 **Outside this slice:** true ASS style-preserving roundtrip, external live providers/Chinese→Vietnamese review, physical Windows/HiDPI/IME, Chrome credentials, GPU, disk/power-loss soak and intermittent SQLite issue #6. Full P06/P11 gates remain OPEN.

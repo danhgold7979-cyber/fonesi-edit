@@ -18,9 +18,9 @@ Today cue timing can be typed numerically and shifted in bulk but cannot be drag
 
 ## Acceptance and exclusions
 
-- [ ] Selected cue shows a moveable time bar; move/edge drag changes only that cue's absolute millisecond timing and preserves content/lock.
-- [ ] Release produces one Undo entry; invalid drag or canceled/no-op gesture does not record changes. Original draft and Undo/Redo recover correctly.
-- [ ] Invalid table input never gets silently coerced; no source/FFmpeg/render output is changed merely by dragging a cue.
-- [ ] Plan checker, full Linux/Windows source CI, production desktop/native-host and frozen packaged proof all PASS on the code/test SHA.
+- [x]  Selected cue shows a moveable time bar; move/edge drag changes only that cue's absolute millisecond timing and preserves content/lock.
+- [x]  Release produces one Undo entry; invalid drag or canceled/no-op gesture does not record changes. Original draft and Undo/Redo recover correctly.
+- [x]  Invalid table input never gets silently coerced; no source/FFmpeg/render output is changed merely by dragging a cue.
+- [x]  Plan checker, full Linux/Windows source CI, production desktop/native-host and frozen packaged proof all PASS on the code/test SHA.
 
 **Still not accepted:** editing many cues simultaneously, trim/speed composition time-map parity, long/high-FPS timeline performance, undo journal persisted across restarts, Windows user-device pointer/HiDPI, real Chinese–Vietnamese translation quality/cost/rights/Chrome and [SQLite issue #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6). Full P06 remains OPEN.
