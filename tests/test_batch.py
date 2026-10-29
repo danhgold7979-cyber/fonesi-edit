@@ -447,3 +447,39 @@ def test_benchmark_batch_rejects_unsupported_corpus_count():
     for size in (0,-1,1001,1.1,True):
         with pytest.raises(ValueError,match='copies'):
             benchmark(size)
+
+def test_batch_enqueue_is_atomic_and_rejects_duplicate_or_missing_destinations(tmp_path):
+    import sqlite3
+    from fonesi_edit.batch import enqueue_batch
+    from fonesi_edit.storage import Store
+
+    store=Store(tmp_path/'state.db')
+    composition=Composition(width=320,height=180,fps=25,encoder='cpu').to_dict()
+    paths=[str(tmp_path/'first.mp4'),str(tmp_path/'second.mp4')]
+    plans=[{'composition':composition,'output':path,'warnings':['synthetic']}
+           for path in paths]
+    with store.connect() as conn:
+        conn.execute(
+            "CREATE TRIGGER fail_second_batch_render BEFORE INSERT ON jobs "
+            "WHEN instr(NEW.payload,'second.mp4')>0 BEGIN "
+            "SELECT RAISE(ABORT,'synthetic batch second insert fault'); END")
+    with pytest.raises(sqlite3.DatabaseError,match='synthetic batch second insert fault'):
+        enqueue_batch(store,plans)
+    assert store.jobs()==[] and not any(Path(p).exists() for p in paths)
+    with store.connect() as conn:
+        conn.execute('DROP TRIGGER fail_second_batch_render')
+    ids=enqueue_batch(store,plans)
+    assert len(ids)==2 and set(ids)=={j['id'] for j in store.jobs()}
+    assert [store.job(j)['payload']['warnings'] for j in ids]==[['synthetic'],['synthetic']]
+    assert all(store.job(j)['payload']['output']==paths[i] for i,j in enumerate(ids))
+    assert not any(Path(p).exists() for p in paths)
+
+    before={j['id'] for j in store.jobs()}
+    with pytest.raises(ValueError,match='Duplicate Batch output'):
+        enqueue_batch(store,[plans[0],{**plans[1],'output':paths[0]}])
+    with pytest.raises(ValueError,match='no output path'):
+        enqueue_batch(store,[plans[0],{**plans[1],'output':' '}])
+    with pytest.raises(ValueError,match='no composition'):
+        enqueue_batch(store,[plans[0],{**plans[1],'composition':None}])
+    assert {j['id'] for j in store.jobs()}==before
+    assert enqueue_batch(store,[])==[]

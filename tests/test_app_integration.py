@@ -2702,3 +2702,38 @@ def test_real_qt_batch_cancel_discards_partial_plans_and_preserves_selection(tmp
     finally:
         release.set()
         close(window)
+
+def test_qt_batch_enqueue_sqlite_failure_keeps_dry_run_and_queue_unchanged(tmp_path):
+    import sqlite3
+    import pytest
+
+    window=MainWindow(tmp_path/'state')
+    try:
+        window.scheduler.paused=True
+        page=window.batch
+        window.nav.setCurrentWidget(page)
+        composition=Composition(width=320,height=180,fps=25,encoder='cpu').to_dict()
+        plans=[{'composition':composition,'output':str(tmp_path/f'{i}.mp4')}
+               for i in ('first','second')]
+        page.plans=plans
+        with window.store.connect() as conn:
+            conn.execute(
+                "CREATE TRIGGER fail_qt_batch_second BEFORE INSERT ON jobs "
+                "WHEN instr(NEW.payload,'second.mp4')>0 BEGIN "
+                "SELECT RAISE(ABORT,'synthetic Qt batch fault'); END")
+        with pytest.raises(sqlite3.DatabaseError,match='synthetic Qt batch fault'):
+            page.enqueue()
+        assert page.plans==plans
+        assert window.nav.currentWidget() is page
+        assert window.store.jobs()==[]
+        with window.store.connect() as conn:
+            conn.execute('DROP TRIGGER fail_qt_batch_second')
+        page.enqueue()
+        assert window.nav.currentWidget() is window.queue
+        assert len(window.store.jobs())==2
+        assert {j['payload']['output'] for j in window.store.jobs()}=={
+            str(tmp_path/'first.mp4'),str(tmp_path/'second.mp4')}
+    finally:
+        with window.store.connect() as conn:
+            conn.execute('DROP TRIGGER IF EXISTS fail_qt_batch_second')
+        close(window)

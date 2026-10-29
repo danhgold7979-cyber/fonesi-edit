@@ -310,3 +310,52 @@ def test_selected_project_save_is_opt_in_and_presets_cannot_be_selected(tmp_path
         store.save_named("presets", "Rejected", {"b": 3}, select_as_last=True)
     assert [row["id"] for row in store.list_named("presets")] == [preset]
     assert store.setting("last_project") is None
+
+def test_submit_many_sqlite_fault_rolls_back_entire_batch(tmp_path):
+    """The second INSERT must not leave the first item pending after a fault."""
+    from copy import deepcopy
+
+    store=Store(tmp_path/'state.db')
+    store.set_setting('tool_paths',{'ffmpeg':'synthetic-tool-path'})
+    prior=store.submit('scan',{})
+    payloads=[{'composition':{'name':'first'},'output':'first.mp4'},
+              {'composition':{'name':'second'},'output':'second.mp4'}]
+    unchanged=deepcopy(payloads)
+    with store.connect() as conn:
+        conn.execute(
+            "CREATE TRIGGER fail_batch_second BEFORE INSERT ON jobs "
+            "WHEN instr(NEW.payload,'second.mp4') > 0 BEGIN "
+            "SELECT RAISE(ABORT,'synthetic second batch failure'); END")
+    with pytest.raises(sqlite3.DatabaseError,match='synthetic second batch failure'):
+        store.submit_many('render',payloads)
+    assert [j['id'] for j in store.jobs()]==[prior]
+    assert payloads==unchanged
+    with sqlite3.connect(store.path) as conn:
+        assert conn.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+
+    with store.connect() as conn:
+        conn.execute('DROP TRIGGER fail_batch_second')
+    new=store.submit_many('render',payloads)
+    assert len(new)==2 and len(set(new))==2
+    assert len(store.jobs())==3
+    for index,job_id in enumerate(new):
+        job=store.job(job_id)
+        assert job['state']=='pending'
+        assert job['payload']['composition']==payloads[index]['composition']
+        assert job['payload']['output']==payloads[index]['output']
+        assert job['payload']['_tools']=={'ffmpeg':'synthetic-tool-path'}
+    assert store.job(prior)['state']=='pending'
+    assert payloads==unchanged
+
+
+def test_submit_many_validates_every_payload_before_any_insert(tmp_path):
+    store=Store(tmp_path/'state.db')
+    valid={'composition':{},'output':'first.mp4'}
+    rejected={'composition':{'api_key':'synthetic-must-not-save'},'output':'second.mp4'}
+    with pytest.raises(ValueError,match='Secret values'):
+        store.submit_many('render',[valid,rejected])
+    assert store.jobs()==[]
+    with pytest.raises(ValueError,match='Job payload'):
+        store.submit_many('render',[valid,object()])
+    assert store.jobs()==[]
+    assert store.submit_many('render',[])==[]
