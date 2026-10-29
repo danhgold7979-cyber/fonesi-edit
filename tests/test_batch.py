@@ -439,7 +439,11 @@ def test_batch_cancel_during_audio_preflight_never_probes_video(tmp_path,monkeyp
 
 
 def test_benchmark_batch_rejects_unsupported_corpus_count():
-    from scripts.benchmark_batch import benchmark
+    # scripts/ is intentionally not an installed Python package; load the
+    # standalone benchmark by its real path without weakening validation.
+    from runpy import run_path
+    benchmark=run_path(str(Path(__file__).resolve().parents[1] /
+                           'scripts' / 'benchmark_batch.py'))['benchmark']
     for size in (0,-1,1001,1.1,True):
         with pytest.raises(ValueError,match='copies'):
             benchmark(size)
