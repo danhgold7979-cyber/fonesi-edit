@@ -43,12 +43,9 @@ def write_captions(path:Path,captions,overwrite=False):
     path.parent.mkdir(parents=True,exist_ok=True)
     # Serialize before touching an existing user-edited subtitle document.
     encoded=data.to_string(format_=path.suffix.lstrip('.')).encode('utf-8')
-    if not overwrite:
-        with path.open('xb') as stream:
-            stream.write(encoded)
-            stream.flush()
-            os.fsync(stream.fileno())
-        return
+    # Both creation and replacement stage complete bytes before publication.
+    # Writing straight to path.open('xb') could expose a truncated caption if
+    # the writer/fsync failed, which a subsequent recovery might see as output.
     descriptor, temporary = tempfile.mkstemp(
         prefix='.fonesi-caption-', suffix='.tmp', dir=path.parent)
     try:
@@ -56,8 +53,20 @@ def write_captions(path:Path,captions,overwrite=False):
             stream.write(encoded)
             stream.flush()
             os.fsync(stream.fileno())
-        # Atomic swap preserves the original on serialization/write failure.
-        os.replace(temporary,path)
+        if overwrite:
+            # Atomic swap preserves manual edits if writing the temp file fails.
+            os.replace(temporary,path)
+        else:
+            try:
+                # The destination is absent until the fully synced inode is
+                # linked. A concurrent publisher fails with FileExistsError.
+                os.link(temporary,path)
+            except FileExistsError:
+                raise
+            except OSError as exc:
+                raise RuntimeError(
+                    'Atomic subtitle creation requires hard-link support; '
+                    'the destination was not published') from exc
     finally:
         Path(temporary).unlink(missing_ok=True)
 
