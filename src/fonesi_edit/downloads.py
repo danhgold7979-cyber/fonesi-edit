@@ -340,16 +340,44 @@ def selected_download_payloads(scan_job, indices, *, subtitles_only=False):
 
 
 
+def _quality_source_height_hint(source_job):
+    """Persisted height hint; FFprobe in the worker remains authoritative."""
+    payload = source_job['payload']
+    result = source_job['result']
+    media = result['files'][0]
+    height = media.get('height')
+    if payload.get('download_mode', 'media') == 'media':
+        if height is None:
+            return 0  # Legacy original download with no height receipt.
+        return height if type(height) is int and height > 0 else None
+    target = payload.get('height')
+    actual = result.get('actual_height')
+    previous = result.get('source_height')
+    if (type(target) is not int or not 144 <= target <= 4320
+            or type(actual) is not int or type(previous) is not int
+            or not 0 < previous < actual <= target
+            or result.get('download_mode') != 'quality_upgrade'
+            or result.get('target_height') != target
+            or result.get('account_ref') != payload.get('account_ref')
+            or height != actual or media.get('source_height') != previous
+            or not isinstance(payload.get('upgrade_from_job_id'), str)
+            or not payload['upgrade_from_job_id']):
+        return None
+    return actual
+
+
 def _matches_quality_source(source_job, request):
-    """Only a succeeded, single-video yt-dlp media download can be a baseline."""
-    if not isinstance(source_job, dict) or source_job.get('kind') != 'download' or source_job.get('state') != 'succeeded':
+    """Only an original or a verified variant for this same video/account."""
+    if (not isinstance(source_job, dict)
+            or source_job.get('kind') != 'download'
+            or source_job.get('state') != 'succeeded'):
         return False
     source = source_job.get('payload')
     result = source_job.get('result')
     if not isinstance(source, dict) or not isinstance(result, dict):
         return False
     if (source.get('engine') != 'video' or source.get('media') != 'videos'
-            or source.get('download_mode', 'media') != 'media'):
+            or source.get('download_mode', 'media') not in {'media', 'quality_upgrade'}):
         return False
     if any(source.get(key) != request.get(key)
            for key in ('url', 'folder', 'account_ref', 'expected_identity')):
@@ -361,14 +389,15 @@ def _matches_quality_source(source_job, request):
             and isinstance(media[0], dict)
             and media[0].get('kind') == 'video'
             and isinstance(media[0].get('id'), str) and bool(media[0]['id'])
-            and isinstance(media[0].get('path'), str) and bool(media[0]['path']))
+            and isinstance(media[0].get('path'), str) and bool(media[0]['path'])
+            and _quality_source_height_hint(source_job) is not None)
 
 
 def selected_quality_upgrade_payloads(scan_job, indices, existing_jobs, target_height):
-    """Request a *new* video variant from a verified prior download, atomically.
+    """Choose the highest eligible persisted source for a new ceiling.
 
-    The worker rechecks the source job and FFprobes the existing video before
-    contacting the extractor; UI results are only advisory.
+    Job metadata only selects a candidate: worker rechecks path, identity,
+    channel, lineage and actual FFprobe height before cookies/network.
     """
     if type(target_height) is not int or not 144 <= target_height <= 4320:
         raise ValueError('Chiều cao bản nâng cấp phải là số nguyên 144–4320 px')
@@ -379,11 +408,22 @@ def selected_quality_upgrade_payloads(scan_job, indices, existing_jobs, target_h
     for request in requests:
         if request['engine'] != 'video' or request['media'] != 'videos':
             raise ValueError('Chỉ nâng chất lượng video yt-dlp đã tải, không hỗ trợ gallery/ảnh')
-        source = next((item for item in existing_jobs
-                       if _matches_quality_source(item, request)
-                       and isinstance(item.get('id'), str) and item['id']), None)
-        if source is None:
-            raise ValueError('Chưa có bản video nguồn đã tải thành công và được ghi nhận cho mục đã chọn')
+        candidates = []
+        for index, candidate in enumerate(existing_jobs):
+            if (not _matches_quality_source(candidate, request)
+                    or not isinstance(candidate.get('id'), str) or not candidate['id']):
+                continue
+            mode = candidate['payload'].get('download_mode', 'media')
+            if (mode == 'quality_upgrade'
+                    and candidate['payload']['height'] >= target_height):
+                continue  # Prevent reuse of the same or a lower quality tier.
+            height = _quality_source_height_hint(candidate)
+            if height and height >= target_height:
+                continue
+            candidates.append((height, -index, candidate))
+        if not candidates:
+            raise ValueError('Chưa có bản video nguồn đã tải thành công và đủ điều kiện cho mục đã chọn')
+        source = max(candidates, key=lambda item: (item[0], item[1]))[2]
         payload = deepcopy(request)
         for field in ('workflow', 'scan_parent_id', 'scan_start'):
             payload.pop(field, None)
@@ -395,10 +435,35 @@ def selected_quality_upgrade_payloads(scan_job, indices, existing_jobs, target_h
     return upgraded
 
 
-def validated_quality_source(source_job, request, root, platform):
-    """Validate the baseline's identity and path using persisted data, not UI paths."""
+def validated_quality_source(source_job, request, root, platform, *, store=None):
+    """Verify a source video, its channel, and prior-variant provenance."""
     if not _matches_quality_source(source_job, request):
         raise ValueError('Video nguồn không thành công hoặc URL/thư mục/tài khoản đã thay đổi')
+    mode = source_job['payload'].get('download_mode', 'media')
+    if mode == 'quality_upgrade':
+        if store is None:
+            raise ValueError('Cần xác minh lịch sử nâng chất lượng của video nguồn')
+        ancestor = source_job
+        visited = set()
+        while ancestor['payload'].get('download_mode', 'media') == 'quality_upgrade':
+            ident = ancestor.get('id')
+            parent_id = ancestor['payload']['upgrade_from_job_id']
+            if (ident in visited or parent_id in visited or len(visited) >= 32):
+                raise ValueError('Chuỗi nâng chất lượng lặp hoặc quá dài')
+            visited.add(ident)
+            try:
+                parent = store.job(parent_id)
+            except KeyError:
+                raise ValueError('Không tìm thấy bản video tổ tiên của biến thể') from None
+            if (not _matches_quality_source(parent, request)
+                    or parent['result']['files'][0]['id'] != ancestor['result']['files'][0]['id']):
+                raise ValueError('Chuỗi nâng chất lượng khác video/tài khoản nguồn')
+            if (parent['payload'].get('download_mode', 'media') == 'quality_upgrade'
+                    and parent['payload']['height'] >= ancestor['payload']['height']):
+                raise ValueError('Chuỗi nâng chất lượng không tăng trần độ phân giải')
+            ancestor = parent
+        if source_job['payload']['height'] >= request['height']:
+            raise ValueError('Trần chất lượng mới phải cao hơn trần biến thể nguồn')
     media = source_job['result']['files'][0]
     source = Path(media['path'])
     if not source.is_absolute() or source.is_symlink() or not source.is_file():
@@ -408,13 +473,26 @@ def validated_quality_source(source_job, request, root, platform):
         relative = source.resolve(strict=True).relative_to(platform_root)
     except (OSError, ValueError):
         raise ValueError('Đường dẫn video nguồn nằm ngoài thư mục Fonesi') from None
-    if len(relative.parts) != 3 or relative.parts[1] != 'videos':
-        raise ValueError('Video nguồn phải là bản gốc trong thư mục videos')
+    if mode == 'media':
+        if len(relative.parts) != 3 or relative.parts[1] != 'videos':
+            raise ValueError('Video nguồn phải là bản gốc trong thư mục videos')
+    elif (len(relative.parts) != 5 or relative.parts[1] != 'quality-upgrades'
+          or relative.parts[2] != f"{source_job['payload']['height']}p"
+          or relative.parts[3] != 'videos'):
+        raise ValueError('Video nguồn biến thể nằm ngoài thư mục chất lượng đã xác minh')
+    for parent in (source, *source.parents):
+        if parent == platform_root:
+            break
+        if parent.is_symlink():
+            raise ValueError('Đường dẫn nguồn chứa symbolic link không an toàn')
     baseline = probe(source)
     if baseline.height <= 0 or baseline.width <= 0:
         raise ValueError('Không đọc được độ phân giải video nguồn')
+    hint = _quality_source_height_hint(source_job)
+    if hint and baseline.height != hint:
+        raise ValueError('Video nguồn không còn khớp độ phân giải đã ghi nhận')
     stat = source.stat()
-    return source, baseline, media['id'], (stat.st_size, stat.st_mtime_ns)
+    return source, baseline, media['id'], (stat.st_size, stat.st_mtime_ns), relative.parts[0]
 
 
 SUBTITLE_EXTENSIONS = frozenset({'srt', 'vtt', 'ass', 'ssa'})
@@ -536,7 +614,7 @@ def execute_download_job(store,job,progress,cancel):
                        or not lang.strip() or '\n' in lang or '\r' in lang
                        for lang in languages)):
             raise ValueError('Sub-only yêu cầu 1 video yt-dlp, ngôn ngữ hợp lệ và không edit/thumbnail')
-    source_path=source_info=source_id=source_stamp=target_height=None
+    source_path=source_info=source_id=source_stamp=source_channel=target_height=None
     if quality_upgrade:
         target_height=payload.get('height')
         source_job_id=payload.get('upgrade_from_job_id')
@@ -553,8 +631,9 @@ def execute_download_job(store,job,progress,cancel):
             source_job=store.job(source_job_id)
         except KeyError:
             raise ValueError('Không tìm thấy job video nguồn') from None
-        source_path,source_info,source_id,source_stamp=validated_quality_source(
-            source_job,payload,Path(payload.get('folder',store.path.parent/'downloads')).resolve(),platform)
+        source_path,source_info,source_id,source_stamp,source_channel=validated_quality_source(
+            source_job,payload,Path(payload.get('folder',store.path.parent/'downloads')).resolve(),
+            platform,store=store)
         if target_height<=source_info.height:
             raise ValueError('Chất lượng mục tiêu phải cao hơn độ phân giải video nguồn')
     elif 'upgrade_from_job_id' in payload:
@@ -653,6 +732,8 @@ def execute_download_job(store,job,progress,cancel):
                             or relative.parts[2]!=f'{target_height}p'
                             or relative.parts[3]!='videos'):
                         raise ValueError('Video nâng cấp không nằm trong thư mục chất lượng riêng')
+                    if relative.parts[0] != source_channel:
+                        raise ValueError('Video nâng cấp không trùng kênh nguồn')
                     actual=probe(path)
                     if not source_info.height<actual.height<=target_height:
                         raise ValueError('Video tải về không nâng được độ phân giải thực tế')
