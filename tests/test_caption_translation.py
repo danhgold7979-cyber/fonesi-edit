@@ -204,7 +204,7 @@ def test_ass_import_reports_non_roundtrippable_style_without_mutating_source(tmp
         fontname='Arial',fontsize=34)
     document.events.append(pysubs2.SSAEvent(
         start=100,end=1200,style='Custom',
-        text=r'{\\pos(100,120)}Tiếng Việt\\N中文'))
+        text=r'{\pos(100,120)}Tiếng Việt\N中文'))
     document.save(str(path),encoding='utf-8')
     initial_bytes=path.read_bytes()
     captions,warnings=read_captions_with_warnings(path)
