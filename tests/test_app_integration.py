@@ -62,6 +62,55 @@ def test_subtitle_draft_keeps_unsaved_raw_edits_and_restores(tmp_path):
     close(reopened)
 
 
+
+def test_ass_import_style_warning_survives_edit_and_draft_reopen(tmp_path,monkeypatch):
+    import pysubs2
+    import fonesi_edit.ui.pages as pages
+    from fonesi_edit.subtitles import (
+        ASS_PRESENTATION_WARNING,Caption,read_captions_with_warnings,write_captions)
+    source=tmp_path/'styled.ass'
+    doc=pysubs2.SSAFile()
+    doc.styles['Custom']=pysubs2.SSAStyle(fontname='Arial',fontsize=42)
+    doc.events.append(pysubs2.SSAEvent(start=100,end=1200,style='Custom',
+                                       text='Tiếng Việt 中文'))
+    doc.save(str(source),encoding='utf-8')
+    original=source.read_bytes()
+    state=tmp_path/'state'
+    window=MainWindow(state)
+    try:
+        page=window.subtitles
+        with monkeypatch.context() as patch:
+            patch.setattr(pages.QFileDialog,'getOpenFileName',
+                          lambda *_args,**_kwargs:(str(source),'ASS (*.ass)'))
+            page.open()  # Actual background parser and Qt completion callback.
+            wait_until(lambda:page.table.rowCount()==1 and
+                       ASS_PRESENTATION_WARNING in page.import_warnings)
+        assert ASS_PRESENTATION_WARNING in page.warning.text()
+        assert page.collect()[0].text=='Tiếng Việt 中文'
+        page.table.item(0,3).setText('Đã chỉnh sửa')
+        assert ASS_PRESENTATION_WARNING in page.warning.text()
+        assert page.undo_cues() and ASS_PRESENTATION_WARNING in page.warning.text()
+        assert page.redo_cues()
+        page.persist()
+        assert source.read_bytes()==original
+    finally:
+        close(window)
+    reopened=MainWindow(state)
+    try:
+        page=reopened.subtitles
+        assert ASS_PRESENTATION_WARNING in page.warning.text()
+        assert page.collect()[0].text=='Đã chỉnh sửa'
+        plain=tmp_path/'plain.srt'
+        write_captions(plain,[Caption(200,700,'Nội dung mới')])
+        page.loaded_report(read_captions_with_warnings(plain))
+        assert page.collect()[0].text=='Nội dung mới'
+        assert not page.import_warnings
+        assert ASS_PRESENTATION_WARNING not in page.warning.text()
+        assert source.read_bytes()==original
+    finally:
+        close(reopened)
+
+
 def test_refresh_accounts_keeps_the_selected_chrome_profile(tmp_path):
     from fonesi_edit.browser import create_profile,rename_profile
     window=MainWindow(tmp_path/'state');create_profile(window.store,'A');second=create_profile(window.store,'B')
