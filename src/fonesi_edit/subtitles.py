@@ -194,6 +194,10 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
     config=config or {};transport=transport or _request_translation
     result=[replace(c) for c in captions];missing=[]
     glossary=config.get('glossary',{})
+    if not isinstance(glossary,dict) or any(
+            not isinstance(term,str) or not isinstance(value,str)
+            for term,value in glossary.items()):
+        raise ValueError('Glossary terms and replacements must be strings')
     for index,cue in enumerate(result):
         if cue.locked:continue
         original=cue.source_text or cue.text
@@ -210,11 +214,27 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
         if cancel and cancel.is_set():raise RuntimeError('Canceled')
         batch=missing[start:start+32];texts=[];protected=[]
         for _,_,original in batch:
-            terms={}
-            for number,(term,value) in enumerate(glossary.items()):
-                if term and term in original:
-                    marker=f'FONESIPROTECTEDTERM{number}END';original=original.replace(term,marker);terms[marker]=value
-            texts.append(original);protected.append(terms)
+            protected_text=original;terms=[]
+            # Prefer the longest source terms so a shorter overlapping entry
+            # cannot consume part of a longer glossary name.
+            sorted_terms=sorted(glossary.items(),key=lambda item:-len(item[0]))
+            for number,(term,value) in enumerate(sorted_terms):
+                if not term or term not in protected_text:
+                    continue
+                salt=0
+                while True:
+                    digest=hashlib.sha256(
+                        canonical([original,number,salt]).encode()).hexdigest()[:24]
+                    marker=f'FONESIPROTECTED{digest}END'
+                    if (marker not in original
+                            and all(marker not in key and marker not in replacement
+                                    for key,replacement in glossary.items())):
+                        break
+                    salt+=1
+                count=protected_text.count(term)
+                protected_text=protected_text.replace(term,marker)
+                terms.append((marker,value,count))
+            texts.append(protected_text);protected.append(terms)
         chars=sum(len(text) for text in texts)
         quota=int(config.get('daily_limit',100000))
         usage_key='translation_usage:'+config.get('provider','google')+':'+time.strftime('%Y-%m-%d',time.gmtime())
@@ -226,8 +246,10 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
         translated=transport(texts,source,target,config)
         if len(translated)!=len(batch):raise RuntimeError('Translation result count mismatch')
         for (index,key,original),text,terms in zip(batch,translated,protected,strict=True):
-            for marker,value in terms.items():
-                if marker not in text:raise RuntimeError('Provider altered a protected glossary marker; review translation')
+            for marker,value,count in terms:
+                if text.count(marker)!=count:
+                    raise RuntimeError(
+                        'Provider altered a protected glossary marker; review translation')
                 text=text.replace(marker,value)
             result[index].source_text=original;result[index].text=text;store.cache(key,{'text':text})
         progress(min(.99,(start+len(batch))/max(1,len(missing))))
