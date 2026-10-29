@@ -42,3 +42,13 @@ The new synthetic Qt test injects `sqlite3.DatabaseError`, checks the latest rec
 [CI 40897627521](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40897627521) **SUCCESS at source/test SHA 50a0137**: Linux **604 PASS**, Windows **603 PASS + 1 intentional skip**, plan checker, desktop/native-host and frozen packaged proof PASS both systems.
 
 This is **failure-impact mitigation and bounded nonreproduction**, not a proven repair of [intermittent Windows SQLite corruption #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6). When both DB and recovery filesystem writes fail, the app cannot guarantee data durability. Windows native/NTFS WAL timeline and long soak remain open.
+
+## P03-07 — Verified safe startup replay of a newer recovery.json (29/10/2026)
+
+[Plan](P03_RECOVERY_REPLAY_PLAN.md) preceded [source 8b5b67d](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8b5b67d5dbaa89618060962a800479ae09b69aef) and [Qt final test 05ac32a](https://github.com/danhgold7979-cyber/fonesi-edit/commit/05ac32a7e425e2a721689b1450345c951b724e1f). The existing independent `recovery.json` from a faulted SQLite save is now read on subsequent healthy startup. A validated, newer snapshot for the **same selected project** restores unsaved composition in memory; older/cross-project/corrupt files are refused. A wholly empty SQLite project table can adopt a valid leftover recovery snapshot without creating or overwriting a project row before normal autosave. Invalid, symlinked or oversized recovery files are not trusted. Original source media, SQLite schema and WAL/SHM are unchanged.
+
+The first [CI 40902021585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40902021585) failed the new test because it concurrently initialized two windows with the same scheduler lock; that lock correctly rejected the duplicate. [Test fix 05ac32a](https://github.com/danhgold7979-cyber/fonesi-edit/commit/05ac32a7e425e2a721689b1450345c951b724e1f) instead simulates the old application finishing its shutdown and releasing the lock, then reopens the same database to validate replay; no scheduler assertion was removed.
+
+[CI 40902670624](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40902670624) **SUCCESS on exact code/test SHA 05ac32a**: **607 Linux tests passed / 606 Windows tests passed + 1 intentional POSIX fixture skip**; plan/desktop/native-host/frozen app proofs PASS both systems.
+
+**Not proven:** recovery from a DB that cannot even initialize, long NTFS/AV/power-cut soak, and the cause of [intermittent Windows SQLite corruption #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6), which remains OPEN. This is a bounded recovery feature, not full P03/P11 acceptance.

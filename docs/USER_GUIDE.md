@@ -96,3 +96,9 @@ Khi cấu hình từ điển thuật ngữ, Fonesi Edit bảo vệ tên riêng/b
 ## Khi SQLite không lưu được lúc thoát
 
 Nếu SQLite bị khóa/hỏng hoặc ổ đĩa không ghi được trong lúc thoát, ứng dụng sẽ **không đóng cửa sổ và không coi project đã lưu thành công**. Hãy đọc thông báo trạng thái, kiểm tra dung lượng/quyền ghi rồi thử đóng/lưu lại; tránh ép tắt khi việc đang chạy chưa được xử lý. Khi lỗi ghi SQLite xảy ra, Fonesi Edit **thử** ghi bản chụp composition mới nhất vào `recovery.json` trong thư mục dữ liệu ứng dụng bằng thao tác thay thế nguyên tử. Đây là đường dự phòng có thể kiểm tra/giữ lại để cứu cấu hình, **không phải đảm bảo tự phục hồi** nếu cả SQLite và filesystem đều lỗi hoặc nếu không thể khởi tạo app từ database. Không tự xóa/đổi tên `state.db`, `state.db-wal` hoặc `state.db-shm` khi chưa sao lưu/điều tra nguyên nhân.
+
+## Tự khôi phục project từ recovery.json khi mở lại
+
+Sau lỗi lưu SQLite hoặc lần thoát bị gián đoạn, nếu database vẫn mở được, Fonesi Edit kiểm tra `recovery.json` trong thư mục dữ liệu ứng dụng. Chỉ bản hợp lệ theo schema, **đúng ID project đang chọn**, có thời gian sửa tệp mới hơn bản project đã lưu trong SQLite và có nội dung khác mới được khôi phục vào bộ nhớ. Nếu database chưa chứa **bất kỳ project nào**, một bản recovery hợp lệ cũng có thể mở lại nội dung đang làm; ứng dụng **không ghi tự động project vào SQLite tại thời điểm đọc**, mà đợi thao tác lưu hoặc autosave bình thường. Khi khôi phục, thanh trạng thái có thông báo. Không dùng bản recovery cũ, của project khác, hoặc JSON hỏng để ghi đè project hiện tại.
+
+**Giới hạn:** Nếu chính `state.db` đã hỏng đến mức ứng dụng không khởi tạo được, chức năng này chưa thay thế được công cụ khôi phục database; đừng xóa/đổi tên DB/WAL/SHM đang chạy để buộc ứng dụng mở. Hãy giữ bản sao các tệp và kiểm tra nguyên nhân trước. Lỗi SQLite Windows [#6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) vẫn đang điều tra.
