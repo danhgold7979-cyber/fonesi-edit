@@ -327,9 +327,26 @@ class MainWindow(QMainWindow):
         except Exception as exc:self.message('Scheduler: '+str(exc))
 
     def autosave(self):
-        self.project_id=self.store.save_named('projects',self.project_file.stem if self.project_file else 'Project đang làm',self.editor.composition.to_dict(),self.project_id)
-        self.store.set_setting('last_project',self.project_id)
-        atomic_json(self.data/'recovery.json',{'schema_version':1,'project_id':self.project_id,'composition':self.editor.composition.to_dict()})
+        # Keep one immutable composition snapshot for both SQLite and the
+        # independent recovery artifact. A broken/locked SQLite database must
+        # not prevent the latest in-memory work from reaching recovery.json.
+        snapshot=self.editor.composition.to_dict()
+        def write_recovery():
+            atomic_json(self.data/'recovery.json',{
+                'schema_version':1,'project_id':self.project_id,'composition':snapshot})
+        try:
+            self.project_id=self.store.save_named(
+                'projects',self.project_file.stem if self.project_file else 'Project đang làm',
+                snapshot,self.project_id)
+            self.store.set_setting('last_project',self.project_id)
+        except (OSError,RuntimeError,ValueError,sqlite3.Error):
+            try:write_recovery()
+            except (OSError,RuntimeError,ValueError):
+                # Preserve the primary SQLite error for diagnosis; a failed
+                # recovery write must not turn it into a false DB success.
+                pass
+            raise
+        write_recovery()
 
     def restore(self):
         key=self.store.setting('last_project');project=next((p for p in self.store.list_named('projects') if p['id']==key),None)
@@ -600,8 +617,20 @@ class MainWindow(QMainWindow):
     def closeEvent(self,event):
         if not self.force_close and self.store.setting('background',False) and self.tray.isSystemTrayAvailable():self.hide();event.ignore();return
         if not self._shutdown:
-            self.persist_ui_layout()
-            self.subtitles.persist();self.autosave();self.scheduler.shutdown();self.automation.stop();self._shutdown=True
+            self.autosave_timer.stop()
+            try:
+                # Write project recovery before settings that also need SQLite.
+                # Failure leaves the window and active workers alive for retry.
+                self.autosave()
+                self.persist_ui_layout()
+                self.subtitles.persist()
+            except (OSError,RuntimeError,ValueError,TypeError,sqlite3.Error) as exc:
+                event.ignore()
+                self.message(
+                    'Chưa đóng: không lưu được project/cài đặt ('+
+                    type(exc).__name__+'). Kiểm tra SQLite, quyền ghi hoặc đĩa; thử lại.')
+                return
+            self.scheduler.shutdown();self.automation.stop();self._shutdown=True
         for task in self.tasks:task.cancel.set()
         for task in list(self.pending_tasks):self.pending_tasks.remove(task);self.tasks.remove(task);task.deleteLater()
         if self.tasks or self.scheduler.active:
