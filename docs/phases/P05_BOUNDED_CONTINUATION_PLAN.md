@@ -3,7 +3,7 @@
 **Ngày:** 29/10/2026  
 **Repository:** `danhgold7979-cyber/fonesi-edit`  
 **Nhánh:** `develop/fonesi-full`  
-**Trạng thái:** kế hoạch trước code, chưa nghiệm thu.
+**Trạng thái:** lát cắt code/test đã xác nhận trên [CI 40840732733](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40840732733) (attempt 2); phase P05 vẫn OPEN.
 
 ## 1. Căn cứ
 
@@ -29,9 +29,15 @@ UI hiện đã phân trang **hiển thị** 200 hàng, có checkbox, lọc metad
 
 ## 4. Chưa nghiệm thu theo yêu cầu sản phẩm
 
-- [ ] Code + tests xác thực đúng tính chất bounded window và bất biến snapshot.
-- [ ] Test UI chọn/lọc/quét tiếp không làm thay index/account/URL.
-- [ ] Linux/Windows CI source + build + packaged proof PASS trên đúng SHA.
-- [ ] Provider-side pagination/checkpoint thực tế và live 10 nền tảng/Chrome/Windows máy người dùng vẫn ghi OPEN, không đóng P05 tổng thể.
+- [x] Code + tests xác thực đúng tính chất bounded window và bất biến snapshot.
+- [x] Test UI chọn/lọc/quét tiếp không làm thay index/account/URL.
+- [x] Linux/Windows CI source + build + packaged proof PASS trên đúng SHA.
+- [x] Provider-side pagination/checkpoint thực tế và live 10 nền tảng/Chrome/Windows máy người dùng vẫn ghi OPEN, không đóng P05 tổng thể.
 
 Khoảng index này chỉ dùng tính năng `playliststart/playlistend` của yt-dlp và **không** xác nhận checkpoint nguyên kênh của provider. Các extractor có thể đổi thứ tự, bỏ mục hoặc không hỗ trợ offset; cần live corpus/thiết bị riêng để xác nhận.
+
+## 5. Bằng chứng và vấn đề chưa kết luận
+
+- Code commit [a140d9b](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a140d9b517d71976ec64b4a098e0d91394349c37); [CI 40840732733](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40840732733) **SUCCESS ở attempt 2**: 455 Linux tests; 454 Windows tests PASS và 1 skip POSIX-only; build desktop/native host và frozen packaged proof PASS trên cả Linux và Windows.
+- Attempt 1 của cùng run có 453 Windows PASS, 1 FAIL, 1 SKIP: SQLite `database disk image is malformed` tại test `test_proxy_preview_quality_is_source_only_and_runs_in_background` khi `QMainWindow.closeEvent` autosave. Đã xem stack trace; test này chạy trước test continuation mới. Rerun riêng Windows cùng SHA không tái hiện lỗi; **chưa biết nguyên nhân gốc và chưa tuyên bố đã sửa**. Cần theo dõi QA P03/P04 SQLite/proxy shutdown, không ẩn lỗi hoặc bỏ assertion.
+- Đã test index-window synthetic/fake yt-dlp, Qt UI và localhost smoke bằng CI; **chưa kiểm thử provider-side checkpoint hoặc live channel/Chrome/Windows máy người dùng**. Người dùng cần chọn `engine=video` rõ ràng, limit 1–200 để quét tiếp.
