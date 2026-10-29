@@ -225,3 +225,42 @@ def test_plain_srt_import_does_not_invent_style_loss_warning(tmp_path):
     assert len(captions)==1
     assert (captions[0].start_ms,captions[0].end_ms)==(100,800)
     assert captions[0].text=='Văn bản thường 中文'
+
+
+def test_glossary_placeholder_literal_is_not_changed_and_longest_term_wins(tmp_path):
+    store=Store(tmp_path/'state.db')
+    calls=[]
+    def echo(texts,*_):
+        calls.append(tuple(texts))
+        return list(texts)
+    literal='FONESIPROTECTEDTERM0END'
+    cue=Caption(0,1000,literal+' 品牌品牌')
+    config={'provider':'test','glossary':{'品':'partial','品牌':'Thương hiệu'},'daily_limit':1000}
+    first=translate_captions(store,[cue],config=config,transport=echo)
+    assert first[0].text==literal+' Thương hiệuThương hiệu'
+    assert len(calls)==1 and literal in calls[0][0]
+    assert calls[0][0].count('FONESIPROTECTED')>=3
+    cached=translate_captions(store,[cue],config=config,transport=echo)
+    assert cached[0].text==first[0].text and len(calls)==1
+    assert cue.text==literal+' 品牌品牌'
+
+
+@pytest.mark.parametrize('corrupt',('duplicate','delete'))
+def test_provider_marker_count_mismatch_never_caches_corrupt_cue(tmp_path,corrupt):
+    store=Store(tmp_path/'state.db')
+    config={'provider':'test','glossary':{'品牌':'Thương hiệu'},'daily_limit':1000}
+    cue=Caption(0,1000,'品牌品牌')
+    called=[]
+    def invalid(texts,*_):
+        called.append(texts)
+        token=texts[0][:texts[0].index('END')+3]
+        return [texts[0]+token if corrupt=='duplicate' else texts[0].replace(token,'',1)]
+    with pytest.raises(RuntimeError,match='protected glossary marker'):
+        translate_captions(store,[cue],config=config,transport=invalid)
+    assert len(called)==1
+    def valid(texts,*_):
+        called.append(texts)
+        return list(texts)
+    translated=translate_captions(store,[cue],config=config,transport=valid)
+    assert translated[0].text=='Thương hiệuThương hiệu'
+    assert len(called)==2
