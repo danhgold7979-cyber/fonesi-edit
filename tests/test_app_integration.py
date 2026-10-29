@@ -60,6 +60,7 @@ def test_newer_recovery_snapshot_replays_after_faulted_sqlite_autosave(tmp_path,
     state=tmp_path/'state'
     window=MainWindow(state)
     reopened=None
+    window_closed=False
     try:
         window.editor.set_composition(Composition(layers=[Layer(text='SQLite cũ')]))
         window.autosave()
@@ -77,6 +78,15 @@ def test_newer_recovery_snapshot_replays_after_faulted_sqlite_autosave(tmp_path,
         saved=json.loads(recovery.read_text(encoding='utf-8'))
         assert saved['project_id']==identity
         assert saved['composition']['layers'][0]['text']=='Khôi phục mới'
+        # Simulate the end of the old process after the autosave error:
+        # stop its scheduler/automation and skip a second normal autosave
+        # that would otherwise overwrite the recovered snapshot. The next
+        # window must independently acquire the same single-instance lock.
+        window.scheduler.shutdown()
+        window.automation.stop()
+        window._shutdown=True
+        close(window)
+        window_closed=True
         # Use a clear later filesystem mtime on both NTFS and Linux.
         os.utime(recovery,(record['updated']+60,record['updated']+60))
         reopened=MainWindow(state)
@@ -91,7 +101,7 @@ def test_newer_recovery_snapshot_replays_after_faulted_sqlite_autosave(tmp_path,
                     if p['id']==identity)['data']['layers'][0]['text']=='Khôi phục mới'
     finally:
         if reopened is not None:close(reopened)
-        close(window)
+        if not window_closed:close(window)
 
 
 def test_recovery_snapshot_refuses_stale_wrong_project_and_malformed_file(tmp_path):
