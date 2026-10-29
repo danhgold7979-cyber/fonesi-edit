@@ -314,3 +314,50 @@ def test_batch_advanced_probe_reports_rational_fps_and_optional_stream_bitrate(t
         MediaInfo(720,1280,3,'25/1','h264',None))
     missing=batch_module.probe_batch_metadata({'channel':[str(source)]})['media'][str(source.resolve())]
     assert missing['fps']==25 and missing['video_bitrate_kbps'] is None
+
+def test_batch_plan_report_skips_only_broken_source_and_enqueues_valid_snapshot(tmp_path):
+    from fonesi_edit.batch import batch_plan_report,enqueue_batch
+    from fonesi_edit.storage import Store
+
+    good=Path(create_fixture(tmp_path/'channel/videos',duration=1)['source'])
+    broken=good.parent/'damaged.mp4'
+    broken.write_bytes(b'broken media fixture')
+    original=(good.read_bytes(),broken.read_bytes())
+    groups={str(tmp_path/'channel'):[str(broken),str(good)]}
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+
+    # Existing programmatic callers stay fail-fast; the UI opts into a report.
+    with pytest.raises(Exception):
+        batch_plan(groups,preset)
+    report=batch_plan_report(groups,preset)
+    assert len(report['plans'])==1 and len(report['failures'])==1
+    assert report['plans'][0]['source']==str(good)
+    assert report['failures'][0]['source']==str(broken)
+    assert report['failures'][0]['error_type']=='MediaError'
+    assert report['failures'][0]['reason']=='Không đọc được media'
+    assert report['plans']==batch_plan({str(tmp_path/'channel'):[str(good)]},preset)
+    assert (good.read_bytes(),broken.read_bytes())==original
+
+    queue=Store(tmp_path/'state.db')
+    ids=enqueue_batch(queue,report['plans'])
+    assert len(ids)==1
+    assert queue.job(ids[0])['payload']['output']==report['plans'][0]['output']
+    assert broken.name not in queue.job(ids[0])['payload']['output']
+
+
+def test_batch_plan_report_isolates_infeasible_clip_but_not_global_audio_errors(tmp_path):
+    from fonesi_edit.batch import batch_plan_report
+    short=Path(create_fixture(tmp_path/'a/videos',duration=.5)['source'])
+    long=Path(create_fixture(tmp_path/'b/videos',duration=2)['source'])
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu',duration_target=1.5)
+    groups={str(tmp_path/'a'):[str(short)],str(tmp_path/'b'):[str(long)]}
+    report=batch_plan_report(groups,preset,policy='speed',minimum=.5,maximum=2)
+    assert len(report['plans'])==1 and report['plans'][0]['source']==str(long)
+    assert len(report['failures'])==1
+    assert report['failures'][0]['source']==str(short)
+    assert report['failures'][0]['error_type']=='ValueError'
+    assert report['failures'][0]['reason']=='Cấu hình clip không hợp lệ'
+    # An invalid global audio mapping must never silently choose a different
+    # audio file or report it as two independent video failures.
+    with pytest.raises(ValueError,match='Chọn thư mục audio'):
+        batch_plan_report(groups,preset,audio_mode='ordered',audio_folder=None)

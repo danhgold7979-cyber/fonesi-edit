@@ -2615,3 +2615,52 @@ def test_batch_codec_fps_bitrate_filter_keeps_hidden_selection_and_rejects_bad_r
         assert len(page.selected()[channel])==4
     finally:
         close(window)
+
+def test_batch_ui_reports_partial_and_all_failed_sources_without_enqueue(tmp_path,monkeypatch):
+    from threading import Event
+    import pytest
+
+    good=Path(create_fixture(tmp_path/'channel/videos',duration=.5)['source'])
+    bad=good.parent/'invalid.mp4'
+    bad.write_bytes(b'bad video bytes')
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        selected={str(tmp_path/'channel'):[str(bad),str(good)]}
+        page.scanned(selected)
+        captured={}
+        monkeypatch.setattr(window,'background',lambda work,done:captured.update(work=work,done=done))
+
+        page.plan()
+        result=captured['work'](lambda progress:None,Event())
+        assert len(result['plans'])==1 and len(result['failures'])==1
+        captured['done'](result)
+        assert len(page.plans)==1 and len(page.plan_failures)==1
+        assert page.plans[0]['source']==str(good)
+        assert 'Bỏ qua 1 video lỗi' in page.summary.text()
+        assert bad.name in page.summary.text()
+        assert page.selected()==selected
+        assert window.store.jobs()==[]  # Dry-run never enqueues.
+
+        page.scanned({str(tmp_path/'channel'):[str(bad)]})
+        page.plan()
+        only_bad=captured['work'](lambda progress:None,Event())
+        captured['done'](only_bad)
+        assert only_bad['plans']==[] and len(only_bad['failures'])==1
+        assert page.plans==[] and len(page.plan_failures)==1
+        assert 'Không có video hợp lệ' in page.summary.text()
+        with pytest.raises(ValueError,match='Lập kế hoạch trước'):
+            page.preview()
+        with pytest.raises(ValueError,match='Lập kế hoạch trước'):
+            page.enqueue()
+        assert window.store.jobs()==[]
+
+        # An older background result cannot revive failed/obsolete plans.
+        page.plan()
+        stale=captured['done']
+        page.policy.setCurrentText('trim')
+        stale({'plans':[{'output':'obsolete.mp4'}], 'failures':[]})
+        assert page.plans==[] and page.plan_failures==[]
+        assert 'Đã bỏ bản dry-run cũ' in window.status.text()
+    finally:
+        close(window)
