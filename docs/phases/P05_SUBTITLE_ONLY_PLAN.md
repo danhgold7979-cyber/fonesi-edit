@@ -3,7 +3,7 @@
 **Ngày:** 29/10/2026  
 **Repository:** `danhgold7979-cyber/fonesi-edit`  
 **Nhánh tích hợp:** `develop/fonesi-full`  
-**Trạng thái:** kế hoạch trước khi code; chưa nghiệm thu.
+**Trạng thái:** lát cắt có code/test và [CI 40845160133](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40845160133) PASS hai runner; P05 tổng thể vẫn OPEN.
 
 ## 1. Truy vết
 
@@ -28,9 +28,17 @@ Tải thông thường dùng yt-dlp với `writesubtitles` nhưng sau đó bắt
 
 ## 4. Tiêu chí đóng lát cắt
 
-- [ ] Sub-only chỉ chạy đúng engine/video, giữ account/nguồn/thư mục và không kích hoạt workflow edit.
-- [ ] Không tải lại video, không ghi đè phụ đề hợp lệ, không báo success với file thiếu/hỏng/ngoài root.
-- [ ] Regression unit/Qt và CI Linux/Windows source + packaged proof PASS.
-- [ ] P05 vẫn OPEN cho sync toàn kênh, nâng chất lượng, gallery album, provider/Chrome/live auth và Windows máy thật.
+- [x] Sub-only chỉ chạy đúng engine/video, giữ account/nguồn/thư mục và không kích hoạt workflow edit.
+- [x] Không tải lại video, không ghi đè phụ đề hợp lệ, không báo success với file thiếu/hỏng/ngoài root.
+- [x] Regression unit/Qt và CI Linux/Windows source + packaged proof PASS.
+- [x] P05 vẫn OPEN cho sync toàn kênh, nâng chất lượng, gallery album, provider/Chrome/live auth và Windows máy thật.
 
 **Giới hạn:** yt-dlp có thể không cung cấp subtitle/auto-sub cho từng nguồn; phải ghi lý do khi không có. Kiểm chứng ngôn ngữ/chất lượng trên nguồn thật và quản trị file đã hỏng là công việc riêng, không giả định đã giải quyết trong lát cắt này.
+
+## 5. Kết quả và evidence (29/10/2026)
+
+- Code/test đã được commit và push trên cùng nhánh; code SHA cuối [33dac07](https://github.com/danhgold7979-cyber/fonesi-edit/commit/33dac071bf37a20ecf7ab1264b11c0f8d7791591). `download_mode='subtitles_only'` yêu cầu `kind=download`, adapter video yt-dlp, media videos, `limit=1`, languages hợp lệ và không `workflow`/thumbnail.
+- Ghi phụ đề bằng `skip_download` và `overwrites=False`, chặn tệp sai loại/ngoài folder, kiểm tra cue thực qua `read_captions`; không trả raw URL phụ đề/query/cookie vào job result. Yt-dlp có thể ghi sidecar tạm trước khi chuyển sang thư mục cuối, kết quả chỉ nhận file sau khi chuyển.
+- Test fake yt-dlp kiểm tra mode, URL/identity, fail-before-folder, no-overwrite, file lỗi/trống/path không an toàn và Qt idempotent. Test `test_real_ytdlp_subtitle_sidecar_writer_and_move_no_overwrite` chạy writer **thật** của yt-dlp bằng nội dung SRT synthetic, không dùng tài khoản hay mạng ngoài, chứng minh tên file và mtime sau lần thứ hai.
+- [CI 40845160133](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40845160133) **SUCCESS trên [33dac07](https://github.com/danhgold7979-cyber/fonesi-edit/commit/33dac071bf37a20ecf7ab1264b11c0f8d7791591) (attempt 1)**: Linux **478 passed**; Windows **477 passed + 1 skip POSIX fixture có lý do**. Source suite, `check_plan.py`, build desktop/native-host và frozen packaged proof đều PASS trên cả hai runner.
+- Tiêu chí này chỉ đóng **lát cắt phụ đề-only trong synthetic/offline**. Chưa xác nhận subtitle track thật từng provider, phụ đề tự sinh live, phát hiện file hỏng và sửa an toàn, đồng bộ toàn kênh, quality upgrade hoặc Windows máy người dùng. P05-06 đầy đủ và full P05 vẫn chưa nghiệm thu.
