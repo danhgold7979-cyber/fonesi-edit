@@ -160,6 +160,29 @@ class Store:
         with self.connect() as conn:
             return [self._job(row) for row in conn.execute("SELECT * FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
 
+    def download_jobs_for_urls(self, urls):
+        """Find all matching download jobs without truncating older history.
+
+        URLs are bound SQL parameters, not statements. One UI batch is capped
+        at 500 distinct URLs; unrelated job payloads are not returned.
+        """
+        if not isinstance(urls, (list, tuple, set)):
+            raise ValueError("Danh sách URL đồng bộ không hợp lệ")
+        urls = list(dict.fromkeys(urls))
+        if len(urls) > 500 or any(type(u) is not str or not u for u in urls):
+            raise ValueError("Chỉ kiểm tra tối đa 500 URL hợp lệ trong một lần đồng bộ")
+        if not urls:
+            return []
+        placeholders = ",".join("?" for _ in urls)
+        statement = (
+            "SELECT * FROM jobs WHERE kind='download' "
+            "AND json_extract(payload, '$.url') IN (" + placeholders + ") "
+            "ORDER BY created DESC, id"
+        )
+        with self.connect() as conn:
+            rows = conn.execute(statement, urls).fetchall()
+        return [self._job(row) for row in rows]
+
     @staticmethod
     def _job(row):
         item = dict(row)
