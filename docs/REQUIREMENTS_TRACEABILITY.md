@@ -175,3 +175,7 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 | AUTH-09 | Đổi nick/mismatch, không xoay tài khoản tự động | SB 5 | P05-10, P11-08 | Job cũ không chạy bằng nick mới; rate limit không tự coi hết hạn |
 | AUTH-10 | Account-scoped cache và profile concurrency | SB 5 | P03-09, P10-07 | Cache/quyền A không dùng cho B, không giành user-data-dir |
 | AUTH-11 | Browser data riêng, export/dọn/xóa liên kết khác xóa profile | SB 4–5, 8 | P03-09, P10-07, P11-08 | Export không lộ session, cache cleanup không xóa profile, xóa dữ liệu có thao tác riêng |
+
+## P05/P10 evidence — synchronized only from validated local scan (29/10/2026)
+
+SRC-09/SRC-10/FLOW-04: [CI 40855868306](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40855868306) verifies exact-URL source/account and actual output, transactional batch no partial enqueue on errors; 537 Linux/536 Windows+1 skip. SRC-03/SRC-10/AUTO-02: [CI 40857385183](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40857385183) verifies bounded scheduled scan-first state, post-scan new-only reconciliation and Retry; 546 Linux/545 Windows+1 skip. These do NOT satisfy live provider checkpoint/full-channel/Chrome or physical Windows acceptance.

@@ -14,9 +14,15 @@ Developer: `uv sync --locked` rồi `uv run fonesi-edit`. Bản đóng gói: m�
 4. Sub: mở SRT/VTT/ASS, sửa gốc/dịch/time/lock, dịch qua hàng đợi khi provider được cấu hình. Nạp kết quả là thao tác rõ ràng để giữ sửa tay; gắn sub vào clip hoặc xuất riêng. Bật Song ngữ để tạo riêng layer gốc và bản dịch khi hai nội dung đã có. Sub đã gắn thành layer kéo được trên preview, lưu bố cục vào preset; batch/ma trận tự ghép lại file sub của từng nguồn. Bảng sub có draft tự lưu, tìm/thay/offset và dịch câu chọn; nạp bản dịch giữ câu đã sửa hoặc khóa sau khi gửi.
 5. Batch: chọn folder, quét, tick bỏ folder/tệp, lập kế hoạch, preview rồi enqueue. Không xóa nguồn; output nằm ở folder tên kênh kèm edit.
 6. Ma trận: C1…Cn mỗi folder chứa góc, quét/sinh N/W/K/seed, sửa G1/G2 trong ô, khóa ô, preview/CSV/render. Không nới điều kiện ngầm; timeout khác vô nghiệm. Preview đổi tên C/G cho xem ánh xạ video/sub trước khi đổi thật, giữ bytes nguồn và lưu journal trong `.fonesi-renames` để hoàn tác/phục hồi. Queue còn dùng nguồn phải hoàn tất/hủy trước; liên kết project đang mở được cập nhật.
-7. Tải: một URL mỗi dòng, folder, account/engine/media/limit/sub; 0 là không giới hạn ở adapter hỗ trợ. Kết quả quét không đồng nghĩa đã tải hết kênh. Có thể bật workflow edit/dịch sau tải hoặc đặt lịch. Trong cây kết quả quét, có thể tải media, chỉ bổ sung phụ đề hoặc yêu cầu một bản nâng chất lượng từ video đã tải.
+7. Tải: một URL mỗi dòng, folder, account/engine/media/limit/sub; 0 là không giới hạn ở adapter hỗ trợ. Kết quả quét không đồng nghĩa đã tải hết kênh. Có thể bật workflow edit/dịch sau tải hoặc đặt lịch scan-first chỉ tải media mới. Trong cây quét có thể tải media, bổ sung phụ đề, nâng chất lượng hoặc bấm **Đồng bộ mục mới (kết quả lọc)**.
 8. Cài đặt → Tự động / máy: giới hạn tổng và riêng scan/download/render/translate; nút gợi ý theo CPU/RAM/đĩa hiện tại. Gợi ý không thay benchmark. Tài nguyên thấp chỉ dừng nhận thêm việc.
 9. Hàng đợi: pause ngừng nhận việc mới; cancel dừng đúng job; retry riêng việc lỗi. Job dùng snapshot, sửa preset sau đó không đổi việc đang chạy.
+
+## Đồng bộ mục mới và lịch chạy (bản phát triển)
+
+Tab **Tải** → **Quét danh sách** → **Xem kết quả quét** → lọc/tìm → **Đồng bộ mục mới (kết quả lọc)**. Hệ thống xét tối đa **500 URL an toàn** trên mọi trang của bộ lọc, kiểm tra job cũ theo đúng URL/folder/adapter/tài khoản và kiểm tra lại file bằng FFprobe/QImageReader. File cũ mất/hỏng, job failed/canceled/blocked hoặc khác account sẽ **chặn toàn nhóm**; không xóa file, không tự chuyển về tài khoản public, và không ghi đè. Enqueue nguyên nhóm trong một transaction SQLite. Checkbox đang ẩn vẫn được giữ.
+
+**Đặt lịch** quét trước với tối đa **200 item/cửa sổ**, hoặc 100 item mặc định nếu chọn limit 0; sau khi scan thành công mới kiểm tra lịch sử và xếp media mới. Kết quả chưa rõ/partial không đồng nghĩa hết kênh. Lịch cũ thiếu chế độ cũng được xử lý scan-first thay vì tải toàn kênh mỗi chu kỳ. Scan lỗi cần mở **Hàng đợi → Retry**; không tự chuyển tài khoản. App phải đang chạy/bật nền; chưa có Windows Task Scheduler khi app đã tắt. Quét nhiều trang provider thực và Chrome tài khoản thật vẫn chưa nghiệm thu.
 
 ## Chrome thật
 
@@ -59,4 +65,4 @@ Trong tab **Tải**, quét video và tải bản gốc trước. Bản gốc ph�
 
 **Quan trọng:** mức trong UI là *chiều cao tối đa được yêu cầu*, không bảo đảm nguồn có đúng 720p/1080p/4K. Sau tải, FFprobe phải xác nhận chiều cao thực **cao hơn** video gốc và **không vượt** target; không đạt thì job báo lỗi, không công bố nâng cấp thành công. Không tự xóa file biến thể bị hỏng/không đủ chất lượng; kiểm tra thủ công trước khi xử lý. Các job có chất lượng live, mạng xã hội, tài khoản Chrome chưa có bằng chứng nghiệm thu đầy đủ.
 
-Quét Batch hoặc watch tự động từ thư mục kênh sẽ **bỏ qua** thư mục `quality-upgrades` để không xử lý lặp. Nếu muốn edit bản nâng cấp, chủ động chọn chính tệp hoặc thư mục biến thể. Chưa có chế độ nâng liên tiếp từ một biến thể như baseline, cũng chưa có kiểm thử nâng chất lượng trên toàn bộ 10 nền tảng bằng tài khoản thực.
+Quét Batch hoặc watch tự động từ thư mục kênh sẽ **bỏ qua** thư mục `quality-upgrades` để không xử lý lặp. Nếu muốn edit bản nâng cấp, chủ động chọn chính tệp hoặc thư mục biến thể. Có thể nâng tiếp từ một biến thể đã được job và FFprobe xác minh nếu mức target mới lớn hơn trần biến thể nguồn; không ghi đè phiên bản trước. Chưa kiểm chứng live chất lượng trên toàn bộ 10 nền tảng và tài khoản thật.
