@@ -17,9 +17,15 @@ Existing `map_trimmed_cues` uses rational arithmetic for trim, speed and output 
 
 ## Acceptance and blockers
 
-- [ ] Positive source cue intersections are never silently dropped due to ms rounding; an unrepresentable cue raises an explicit error.
-- [ ] Multi-clip trim, speed, transition and subtitle-layer scopes keep cue identities/content and expected output time ranges in the compiled ASS.
-- [ ] Actual synthetic export and reference preview use the same graph, retaining output duration and source bytes.
-- [ ] Plan validation, regression suite and frozen packaged proof pass on exact SHA in Linux/Windows CI.
+- [x]  Positive source cue intersections are never silently dropped due to ms rounding; an unrepresentable cue raises an explicit error.
+- [x]  Multi-clip trim, speed, transition and subtitle-layer scopes keep cue identities/content and expected output time ranges in the compiled ASS.
+- [x]  Actual synthetic export and reference preview use the same graph, retaining output duration and source bytes.
+- [x]  Plan validation, regression suite and frozen packaged proof pass on exact SHA in Linux/Windows CI.
 
 Remaining separate gates: complete VFR/rotation/mixed-FPS corpus and visual/audio tolerance on user Windows devices, huge CJK subtitles, live translation and platform/auth/Chrome, GPU, power loss, persistent Undo journal and intermittent SQLite Windows issue #6. Do not mark P06/P11 fully accepted.
+
+## Verified implementation slice and observed precision
+
+Source/test commits: [e42c6b7](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e42c6b73d66a012ce040ae58cf6392b56b7e42ce) (fail closed on zero-ms mapped cues), [3474dbb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/3474dbb67b0d031a8e61182efbad9e30d20b6c53) (pure rational tests), [969a4ee](https://github.com/danhgold7979-cyber/fonesi-edit/commit/969a4ee6bdd144c40f730d2283b88cc0807fd66c) (two-clip scoped source/target and actual FFmpeg preview/export). The first integrated [CI 40880618234](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40880618234) FAILED one new assertion on both OS: native ASS stores centiseconds, so expected 75–225 ms became 80–230 ms. No production cue was lost. [Test correction e8656dc](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e8656dc8af45f80246c8a35624cad1ec602a8f40) verifies exact ASS quantized timestamps and independently bounds each edge error to 5 ms; the source safety check was retained.
+
+[CI 40881166137](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40881166137) **SUCCESS on exact final code/test SHA e8656dc8**: Linux **587 PASS**, Windows **586 PASS + 1 intentional POSIX-only skip**. Plan checker, production desktop/native-host build, FFmpeg synthetic video/image/Qt frozen proof PASS both OS. The code/test does not prove per-pixel frame equivalence or VFR/rotation/audio sync on physical Windows hardware; full P06/P11 gates remain OPEN.

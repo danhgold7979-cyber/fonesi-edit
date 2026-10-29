@@ -76,3 +76,9 @@ Tệp phụ đề mới được ghi vào tên tạm rồi công bố nguyên t�
 ## Nhập ASS và cảnh báo định dạng
 
 Khi dùng **Mở SRT/VTT/ASS** với phụ đề **ASS/SSA**, Fonesi Edit đọc văn bản/thời gian cue để chỉnh sửa, nhưng **không bảo đảm giữ nguyên style/font/vị trí/hiệu ứng/karaoke** của ASS trong bảng cue hoặc khi xuất lại. Cảnh báo hiển thị ở dưới bảng, giữ qua sửa câu/Undo và khi mở lại bản nháp; mở một file SRT thuần mới sẽ xóa cảnh báo cũ. Tệp ASS ban đầu không bị sửa khi chỉ nhập. Nếu cần giữ nguyên trình bày ASS gốc, hãy giữ và sử dụng tệp gốc hoặc kiểm tra kỹ bản xuất trước khi dùng.
+
+## Đồng bộ phụ đề sau trim và thay đổi tốc độ
+
+Khi render, cue từ tệp sub được cắt theo khoảng source đã chọn rồi ánh xạ sang thời gian output theo speed và vị trí clip (bao gồm vùng chồng khi chuyển cảnh). Cue **hoàn toàn ngoài** đoạn trim bị loại theo lựa chọn cắt; nếu một cue vẫn giao với đoạn giữ lại nhưng bị nén ngắn đến mức **không thể biểu diễn bằng 1 ms**, ứng dụng báo lỗi số cue thay vì xuất video thành công mà mất chữ. Hãy điều chỉnh thời điểm cue hoặc tốc độ của clip đó rồi chạy lại.
+
+Phụ đề ASS ở bước ghép vào video có mốc thời gian **10 ms**, có thể làm tròn tối đa khoảng **5 ms** mỗi biên cue. Kiểm thử synthetic với hai clip/transition đã xác nhận logic này, không thay thế kiểm tra đồng bộ hình/âm thanh trên media VFR, rotation, dài hoặc máy Windows thực.

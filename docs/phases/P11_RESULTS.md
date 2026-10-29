@@ -18,3 +18,11 @@ Các mục nâng cao còn phải code/kiểm chứng vẫn ở coverage/master; 
 ## Regression tích hợp P04/P10 — 28/10/2026
 
 [CI 40649687637](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40649687637) PASS 195 Linux, 194 Windows + 1 skipped POSIX fixture. Source suites và frozen app proof trên cả hai hệ kiểm tra proxy/cache, rendered In–Out loop, thumbnail source FFmpeg, cache quota/protected/symlink và Qt Settings/preview integration. Không phải nghiệm thu đầy đủ 95 nhóm hoặc chứng nhận PC Windows/GPU/Chrome/live source.
+
+## P11-01/P11-04 — Two-clip subtitle time-map QA (29/10/2026)
+
+A new synthetic FFmpeg integration uses two clipped sources with different speeds, 100 ms transition and two independent source/translated subtitle layers. It inspects actual ASS cue timestamps and text for both clip scopes, probes the encoded output, renders a reference frame using the shared graph and verifies source media remains unchanged. Production mapping now raises on a positive source cue that becomes 0 ms in output timing, rather than reporting successful render with lost text. ASS output is quantized to 10 ms; test enforces deterministic centisecond serialization and ≤5 ms rounding per cue edge.
+
+[CI 40881166137](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40881166137) **SUCCESS**, exact source/test SHA `e8656dc8`: 587 Linux/586 Windows tests PASS + 1 intentional Windows skip; desktop/native host and frozen synthetic proof both OS PASS. Intermediate [CI 40880618234](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40880618234) failed one new incorrectly strict millisecond assertion in ASS on each runner; verified centisecond expectation fixed without dropping the test.
+
+This is not confirmation of full P11 pixel/audio parity, VFR/rotation/mixed FPS, real Windows device, GPU or 95 full requirement gates.
