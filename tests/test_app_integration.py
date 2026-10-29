@@ -2556,3 +2556,61 @@ def test_qt_autosave_last_project_failure_keeps_sqlite_and_new_recovery(tmp_path
         with window.store.connect() as conn:
             conn.execute("DROP TRIGGER IF EXISTS fail_selection")
         close(window)
+
+def test_batch_codec_fps_bitrate_filter_keeps_hidden_selection_and_rejects_bad_ranges(tmp_path,monkeypatch):
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        channel=str(tmp_path/'channel')
+        fast=str(tmp_path/'fast.mp4')
+        slow=str(tmp_path/'slow.mp4')
+        hevc=str(tmp_path/'hevc.mkv')
+        unknown=str(tmp_path/'unknown.mp4')
+        page.scanned({channel:[fast,slow,hevc,unknown]})
+        callbacks=[]
+        monkeypatch.setattr(window,'background',lambda work,done:callbacks.append(done))
+        page.codec_filter.setCurrentIndex(page.codec_filter.findData('h264'))
+        assert len(callbacks)==1 and page.media_metadata is None
+        assert 'CHƯA áp dụng' in page.summary.text()
+        with pytest.raises(ValueError,match='chưa áp dụng'):
+            page.plan()
+        callbacks[0]({'media':{
+            fast:{'duration':4,'width':1920,'height':1080,'codec':'h264',
+                  'fps':60,'video_bitrate_kbps':2000},
+            slow:{'duration':4,'width':1080,'height':1920,'codec':'h264',
+                  'fps':24,'video_bitrate_kbps':4000},
+            hevc:{'duration':4,'width':3840,'height':2160,'codec':'hevc',
+                  'fps':30,'video_bitrate_kbps':8000},
+            unknown:{'duration':4,'width':1080,'height':1920,'codec':'h264',
+                     'fps':30,'video_bitrate_kbps':None}},
+            'errors':{},'cancelled':False})
+        parent=page.tree.topLevelItem(0)
+        assert [parent.child(i).isHidden() for i in range(4)]==[False,False,True,False]
+        page.fps_min.setValue(30)
+        assert [parent.child(i).isHidden() for i in range(4)]==[False,True,True,False]
+        page.bitrate_min.setValue(1500)
+        assert [parent.child(i).isHidden() for i in range(4)]==[False,True,True,True]
+        page.codec_filter.setCurrentIndex(page.codec_filter.findData('hevc'))
+        assert [parent.child(i).isHidden() for i in range(4)]==[True,True,False,True]
+        assert set(page.selected()[channel])=={fast,slow,hevc,unknown}
+        assert len(callbacks)==1  # cached metadata, no extra worker per filter change
+
+        page.fps_max.setValue(29)
+        assert 'Khoảng FPS không hợp lệ' in page.summary.text()
+        with pytest.raises(ValueError,match='Khoảng FPS không hợp lệ'):
+            page.plan()
+        page.fps_max.setValue(0)
+        page.bitrate_max.setValue(1000)
+        assert 'Khoảng bitrate không hợp lệ' in page.summary.text()
+        with pytest.raises(ValueError,match='Khoảng bitrate không hợp lệ'):
+            page.plan()
+        page.bitrate_max.setValue(0)
+        page.codec_filter.setCurrentIndex(page.codec_filter.findData('h264'))
+        page.bitrate_min.setValue(0)
+        assert [parent.child(i).isHidden() for i in range(4)]==[False,True,True,False]
+        page.fps_min.setValue(0)
+        assert [parent.child(i).isHidden() for i in range(4)]==[False,False,False,False]
+        assert len(page.selected()[channel])==4
+    finally:
+        close(window)

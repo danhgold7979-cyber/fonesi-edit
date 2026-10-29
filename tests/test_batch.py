@@ -264,6 +264,8 @@ def test_batch_metadata_probes_real_video_deduplicates_and_reports_corrupt_input
         progress.append,Event())
     media=result['media'][str(video.resolve())]
     assert media['width']>0 and media['height']>0 and .9<=media['duration']<=1.1
+    assert media['codec'] and media['fps']>0
+    assert media['video_bitrate_kbps'] is None or media['video_bitrate_kbps']>0
     assert str(corrupt.resolve()) in result['errors']
     assert len(result['media'])==1 and result['cancelled'] is False
     assert progress[-1]==1 and len(progress)==2
@@ -292,3 +294,23 @@ def test_quality_upgrade_variants_are_excluded_from_recursive_batch_scan(tmp_pat
     combined=scan_multiple_folders([tmp_path,channel,tmp_path])
     assert {path for paths in combined.values() for path in paths}=={str(original)}
     assert all(path.is_file() for path in variants)
+
+def test_batch_advanced_probe_reports_rational_fps_and_optional_stream_bitrate(tmp_path,monkeypatch):
+    from fonesi_edit import batch as batch_module
+    from fonesi_edit.prototypes.media import MediaInfo
+
+    source=tmp_path/'video.mp4'
+    source.write_bytes(b"probe stub never reads source")
+    monkeypatch.setattr(batch_module,'probe',lambda _:
+        MediaInfo(1920,1080,3,'30000/1001','hevc',None,0,2500000))
+    info=batch_module.probe_batch_metadata({'channel':[str(source)]})['media'][str(source.resolve())]
+    assert info['codec']=='hevc'
+    assert info['fps']==pytest.approx(30000/1001)
+    assert info['video_bitrate_kbps']==2500
+    assert info['duration']==3 and info['width']==1920
+
+    # Older positional MediaInfo fixture remains valid; missing bitrate is unknown.
+    monkeypatch.setattr(batch_module,'probe',lambda _:
+        MediaInfo(720,1280,3,'25/1','h264',None))
+    missing=batch_module.probe_batch_metadata({'channel':[str(source)]})['media'][str(source.resolve())]
+    assert missing['fps']==25 and missing['video_bitrate_kbps'] is None

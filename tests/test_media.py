@@ -62,3 +62,26 @@ def test_failure_and_cancel_never_publish_a_successful_output(tmp_path):
 def test_invalid_render_parameters_fail_before_ffmpeg(values):
     with pytest.raises(ValueError):
         RenderSpec(**values)
+
+@pytest.mark.parametrize("stream_bitrate,expected", [
+    ("1500000",1500000), ("N/A",None), ("0",None), (None,None), ("broken",None),
+])
+def test_probe_video_stream_bitrate_is_never_inferred_from_container(
+    tmp_path, monkeypatch, stream_bitrate, expected
+):
+    import json
+    from types import SimpleNamespace
+    from fonesi_edit.prototypes import media as media_module
+
+    source=tmp_path/"test.mp4"
+    source.write_bytes(b"synthetic ffprobe input only")
+    video={"codec_type":"video","width":320,"height":180,
+           "avg_frame_rate":"30000/1001","codec_name":"h264"}
+    if stream_bitrate is not None:
+        video["bit_rate"]=stream_bitrate
+    payload={"streams":[video],"format":{"duration":"2.0","bit_rate":"9999999"}}
+    monkeypatch.setattr(media_module,"run_checked",
+                        lambda *args,**kwargs:SimpleNamespace(stdout=json.dumps(payload)))
+    info=media_module.probe(source)
+    assert info.video_bitrate==expected
+    assert info.fps=="30000/1001" and info.video_codec=="h264"
