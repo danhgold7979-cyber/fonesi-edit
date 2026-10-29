@@ -264,3 +264,18 @@ def test_provider_marker_count_mismatch_never_caches_corrupt_cue(tmp_path,corrup
     translated=translate_captions(store,[cue],config=config,transport=valid)
     assert translated[0].text=='Thương hiệuThương hiệu'
     assert len(called)==2
+
+
+def test_glossary_key_matching_generated_token_prefix_does_not_mutate_marker(tmp_path):
+    store=Store(tmp_path/'state.db')
+    source='品牌'
+    glossary={'品牌':'Thương hiệu','FONESIPROTECTED':'Không bao giờ áp lên token'}
+    calls=[]
+    def echo(texts,*_):
+        calls.append(tuple(texts))
+        return list(texts)
+    result=translate_captions(store,[Caption(0,1000,source)],
+        config={'provider':'test','glossary':glossary,'daily_limit':1000},
+        transport=echo)
+    assert result[0].text=='Thương hiệu'
+    assert len(calls)==1 and 'FONESIPROTECTED' in calls[0][0]
