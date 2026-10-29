@@ -876,6 +876,153 @@ def test_matrix_manual_durations_ui_rejects_missing_and_nonnumeric_values(tmp_pa
         close(window)
 
 
+def test_sqlite_autosave_fault_keeps_latest_recovery_and_refuses_unsafe_close(tmp_path,monkeypatch):
+    """Simulate SQLite failure at the Windows issue #6 final-autosave boundary."""
+    from contextlib import closing
+    import sqlite3
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    window.show()
+    try:
+        composition=Composition(layers=[Layer(text='Bản chỉnh sửa chưa ghi SQLite')])
+        window.editor.set_composition(composition)
+        window.autosave_timer.stop()
+        expected=window.editor.composition.to_dict()
+
+        def fail_database_write(*_args,**_kwargs):
+            raise sqlite3.DatabaseError('synthetic damaged database')
+        with monkeypatch.context() as patch:
+            patch.setattr(window.store,'save_named',fail_database_write)
+            with pytest.raises(sqlite3.DatabaseError,match='synthetic damaged database'):
+                window.autosave()
+            recovery=window.data/'recovery.json'
+            assert json.loads(recovery.read_text(encoding='utf-8'))['composition']==expected
+            assert not window.close()
+            assert window.isVisible() and not window._shutdown
+            assert window.clock.isActive()
+            assert 'không lưu được' in window.status.text()
+            assert 'synthetic damaged database' not in window.status.text()
+            # No destructive "repair": the same SQLite DB remains valid.
+            with closing(sqlite3.connect(window.store.path)) as conn:
+                assert conn.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+
+        # A later healthy retry persists the same unsaved edit and closes.
+        close(window)
+        assert window._shutdown
+        reopened=MainWindow(tmp_path/'state')
+        try:
+            assert reopened.editor.composition.layers[0].text==(
+                'Bản chỉnh sửa chưa ghi SQLite')
+            assert json.loads((window.data/'recovery.json').read_text(
+                encoding='utf-8'))['composition']==expected
+        finally:
+            close(reopened)
+    finally:
+        if not window._shutdown:
+            close(window)
+
+
+def test_repeated_proxy_quality_shutdown_preserves_sqlite_wal_and_projects(tmp_path,monkeypatch):
+    """Bounded Qt/FFmpeg + active worker/close stress for intermittent issue #6.
+
+    This does not imply the Windows corruption has been reproduced or fixed.
+    Every loop uses the SAME test-only database; no WAL/SHM file is deleted or
+    renamed, and each integrity check uses its own closed SQLite connection.
+    """
+    from contextlib import closing
+    from threading import Event
+    import sqlite3
+    from fonesi_edit.proxy import proxy_identity
+    import fonesi_edit.ui.editor as editor_module
+
+    fixture=create_fixture(tmp_path/'media',duration=.5)
+    source=fixture['source']
+    original=source.read_bytes()
+    stamp=source.stat().st_mtime_ns
+    state=tmp_path/'wal-state'
+    db_path=(state/'state.db').resolve()
+    observations=[]
+
+    def checkpoint(label):
+        assert db_path.is_file(),(label,observations)
+        with closing(sqlite3.connect(db_path,timeout=15)) as conn:
+            mode=conn.execute('PRAGMA journal_mode').fetchone()[0]
+            integrity=conn.execute('PRAGMA integrity_check').fetchone()[0]
+            row=conn.execute(
+                'SELECT data FROM projects ORDER BY updated DESC LIMIT 1'
+            ).fetchone()
+        # WAL/SHM may be automatically checkpointed by SQLite. Trace their
+        # presence, but never treat their absence as evidence of corruption.
+        trace=(label,str(db_path),mode,integrity,
+               db_path.with_name(db_path.name+'-wal').exists(),
+               db_path.with_name(db_path.name+'-shm').exists())
+        observations.append(trace)
+        assert mode=='wal' and integrity=='ok',observations
+        assert row is not None,observations
+        return json.loads(row[0])
+
+    for index,quality in enumerate(('fast','balanced','high')):
+        window=MainWindow(state)
+        window.show()
+        try:
+            # Reopen the exact same SQLite state after each prior shutdown.
+            assert window.store.path==db_path
+            if index:
+                assert window.editor.composition.layers[0].text==f'Vòng {index-1}'
+            window.editor.set_composition(Composition(
+                width=320,height=180,fps=25,
+                clips=[Clip(str(source),end=.5,source_duration=.5)],
+                layers=[Layer(text=f'Vòng {index}')]))
+            started=Event()
+            with monkeypatch.context() as patch:
+                if index==2:
+                    # Guaranteed in-flight background task during close:
+                    # it exits ONLY when MainWindow cancels it.
+                    def blocked_proxy(_source,_directory,_quality,cancel):
+                        started.set()
+                        if not cancel.wait(10):
+                            raise TimeoutError('synthetic proxy shutdown not canceled')
+                        raise RuntimeError('Proxy canceled')
+                    patch.setattr(editor_module,'playback_proxy',blocked_proxy)
+                window.editor.proxy_actions[quality].trigger()
+                if index==2:
+                    wait_until(started.is_set,seconds=5)
+                    assert window.tasks and any(t.isRunning() for t in window.tasks)
+                else:
+                    identity=proxy_identity(source,quality)
+                    wait_until(lambda:identity in window.editor.proxy_cache,
+                               seconds=20)
+                    assert Path(window.editor.proxy_cache[identity]['path']).is_file()
+                window.autosave()
+                assert checkpoint(f'round-{index}-before-close')['layers'][0][
+                    'text']==f'Vòng {index}'
+                window.force_close=True
+                window.close()
+                wait_until(lambda:not window.tasks and not window.isVisible(),
+                           seconds=20)
+                assert window._shutdown
+            assert checkpoint(f'round-{index}-after-close')['layers'][0][
+                'text']==f'Vòng {index}'
+            thread=window.automation.thread
+            if thread is not None:
+                thread.join(timeout=3)
+                assert not thread.is_alive(),observations
+        finally:
+            for task in window.tasks:
+                task.cancel.set()
+            if not window._shutdown:
+                close(window)
+    assert source.read_bytes()==original
+    assert source.stat().st_mtime_ns==stamp
+    assert len(observations)==6
+    reopened=MainWindow(state)
+    try:
+        assert reopened.editor.composition.layers[0].text=='Vòng 2'
+        assert checkpoint('reopen-final')['layers'][0]['text']=='Vòng 2'
+    finally:
+        close(reopened)
+
+
 def test_proxy_preview_quality_is_source_only_and_runs_in_background(tmp_path):
     from fonesi_edit.proxy import proxy_identity
     files=create_fixture(tmp_path/'media',duration=.5)
