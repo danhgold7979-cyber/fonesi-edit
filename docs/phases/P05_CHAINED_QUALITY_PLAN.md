@@ -1,7 +1,7 @@
 # P05-06 — Verified chained quality variants (continuation)
 
 **Date:** 2026-10-29. **Repository:** `danhgold7979-cyber/fonesi-edit`.
-**Branch:** `develop/fonesi-full`. **Status:** planned before implementation; P05 overall remains OPEN.
+**Branch:** `develop/fonesi-full`. **Status:** synthetic/CI verified on source SHA `8dd9fec2268ab42c8e756e0b36a82af9d269531d`; P05 overall remains OPEN.
 
 ## Inputs and gap
 
@@ -21,3 +21,8 @@ Reviewed `AGENTS.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md` P05-04/05/06, `
 - Existing source files and other variants must remain unchanged; no delete/replace of invalid artifacts. Existing target ceiling is a maximum, never a guarantee of a provider format.
 - No claim of live provider format availability, repaired corrupt sidecars, channel resync, account/Chrome handoff, ten-platform corpus or user-device Windows acceptance.
 - Never merge to `main`; no secrets/media/fixture outputs in Git.
+
+## Verified implementation and evidence
+
+- Source and tests: [8dd9fec](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8dd9fec2268ab42c8e756e0b36a82af9d269531d); CI [40852244193](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40852244193) successful on exact code/test SHA, 513 Linux passed / 512 Windows passed + 1 skip; desktop/native-host build and packaged proof both systems passed.
+- This is **synthetic/CI** proof only. Live provider formats, account sessions, per-platform acceptance, invalid variant repair, physical Windows and issue #6 remain open. No release/merge.
