@@ -20,6 +20,7 @@ from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings,split_caption,merge_captions
+from .cue_timeline import CueTimingView
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
                          parse_scan_metadata_filters,scan_matches_metadata,
                          normalize_scan_metadata,continuation_scan_payload,
@@ -586,6 +587,10 @@ class SubtitlesPage(QWidget):
         b=QPushButton('Nạp kết quả dịch');b.clicked.connect(host.guard(self.load_translation));row.addWidget(b)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(['Bắt đầu s','Kết thúc s','Bản gốc','Bản dịch / nội dung','Khóa'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch);self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows);layout.addWidget(self.table,1)
+        self.cue_timeline=CueTimingView(self)
+        layout.addWidget(self.cue_timeline)
+        self.cue_timeline.timingChanged.connect(self._apply_cue_timing)
+        self.table.currentCellChanged.connect(lambda *_:self._sync_cue_timeline())
         self.warning=QLabel();self.warning.setWordWrap(True);layout.addWidget(self.warning)
         self.draft=QTimer(self);self.draft.setSingleShot(True);self.draft.setInterval(500);self.draft.timeout.connect(host.guard(self.persist))
         self.table.itemChanged.connect(self._changed_cell)
@@ -600,6 +605,45 @@ class SubtitlesPage(QWidget):
         self.cue_history.reset(self._raw_cue_rows())
         self._update_history_buttons()
         self._update_cue_warnings()
+        self._sync_cue_timeline()
+
+    def _sync_cue_timeline(self):
+        row=self.table.currentRow()
+        if row<0 or row>=self.table.rowCount():
+            self.cue_timeline.show_cue(None)
+            return
+        try:
+            start=round(float(self.table.item(row,0).text())*1000)
+            end=round(float(self.table.item(row,1).text())*1000)
+            if not 0<=start<end or end*self.cue_timeline.pixels_per_ms>2_000_000:
+                raise ValueError('Cue nằm ngoài phạm vi timeline')
+        except (ValueError,OverflowError,TypeError,AttributeError):
+            self.cue_timeline.show_cue(None)
+            return
+        self.cue_timeline.show_cue((start,end))
+
+    def _apply_cue_timing(self,start_ms,end_ms):
+        row=self.table.currentRow()
+        if row<0 or row>=len(self.captions) or type(start_ms) is not int or type(end_ms) is not int:
+            return
+        if not 0<=start_ms<end_ms:
+            raise ValueError('Khoảng thời gian cue kéo không hợp lệ')
+        first=self.table.item(row,0);last=self.table.item(row,1)
+        if first is None or last is None:
+            return
+        before=(first.text(),last.text())
+        after=(f'{start_ms/1000:.3f}',f'{end_ms/1000:.3f}')
+        if before==after:
+            return
+        # Two visible timestamp cells are one atomic Undo command.
+        was_blocked=self.table.blockSignals(True)
+        try:
+            first.setText(after[0]);last.setText(after[1])
+        finally:
+            self.table.blockSignals(was_blocked)
+        self._record_cue_edit()
+        self._update_cue_warnings()
+        self._sync_cue_timeline()
 
     def _raw_cue_rows(self):
         """Capture visible values, even an unfinished or invalid time field."""
@@ -631,6 +675,7 @@ class SubtitlesPage(QWidget):
     def _changed_cell(self, _item):
         self._record_cue_edit()
         self._update_cue_warnings()
+        self._sync_cue_timeline()
 
     def _restore_cue_rows(self,rows):
         """Restore a historical state without emitting new user edit commands."""
@@ -654,6 +699,7 @@ class SubtitlesPage(QWidget):
             self.table.blockSignals(previous)
         self._update_history_buttons()
         self._update_cue_warnings()
+        self._sync_cue_timeline()
         self.draft.start()
 
     def undo_cues(self):
@@ -678,6 +724,7 @@ class SubtitlesPage(QWidget):
         self.warning.setText('\n'.join(caption_warnings(self.captions)[:10]))
         self.table.setUpdatesEnabled(True);self.table.blockSignals(False)
         self._record_cue_edit()
+        self._sync_cue_timeline()
 
     def persist(self):
         # Persist the raw view, not collect(): intermediate invalid timing still

@@ -371,6 +371,71 @@ def test_loading_translation_is_one_undo_step_and_keeps_worker_snapshot(tmp_path
         close(window)
 
 
+def test_cue_timeline_retime_is_atomic_for_one_row_and_preserves_text(tmp_path):
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.subtitles
+        page.captions=[Caption(1000,3000,'Dịch', 'Nguồn',locked=True),
+                       Caption(2000,4000,'Câu hai','Nguồn hai')]
+        page.refresh()
+        page.table.setCurrentCell(0,0)
+        APP.processEvents()
+        assert page.cue_timeline.bar is not None
+        assert (page.cue_timeline.bar.start_ms,page.cue_timeline.bar.end_ms)==(1000,3000)
+        baseline=len(page.cue_history.past)
+        original_ids=[cue.id for cue in page.collect()]
+        page.cue_timeline.timingChanged.emit(1500,3500)
+        assert len(page.cue_history.past)==baseline+1
+        rows=page.collect()
+        assert (rows[0].start_ms,rows[0].end_ms)==(1500,3500)
+        assert (rows[1].start_ms,rows[1].end_ms)==(2000,4000)
+        assert rows[0].text=='Dịch' and rows[0].source_text=='Nguồn' and rows[0].locked
+        assert [c.id for c in rows]==original_ids
+        assert page.undo_cues()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1000,3000)
+        assert page.redo_cues()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1500,3500)
+        baseline=len(page.cue_history.past)
+        page.cue_timeline.timingChanged.emit(1500,3500)
+        assert len(page.cue_history.past)==baseline
+        page.table.item(0,0).setText('incomplete')
+        assert page.cue_timeline.bar is None
+        assert page.table.item(0,3).text()=='Dịch'
+    finally:
+        close(window)
+
+
+def test_cue_timeline_mouse_drag_moves_selected_cue_with_single_undo(tmp_path):
+    from PySide6.QtCore import QPoint,Qt
+    from PySide6.QtTest import QTest
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    window.show()
+    try:
+        page=window.subtitles
+        page.captions=[Caption(1000,3000,'Dịch từ bàn phím','Nguồn')]
+        page.refresh()
+        window.nav.setCurrentWidget(page)
+        page.table.setCurrentCell(0,0)
+        APP.processEvents()
+        view=page.cue_timeline
+        assert view.bar is not None
+        center=view.mapFromScene(view.bar.sceneBoundingRect().center())
+        baseline=len(page.cue_history.past)
+        QTest.mousePress(view.viewport(),Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,center)
+        QTest.mouseMove(view.viewport(),center+QPoint(35,0))
+        QTest.mouseRelease(view.viewport(),Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,center+QPoint(35,0))
+        APP.processEvents()
+        shifted=page.collect()[0]
+        assert shifted.start_ms==2000 and shifted.end_ms==4000
+        assert len(page.cue_history.past)==baseline+1
+        assert page.undo_cues()
+        assert (page.collect()[0].start_ms,page.collect()[0].end_ms)==(1000,3000)
+    finally:
+        close(window)
+
+
 def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor);window.editor.add_layer('text')
     try:
