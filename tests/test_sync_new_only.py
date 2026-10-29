@@ -127,7 +127,11 @@ def test_sqlite_sync_history_does_not_truncate_after_2000_jobs(tmp_path):
         rows=[(f'unrelated-{i}','download','pending',payload,
                float(i+100),float(i+100),'[]') for i in range(2050)]
         conn.executemany("INSERT INTO jobs(id,kind,state,payload,created,updated,depends_on) VALUES(?,?,?,?,?,?,?)",rows)
+    # The matching job is *older* than every filler and absent from the usual UI cap.
+    with store.connect() as conn:
+        conn.execute("UPDATE jobs SET created=0 WHERE id=?", (old,))
     assert len(store.jobs(limit=2000))==2000
+    assert old not in {j['id'] for j in store.jobs(limit=2000)}
     assert [j['id'] for j in store.download_jobs_for_urls([OLD])]==[old]
     assert store.download_jobs_for_urls([])==[]
     with pytest.raises(ValueError,match='500'):
@@ -159,3 +163,20 @@ def test_gallery_image_must_still_decode_before_being_skipped(tmp_path):
     with pytest.raises(ValueError,match='không còn hợp lệ'):
         plan_new_only_sync(scan,[0],store.download_jobs_for_urls([req['url']]))
 
+
+
+
+def test_media_job_symlink_is_not_accepted_as_existing_download(tmp_path,monkeypatch):
+    fixture=create_fixture(tmp_path/'fixture',duration=.5)
+    root=tmp_path/'output'
+    media=root/'Generic'/'Creator__id'/'videos'/'original.mp4'
+    media.parent.mkdir(parents=True)
+    shutil.copyfile(fixture['source'],media)
+    store=Store(tmp_path/'db.sqlite')
+    scan=scan_snapshot(root,(OLD,))
+    finish_video(store,selected_download_payloads(scan,[0])[0],media)
+    original=Path.is_symlink
+    monkeypatch.setattr(Path,'is_symlink',
+                        lambda path: True if path==media else original(path))
+    with pytest.raises(ValueError,match='không còn hợp lệ'):
+        plan_new_only_sync(scan,[0],store.download_jobs_for_urls([OLD]))
