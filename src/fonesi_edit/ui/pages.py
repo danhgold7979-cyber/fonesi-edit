@@ -524,10 +524,60 @@ class DownloadsPage(QWidget):
         self.host.message('Đã đặt lịch quét rồi chỉ đồng bộ mục mới; tối đa 200 mục nguồn mỗi lần quét, không khẳng định đủ kênh. App cần đang chạy hoặc bật chế độ nền.')
 
 
+class CueEditHistory:
+    """Bounded, in-session history of raw subtitle-table snapshots.
+
+    Raw cell strings are essential: a half-typed timestamp must still be
+    undoable, even when converting that text to a validated Caption fails.
+    """
+    def __init__(self, limit=100):
+        self.limit=limit
+        self.reset(())
+
+    def reset(self, rows):
+        self.current=rows
+        self.past=[]
+        self.future=[]
+
+    def record(self, rows):
+        if rows==self.current:
+            return False
+        self.past.append(self.current)
+        if len(self.past)>self.limit:
+            self.past.pop(0)
+        self.current=rows
+        self.future.clear()
+        return True
+
+    def undo(self):
+        if not self.past:
+            return None
+        self.future.append(self.current)
+        self.current=self.past.pop()
+        return self.current
+
+    def redo(self):
+        if not self.future:
+            return None
+        self.past.append(self.current)
+        if len(self.past)>self.limit:
+            self.past.pop(0)
+        self.current=self.future.pop()
+        return self.current
+
+
 class SubtitlesPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.captions=[];self.last_job=None;layout=QVBoxLayout(self)
-        buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),('Thêm câu',self.add),('Tách câu',self.split),('Gộp câu chọn',self.merge),('Tìm/thay',self.find_replace),('Dịch thời gian',self.shift),('Gắn vào clip',self.attach)])
+        super().__init__();self.host=host;self.captions=[];self.last_job=None
+        self.cue_history=CueEditHistory()
+        layout=QVBoxLayout(self)
+        toolbar=buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),
+            ('Hoàn tác câu',self.undo_cues),('Làm lại câu',self.redo_cues),
+            ('Thêm câu',self.add),('Tách câu',self.split),
+            ('Gộp câu chọn',self.merge),('Tìm/thay',self.find_replace),
+            ('Dịch thời gian',self.shift),('Gắn vào clip',self.attach)])
+        self.undo_cue_action=next(a for a in toolbar.actions() if a.text()=='Hoàn tác câu')
+        self.redo_cue_action=next(a for a in toolbar.actions() if a.text()=='Làm lại câu')
         row=QHBoxLayout();layout.addLayout(row);self.source=QComboBox();self.source.setEditable(True);self.source.addItems(['auto','zh','en','vi','ja','ko']);row.addWidget(self.source)
         self.target=QComboBox();self.target.setEditable(True);self.target.addItems(['vi','en','zh','ja','ko','fr','de','es']);row.addWidget(self.target)
         self.bilingual=QCheckBox('Song ngữ gốc + dịch');row.addWidget(self.bilingual)
@@ -538,7 +588,7 @@ class SubtitlesPage(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch);self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows);layout.addWidget(self.table,1)
         self.warning=QLabel();self.warning.setWordWrap(True);layout.addWidget(self.warning)
         self.draft=QTimer(self);self.draft.setSingleShot(True);self.draft.setInterval(500);self.draft.timeout.connect(host.guard(self.persist))
-        self.table.itemChanged.connect(lambda item:self.draft.start())
+        self.table.itemChanged.connect(self._changed_cell)
         draft=host.store.setting('subtitle_draft')
         if draft:
             self.table.blockSignals(True);self.captions=[];self.table.setRowCount(len(draft['rows']))
@@ -547,6 +597,76 @@ class SubtitlesPage(QWidget):
                 for col in range(4):self.table.setItem(row,col,QTableWidgetItem(values[col]))
                 check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if values[4] else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
             self.table.blockSignals(False);self.source.setCurrentText(draft['source']);self.target.setCurrentText(draft['target']);self.bilingual.setChecked(draft.get('bilingual',False))
+        self.cue_history.reset(self._raw_cue_rows())
+        self._update_history_buttons()
+        self._update_cue_warnings()
+
+    def _raw_cue_rows(self):
+        """Capture visible values, even an unfinished or invalid time field."""
+        rows=[]
+        for row,old in enumerate(self.captions):
+            if row>=self.table.rowCount():
+                break
+            text=[self.table.item(row,col).text() if self.table.item(row,col) else '' for col in range(4)]
+            check=self.table.item(row,4)
+            rows.append((*text,check is not None and check.checkState()==Qt.CheckState.Checked,old.id))
+        return tuple(rows)
+
+    def _update_history_buttons(self):
+        self.undo_cue_action.setEnabled(bool(self.cue_history.past))
+        self.redo_cue_action.setEnabled(bool(self.cue_history.future))
+
+    def _update_cue_warnings(self):
+        try:
+            warnings=caption_warnings(self.collect())[:10]
+            self.warning.setText('\n'.join(warnings))
+        except (TypeError,ValueError,OverflowError,AttributeError):
+            self.warning.setText('Mốc phụ đề đang nhập chưa hợp lệ; chỉnh trước khi lưu hoặc xuất.')
+
+    def _record_cue_edit(self):
+        if self.cue_history.record(self._raw_cue_rows()):
+            self._update_history_buttons()
+        self.draft.start()
+
+    def _changed_cell(self, _item):
+        self._record_cue_edit()
+        self._update_cue_warnings()
+
+    def _restore_cue_rows(self,rows):
+        """Restore a historical state without emitting new user edit commands."""
+        previous=self.table.blockSignals(True)
+        self.table.setUpdatesEnabled(False)
+        selected=self.table.currentRow()
+        try:
+            self.table.setRowCount(len(rows))
+            self.captions=[]
+            for row,values in enumerate(rows):
+                self.captions.append(Caption(0,1,values[3],values[2],values[4],values[5]))
+                for col in range(4):
+                    self.table.setItem(row,col,QTableWidgetItem(values[col]))
+                checked=QTableWidgetItem()
+                checked.setCheckState(Qt.CheckState.Checked if values[4] else Qt.CheckState.Unchecked)
+                self.table.setItem(row,4,checked)
+            if rows:
+                self.table.setCurrentCell(min(max(0,selected),len(rows)-1),0)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.table.blockSignals(previous)
+        self._update_history_buttons()
+        self._update_cue_warnings()
+        self.draft.start()
+
+    def undo_cues(self):
+        rows=self.cue_history.undo()
+        if rows is None:return False
+        self._restore_cue_rows(rows)
+        return True
+
+    def redo_cues(self):
+        rows=self.cue_history.redo()
+        if rows is None:return False
+        self._restore_cue_rows(rows)
+        return True
 
     def refresh(self):
         self.table.blockSignals(True);self.table.setUpdatesEnabled(False)
@@ -556,11 +676,13 @@ class SubtitlesPage(QWidget):
                 self.table.setItem(row,col,QTableWidgetItem(value))
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if c.locked else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
         self.warning.setText('\n'.join(caption_warnings(self.captions)[:10]))
-        self.table.setUpdatesEnabled(True);self.table.blockSignals(False);self.draft.start()
+        self.table.setUpdatesEnabled(True);self.table.blockSignals(False)
+        self._record_cue_edit()
 
     def persist(self):
-        rows=[]
-        for row,cue in enumerate(self.captions):rows.append([*[self.table.item(row,col).text() if self.table.item(row,col) else '' for col in range(4)],self.table.item(row,4).checkState()==Qt.CheckState.Checked,cue.id])
+        # Persist the raw view, not collect(): intermediate invalid timing still
+        # belongs to the user's unfinished draft, even after Undo or Redo.
+        rows=[list(row) for row in self._raw_cue_rows()]
         self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),'target':self.target.currentText(),'bilingual':self.bilingual.isChecked()})
 
     def collect(self):
@@ -572,7 +694,12 @@ class SubtitlesPage(QWidget):
     def open(self):
         path,_=QFileDialog.getOpenFileName(self,'Mở phụ đề',filter='Sub (*.srt *.vtt *.ass)')
         if path:self.host.background(lambda p,c:read_captions(Path(path)),self.loaded)
-    def loaded(self,captions):self.captions=captions;self.refresh()
+    def loaded(self,captions):
+        self.captions=captions
+        self.refresh()
+        # Opening a different subtitle document must not Undo into old content.
+        self.cue_history.reset(self._raw_cue_rows())
+        self._update_history_buttons()
 
     def save(self):
         self.captions=self.collect();path,_=QFileDialog.getSaveFileName(self,'Xuất sub',filter='SRT (*.srt);;ASS (*.ass);;VTT (*.vtt)')

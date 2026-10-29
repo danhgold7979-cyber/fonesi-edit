@@ -188,6 +188,187 @@ def test_subtitle_table_split_merge_preserves_bilingual_cjk_and_lock(tmp_path):
         close(window)
 
 
+def test_subtitle_undo_redo_restores_raw_invalid_time_lock_and_persisted_draft(tmp_path):
+    from PySide6.QtCore import Qt
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    page=window.subtitles
+    try:
+        page.captions=[Caption(0,1000,'Dịch đầu','Bản gốc')]
+        page.refresh()
+        cue_id=page.captions[0].id
+        page.table.item(0,0).setText('not-finished')
+        page.table.item(0,3).setText('Dịch đã sửa')
+        page.table.item(0,4).setCheckState(Qt.CheckState.Checked)
+        assert len(page.cue_history.past)>=3
+        assert 'chưa hợp lệ' in page.warning.text()
+        assert page.undo_cues()
+        assert page.table.item(0,4).checkState()==Qt.CheckState.Unchecked
+        assert page.undo_cues()
+        assert page.table.item(0,3).text()=='Dịch đầu'
+        assert page.undo_cues()
+        assert page.table.item(0,0).text()=='0.000'
+        for _ in range(3):assert page.redo_cues()
+        assert page.table.item(0,0).text()=='not-finished'
+        assert page.table.item(0,3).text()=='Dịch đã sửa'
+        assert page.table.item(0,4).checkState()==Qt.CheckState.Checked
+        assert page.captions[0].id==cue_id
+        assert page.undo_cues()
+        page.table.item(0,3).setText('Thay đổi sau Undo')
+        assert not page.redo_cues()  # New edit invalidates the redo branch.
+        assert page.table.item(0,0).text()=='not-finished'
+        page.persist()
+    finally:
+        close(window)
+    reopened=MainWindow(tmp_path/'state')
+    try:
+        page=reopened.subtitles
+        assert page.table.item(0,0).text()=='not-finished'
+        assert page.table.item(0,3).text()=='Thay đổi sau Undo'
+        assert page.captions[0].id==cue_id
+        assert not page.undo_cues()  # In-session history is not a persisted journal.
+        assert 'chưa hợp lệ' in page.warning.text()
+    finally:
+        close(reopened)
+
+
+def test_subtitle_structural_actions_each_form_one_history_step(tmp_path):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QTableWidgetSelectionRange
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.subtitles
+        page.captions=[Caption(0,600,'中文沒有空格','Tiếng Việt đủ chữ',locked=True)]
+        page.refresh()
+        original=page.collect()[0]
+        page.table.setCurrentCell(0,0)
+        before=len(page.cue_history.past)
+        page.split()
+        assert len(page.cue_history.past)==before+1
+        assert page.table.rowCount()==2
+        assert page.undo_cues() and page.table.rowCount()==1
+        assert page.collect()[0]==original
+        assert page.redo_cues() and page.table.rowCount()==2
+        page.table.setRangeSelected(QTableWidgetSelectionRange(0,0,1,4),True)
+        before=len(page.cue_history.past)
+        page.merge()
+        assert len(page.cue_history.past)==before+1
+        assert page.table.rowCount()==1
+        assert page.undo_cues() and page.table.rowCount()==2
+        assert page.redo_cues() and page.table.rowCount()==1
+        assert page.collect()[0].locked
+        before=len(page.cue_history.past)
+        page.add()
+        assert len(page.cue_history.past)==before+1
+        assert page.table.rowCount()==2
+        assert page.undo_cues() and page.table.rowCount()==1
+        assert page.redo_cues() and page.table.rowCount()==2
+    finally:
+        close(window)
+
+
+def test_subtitle_menu_shortcuts_separate_table_and_canvas_undo(tmp_path):
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    window.show()
+    try:
+        window.nav.setCurrentWidget(window.editor)
+        window.editor.add_layer('text')
+        assert len(window.editor.composition.layers)==1
+        page=window.subtitles
+        page.captions=[Caption(0,1000,'Dịch cũ','Gốc')]
+        page.refresh()
+        page.table.item(0,3).setText('Dịch mới')
+        window.nav.setCurrentWidget(page)
+        page.table.setFocus()
+        APP.processEvents()
+        window.actions['Undo'].trigger()
+        assert page.table.item(0,3).text()=='Dịch cũ'
+        assert len(window.editor.composition.layers)==1
+        window.actions['Redo'].trigger()
+        assert page.table.item(0,3).text()=='Dịch mới'
+        window.nav.setCurrentWidget(window.editor)
+        window.editor.canvas.setFocus()
+        APP.processEvents()
+        window.actions['Undo'].trigger()
+        assert len(window.editor.composition.layers)==0
+        assert page.table.item(0,3).text()=='Dịch mới'
+    finally:
+        close(window)
+
+
+def test_subtitle_native_line_edit_undo_takes_priority_over_cue_history(tmp_path):
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    window.show()
+    try:
+        page=window.subtitles
+        page.captions=[Caption(0,1000,'Dịch cũ','Gốc')]
+        page.refresh()
+        page.table.item(0,3).setText('Dịch mới')
+        window.nav.setCurrentWidget(page)
+        entry=page.source.lineEdit()
+        entry.setText('zh')
+        entry.setFocus()
+        APP.processEvents()
+        assert QApplication.focusWidget() is entry
+        entry.insert('x')
+        window.actions['Undo'].trigger()
+        assert entry.text()=='zh'
+        assert page.table.item(0,3).text()=='Dịch mới'
+        assert page.undo_cues()
+        assert page.table.item(0,3).text()=='Dịch cũ'
+    finally:
+        close(window)
+
+
+def test_loading_new_subtitles_resets_cue_history_and_does_not_touch_canvas(tmp_path):
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.subtitles
+        window.editor.add_layer('text')
+        page.captions=[Caption(0,1000,'Trước','Nguyên bản')]
+        page.refresh()
+        page.table.item(0,3).setText('Đã sửa')
+        assert page.undo_cues() and page.redo_cues()
+        page.loaded([Caption(250,900,'Tệp khác','Different file')])
+        assert not page.undo_cues() and not page.redo_cues()
+        assert page.collect()[0].text=='Tệp khác'
+        assert len(window.editor.composition.layers)==1
+        window.editor.undo.undo()
+        assert not window.editor.composition.layers
+    finally:
+        close(window)
+
+
+def test_loading_translation_is_one_undo_step_and_keeps_worker_snapshot(tmp_path):
+    from dataclasses import asdict
+    from fonesi_edit.subtitles import Caption
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        page=window.subtitles
+        cue=Caption(0,1000,'Original','Original')
+        page.captions=[cue];page.refresh()
+        page.translation_snapshot={cue.id:asdict(page.collect()[0])}
+        job_id=window.store.submit('translate',{'captions':[asdict(cue)]})
+        window.store.claim(allowed={'translate'})
+        translated=Caption(0,1000,'Bản dịch','Original',id=cue.id)
+        window.store.finish(job_id,{'captions':[asdict(translated)]})
+        page.last_job=job_id
+        before=len(page.cue_history.past)
+        page.load_translation()
+        assert len(page.cue_history.past)==before+1
+        assert page.collect()[0].text=='Bản dịch'
+        assert page.undo_cues() and page.collect()[0].text=='Original'
+        assert page.redo_cues() and page.collect()[0].text=='Bản dịch'
+        assert window.store.job(job_id)['result']['captions'][0]['text']=='Bản dịch'
+    finally:
+        close(window)
+
+
 def test_undo_while_editing_text_uses_the_input_history(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor);window.editor.add_layer('text')
     try:

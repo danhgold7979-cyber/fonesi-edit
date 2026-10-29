@@ -521,6 +521,17 @@ class MainWindow(QMainWindow):
                 if self.ime_composition_active(QApplication.focusWidget()):
                     return
                 policy, target = shortcut_focus_policy(QApplication.focusWidget())
+                if name in {'Undo','Redo'} and self.nav.currentWidget() is self.subtitles:
+                    # Subtitle table history is separate from the canvas. When
+                    # a live text editor owns focus (including a cue delegate),
+                    # its native text history takes precedence over table Undo.
+                    if policy=='text':
+                        method=getattr(target,'undo' if name=='Undo' else 'redo',None)
+                        if callable(method):method()
+                    else:
+                        action=self.subtitles.undo_cues if name=='Undo' else self.subtitles.redo_cues
+                        self.guard(action)()
+                    return
                 if not should_dispatch_editor_shortcut(name, policy):
                     native_methods = {
                         "Undo": "undo", "Redo": "redo", "Select all": "selectAll",
