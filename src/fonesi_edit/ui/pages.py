@@ -24,6 +24,7 @@ from ..downloads import (platform_for,selectable_scan_url,selected_download_payl
                          parse_scan_metadata_filters,scan_matches_metadata,
                          normalize_scan_metadata,continuation_scan_payload,
                          selected_quality_upgrade_payloads)
+from ..sync import plan_new_only_sync
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -110,7 +111,7 @@ class DownloadsPage(QWidget):
         self.scan_filter_error=None
         buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected),('Tải bổ sung phụ đề',self.download_subtitles_selected),
                              ('Nâng chất lượng video đã tải',self.download_quality_upgrade_selected)])
-        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan)])
+        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan),('Đồng bộ mục mới (kết quả lọc)',self.sync_new_filtered)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
         self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
@@ -404,6 +405,63 @@ class DownloadsPage(QWidget):
             f'Đã xếp scan tiếp từ vị trí {payload["scan_start"]}; '
             'đây là khoảng yt-dlp, không phải checkpoint hoặc xác nhận đủ kênh.')
         self.host.activate_queue()
+
+    def sync_new_filtered(self):
+        """Sync the safe filtered rows, across pages, without changing checkbox state."""
+        scan_id=self.scans.currentData()
+        if not scan_id:
+            raise ValueError('Chưa chọn một lần quét để đồng bộ')
+        scan=self.host.store.job(scan_id)
+        if scan['state']!='succeeded':
+            raise ValueError('Chỉ đồng bộ từ lần quét đã hoàn tất')
+        items=(scan.get('result') or {}).get('items') or []
+        visible=self._scan_visible_indexes(items)
+        if self.scan_filter_error:
+            raise ValueError('Bộ lọc scan không hợp lệ: '+self.scan_filter_error)
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if safe and safe not in first_by_url:first_by_url[safe]=index
+        indexes=[]
+        for index in visible:
+            item=items[index]
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and first_by_url.get(safe)==index):
+                indexes.append(index)
+        if len(indexes)>MAX_SCAN_SELECTION:
+            raise ValueError(
+                f'Tối đa {MAX_SCAN_SELECTION} mục mỗi lần đồng bộ; hãy thu hẹp bộ lọc')
+        if not indexes:
+            self.host.message('Không có mục media tải được trong kết quả lọc hiện tại.')
+            return {'payloads':[],'already_valid':0,'already_queued':0,'total':0}
+        requests=selected_download_payloads(scan,indexes)
+        account=scan['payload'].get('account_ref')
+        if account:
+            current=next((item for item in bindings(self.host.store)
+                          if item['id']==account),None)
+            if not current or current['platform']!=platform_for(scan['payload']['url']):
+                raise PermissionError(
+                    'Tài khoản scan đã đổi/mất; không đồng bộ bằng phiên công khai')
+        history=self.host.store.download_jobs_for_urls([request['url'] for request in requests])
+        plan=plan_new_only_sync(scan,indexes,history)
+        for payload in plan['payloads']:
+            # A stable cross-scan key, unlike the ordinary per-scan item key.
+            identity='sync-media-v1:'+canonical([
+                payload['url'],payload['folder'],payload['engine'],
+                payload['media'],payload.get('account_ref'),
+                payload.get('expected_identity')])
+            submit_once(self.host.store,'download',payload,identity)
+        self.host.message(
+            f"Đồng bộ {plan['total']} mục đã quét: "
+            f"{len(plan['payloads'])} mới, {plan['already_valid']} tệp hợp lệ, "
+            f"{plan['already_queued']} job đang chờ/chạy. "
+            'Chưa xác nhận đã quét hết kênh.')
+        if plan['payloads']:
+            self.host.activate_queue()
+        return plan
 
     def download_subtitles_selected(self):
         return self.download_selected(subtitles_only=True)

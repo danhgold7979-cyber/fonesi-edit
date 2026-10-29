@@ -1583,3 +1583,97 @@ def test_quality_upgrade_scan_ui_preserves_snapshot_and_separates_modes(tmp_path
         assert original.read_bytes()==fixture['source'].read_bytes()
     finally:
         close(window)
+
+
+
+def test_second_scan_ui_sync_only_new_items_across_filters_and_pages(tmp_path):
+    from PySide6.QtCore import Qt
+    import shutil
+    fixture=create_fixture(tmp_path/'fixture',duration=.5)
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        root=tmp_path/'output'
+        existing=root/'Generic'/'Creator__id'/'videos'/'old.mp4'
+        existing.parent.mkdir(parents=True)
+        shutil.copyfile(fixture['source'],existing)
+        old='https://example.test/video/old'
+        newer='https://example.test/video/new'
+        latest='https://example.test/video/latest'
+        old_job=window.store.submit('download',{
+            'url':old,'folder':str(root),'engine':'video','media':'videos','limit':1})
+        window.store.claim(allowed={'download'})
+        window.store.finish(old_job,{'platform':'Generic','files':[{
+            'id':'old','kind':'video','path':str(existing)}],'count':1})
+        source={'url':'https://example.test/channel','folder':str(root),
+                'engine':'video','media':'videos','limit':3}
+        first=window.store.submit('scan',source)
+        window.store.claim(allowed={'scan'})
+        items=[{'id':str(i),'title':f'Video {i}', 'kind':'video','engine':'video',
+                'url':url,'selectable':True} for i,url in enumerate((old,newer))]
+        window.store.finish(first,{'platform':'Generic','items':items,'count':2,'complete':None})
+        page=window.downloads
+        page.scan_page_size=1
+        page.show_scan()
+        page.scan_tree.topLevelItem(0).child(0).setCheckState(0,Qt.CheckState.Checked)
+        assert page.scan_selected[first]=={0}
+        plan=page.sync_new_filtered()
+        assert plan['already_valid']==1 and [p['url'] for p in plan['payloads']]==[newer]
+        assert page.scan_selected[first]=={0}
+        repeated=page.sync_new_filtered()
+        assert repeated['already_valid']==1 and repeated['already_queued']==1
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==2
+        second=window.store.submit('scan',source)
+        window.store.claim(allowed={'scan'})
+        window.store.finish(second,{'platform':'Generic','items':[
+            *items,{'id':'latest','title':'Video 2','kind':'video',
+                    'url':latest,'engine':'video','selectable':True}],
+            'count':3,'complete':None})
+        page.refresh_scans(preferred=second)
+        page.load_scan()
+        page.scan_sort.setCurrentIndex(page.scan_sort.findData('title'))
+        again=page.sync_new_filtered()
+        assert again['already_valid']==1 and again['already_queued']==1
+        assert [p['url'] for p in again['payloads']]==[latest]
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==3
+        page.scan_search.setText('Video 2')
+        filtered=page.sync_new_filtered()
+        assert filtered['already_queued']==1 and filtered['total']==1
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==3
+        assert window.store.job(first)['result']['complete'] is None
+        assert existing.read_bytes()==fixture['source'].read_bytes()
+    finally:
+        close(window)
+
+
+def test_second_scan_sync_aborts_atomically_on_corrupt_file_or_over_limit(tmp_path):
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        root=tmp_path/'out'
+        previous_url='https://example.test/old'
+        old=window.store.submit('download',{'url':previous_url,'folder':str(root),
+                                             'engine':'video','media':'videos','limit':1})
+        window.store.claim(allowed={'download'})
+        window.store.finish(old,{'platform':'Generic','files':[{
+            'kind':'video','path':str(root/'missing.mp4'),'id':'old'}],'count':1})
+        scan=window.store.submit('scan',{'url':'https://example.test/channel',
+                                          'folder':str(root),'engine':'video','media':'videos'})
+        window.store.claim(allowed={'scan'})
+        items=[{'id':str(i),'title':f'Video {i}','kind':'video','engine':'video',
+                'url':(previous_url if i==0 else f'https://example.test/video/{i}'),
+                'selectable':True} for i in range(501)]
+        window.store.finish(scan,{'platform':'Generic','items':items,
+                                  'count':len(items),'complete':None})
+        page=window.downloads
+        page.show_scan()
+        with pytest.raises(ValueError,match='Tối đa 500'):
+            page.sync_new_filtered()
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==1
+        page.scan_search.setText('Video 0')
+        with pytest.raises(ValueError,match='không còn hợp lệ'):
+            page.sync_new_filtered()
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==1
+    finally:
+        close(window)
