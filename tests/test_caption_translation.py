@@ -87,3 +87,70 @@ def test_overwriting_subtitle_is_atomic_and_failure_keeps_manual_edits(tmp_path,
     assert not list(tmp_path.glob('.fonesi-caption-*'))
     module.write_captions(path,[Caption(0,1000,'Ghi mới')],overwrite=True)
     assert read_captions(path)[0].text=='Ghi mới'
+
+
+def test_new_subtitle_never_publishes_partial_file_when_fsync_fails(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'new'/'translated.srt'
+    def broken_sync(_descriptor):
+        raise OSError('simulated disk full before subtitle publication')
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'fsync',broken_sync)
+        with pytest.raises(OSError,match='simulated disk full'):
+            module.write_captions(destination,[Caption(0,1000,'Tiếng Việt 中文')])
+    assert not destination.exists()
+    assert not list(destination.parent.glob('.fonesi-caption-*'))
+    module.write_captions(destination,[Caption(0,1000,'Tiếng Việt 中文')])
+    assert read_captions(destination)[0].text=='Tiếng Việt 中文'
+
+
+def test_new_subtitle_racing_publisher_never_overwrites_existing_bytes(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'racing.srt'
+    preserved=b'User supplied subtitle; no overwrite'
+    actual_link=module.os.link
+    def publish_other_file_then_link(source,target):
+        destination.write_bytes(preserved)
+        return actual_link(source,target)
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',publish_other_file_then_link)
+        with pytest.raises(FileExistsError):
+            module.write_captions(destination,[Caption(0,1000,'Queued subtitle')])
+    assert destination.read_bytes()==preserved
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+
+
+def test_new_subtitle_unsupported_atomic_link_fails_closed(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'no-link.srt'
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',
+                      lambda *_args: (_ for _ in ()).throw(OSError('unsupported link')))
+        with pytest.raises(RuntimeError,match='hard-link support'):
+            module.write_captions(destination,[Caption(0,1000,'No partial output')])
+    assert not destination.exists()
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+
+
+def test_translation_recovery_after_failed_publish_uses_cache_not_partial_file(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    from dataclasses import asdict
+    store=Store(tmp_path/'state.db')
+    destination=tmp_path/'translated.srt'
+    calls=[]
+    def translate(texts,*_args):
+        calls.append(tuple(texts))
+        return ['Bản dịch '+text for text in texts]
+    monkeypatch.setattr(module,'_request_translation',translate)
+    payload={'captions':[asdict(Caption(0,1000,'Original'))],
+             'output':str(destination),'config':{'provider':'test'}}
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',
+                      lambda *_args: (_ for _ in ()).throw(OSError('synthetic unsupported link')))
+        with pytest.raises(RuntimeError,match='hard-link support'):
+            module.execute_translation(store,payload,lambda _progress:None,None)
+    assert not destination.exists()
+    result=module.execute_translation(store,payload,lambda _progress:None,None)
+    assert not result['reused']
+    assert len(calls)==1
+    assert read_captions(destination)[0].text=='Bản dịch Original'
