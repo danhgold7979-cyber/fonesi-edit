@@ -18,9 +18,15 @@ Reviewed `AGENTS.md`, `README.md`, master `docs/IMPLEMENTATION_PLAN.md` P03-02/P
 
 ## Acceptance
 
-- [ ] Project and `last_project` commit or roll back together on deterministic failure.
-- [ ] Original data, preset/default callers, recovery on error and retry are preserved.
-- [ ] Exact source/test SHA passes both CI runners and frozen packaged proofs.
-- [ ] Update evidence; retain SQLite #6 OPEN until independently reproduced and cause-specifically fixed.
+- [x] Project and `last_project` commit or roll back together on deterministic failure.
+- [x] Original data, preset/default callers, recovery on error and retry are preserved.
+- [x] Exact source/test SHA passes both CI runners and frozen packaged proofs.
+- [x] Update evidence; retain SQLite #6 OPEN until independently reproduced and cause-specifically fixed.
 
 External blockers remain physical Windows NTFS/AV/ACL and power loss soak, real Chrome/auth and provider sessions, GPU/HiDPI, Windows installer and full 95-group acceptance. This is a partial-commit fix, not a claim that the intermittent SQLite corruption has been solved.
+
+## Verified implementation and limits (2026-10-29)
+
+[source/test d4117b5](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d4117b580b90ff4b8471907b8e8b1fc56d702a4d) changes `Store.save_named(select_as_last=True)` so the project row and JSON `last_project` setting write within the same SQLite transaction, and `MainWindow.autosave` opts into it. Default project/preset saves remain unchanged. The second statement is fault-injected with real SQLite `BEFORE INSERT` and `BEFORE UPDATE` triggers, proving complete rollback for a new/existing project; a real Qt test confirms recovery.json keeps unsaved edits, the former committed row/pointer do not change, and successful retry writes one selected project.
+
+[CI 40905102578](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40905102578) is **SUCCESS on exact source/test SHA d4117b5**: Linux **611 passed**, Windows **610 passed + 1 intentional POSIX-only skip**; plan validator, desktop/native-host build and packaged frozen synthetic/localhost verification PASS both CI runners. Windows development artifact was uploaded. This verifies atomicity under injected SQLite statement failures, **not** physical Windows/NTFS/antivirus power-loss durability or the root cause of open [SQLite issue #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6). Full P03/P11/product acceptance remains OPEN.
