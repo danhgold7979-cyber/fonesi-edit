@@ -107,7 +107,7 @@ class DownloadsPage(QWidget):
         self.scan_include_missing.toggled.connect(lambda *_:self.reset_scan_filter_page())
         metadata_row.addWidget(self.scan_include_missing)
         self.scan_filter_error=None
-        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected)])
+        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected),('Tải bổ sung phụ đề',self.download_subtitles_selected)])
         buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
@@ -403,7 +403,10 @@ class DownloadsPage(QWidget):
             'đây là khoảng yt-dlp, không phải checkpoint hoặc xác nhận đủ kênh.')
         self.host.activate_queue()
 
-    def download_selected(self):
+    def download_subtitles_selected(self):
+        return self.download_selected(subtitles_only=True)
+
+    def download_selected(self, *, subtitles_only=False):
         job_id=self.scans.currentData()
         if not job_id:raise ValueError('Chưa chọn một lần quét')
         job=self.host.store.job(job_id)
@@ -412,7 +415,7 @@ class DownloadsPage(QWidget):
         indexes=sorted(self.scan_selected.get(job_id,set()))
         if len(indexes)>MAX_SCAN_SELECTION:
             raise ValueError(f'Tối đa {MAX_SCAN_SELECTION} mục được tải từ một lần quét; hãy thu hẹp lựa chọn.')
-        requests=selected_download_payloads(job,indexes)
+        requests=selected_download_payloads(job,indexes,subtitles_only=subtitles_only)
         account=job['payload'].get('account_ref')
         if account:
             binding=next((item for item in bindings(self.host.store)
@@ -420,11 +423,13 @@ class DownloadsPage(QWidget):
             if not binding or binding['platform']!=platform_for(job['payload']['url']):
                 raise PermissionError('Tài khoản quét không tồn tại hoặc khác nền tảng; không chuyển sang công khai')
         for payload in requests:
-            # Stable per-scan identity means pressing Download twice does not
-            # enqueue the same selected source twice; use Queue/Retry instead.
+            # Distinct job identities for the media and subtitle-only modes.
+            # Repeated clicks in one mode never duplicate an existing job.
+            key_prefix='scan-subtitle:' if subtitles_only else 'scan-item:'
             submit_once(self.host.store,'download',payload,
-                        'scan-item:'+job_id+':'+payload['url'])
-        self.host.message(f"Đã xếp {len(requests)} mục từ scan {job_id[:8]}; mục đã xếp trước không tạo trùng (dùng Retry nếu cần)")
+                        key_prefix+job_id+':'+payload['url'])
+        kind='bổ sung phụ đề' if subtitles_only else 'tải media'
+        self.host.message(f"Đã xếp {len(requests)} mục {kind} từ scan {job_id[:8]}; nhấn lại không tạo trùng (dùng Retry nếu cần)")
         self.host.activate_queue()
 
     def schedule(self):

@@ -1440,3 +1440,54 @@ def test_bounded_scan_next_ui_is_idempotent_and_keeps_original_selection(tmp_pat
         assert all('scan_parent_id' not in j['payload'] for j in jobs)
     finally:
         close(window)
+
+
+
+def test_scan_subtitle_only_action_keeps_account_and_is_idempotent(tmp_path):
+    from PySide6.QtCore import Qt
+    from fonesi_edit.browser import create_profile,bind
+    from fonesi_edit.downloads import selected_download_payloads
+    import pytest
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    try:
+        p=create_profile(window.store,'Profile YouTube')
+        account=bind(window.store,p,'YouTube')
+        original={'url':'https://www.youtube.com/channel/test',
+                  'folder':str(tmp_path/'output'),
+                  'engine':'video','media':'videos','limit':2,
+                  'account_ref':account,'expected_identity':None,
+                  'languages':['vi','en'],'thumbnail':True,
+                  'workflow':{'preset':{'clips':[]}}}
+        scan=window.store.submit('scan',original)
+        window.store.claim(allowed={'scan'})
+        items=[{'id':'clip','title':'Video','kind':'video',
+                'engine':'video','url':'https://www.youtube.com/watch?v=Abc_123-xyz',
+                'selectable':True},
+               {'id':'photo','title':'Image','kind':'images',
+                'engine':'gallery','url':'https://www.youtube.com/shorts/abc-photo',
+                'selectable':True}]
+        window.store.finish(scan,{'platform':'YouTube','items':items,
+                                  'count':2,'complete':None})
+        page=window.downloads
+        page.show_scan()
+        page.scan_tree.topLevelItem(0).child(0).setCheckState(0,Qt.CheckState.Checked)
+        page.download_subtitles_selected()
+        page.download_subtitles_selected()
+        jobs=[j for j in window.store.jobs() if j['kind']=='download']
+        assert len(jobs)==1
+        sub=jobs[0]['payload']
+        assert sub['download_mode']=='subtitles_only'
+        assert sub['url']==items[0]['url']
+        assert sub['account_ref']==account and sub['folder']==original['folder']
+        assert 'workflow' not in sub and sub['thumbnail'] is False
+        page.download_selected()
+        jobs=[j for j in window.store.jobs() if j['kind']=='download']
+        assert len(jobs)==2
+        assert sorted(x['payload'].get('download_mode','media') for x in jobs)==['media','subtitles_only']
+        page.scan_tree.topLevelItem(0).child(1).setCheckState(0,Qt.CheckState.Checked)
+        with pytest.raises(ValueError,match='Chỉ tải phụ đề'):
+            page.download_subtitles_selected()
+        assert len([j for j in window.store.jobs() if j['kind']=='download'])==2
+    finally:
+        close(window)

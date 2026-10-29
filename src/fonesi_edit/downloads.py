@@ -273,13 +273,15 @@ def continuation_scan_payload(scan_job):
     return payload
 
 
-def selected_download_payloads(scan_job, indices):
+def selected_download_payloads(scan_job, indices, *, subtitles_only=False):
     """Turn verified scan row indices into individual frozen download requests.
 
     Only selectable items from this *successful* scan are accepted. Account
     binding and output settings are inherited from the scan snapshot, not from
     whatever profile is currently selected in the desktop UI.
     """
+    if type(subtitles_only) is not bool:
+        raise ValueError('Chế độ tải phụ đề phải là boolean')
     if scan_job.get('kind') != 'scan' or scan_job.get('state') != 'succeeded':
         raise ValueError('Chỉ chọn mục từ job quét đã hoàn tất')
     original = scan_job.get('payload') or {}
@@ -323,12 +325,80 @@ def selected_download_payloads(scan_job, indices):
         # Keep the extractor that produced the scanned item, even when one
         # source was scanned via both engines (Facebook/TikTok mixed media).
         engine=adapter or ('gallery' if kind in {'images','videos'} else 'video')
+        if subtitles_only and (kind not in {'video','videos'} or engine != 'video'):
+            raise ValueError('Chỉ tải phụ đề riêng cho mục video có adapter yt-dlp, không hỗ trợ ảnh/gallery')
         payload = {key:value for key,value in original.items()
-                   if key not in {'_tools','scan_parent_id','scan_start'}}
+                   if key not in {'_tools','scan_parent_id','scan_start','download_mode'}}
         payload.update(url=url,engine=engine,
                        media='images' if kind == 'images' else 'videos',limit=1)
+        if subtitles_only:
+            payload.pop('workflow',None)
+            payload.update(download_mode='subtitles_only',subtitles=True,
+                           auto_subtitles=True,thumbnail=False)
         requests.append(payload)
     return requests
+
+
+SUBTITLE_EXTENSIONS = frozenset({'srt', 'vtt', 'ass', 'ssa'})
+MAX_SUBTITLE_BYTES = 16 * 1024 * 1024
+
+
+def verified_subtitle_artifacts(info, ydl, platform_root):
+    """Accept only parsable, expected sidecars; never persist subtitle source URLs.
+
+    yt-dlp supplies requested_subtitles[lang].filepath after downloading.
+    When an existing subtitle is skipped without a filepath, the expected
+    name can be derived from the yt-dlp subtitle output template.
+    """
+    requested = info.get('requested_subtitles')
+    if not isinstance(requested, dict) or not requested:
+        raise RuntimeError('Nguồn không cung cấp phụ đề trong ngôn ngữ đã chọn')
+    if len(requested) > 32:
+        raise ValueError('Danh sách track phụ đề quá lớn')
+    platform_root = Path(platform_root).resolve()
+    try:
+        template = Path(ydl.prepare_filename(info, outtmpl_type='subtitle'))
+    except (TypeError, ValueError, KeyError, OSError) as exc:
+        raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ') from None
+    base = str(template.with_suffix(''))
+    results = []
+    from .subtitles import read_captions
+    for language, track in requested.items():
+        if (not isinstance(language, str)
+                or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', language)
+                or not isinstance(track, dict)):
+            raise ValueError('Ngôn ngữ/track phụ đề không hợp lệ')
+        ext = track.get('ext')
+        if not isinstance(ext, str) or ext.lower() not in SUBTITLE_EXTENSIONS:
+            raise ValueError('Định dạng phụ đề chưa được hỗ trợ để kiểm tra')
+        ext = ext.lower()
+        expected = Path(f'{base}.{language}.{ext}')
+        raw = track.get('filepath', str(expected))
+        if not isinstance(raw, str) or not raw:
+            raise ValueError('Đường dẫn phụ đề thiếu hoặc không hợp lệ')
+        candidate = Path(raw)
+        # Compare the extractor-reported path to the expected template *before*
+        # reading any file. Reject substitutions, symlinks and path traversal.
+        if (candidate.resolve() != expected.resolve()
+                or candidate.is_symlink()
+                or candidate.parent.name != 'subtitles'
+                or not candidate.resolve().is_relative_to(platform_root)):
+            raise ValueError('Đường dẫn phụ đề không khớp thư mục đầu ra')
+        if not candidate.is_file():
+            raise RuntimeError('Không có tệp phụ đề đã tải để kiểm tra')
+        size = candidate.stat().st_size
+        if not 0 < size <= MAX_SUBTITLE_BYTES:
+            raise RuntimeError('Tệp phụ đề trống hoặc vượt giới hạn an toàn')
+        try:
+            cues = read_captions(candidate)
+        except Exception:
+            raise RuntimeError('Tệp phụ đề không giải mã được hoặc không đúng định dạng') from None
+        if not cues:
+            raise RuntimeError('Tệp phụ đề không có câu/timecode hợp lệ')
+        results.append({'path':str(candidate),'kind':'subtitle',
+                        'id':safe_name(info.get('id','unknown')),
+                        'language':language,'cues':len(cues)})
+    return results
 
 
 class QuietLogger:
@@ -363,6 +433,20 @@ def execute_download_job(store,job,progress,cancel):
     limit=int(raw_limit)
     if limit<0:
         raise ValueError('Download limit must be a nonnegative integer')
+    download_mode=payload.get('download_mode','media')
+    if type(download_mode) is not str or download_mode not in {'media','subtitles_only'}:
+        raise ValueError('Download mode không hợp lệ')
+    subtitles_only=download_mode=='subtitles_only'
+    if subtitles_only:
+        languages=payload.get('languages',['vi','zh.*','en'])
+        if (job['kind']!='download' or engine!='video' or media!='videos'
+                or limit!=1 or payload.get('workflow') is not None
+                or payload.get('thumbnail') not in (None,False)
+                or not isinstance(languages,list) or not 1<=len(languages)<=16
+                or any(not isinstance(lang,str) or not 1<=len(lang)<=64
+                       or not lang.strip() or '\n' in lang or '\r' in lang
+                       for lang in languages)):
+            raise ValueError('Sub-only yêu cầu 1 video yt-dlp, ngôn ngữ hợp lệ và không edit/thumbnail')
     scan_parent = None
     scan_start = 1
     has_cursor = 'scan_parent_id' in payload or 'scan_start' in payload
@@ -415,7 +499,8 @@ def execute_download_job(store,job,progress,cancel):
                    'subtitle':prefix+'/subtitles/%(id)s.%(ext)s','infojson':prefix+'/metadata/%(id)s.%(ext)s'},
         'writesubtitles':bool(payload.get('subtitles',True)),'writeautomaticsub':bool(payload.get('auto_subtitles',True)),
         'subtitleslangs':payload.get('languages',['vi','zh.*','en']),'subtitlesformat':'srt/vtt/best',
-        'writethumbnail':bool(payload.get('thumbnail',False)),'writeinfojson':False,
+        'writethumbnail':False if subtitles_only else bool(payload.get('thumbnail',False)),
+        'writeinfojson':False,'skip_download':subtitles_only,'noplaylist':subtitles_only,
         'format':f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
         'merge_output_format':'mp4','playliststart':scan_start,
         'playlistend':(scan_start + limit - 1) if limit else None,
@@ -437,9 +522,19 @@ def execute_download_job(store,job,progress,cancel):
                 if path.is_file():
                     actual=probe(path);files.append({'path':str(path),'id':str(info.get('id','')),'duration':actual.duration,'kind':'video'})
                 return [],info
-        ydl.add_post_processor(Recorder(),when='after_move')
+        if not subtitles_only:
+            ydl.add_post_processor(Recorder(),when='after_move')
         info=ydl.extract_info(url,download=job['kind']=='download')
         if not info:raise RuntimeError('Source returned no accessible items')
+        if subtitles_only:
+            if cancel.is_set():raise RuntimeError('Canceled')
+            if info.get('_type') in {'playlist','multi_video'}:
+                raise ValueError('Chỉ tải phụ đề cho một video, không phải playlist')
+            subtitles=verified_subtitle_artifacts(info,ydl,root/platform)
+            progress(1)
+            return {'platform':platform,'files':subtitles,'count':len(subtitles),
+                    'download_mode':'subtitles_only',
+                    'account_ref':binding,'live_channel_verified':False}
         if job['kind']=='scan':
             is_playlist=info.get('_type') in {'playlist','multi_video'}
             if scan_parent and not is_playlist:
