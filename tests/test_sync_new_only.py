@@ -199,3 +199,19 @@ def test_existing_media_rejects_symlinked_channel_directory(tmp_path,monkeypatch
     with pytest.raises(ValueError,match='không còn hợp lệ'):
         plan_new_only_sync(scan,[0],store.download_jobs_for_urls([OLD]))
     assert file.read_bytes()==fixture['source'].read_bytes()
+
+
+def test_selectable_sync_indices_allows_large_cumulative_history_only_new_window():
+    from fonesi_edit.sync import selectable_sync_indices
+    history=[{'url':f'https://example.test/video/{i}','selectable':True}
+             for i in range(650)]
+    fresh=[{'url':'https://example.test/video/8','selectable':True},
+           {'url':'https://example.test/video/fresh','selectable':True},
+           {'url':'https://example.test/video/latest','selectable':True}]
+    assert selectable_sync_indices(history+fresh,start_index=len(history))==[651,652]
+    with pytest.raises(ValueError,match='500'):
+        selectable_sync_indices(history+fresh)
+    with pytest.raises(ValueError,match='Vị trí'):
+        selectable_sync_indices(history,start_index=True)
+    with pytest.raises(ValueError,match='Vị trí'):
+        selectable_sync_indices(history,start_index=len(history)+1)

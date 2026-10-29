@@ -203,3 +203,133 @@ def test_scheduled_safe_index_dedup_preserves_later_selectable_row():
     assert selectable_sync_indices(data)==[1,3]
     with pytest.raises(ValueError,match='Danh sách'):
         selectable_sync_indices(None)
+
+
+def _scheduled_page(store, scan_id, entries, *, start, limit, next_start):
+    from fonesi_edit.downloads import SCAN_WINDOW_MODE
+    assert store.claim(allowed={'scan'})['id']==scan_id
+    store.finish(scan_id,{'platform':'Generic','items':entries,
+        'count':len(entries),'complete':False if next_start is not None else None,
+        'scan_window':{'mode':SCAN_WINDOW_MODE,'start':start,
+                       'limit':limit,'next_start':next_start}})
+
+
+def _force_next_due(store):
+    with store.connect() as conn:
+        conn.execute('UPDATE schedules SET next_run=1')
+
+
+def test_scheduled_playlist_continues_only_fresh_window_then_restarts(tmp_path):
+    from fonesi_edit.downloads import SCAN_WINDOW_MODE
+    store=Store(tmp_path/'db.sqlite')
+    put_schedule(store,tmp_path/'media',limit=2)
+    automation=Automation(store)
+    first=automation.schedules()[0]
+    root=items(OLD,NEW)
+    _scheduled_page(store,first,root,start=1,limit=2,next_start=3)
+    first_result=automation.completed_scheduled_scans()
+    assert first_result[0]['new_jobs']==2 and first_result[0]['count']==2
+    _force_next_due(store)
+    second=automation.schedules()[0]
+    child=store.job(second)
+    assert child['payload']['scan_start']==3
+    assert child['payload']['scan_parent_id']==first
+    assert child['payload']['sync_schedule_id']=='channel-1'
+    assert child['payload']['sync_schedule_slot']==store.job(first)['payload']['sync_schedule_slot']
+    assert child['payload']['url']==CHANNEL
+    # The continuation snapshot is exact; no fake provider-native cursor.
+    assert child['payload']['engine']=='video'
+    new_entries=items('https://example.test/video/third',
+                      'https://example.test/video/fourth')
+    all_entries=root+new_entries
+    _scheduled_page(store,second,all_entries,start=3,limit=2,next_start=5)
+    second_result=automation.completed_scheduled_scans()
+    assert second_result[0]['new_jobs']==2
+    assert second_result[0]['count']==2  # not all four cumulative rows
+    assert len([j for j in store.jobs() if j['kind']=='download'])==4
+    _force_next_due(store)
+    third=automation.schedules()[0]
+    assert store.job(third)['payload']['scan_start']==5
+    terminal=all_entries+items('https://example.test/video/fifth')
+    _scheduled_page(store,third,terminal,start=5,limit=2,next_start=None)
+    third_result=automation.completed_scheduled_scans()
+    assert third_result[0]['count']==1
+    assert third_result[0]['new_jobs']==1
+    _force_next_due(store)
+    restarted=automation.schedules()[0]
+    restarted_payload=store.job(restarted)['payload']
+    assert 'scan_parent_id' not in restarted_payload
+    assert 'scan_start' not in restarted_payload
+    assert restarted_payload['limit']==2
+    assert len([j for j in store.jobs() if j['kind']=='download'])==5
+
+
+def test_scheduled_continuation_rejects_changed_parent_prefix_atomically(tmp_path):
+    store=Store(tmp_path/'db.sqlite')
+    put_schedule(store,tmp_path/'media',limit=2)
+    automation=Automation(store)
+    first=automation.schedules()[0]
+    original=items(OLD,NEW)
+    _scheduled_page(store,first,original,start=1,limit=2,next_start=3)
+    automation.completed_scheduled_scans()
+    _force_next_due(store)
+    child=automation.schedules()[0]
+    tampered=[{**original[0],'title':'rewritten history'},original[1],
+              *items('https://example.test/video/third')]
+    _scheduled_page(store,child,tampered,start=3,limit=2,next_start=None)
+    with pytest.raises(ValueError,match='thay đổi danh sách'):
+        automation.completed_scheduled_scans()
+    assert not store.cached('schedule-synced:'+child)
+    assert len([j for j in store.jobs() if j['kind']=='download'])==2
+    _force_next_due(store)
+    assert automation.schedules()==[]
+
+
+def test_schedule_rejects_changed_snapshot_before_continuing(tmp_path):
+    store=Store(tmp_path/'db.sqlite')
+    put_schedule(store,tmp_path/'media',limit=2,account_ref='account-a',
+                 expected_identity='user-a')
+    automation=Automation(store)
+    first=automation.schedules()[0]
+    _scheduled_page(store,first,items(OLD,NEW),start=1,limit=2,next_start=3)
+    automation.completed_scheduled_scans()
+    with store.connect() as conn:
+        row=conn.execute('SELECT data FROM schedules WHERE id=?',('channel-1',)).fetchone()
+        data=json.loads(row[0])
+        data['payload']['account_ref']='account-b'
+        conn.execute('UPDATE schedules SET data=?,next_run=? WHERE id=?',
+                     (canonical(data),1,'channel-1'))
+    with pytest.raises(ValueError,match='khác URL/tài khoản'):
+        automation.schedules()
+    assert len([j for j in store.jobs() if j['kind']=='scan'])==1
+
+
+def test_schedule_rejects_invalid_playlist_window_without_new_scan(tmp_path):
+    store=Store(tmp_path/'db.sqlite')
+    put_schedule(store,tmp_path/'media',limit=2)
+    automation=Automation(store)
+    first=automation.schedules()[0]
+    _scheduled_page(store,first,items(OLD,NEW),start=1,limit=2,next_start=4)
+    automation.completed_scheduled_scans()
+    _force_next_due(store)
+    with pytest.raises(ValueError,match='Không có vị trí quét tiếp'):
+        automation.schedules()
+    assert len([j for j in store.jobs() if j['kind']=='scan'])==1
+
+
+def test_scheduled_page_skips_prior_url_even_if_forged_as_new(tmp_path):
+    store=Store(tmp_path/'db.sqlite')
+    put_schedule(store,tmp_path/'media',limit=2)
+    automation=Automation(store)
+    first=automation.schedules()[0]
+    initial=items(OLD,NEW)
+    _scheduled_page(store,first,initial,start=1,limit=2,next_start=3)
+    automation.completed_scheduled_scans()
+    _force_next_due(store)
+    child=automation.schedules()[0]
+    continuation=initial+items(OLD,'https://example.test/video/fresh')
+    _scheduled_page(store,child,continuation,start=3,limit=2,next_start=5)
+    receipt=automation.completed_scheduled_scans()
+    assert receipt[0]['count']==1
+    assert receipt[0]['new_jobs']==1
+    assert len([j for j in store.jobs() if j['kind']=='download'])==3
