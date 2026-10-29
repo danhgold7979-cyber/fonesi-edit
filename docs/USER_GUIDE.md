@@ -66,3 +66,9 @@ Trong tab **Tải**, quét video và tải bản gốc trước. Bản gốc ph�
 **Quan trọng:** mức trong UI là *chiều cao tối đa được yêu cầu*, không bảo đảm nguồn có đúng 720p/1080p/4K. Sau tải, FFprobe phải xác nhận chiều cao thực **cao hơn** video gốc và **không vượt** target; không đạt thì job báo lỗi, không công bố nâng cấp thành công. Không tự xóa file biến thể bị hỏng/không đủ chất lượng; kiểm tra thủ công trước khi xử lý. Các job có chất lượng live, mạng xã hội, tài khoản Chrome chưa có bằng chứng nghiệm thu đầy đủ.
 
 Quét Batch hoặc watch tự động từ thư mục kênh sẽ **bỏ qua** thư mục `quality-upgrades` để không xử lý lặp. Nếu muốn edit bản nâng cấp, chủ động chọn chính tệp hoặc thư mục biến thể. Có thể nâng tiếp từ một biến thể đã được job và FFprobe xác minh nếu mức target mới lớn hơn trần biến thể nguồn; không ghi đè phiên bản trước. Chưa kiểm chứng live chất lượng trên toàn bộ 10 nền tảng và tài khoản thật.
+
+## An toàn khi lưu và chỉnh phụ đề
+
+Khi chọn **Thêm câu / Tách câu / Gộp câu chọn** trong tab **Phụ đề**, việc tách sẽ giữ nguyên mọi ký tự của cả **Bản gốc** lẫn **Bản dịch**, giữ khóa câu và chia mốc thời gian thành hai khoảng dương. Một cue quá ngắn hoặc không thể tách thành hai phần có chữ sẽ báo lỗi, không tự sinh dấu `…`. Khi gộp các cue liền nhau, cả hai ngôn ngữ được ghép theo đúng thứ tự; các câu được khóa vẫn giữ trạng thái khóa. Lịch sử Undo toàn bộ bảng cue và kéo cue trực tiếp trên timeline vẫn đang phát triển.
+
+Tệp phụ đề mới được ghi vào tên tạm rồi công bố nguyên tử: nếu lỗi ghi/đầy đĩa, sẽ không có tệp đích ghi dở. Không ghi đè tệp đã có khi tạo tự động; khi gắn sub vào clip, app kiểm tra lại **nội dung và thời gian từng câu** của các tệp source/target đã sinh trước đó. Nếu file đã được sửa ngoài app, không tự thay thế hoặc coi là đúng. Trên filesystem không hỗ trợ hard link cần thiết cho việc công bố không ghi đè, thao tác sẽ báo lỗi rõ ràng; chọn một thư mục phù hợp thay vì kỳ vọng app ghi tệp từng phần.

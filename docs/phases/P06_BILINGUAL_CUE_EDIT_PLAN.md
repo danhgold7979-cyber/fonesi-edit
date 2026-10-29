@@ -17,9 +17,9 @@ Today `split()` constructs two captions using `cue.text.split()` but drops `sour
 
 ## Gates
 
-- [ ] Split never fabricates words or drops any original/translated characters.
-- [ ] Merge keeps original and translated tracks plus lock/timing state.
-- [ ] Invalid split is rejected before modifying the table or editor.
-- [ ] Existing behavior for normal captions remains usable; source and packaged Linux/Windows tests pass.
+- [x] Split never fabricates words or drops any original/translated characters.
+- [x] Merge keeps original and translated tracks plus lock/timing state.
+- [x] Invalid split is rejected before modifying the table or editor.
+- [x] Existing behavior for normal captions remains usable; source and packaged Linux/Windows tests pass.
 
 Open: drag-undo full subtitle editor history, provider live Chinese→Vietnamese quality, practical long corpus, Chrome/auth, GPU/Windows physical installation, and external filesystem/power-loss acceptance.

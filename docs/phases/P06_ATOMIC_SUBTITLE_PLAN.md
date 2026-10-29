@@ -17,9 +17,9 @@ Existing `write_captions(overwrite=True)` stages a temporary file, fsyncs it, th
 
 ## Acceptance and remaining gates
 
-- [ ] Default create-only export never exposes partial subtitles on a staged write failure.
-- [ ] A competing file created before publication remains byte-for-byte unchanged; publication raises `FileExistsError`.
-- [ ] Unsupported hard link fails closed; all temporary filenames are cleaned.
-- [ ] Existing atomic overwrite, subtitle parsing, cache/translation recovery, bundled app and worker regressions remain passing on Linux and Windows.
+- [x] Default create-only export never exposes partial subtitles on a staged write failure.
+- [x] A competing file created before publication remains byte-for-byte unchanged; publication raises `FileExistsError`.
+- [x] Unsupported hard link fails closed; all temporary filenames are cleaned.
+- [x] Existing atomic overwrite, subtitle parsing, cache/translation recovery, bundled app and worker regressions remain passing on Linux and Windows.
 
 Still **open**: live translation quality/cost, real Chrome account/session and platform permissions, physical Windows device, non-NTFS filesystem acceptance and power-loss/long-run durability. This slice must not be used to close full P06 or P03 acceptance.

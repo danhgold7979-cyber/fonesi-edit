@@ -17,9 +17,9 @@ P06 already attaches independent source/target layers to a chosen editor clip an
 
 ## Acceptance gates
 
-- [ ] Existing generated target/source sidecars are reused only after cue/timing read-back matches.
-- [ ] Corrupt/edited/symlinked sidecars cannot be silently attached, overwritten or removed.
-- [ ] Failed reattachment leaves editor state, source files and existing user-edited bytes unchanged.
-- [ ] Linux and Windows CI plus packaged proof pass on the exact implemented commit.
+- [x] Existing generated target/source sidecars are reused only after cue/timing read-back matches.
+- [x] Corrupt/edited/symlinked sidecars cannot be silently attached, overwritten or removed.
+- [x] Failed reattachment leaves editor state, source files and existing user-edited bytes unchanged.
+- [x] Linux and Windows CI plus packaged proof pass on the exact implemented commit.
 
 External live translation, 10-platform/Chrome authenticated media, physical Windows/HiDPI/GPU, FAT/exFAT and power-loss testing remain separate, unresolved acceptance gates.
