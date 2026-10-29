@@ -201,5 +201,5 @@ def test_scheduled_safe_index_dedup_preserves_later_selectable_row():
            'selectable':True},
           {'url':None,'selectable':True}]
     assert selectable_sync_indices(data)==[1,3]
-    with pytest.raises(ValueError,match='danh sách'):
+    with pytest.raises(ValueError,match='Danh sách'):
         selectable_sync_indices(None)
