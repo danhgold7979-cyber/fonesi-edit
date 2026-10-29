@@ -19,7 +19,7 @@ from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
-from ..subtitles import Caption,read_captions,write_captions,caption_warnings
+from ..subtitles import Caption,read_captions,write_captions,caption_warnings,split_caption,merge_captions
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
                          parse_scan_metadata_filters,scan_matches_metadata,
                          normalize_scan_metadata,continuation_scan_payload,
@@ -585,15 +585,16 @@ class SubtitlesPage(QWidget):
     def split(self):
         self.captions=self.collect();index=self.table.currentRow()
         if index<0:return
-        cue=self.captions[index];half=(cue.start_ms+cue.end_ms)//2;words=cue.text.split();cut=max(1,len(words)//2)
-        self.captions[index:index+1]=[Caption(cue.start_ms,half,' '.join(words[:cut]),locked=cue.locked),Caption(half,cue.end_ms,' '.join(words[cut:]) or '…',locked=cue.locked)];self.refresh()
+        children=split_caption(self.captions[index])
+        self.captions[index:index+1]=children;self.refresh()
 
     def merge(self):
         self.captions=self.collect();rows=sorted({i.row() for i in self.table.selectedIndexes()})
         if len(rows)<2:return
         if rows!=list(range(rows[0],rows[-1]+1)):raise ValueError('Chọn các cue liền nhau')
         cues=self.captions[rows[0]:rows[-1]+1]
-        self.captions[rows[0]:rows[-1]+1]=[Caption(cues[0].start_ms,cues[-1].end_ms,'\n'.join(c.text for c in cues),locked=any(c.locked for c in cues))];self.refresh()
+        merged=merge_captions(cues)
+        self.captions[rows[0]:rows[-1]+1]=[merged];self.refresh()
 
     def attach(self):
         captions=self.collect();editor=self.host.editor
