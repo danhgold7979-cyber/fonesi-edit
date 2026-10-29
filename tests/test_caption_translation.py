@@ -1,7 +1,7 @@
 from dataclasses import replace
 import pytest
 from fonesi_edit.storage import Store
-from fonesi_edit.subtitles import Caption,read_captions,write_captions,translate_captions,caption_warnings
+from fonesi_edit.subtitles import Caption,read_captions,write_captions,translate_captions,caption_warnings,split_caption,merge_captions
 
 
 def test_vtt_ass_srt_unicode_roundtrip(tmp_path):
@@ -154,3 +154,41 @@ def test_translation_recovery_after_failed_publish_uses_cache_not_partial_file(t
     assert not result['reused']
     assert len(calls)==1
     assert read_captions(destination)[0].text=='Bản dịch Original'
+
+
+def test_bilingual_split_preserves_every_character_timing_and_lock():
+    original=Caption(100,1000,'中文字幕沒有空格','Tiếng Việt có ngữ cảnh',locked=True)
+    first,second=split_caption(original)
+    assert first.end_ms==second.start_ms
+    assert first.start_ms==original.start_ms and second.end_ms==original.end_ms
+    assert first.text+second.text==original.text
+    assert first.source_text+second.source_text==original.source_text
+    assert all(c.locked for c in (first,second))
+    assert {first.id,second.id}.isdisjoint({original.id})
+    assert '…' not in first.text+second.text
+    merged=merge_captions([first,second])
+    assert merged.text.replace('\\n','')==original.text
+    assert merged.source_text.replace('\\n','')==original.source_text
+    assert merged.locked
+    assert (merged.start_ms,merged.end_ms)==(original.start_ms,original.end_ms)
+
+
+def test_short_or_unseparable_bilingual_cue_is_rejected_without_fabrication():
+    for cue in (Caption(0,1,'中文','Tiếng Việt'),
+                Caption(0,1000,'字','Text with spaces'),
+                Caption(0,1000,'Text with spaces','字'),
+                Caption(0,1000,'    ','Text')):
+        with pytest.raises(ValueError,match='(ngắn|vị trí)'):
+            split_caption(cue)
+
+
+def test_merge_maintains_all_source_text_and_cue_time_coverage():
+    first=Caption(500,1500,'Dịch một','Nguồn một',locked=True)
+    second=Caption(300,900,'Dịch hai','',locked=False)
+    merged=merge_captions([first,second])
+    assert merged.start_ms==300 and merged.end_ms==1500
+    assert merged.text=='Dịch một\\nDịch hai'
+    assert merged.source_text=='Nguồn một\\nDịch hai'
+    assert merged.locked
+    with pytest.raises(ValueError,match='ít nhất hai'):
+        merge_captions([first])
