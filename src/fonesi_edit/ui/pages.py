@@ -19,7 +19,8 @@ from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,enqueue_batch,VIDEO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
-from ..subtitles import Caption,read_captions,write_captions,caption_warnings,split_caption,merge_captions
+from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
+                         caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
 from .cue_timeline import CueTimingView
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
                          parse_scan_metadata_filters,scan_matches_metadata,
@@ -570,6 +571,7 @@ class CueEditHistory:
 class SubtitlesPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;self.captions=[];self.last_job=None
+        self.import_warnings=[]
         self.cue_history=CueEditHistory()
         layout=QVBoxLayout(self)
         toolbar=buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),
@@ -596,6 +598,8 @@ class SubtitlesPage(QWidget):
         self.table.itemChanged.connect(self._changed_cell)
         draft=host.store.setting('subtitle_draft')
         if draft:
+            self.import_warnings=[warning for warning in draft.get('import_warnings',[])
+                                  if isinstance(warning,str) and warning in KNOWN_IMPORT_WARNINGS]
             self.table.blockSignals(True);self.captions=[];self.table.setRowCount(len(draft['rows']))
             for row,values in enumerate(draft['rows']):
                 self.captions.append(Caption(0,1,values[3],values[2],values[4],values[5]))
@@ -661,11 +665,12 @@ class SubtitlesPage(QWidget):
         self.redo_cue_action.setEnabled(bool(self.cue_history.future))
 
     def _update_cue_warnings(self):
+        warnings=list(self.import_warnings)
         try:
-            warnings=caption_warnings(self.collect())[:10]
-            self.warning.setText('\n'.join(warnings))
+            warnings.extend(caption_warnings(self.collect())[:10])
         except (TypeError,ValueError,OverflowError,AttributeError):
-            self.warning.setText('Mốc phụ đề đang nhập chưa hợp lệ; chỉnh trước khi lưu hoặc xuất.')
+            warnings.append('Mốc phụ đề đang nhập chưa hợp lệ; chỉnh trước khi lưu hoặc xuất.')
+        self.warning.setText('\n'.join(warnings[:10]))
 
     def _record_cue_edit(self):
         if self.cue_history.record(self._raw_cue_rows()):
@@ -721,8 +726,8 @@ class SubtitlesPage(QWidget):
             for col,value in enumerate((f'{c.start_ms/1000:.3f}',f'{c.end_ms/1000:.3f}',c.source_text or c.text,c.text)):
                 self.table.setItem(row,col,QTableWidgetItem(value))
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if c.locked else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
-        self.warning.setText('\n'.join(caption_warnings(self.captions)[:10]))
         self.table.setUpdatesEnabled(True);self.table.blockSignals(False)
+        self._update_cue_warnings()
         self._record_cue_edit()
         self._sync_cue_timeline()
 
@@ -730,7 +735,9 @@ class SubtitlesPage(QWidget):
         # Persist the raw view, not collect(): intermediate invalid timing still
         # belongs to the user's unfinished draft, even after Undo or Redo.
         rows=[list(row) for row in self._raw_cue_rows()]
-        self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),'target':self.target.currentText(),'bilingual':self.bilingual.isChecked()})
+        self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),
+            'target':self.target.currentText(),'bilingual':self.bilingual.isChecked(),
+            'import_warnings':list(self.import_warnings)})
 
     def collect(self):
         result=[]
@@ -740,8 +747,13 @@ class SubtitlesPage(QWidget):
 
     def open(self):
         path,_=QFileDialog.getOpenFileName(self,'Mở phụ đề',filter='Sub (*.srt *.vtt *.ass)')
-        if path:self.host.background(lambda p,c:read_captions(Path(path)),self.loaded)
-    def loaded(self,captions):
+        if path:self.host.background(lambda p,c:read_captions_with_warnings(Path(path)),self.loaded_report)
+    def loaded_report(self,report):
+        captions,warnings=report
+        self.loaded(captions,warnings)
+    def loaded(self,captions,format_warnings=()):
+        self.import_warnings=[warning for warning in format_warnings
+                              if isinstance(warning,str) and warning in KNOWN_IMPORT_WARNINGS]
         self.captions=captions
         self.refresh()
         # Opening a different subtitle document must not Undo into old content.
