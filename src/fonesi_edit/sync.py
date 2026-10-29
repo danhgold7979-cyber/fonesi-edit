@@ -11,22 +11,31 @@ from .prototypes.media import probe
 MAX_SYNC_ITEMS = 500
 
 
-def selectable_sync_indices(items):
-    """Select each safe URL once, ignoring earlier explicitly disabled rows."""
+def selectable_sync_indices(items, *, start_index=0):
+    """Select safe URLs once, limiting to the fresh window of a cumulative scan.
+
+    Previously scanned selectable URLs still participate in duplicate detection.
+    Only indices >= start_index count toward the per-cycle 500-item cap.
+    """
     from .downloads import selectable_scan_url
     if not isinstance(items,list):
         raise ValueError('Danh sách nội dung scan không hợp lệ')
+    if type(start_index) is not int or not 0 <= start_index <= len(items):
+        raise ValueError('Vị trí bắt đầu đồng bộ scan không hợp lệ')
     seen=set()
     indices=[]
     for index,item in enumerate(items):
         if not isinstance(item,dict) or item.get('selectable') is False:
             continue
         url=selectable_scan_url(item.get('url'))
-        if url and url not in seen:
-            seen.add(url)
-            indices.append(index)
-            if len(indices)>MAX_SYNC_ITEMS:
-                raise ValueError(f'Tối đa {MAX_SYNC_ITEMS} mục có thể đồng bộ trong một chu kỳ')
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        if index < start_index:
+            continue
+        indices.append(index)
+        if len(indices)>MAX_SYNC_ITEMS:
+            raise ValueError(f'Tối đa {MAX_SYNC_ITEMS} mục có thể đồng bộ trong một chu kỳ')
     return indices
 
 
