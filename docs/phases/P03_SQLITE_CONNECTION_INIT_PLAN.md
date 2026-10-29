@@ -17,9 +17,19 @@ Source inspection found a narrowly reproducible resource-safety gap in `Store.co
 
 ## Bounded acceptance and external gates
 
-- [ ] WAL PRAGMA failure closes its SQLite connection and still raises the original operational error.
-- [ ] Busy-timeout PRAGMA failure also closes; normal settings operations and integrity still pass afterward.
-- [ ] Transaction rollback, successful commit and backup/recovery tests remain passing without schema modification.
-- [ ] Linux/Windows full CI and packaged proof pass on exact source/test SHA.
+- [x] WAL PRAGMA failure closes its SQLite connection and still raises the original operational error.
+- [x] Busy-timeout PRAGMA failure also closes; normal settings operations and integrity still pass afterward.
+- [x] Transaction rollback, successful commit and backup/recovery tests remain passing without schema modification.
+- [x] Linux/Windows full CI and packaged proof pass on exact source/test SHA.
 
 **Do not mark issue #6 fixed or close it** based on this isolated resource-cleanup improvement; deterministic reproduction of the intermittent Windows proxy/shutdown corruption, WAL lifetime analysis, NTFS/ACL/power-loss tests and physical Windows machine acceptance remain separate. No secrets, media or private Chrome data are introduced.
+
+## Verified implementation evidence (29/10/2026)
+
+[Production b31b46d](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b31b46d7c7c6d5cc822f5fecb1a9c1529407cd89) moves row_factory and WAL/busy-timeout PRAGMAs inside the scope of `finally: conn.close()`. Initialization failure closes exactly once and propagates the original error. Existing successful transaction commit and post-yield rollback semantics remain unchanged. No DB migration, WAL-mode relaxation or destructive WAL cleanup.
+
+[Regression fd28de7](https://github.com/danhgold7979-cyber/fonesi-edit/commit/fd28de70c1f82ef61c355dd2cd91386910ce5e2e) fault-injects an OperationalError at each PRAGMA, verifies the wrapped *real* SQLite connection is closed once, confirms normal setting write/read and `PRAGMA integrity_check = ok` afterward, and asserts rollback/commit behavior.
+
+[CI 40887831717](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40887831717) **SUCCESS on exact code/test SHA `fd28de70c1f82ef61c355dd2cd91386910ce5e2e`**: **598 Linux PASS / 597 Windows PASS + 1 intentional POSIX-only skip**. Plan validator, desktop/native-host build and frozen packaged synthetic/localhost proof PASS on both OS; Windows development artifact uploaded.
+
+**Issue #6 remains OPEN.** An actual Windows `database disk image is malformed` root cause has not been reproduced or attributed to this setup-handle fix. Additional real Windows WAL/close lifetime stress, NTFS failure injection and power-loss checks remain mandatory before declaring corruption fixed.
