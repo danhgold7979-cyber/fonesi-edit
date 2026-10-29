@@ -94,15 +94,19 @@ class Store:
     @contextmanager
     def connect(self):
         conn = sqlite3.connect(self.path, timeout=15)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=15000")
         try:
-            yield conn
-            conn.commit()
-        except BaseException:
-            conn.rollback()
-            raise
+            # SQLite PRAGMAs can fail before yielding (e.g. locked WAL or
+            # interrupted I/O). The connection must still be closed on
+            # Windows; otherwise its file handle may outlive this attempt.
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=15000")
+            try:
+                yield conn
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
         finally:
             conn.close()
 
