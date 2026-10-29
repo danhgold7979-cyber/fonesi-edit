@@ -48,7 +48,8 @@ def baseline_fixture(tmp_path):
 
 
 def fake_quality_ydl(monkeypatch, root, source, *, output_height='good',
-                     outside=False, wrong_id=False):
+                     outside=False, wrong_id=False, target_height=720,
+                     baseline_height=180, channel='Creator__id'):
     import yt_dlp
     import fonesi_edit.downloads as downloads
     seen=[]
@@ -77,11 +78,12 @@ def fake_quality_ydl(monkeypatch, root, source, *, output_height='good',
             assert self.options['writeautomaticsub'] is False
             assert self.options['writethumbnail'] is False
             assert self.options['writeinfojson'] is False
-            assert 'height>180' in self.options['format']
-            assert 'height<=720' in self.options['format']
-            assert '/quality-upgrades/720p/videos/' in self.options['outtmpl']['default'].replace('\\','/')
+            assert f'height>{baseline_height}' in self.options['format']
+            assert f'height<={target_height}' in self.options['format']
+            template=self.options['outtmpl']['default'].replace(chr(92),'/')
+            assert f'/quality-upgrades/{target_height}p/videos/' in template
             path=(root.parent/'foreign.mp4' if outside else
-                  root/'Generic'/'Creator__id'/'quality-upgrades'/'720p'/'videos'/'video-id.mp4')
+                  root/'Generic'/channel/'quality-upgrades'/f'{target_height}p'/'videos'/'video-id.mp4')
             path.parent.mkdir(parents=True,exist_ok=True)
             if not path.exists():
                 if output_height=='low':
@@ -227,3 +229,95 @@ def test_quality_upgrade_requires_a_matching_source_and_rejects_mixed_selection(
         selected_quality_upgrade_payloads(mixed,[0,1],store.jobs(),720)
     assert selected_quality_upgrade_payloads(scan,[0],store.jobs(),720)[0]==request
 
+
+def test_chained_quality_upgrade_uses_verified_variant_and_preserves_sources(tmp_path,monkeypatch):
+    store,root,original,high,scan,first_request=baseline_fixture(tmp_path)
+    fake_quality_ydl(monkeypatch,root,high)
+    first=execute_download_job(store,{'kind':'download','payload':first_request},
+                               lambda _:None,Event())
+    first_id=store.submit('download',first_request)
+    store.claim(allowed={'download'})
+    store.finish(first_id,first)
+    variant=Path(first['files'][0]['path'])
+    original_snapshot=(original.read_bytes(),original.stat().st_mtime_ns)
+    variant_snapshot=(variant.read_bytes(),variant.stat().st_mtime_ns)
+    chained=selected_quality_upgrade_payloads(scan,[0],store.jobs(),1080)[0]
+    assert chained['upgrade_from_job_id']==first_id
+    assert chained['height']==1080
+    same_tier=selected_quality_upgrade_payloads(scan,[0],store.jobs(),720)[0]
+    assert same_tier['upgrade_from_job_id']!=first_id
+    higher=tmp_path/'higher-720p.mp4'
+    run_checked(['ffmpeg','-v','error','-nostdin','-n','-i',str(high),
+                 '-vf','scale=1280:720','-c:v','libx264','-threads','2',
+                 '-an',str(higher)])
+    assert probe(higher).height==720
+    seen=fake_quality_ydl(monkeypatch,root,higher,
+                          baseline_height=360,target_height=1080)
+    second=execute_download_job(store,{'kind':'download','payload':chained},
+                                lambda _:None,Event())
+    assert second['source_height']==360
+    assert second['actual_height']==720 and second['target_height']==1080
+    new_path=Path(second['files'][0]['path'])
+    assert new_path.parent.parent.name=='1080p'
+    assert new_path.read_bytes()==higher.read_bytes()
+    again=execute_download_job(store,{'kind':'download','payload':chained},
+                               lambda _:None,Event())
+    assert again['files']==second['files']
+    assert len(seen)==2
+    assert (original.read_bytes(),original.stat().st_mtime_ns)==original_snapshot
+    assert (variant.read_bytes(),variant.stat().st_mtime_ns)==variant_snapshot
+
+
+def test_chained_quality_rejects_forged_receipt_channel_and_stale_file(tmp_path,monkeypatch):
+    store,root,original,high,scan,request=baseline_fixture(tmp_path)
+    fake_quality_ydl(monkeypatch,root,high)
+    first=execute_download_job(store,{'kind':'download','payload':request},
+                               lambda _:None,Event())
+    first_id=store.submit('download',request)
+    store.claim(allowed={'download'})
+    store.finish(first_id,first)
+    chained=selected_quality_upgrade_payloads(scan,[0],store.jobs(),1080)[0]
+    variant=Path(first['files'][0]['path'])
+    good=store.job(first_id)
+    forged={**good,'result':{**good['result'],'actual_height':500}}
+    with pytest.raises(ValueError,match='không thành công'):
+        validated_quality_source(forged,chained,root,'Generic',store=store)
+    wrong=root/'Generic'/'Creator__id'/'quality-upgrades'/'999p'/'videos'/'video-id.mp4'
+    wrong.parent.mkdir(parents=True)
+    shutil.copyfile(variant,wrong)
+    forged={**good,'result':{**good['result'],
+                            'files':[{**first['files'][0],'path':str(wrong)}]}}
+    with pytest.raises(ValueError,match='thư mục chất lượng'):
+        validated_quality_source(forged,chained,root,'Generic',store=store)
+    fake_quality_ydl(monkeypatch,root,high,target_height=1080,
+                     baseline_height=360,channel='Different__channel')
+    with pytest.raises(ValueError,match='kênh nguồn'):
+        execute_download_job(store,{'kind':'download','payload':chained},
+                             lambda _:None,Event())
+    assert original.is_file() and variant.is_file()
+    variant.write_bytes(original.read_bytes())
+    with pytest.raises(ValueError,match='không còn khớp độ phân giải'):
+        execute_download_job(store,{'kind':'download','payload':chained},
+                             lambda _:None,Event())
+    assert not (root/'Generic'/'Creator__id'/'quality-upgrades'/'1080p').exists()
+
+
+def test_chained_quality_rejects_wrong_account_and_missing_parent(tmp_path,monkeypatch):
+    store,root,original,high,scan,request=baseline_fixture(tmp_path)
+    fake_quality_ydl(monkeypatch,root,high)
+    first=execute_download_job(store,{'kind':'download','payload':request},
+                               lambda _:None,Event())
+    first_id=store.submit('download',request)
+    store.claim(allowed={'download'})
+    store.finish(first_id,first)
+    chained=selected_quality_upgrade_payloads(scan,[0],store.jobs(),1080)[0]
+    with pytest.raises(ValueError,match='URL/thư mục/tài khoản'):
+        execute_download_job(store,{'kind':'download',
+                                    'payload':{**chained,'expected_identity':'other-account'}},
+                             lambda _:None,Event())
+    bad_parent={**store.job(first_id),
+                'payload':{**store.job(first_id)['payload'],
+                           'upgrade_from_job_id':'missing-parent'}}
+    with pytest.raises(ValueError,match='Không tìm thấy bản video tổ tiên'):
+        validated_quality_source(bad_parent,chained,root,'Generic',store=store)
+    assert not (root/'Generic'/'Creator__id'/'quality-upgrades'/'1080p').exists()
