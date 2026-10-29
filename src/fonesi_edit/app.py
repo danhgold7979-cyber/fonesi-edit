@@ -349,10 +349,52 @@ class MainWindow(QMainWindow):
         write_recovery()
 
     def restore(self):
-        key=self.store.setting('last_project');project=next((p for p in self.store.list_named('projects') if p['id']==key),None)
-        if project:
-            self._restoring=True;self.project_id=key;self.editor.set_composition(Composition.from_dict(project['data']));self._restoring=False
+        key=self.store.setting('last_project')
+        projects=self.store.list_named('projects')
+        project=next((p for p in projects if p['id']==key),None)
+        composition=project['data'] if project else None
+        project_id=key if project else None
+        replayed=False
+        # recovery.json is an independently atomically published fallback for a
+        # failed SQLite autosave, but never silently replace another project or
+        # an equal/newer SQLite record. Do not follow linked or oversized files.
+        recovery_path=self.data/'recovery.json'
+        try:
+            if not recovery_path.is_symlink() and recovery_path.is_file():
+                info=recovery_path.stat()
+                if 0<info.st_size<=64*1024*1024:
+                    saved=json.loads(recovery_path.read_text(encoding='utf-8'))
+                    if (type(saved) is dict and type(saved.get('schema_version')) is int
+                            and saved['schema_version']==1
+                            and type(saved.get('composition')) is dict):
+                        recovered_id=saved.get('project_id')
+                        valid_id=(recovered_id is None or
+                                  type(recovered_id) is str and len(recovered_id)==32 and
+                                  all(ch in '0123456789abcdef' for ch in recovered_id))
+                        matching=(project is not None and recovered_id==key
+                                  and info.st_mtime_ns/1e9>float(project['updated'])
+                                  and saved['composition']!=composition)
+                        empty=(not projects and key is None)
+                        if valid_id and (matching or empty):
+                            candidate=Composition.from_dict(saved['composition'])
+                            composition=candidate.to_dict()
+                            project_id=recovered_id
+                            replayed=True
+        except (OSError,ValueError,TypeError,KeyError,AttributeError,OverflowError,
+                RecursionError,UnicodeError):
+            # Malformed/unreadable backups cannot prevent opening a healthy
+            # SQLite project. Never rename, remove or repair the source file.
+            pass
+        if composition is not None:
+            self._restoring=True
+            try:
+                self.editor.set_composition(Composition.from_dict(composition))
+                self.project_id=project_id
+            finally:
+                self._restoring=False
             self.load_editor_frame()
+            if replayed:
+                self.message('Đã khôi phục bản nháp mới hơn từ recovery.json; hãy lưu project.')
 
     def new_project(self):
         self.autosave();self.project_id=None;self.project_file=None;self.editor.undo.clear();self.editor.set_composition(Composition());self.autosave()
