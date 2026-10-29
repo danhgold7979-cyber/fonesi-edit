@@ -357,7 +357,7 @@ def verified_subtitle_artifacts(info, ydl, platform_root):
         raise ValueError('Danh sách track phụ đề quá lớn')
     platform_root = Path(platform_root).resolve()
     try:
-        template = Path(ydl.prepare_filename(info, outtmpl_type='subtitle'))
+        template = Path(ydl.prepare_filename(info, 'subtitle'))
     except (TypeError, ValueError, KeyError, OSError) as exc:
         raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ') from None
     base = str(template.with_suffix(''))
