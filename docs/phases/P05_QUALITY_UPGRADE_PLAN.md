@@ -3,7 +3,7 @@
 **Ngày:** 29/10/2026  
 **Repository:** `danhgold7979-cyber/fonesi-edit`  
 **Nhánh:** `develop/fonesi-full`  
-**Trạng thái:** kế hoạch trước sửa code; chưa nghiệm thu.
+**Trạng thái:** lát cắt đã triển khai, có source/Qt regression và [CI 40849001694](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40849001694) PASS hai runner; P05 tổng thể vẫn OPEN.
 
 ## 1. Đối chiếu trước code
 
@@ -29,9 +29,17 @@ Video đã tải thông thường nằm ở `platform/channel__id/videos/` với
 
 ## 4. Checklist
 
-- [ ] Đã thực hiện nâng cấp từ video nguồn đã probe, kiểm tra snapshot account và chọn target lớn hơn.
-- [ ] Không sửa video/sub gốc, biến thể riêng/no-overwrite, reject output không thực sự nâng chất lượng.
-- [ ] Tests unit/Qt + full source CI và frozen packaged proof Linux/Windows PASS.
-- [ ] Cổng live và full P05 còn OPEN, bằng chứng và giới hạn được ghi nhận riêng.
+- [x] Đã thực hiện nâng cấp từ video nguồn đã probe, kiểm tra snapshot account và chọn target lớn hơn.
+- [x] Không sửa video/sub gốc, biến thể riêng/no-overwrite, reject output không thực sự nâng chất lượng.
+- [x] Tests unit/Qt + full source CI và frozen packaged proof Linux/Windows PASS.
+- [x] Cổng live và full P05 còn OPEN, bằng chứng và giới hạn được ghi nhận riêng.
 
 **Lưu ý:** chiều cao là trần chọn định dạng, không phải bảo đảm source có đủ 720p/1080p/4K. Chỉ so chiều cao thực của video nguồn/đích qua FFprobe sau khi tải. Không tự xoá file lỗi sau khi fail vì có thể là file người dùng.
+
+## 5. Kết quả lát cắt và giới hạn
+
+- Code/Qt worker: `downloads.py`, `ui/pages.py`; test FFmpeg/FFprobe thực `tests/test_quality_upgrade.py` + `tests/test_app_integration.py`; regression loại trùng nguồn mặc định từ thư mục biến thể qua `batch.py`, `automation.py` + hai bộ test tương ứng. Code HEAD `0ca96d300f0c3cce323291e5ac1759daf766625d`.
+- Chỉ dùng bản video nguồn từ job download thường đã thành công, cùng URL/folder/account_ref/expected_identity, nằm trong `platform/channel/videos/` và FFprobe decode được. Worker xác minh lại trước khi tạo folder hay lấy cookie, so sánh ID sau tải, yêu cầu `source_height < actual_height <= target_height`.
+- Output được tách dưới `platform/channel/quality-upgrades/<target>p/videos/`, `overwrites=False` và không chạy workflow/sub/thumbnail. Kiểm tra video nguồn không đổi kích thước và mtime sau tải. Target là **độ cao tối đa**, không phải cam kết nguồn có đúng cấp đó. Video biến thể được loại khỏi Batch và watch quét đệ quy mặc định; có thể chọn chính thư mục biến thể nếu muốn dùng một cách rõ ràng.
+- `CI 40849001694` **SUCCESS attempt 1 trên đúng SHA code**: Linux 510 PASS; Windows 509 PASS + 1 skip fixture POSIX có lý do; plan validator, desktop/native-host build, frozen packaged proof PASS trên cả hai hệ.
+- Không tự đánh dấu đạt live provider bitrate/codec/4K, nâng tiếp từ một biến thể làm baseline, nhận diện/giải quyết tệp biến thể hỏng, đồng bộ kênh thực, 10 nền tảng, Chrome authenticated session, Windows máy người dùng, hay issue SQLite #6.

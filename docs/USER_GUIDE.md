@@ -14,7 +14,7 @@ Developer: `uv sync --locked` rồi `uv run fonesi-edit`. Bản đóng gói: m�
 4. Sub: mở SRT/VTT/ASS, sửa gốc/dịch/time/lock, dịch qua hàng đợi khi provider được cấu hình. Nạp kết quả là thao tác rõ ràng để giữ sửa tay; gắn sub vào clip hoặc xuất riêng. Bật Song ngữ để tạo riêng layer gốc và bản dịch khi hai nội dung đã có. Sub đã gắn thành layer kéo được trên preview, lưu bố cục vào preset; batch/ma trận tự ghép lại file sub của từng nguồn. Bảng sub có draft tự lưu, tìm/thay/offset và dịch câu chọn; nạp bản dịch giữ câu đã sửa hoặc khóa sau khi gửi.
 5. Batch: chọn folder, quét, tick bỏ folder/tệp, lập kế hoạch, preview rồi enqueue. Không xóa nguồn; output nằm ở folder tên kênh kèm edit.
 6. Ma trận: C1…Cn mỗi folder chứa góc, quét/sinh N/W/K/seed, sửa G1/G2 trong ô, khóa ô, preview/CSV/render. Không nới điều kiện ngầm; timeout khác vô nghiệm. Preview đổi tên C/G cho xem ánh xạ video/sub trước khi đổi thật, giữ bytes nguồn và lưu journal trong `.fonesi-renames` để hoàn tác/phục hồi. Queue còn dùng nguồn phải hoàn tất/hủy trước; liên kết project đang mở được cập nhật.
-7. Tải: một URL mỗi dòng, folder, account/engine/media/limit/sub; 0 là không giới hạn ở adapter hỗ trợ. Kết quả quét không đồng nghĩa đã tải hết kênh. Có thể bật workflow edit/dịch sau tải hoặc đặt lịch.
+7. Tải: một URL mỗi dòng, folder, account/engine/media/limit/sub; 0 là không giới hạn ở adapter hỗ trợ. Kết quả quét không đồng nghĩa đã tải hết kênh. Có thể bật workflow edit/dịch sau tải hoặc đặt lịch. Trong cây kết quả quét, có thể tải media, chỉ bổ sung phụ đề hoặc yêu cầu một bản nâng chất lượng từ video đã tải.
 8. Cài đặt → Tự động / máy: giới hạn tổng và riêng scan/download/render/translate; nút gợi ý theo CPU/RAM/đĩa hiện tại. Gợi ý không thay benchmark. Tài nguyên thấp chỉ dừng nhận thêm việc.
 9. Hàng đợi: pause ngừng nhận việc mới; cancel dừng đúng job; retry riêng việc lỗi. Job dùng snapshot, sửa preset sau đó không đổi việc đang chạy.
 
@@ -50,3 +50,13 @@ Trong **Editor / preset**, đặt In bằng **I** và Out bằng **O**, rồi v�
 **Thao tác thêm → Proxy nguồn**: chọn Không dùng / Nhanh (640px) / Cân bằng (1280px) / Cao (1920px). FFmpeg tạo MP4 H.264/AAC theo nguồn đang chọn trong cache per-user, validate trước khi dùng; video gốc và export final luôn giữ nguyên. Proxy chỉ tăng tốc phát **nguồn**, không phản ánh toàn bộ text/logo/sub; dùng nút **Preview có âm thanh** để kiểm tra composition đã dựng.
 
 Trong **Cài đặt → Tự động / máy**, đặt **Giới hạn cache proxy (MiB)** (128–65536, mặc định 4096) và bấm **Dọn cache proxy an toàn** nếu muốn quét ngay. App dọn file proxy cũ chỉ có filename hash khi vượt quota; không xóa thư mục tải, nguồn, render output, media đang phát, hồ sơ Chrome hoặc tool. Cache downloader/dịch có phạm vi quản lý khác.
+
+## Nâng chất lượng video đã tải (P05 development)
+
+Trong tab **Tải**, quét video và tải bản gốc trước. Bản gốc phải có job tải **thành công**, thuộc adapter video yt-dlp, có file thực đọc được bằng FFprobe và còn nằm trong thư mục `NenTang/TenKenh__id/videos/`. Chọn lại đúng lần quét, đánh dấu video đã tải, chọn **Chất lượng tối đa** mong muốn (144–4320 pixel, cao hơn bản gốc) rồi bấm **Nâng chất lượng video đã tải**.
+
+Ứng dụng xếp **job mới** vào Queue, giữ URL, folder, tài khoản và danh tính gốc. Không tự chuyển account, không tự sửa project, không tải lại phụ đề và không ghi đè video đã có. Video nâng cấp nằm ở `NenTang/TenKenh__id/quality-upgrades/<target>p/videos/`. Mỗi target/job nguồn được enqueue một lần cho cùng lần quét; muốn chạy lại job lỗi dùng Queue → Retry.
+
+**Quan trọng:** mức trong UI là *chiều cao tối đa được yêu cầu*, không bảo đảm nguồn có đúng 720p/1080p/4K. Sau tải, FFprobe phải xác nhận chiều cao thực **cao hơn** video gốc và **không vượt** target; không đạt thì job báo lỗi, không công bố nâng cấp thành công. Không tự xóa file biến thể bị hỏng/không đủ chất lượng; kiểm tra thủ công trước khi xử lý. Các job có chất lượng live, mạng xã hội, tài khoản Chrome chưa có bằng chứng nghiệm thu đầy đủ.
+
+Quét Batch hoặc watch tự động từ thư mục kênh sẽ **bỏ qua** thư mục `quality-upgrades` để không xử lý lặp. Nếu muốn edit bản nâng cấp, chủ động chọn chính tệp hoặc thư mục biến thể. Chưa có chế độ nâng liên tiếp từ một biến thể như baseline, cũng chưa có kiểm thử nâng chất lượng trên toàn bộ 10 nền tảng bằng tài khoản thực.
