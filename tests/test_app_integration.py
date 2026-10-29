@@ -1754,3 +1754,35 @@ def test_sync_sqlite_failure_on_second_insert_does_not_enqueue_partial_group(tmp
                 if j['kind']=='download'}=={first,second}
     finally:
         close(window)
+
+
+def test_schedule_form_uses_scan_first_new_only_mode(tmp_path,monkeypatch):
+    """UI scheduling never stores an unconditional recurring channel download."""
+    import json
+    import fonesi_edit.ui.pages as pages
+    window=MainWindow(tmp_path/'state')
+    window.scheduler.paused=True
+    window.automation.stop()
+    try:
+        page=window.downloads
+        page.urls.setPlainText('https://example.test/channel')
+        monkeypatch.setattr(pages.QInputDialog,'getInt',
+                            lambda *args,**kwargs:(60,True))
+        page.schedule()
+        with window.store.connect() as conn:
+            rows=conn.execute('SELECT id,data FROM schedules').fetchall()
+        assert len(rows)==1
+        config=json.loads(rows[0]['data'])
+        assert config['mode']=='scan_new_only'
+        assert config['interval']==3600
+        assert config['payload']['url']=='https://example.test/channel'
+        from fonesi_edit.automation import Automation
+        auto=Automation(window.store)
+        scheduled=auto.schedules()
+        assert len(scheduled)==1
+        job=window.store.job(scheduled[0])
+        assert job['kind']=='scan'
+        assert job['payload']['limit']==100
+        assert not [j for j in window.store.jobs() if j['kind']=='download']
+    finally:
+        close(window)
