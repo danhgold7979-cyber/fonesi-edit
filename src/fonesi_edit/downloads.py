@@ -339,6 +339,84 @@ def selected_download_payloads(scan_job, indices, *, subtitles_only=False):
     return requests
 
 
+
+def _matches_quality_source(source_job, request):
+    """Only a succeeded, single-video yt-dlp media download can be a baseline."""
+    if not isinstance(source_job, dict) or source_job.get('kind') != 'download' or source_job.get('state') != 'succeeded':
+        return False
+    source = source_job.get('payload')
+    result = source_job.get('result')
+    if not isinstance(source, dict) or not isinstance(result, dict):
+        return False
+    if (source.get('engine') != 'video' or source.get('media') != 'videos'
+            or source.get('download_mode', 'media') != 'media'):
+        return False
+    if any(source.get(key) != request.get(key)
+           for key in ('url', 'folder', 'account_ref', 'expected_identity')):
+        return False
+    if result.get('platform') != platform_for(request['url']):
+        return False
+    media = result.get('files')
+    return (isinstance(media, list) and len(media) == 1
+            and isinstance(media[0], dict)
+            and media[0].get('kind') == 'video'
+            and isinstance(media[0].get('id'), str) and bool(media[0]['id'])
+            and isinstance(media[0].get('path'), str) and bool(media[0]['path']))
+
+
+def selected_quality_upgrade_payloads(scan_job, indices, existing_jobs, target_height):
+    """Request a *new* video variant from a verified prior download, atomically.
+
+    The worker rechecks the source job and FFprobes the existing video before
+    contacting the extractor; UI results are only advisory.
+    """
+    if type(target_height) is not int or not 144 <= target_height <= 4320:
+        raise ValueError('Chiều cao bản nâng cấp phải là số nguyên 144–4320 px')
+    requests = selected_download_payloads(scan_job, indices)
+    if not isinstance(existing_jobs, list):
+        raise ValueError('Danh sách job đã tải không hợp lệ')
+    upgraded = []
+    for request in requests:
+        if request['engine'] != 'video' or request['media'] != 'videos':
+            raise ValueError('Chỉ nâng chất lượng video yt-dlp đã tải, không hỗ trợ gallery/ảnh')
+        source = next((item for item in existing_jobs
+                       if _matches_quality_source(item, request)
+                       and isinstance(item.get('id'), str) and item['id']), None)
+        if source is None:
+            raise ValueError('Chưa có bản video nguồn đã tải thành công và được ghi nhận cho mục đã chọn')
+        payload = deepcopy(request)
+        for field in ('workflow', 'scan_parent_id', 'scan_start'):
+            payload.pop(field, None)
+        payload.update(download_mode='quality_upgrade',
+                       upgrade_from_job_id=source['id'],
+                       height=target_height, subtitles=False,
+                       auto_subtitles=False, thumbnail=False)
+        upgraded.append(payload)
+    return upgraded
+
+
+def validated_quality_source(source_job, request, root, platform):
+    """Validate the baseline's identity and path using persisted data, not UI paths."""
+    if not _matches_quality_source(source_job, request):
+        raise ValueError('Video nguồn không thành công hoặc URL/thư mục/tài khoản đã thay đổi')
+    media = source_job['result']['files'][0]
+    source = Path(media['path'])
+    if not source.is_absolute() or source.is_symlink() or not source.is_file():
+        raise ValueError('Tệp video nguồn đã tải không còn hợp lệ')
+    platform_root = (root / platform).resolve()
+    try:
+        relative = source.resolve(strict=True).relative_to(platform_root)
+    except (OSError, ValueError):
+        raise ValueError('Đường dẫn video nguồn nằm ngoài thư mục Fonesi') from None
+    if len(relative.parts) != 3 or relative.parts[1] != 'videos':
+        raise ValueError('Video nguồn phải là bản gốc trong thư mục videos')
+    baseline = probe(source)
+    if baseline.height <= 0 or baseline.width <= 0:
+        raise ValueError('Không đọc được độ phân giải video nguồn')
+    stat = source.stat()
+    return source, baseline, media['id'], (stat.st_size, stat.st_mtime_ns)
+
+
 SUBTITLE_EXTENSIONS = frozenset({'srt', 'vtt', 'ass', 'ssa'})
 MAX_SUBTITLE_BYTES = 16 * 1024 * 1024
 
@@ -444,9 +522,10 @@ def execute_download_job(store,job,progress,cancel):
     if limit<0:
         raise ValueError('Download limit must be a nonnegative integer')
     download_mode=payload.get('download_mode','media')
-    if type(download_mode) is not str or download_mode not in {'media','subtitles_only'}:
+    if type(download_mode) is not str or download_mode not in {'media','subtitles_only','quality_upgrade'}:
         raise ValueError('Download mode không hợp lệ')
     subtitles_only=download_mode=='subtitles_only'
+    quality_upgrade=download_mode=='quality_upgrade'
     if subtitles_only:
         languages=payload.get('languages',['vi','zh.*','en'])
         if (job['kind']!='download' or engine!='video' or media!='videos'
@@ -457,6 +536,29 @@ def execute_download_job(store,job,progress,cancel):
                        or not lang.strip() or '\n' in lang or '\r' in lang
                        for lang in languages)):
             raise ValueError('Sub-only yêu cầu 1 video yt-dlp, ngôn ngữ hợp lệ và không edit/thumbnail')
+    source_path=source_info=source_id=source_stamp=target_height=None
+    if quality_upgrade:
+        target_height=payload.get('height')
+        source_job_id=payload.get('upgrade_from_job_id')
+        if (job['kind']!='download' or engine!='video' or media!='videos'
+                or limit!=1 or not selectable_scan_url(url)
+                or type(target_height) is not int or not 144<=target_height<=4320
+                or not isinstance(source_job_id,str) or not source_job_id
+                or payload.get('workflow') is not None
+                or payload.get('thumbnail') not in (None,False)
+                or payload.get('subtitles') not in (None,False)
+                or payload.get('auto_subtitles') not in (None,False)):
+            raise ValueError('Nâng chất lượng cần video yt-dlp đã tải, target hợp lệ, không sub/edit')
+        try:
+            source_job=store.job(source_job_id)
+        except KeyError:
+            raise ValueError('Không tìm thấy job video nguồn') from None
+        source_path,source_info,source_id,source_stamp=validated_quality_source(
+            source_job,payload,Path(payload.get('folder',store.path.parent/'downloads')).resolve(),platform)
+        if target_height<=source_info.height:
+            raise ValueError('Chất lượng mục tiêu phải cao hơn độ phân giải video nguồn')
+    elif 'upgrade_from_job_id' in payload:
+        raise ValueError('Chỉ dùng upgrade_from_job_id trong chế độ nâng chất lượng')
     scan_parent = None
     scan_start = 1
     has_cursor = 'scan_parent_id' in payload or 'scan_start' in payload
@@ -503,15 +605,24 @@ def execute_download_job(store,job,progress,cancel):
         if total:progress(data.get('downloaded_bytes',0)/total*.9)
     prefix=str(root/platform).replace('%','%%')+'/%(channel,uploader,creator|channel)s__%(channel_id,uploader_id,id)s'
     limit=max(0,int(payload.get('limit',0)))
+    video_template=(prefix+'/videos/%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s')
+    if quality_upgrade:
+        video_template=(prefix+f'/quality-upgrades/{target_height}p/videos/'
+                        '%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s')
+    quality_format=(f'bestvideo[height>{source_info.height}][height<={target_height}]'
+                    f'+bestaudio/best[height>{source_info.height}][height<={target_height}]'
+                    if quality_upgrade else None)
     options={'quiet':True,'no_warnings':True,'logger':QuietLogger(),'socket_timeout':15,'retries':2,'fragment_retries':2,
         'noprogress':True,'overwrites':False,'continuedl':True,'windowsfilenames':True,'progress_hooks':[hook],
-        'outtmpl':{'default':prefix+'/videos/%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s',
+        'outtmpl':{'default':video_template,
                    'subtitle':prefix+'/subtitles/%(id)s.%(ext)s','infojson':prefix+'/metadata/%(id)s.%(ext)s'},
-        'writesubtitles':bool(payload.get('subtitles',True)),'writeautomaticsub':bool(payload.get('auto_subtitles',True)),
+        'writesubtitles':False if quality_upgrade else bool(payload.get('subtitles',True)),
+        'writeautomaticsub':False if quality_upgrade else bool(payload.get('auto_subtitles',True)),
         'subtitleslangs':payload.get('languages',['vi','zh.*','en']),'subtitlesformat':'srt/vtt/best',
-        'writethumbnail':False if subtitles_only else bool(payload.get('thumbnail',False)),
-        'writeinfojson':False,'skip_download':subtitles_only,'noplaylist':subtitles_only,
-        'format':f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
+        'writethumbnail':False if subtitles_only or quality_upgrade else bool(payload.get('thumbnail',False)),
+        'writeinfojson':False,'skip_download':subtitles_only,
+        'noplaylist':subtitles_only or quality_upgrade,
+        'format':quality_format or f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
         'merge_output_format':'mp4','playliststart':scan_start,
         'playlistend':(scan_start + limit - 1) if limit else None,
         'extract_flat':'in_playlist' if job['kind']=='scan' else False,'lazy_playlist':True}
@@ -529,8 +640,30 @@ def execute_download_job(store,job,progress,cancel):
         class Recorder(PostProcessor):
             def run(self,info):
                 path=Path(info.get('filepath') or info.get('_filename') or ydl.prepare_filename(info))
-                if path.is_file():
-                    actual=probe(path);files.append({'path':str(path),'id':str(info.get('id','')),'duration':actual.duration,'kind':'video'})
+                if quality_upgrade:
+                    if str(info.get('id',''))!=source_id:
+                        raise ValueError('Video nâng cấp có ID nguồn khác bản gốc')
+                    if path.is_symlink() or not path.is_file():
+                        raise RuntimeError('Không tìm thấy video biến thể an toàn sau tải')
+                    try:
+                        relative=path.resolve(strict=True).relative_to((root/platform).resolve())
+                    except (OSError,ValueError):
+                        raise ValueError('Video biến thể nằm ngoài thư mục Fonesi') from None
+                    if (len(relative.parts)!=5 or relative.parts[1]!='quality-upgrades'
+                            or relative.parts[2]!=f'{target_height}p'
+                            or relative.parts[3]!='videos'):
+                        raise ValueError('Video nâng cấp không nằm trong thư mục chất lượng riêng')
+                    actual=probe(path)
+                    if not source_info.height<actual.height<=target_height:
+                        raise ValueError('Video tải về không nâng được độ phân giải thực tế')
+                    files.append({'path':str(path),'id':source_id,'duration':actual.duration,
+                                  'kind':'video','width':actual.width,'height':actual.height,
+                                  'source_height':source_info.height})
+                elif path.is_file():
+                    actual=probe(path)
+                    files.append({'path':str(path),'id':str(info.get('id','')),
+                                  'duration':actual.duration,'kind':'video',
+                                  'width':actual.width,'height':actual.height})
                 return [],info
         if not subtitles_only:
             ydl.add_post_processor(Recorder(),when='after_move')
@@ -595,6 +728,17 @@ def execute_download_job(store,job,progress,cancel):
                 result['scan_window']={'mode':SCAN_WINDOW_MODE,'start':scan_start,
                                        'limit':limit,'next_start':next_start}
             return result
+    if quality_upgrade:
+        if info.get('_type') in {'playlist','multi_video'} or len(files)!=1:
+            raise RuntimeError('Nâng chất lượng chỉ chấp nhận một video đã kiểm tra')
+        actual_stat=source_path.stat()
+        if (actual_stat.st_size,actual_stat.st_mtime_ns)!=source_stamp:
+            raise RuntimeError('Video nguồn bị thay đổi trong quá trình nâng chất lượng')
+        progress(1)
+        return {'platform':platform,'files':files,'count':1,
+                'download_mode':'quality_upgrade','source_height':source_info.height,
+                'target_height':target_height,'actual_height':files[0]['height'],
+                'account_ref':binding,'live_channel_verified':False}
     if not files:raise RuntimeError('Downloader finished without a validated media artifact')
     progress(1)
     return {'platform':platform,'files':files,'count':len(files),'account_ref':binding,'live_channel_verified':False}

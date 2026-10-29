@@ -22,7 +22,8 @@ from ..matrix import scan_scenes,generate,history,combination,valid_against,matr
 from ..subtitles import Caption,read_captions,write_captions,caption_warnings
 from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
                          parse_scan_metadata_filters,scan_matches_metadata,
-                         normalize_scan_metadata,continuation_scan_payload)
+                         normalize_scan_metadata,continuation_scan_payload,
+                         selected_quality_upgrade_payloads)
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
@@ -107,7 +108,8 @@ class DownloadsPage(QWidget):
         self.scan_include_missing.toggled.connect(lambda *_:self.reset_scan_filter_page())
         metadata_row.addWidget(self.scan_include_missing)
         self.scan_filter_error=None
-        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected),('Tải bổ sung phụ đề',self.download_subtitles_selected)])
+        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected),('Tải bổ sung phụ đề',self.download_subtitles_selected),
+                             ('Nâng chất lượng video đã tải',self.download_quality_upgrade_selected)])
         buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan)])
         self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
         self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
@@ -406,7 +408,10 @@ class DownloadsPage(QWidget):
     def download_subtitles_selected(self):
         return self.download_selected(subtitles_only=True)
 
-    def download_selected(self, *, subtitles_only=False):
+    def download_quality_upgrade_selected(self):
+        return self.download_selected(quality_upgrade=True)
+
+    def download_selected(self, *, subtitles_only=False, quality_upgrade=False):
         job_id=self.scans.currentData()
         if not job_id:raise ValueError('Chưa chọn một lần quét')
         job=self.host.store.job(job_id)
@@ -415,7 +420,12 @@ class DownloadsPage(QWidget):
         indexes=sorted(self.scan_selected.get(job_id,set()))
         if len(indexes)>MAX_SCAN_SELECTION:
             raise ValueError(f'Tối đa {MAX_SCAN_SELECTION} mục được tải từ một lần quét; hãy thu hẹp lựa chọn.')
-        requests=selected_download_payloads(job,indexes,subtitles_only=subtitles_only)
+        if subtitles_only and quality_upgrade:
+            raise ValueError('Không kết hợp tải phụ đề riêng với nâng chất lượng video')
+        requests=(selected_quality_upgrade_payloads(
+            job,indexes,self.host.store.jobs(limit=2000),self.height.value())
+            if quality_upgrade else selected_download_payloads(
+                job,indexes,subtitles_only=subtitles_only))
         account=job['payload'].get('account_ref')
         if account:
             binding=next((item for item in bindings(self.host.store)
@@ -425,10 +435,15 @@ class DownloadsPage(QWidget):
         for payload in requests:
             # Distinct job identities for the media and subtitle-only modes.
             # Repeated clicks in one mode never duplicate an existing job.
-            key_prefix='scan-subtitle:' if subtitles_only else 'scan-item:'
-            submit_once(self.host.store,'download',payload,
-                        key_prefix+job_id+':'+payload['url'])
-        kind='bổ sung phụ đề' if subtitles_only else 'tải media'
+            if quality_upgrade:
+                identity=(f"scan-quality:{job_id}:{payload['url']}:"
+                          f"{payload['upgrade_from_job_id']}:{payload['height']}")
+            else:
+                key_prefix='scan-subtitle:' if subtitles_only else 'scan-item:'
+                identity=key_prefix+job_id+':'+payload['url']
+            submit_once(self.host.store,'download',payload,identity)
+        kind=('nâng chất lượng video' if quality_upgrade else
+              'bổ sung phụ đề' if subtitles_only else 'tải media')
         self.host.message(f"Đã xếp {len(requests)} mục {kind} từ scan {job_id[:8]}; nhấn lại không tạo trùng (dùng Retry nếu cần)")
         self.host.activate_queue()
 
