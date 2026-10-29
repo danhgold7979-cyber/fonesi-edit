@@ -78,7 +78,7 @@ class Automation:
             root=Path(watch['folder'])
             if not root.is_dir():continue
             for current,dirs,files in root.walk(follow_symlinks=False):
-                dirs[:]=[d for d in dirs if not d.startswith('.') and not d.lower().endswith(' edit') and d.lower() not in {'cache','profiles','browser-profiles','videos edit'}]
+                dirs[:]=[d for d in dirs if not d.startswith('.') and not d.lower().endswith(' edit') and d.lower() not in {'cache','profiles','browser-profiles','videos edit','quality-upgrades'}]
                 for name in files:
                     path=current/name
                     if path.suffix.lower() not in VIDEO_EXTENSIONS or path.is_symlink():continue

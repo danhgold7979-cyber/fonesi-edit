@@ -75,7 +75,7 @@ def scan_folders(root:Path):
     root=root.resolve();groups={}
     if not root.is_dir():raise NotADirectoryError(root)
     for current,dirs,files in root.walk(follow_symlinks=False):
-        dirs[:]=[name for name in dirs if not name.startswith('.') and not name.casefold().endswith(' edit') and name.casefold() not in {'videos edit','cache','profiles','browser-profiles','node_modules','dist','build'}]
+        dirs[:]=[name for name in dirs if not name.startswith('.') and not name.casefold().endswith(' edit') and name.casefold() not in {'videos edit','quality-upgrades','cache','profiles','browser-profiles','node_modules','dist','build'}]
         for name in sorted(files,key=natural_key):
             path=current/name
             if path.suffix.casefold() not in VIDEO_EXTENSIONS or path.is_symlink():continue

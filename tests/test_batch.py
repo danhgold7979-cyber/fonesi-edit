@@ -272,3 +272,23 @@ def test_batch_metadata_probes_real_video_deduplicates_and_reports_corrupt_input
     stopped=Event();stopped.set()
     cancelled=probe_batch_metadata({'A':[str(video)]},cancel=stopped)
     assert cancelled['cancelled'] is True and cancelled['media']=={}
+
+
+
+def test_quality_upgrade_variants_are_excluded_from_recursive_batch_scan(tmp_path):
+    """A quality variant must not silently become a second channel/source."""
+    from fonesi_edit.batch import scan_multiple_folders
+    channel=tmp_path/'Channel'
+    original=channel/'videos'/'original.mp4'
+    variants=[
+        channel/'quality-upgrades'/'720p'/'videos'/'high.mp4',
+        channel/'QUALITY-UPGRADES'/'1080p'/'videos'/'another.mp4',
+    ]
+    for file in [original,*variants]:
+        file.parent.mkdir(parents=True,exist_ok=True)
+        file.write_bytes(b'fixture')
+    result=scan_folders(channel)
+    assert {path for paths in result.values() for path in paths}=={str(original)}
+    combined=scan_multiple_folders([tmp_path,channel,tmp_path])
+    assert {path for paths in combined.values() for path in paths}=={str(original)}
+    assert all(path.is_file() for path in variants)

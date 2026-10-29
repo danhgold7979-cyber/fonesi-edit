@@ -105,3 +105,24 @@ def test_automation_error_reports_are_sanitized(tmp_path):
     assert 'HTTP 403' in automation.errors[0]
     assert 'private' not in automation.errors[0]
     assert 'hidden-secret' not in automation.errors[0]
+
+
+
+def test_watcher_does_not_auto_edit_quality_upgrade_variants(tmp_path):
+    """Upgrades are opt-in for Batch/Automation, not duplicate new source media."""
+    import shutil
+    store=Store(tmp_path/'state.db')
+    fixture=create_fixture(tmp_path/'Channel'/'videos',duration=.5)
+    original=fixture['source']
+    upgrade=tmp_path/'Channel'/'quality-upgrades'/'720p'/'videos'/'high.mp4'
+    upgrade.parent.mkdir(parents=True)
+    shutil.copyfile(original,upgrade)
+    store.set_setting('watches',[{
+        'folder':str(tmp_path/'Channel'),
+        'preset':Composition(width=320,height=180).to_dict()}])
+    auto=Automation(store)
+    auto.watch();auto.watch();auto.watch()
+    render_jobs=[j for j in store.jobs() if j['kind']=='render']
+    assert len(render_jobs)==1
+    assert str(original) in render_jobs[0]['payload']['composition']['clips'][0]['path']
+    assert upgrade.is_file()
