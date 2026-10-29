@@ -179,3 +179,7 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 ## P05/P10 evidence — synchronized only from validated local scan (29/10/2026)
 
 SRC-09/SRC-10/FLOW-04: [CI 40855868306](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40855868306) verifies exact-URL source/account and actual output, transactional batch no partial enqueue on errors; 537 Linux/536 Windows+1 skip. SRC-03/SRC-10/AUTO-02: [CI 40857385183](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40857385183) verifies bounded scheduled scan-first state, post-scan new-only reconciliation and Retry; 546 Linux/545 Windows+1 skip. These do NOT satisfy live provider checkpoint/full-channel/Chrome or physical Windows acceptance.
+
+## P08-07 / P11-02/03 Batch planning and transactional enqueue evidence (29/10/2026)
+
+BAT-04 / OPS-01 / OPS-02: [CI 40914027736](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40914027736) confirms progress monotonic for a known selected count, cooperative cancel yields no usable partial plan, and a synthetic FFprobe benchmark of 128 files measured actual runner throughput (Linux 5.937889 s; Windows 10.462162 s). [CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) confirms BAT-04 / OPS-03/06: a failed second SQLite render-job INSERT rolls back every new Batch job while pre-existing jobs survive, without disabling earlier validation. **Both proofs are synthetic/local**; they do not satisfy physical Windows endurance, render ETA/GPU/VRAM or full P08/P11 acceptance.

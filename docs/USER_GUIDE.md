@@ -105,3 +105,18 @@ Nếu SQLite bị khóa/hỏng hoặc ổ đĩa không ghi được trong lúc t
 Sau lỗi lưu SQLite hoặc lần thoát bị gián đoạn, nếu database vẫn mở được, Fonesi Edit kiểm tra `recovery.json` trong thư mục dữ liệu ứng dụng. Chỉ bản hợp lệ theo schema, **đúng ID project đang chọn**, có thời gian sửa tệp mới hơn bản project đã lưu trong SQLite và có nội dung khác mới được khôi phục vào bộ nhớ. Nếu database chưa chứa **bất kỳ project nào**, một bản recovery hợp lệ cũng có thể mở lại nội dung đang làm; ứng dụng **không ghi tự động project vào SQLite tại thời điểm đọc**, mà đợi thao tác lưu hoặc autosave bình thường. Khi khôi phục, thanh trạng thái có thông báo. Không dùng bản recovery cũ, của project khác, hoặc JSON hỏng để ghi đè project hiện tại.
 
 **Giới hạn:** Nếu chính `state.db` đã hỏng đến mức ứng dụng không khởi tạo được, chức năng này chưa thay thế được công cụ khôi phục database; đừng xóa/đổi tên DB/WAL/SHM đang chạy để buộc ứng dụng mở. Hãy giữ bản sao các tệp và kiểm tra nguyên nhân trước. Lỗi SQLite Windows [#6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) vẫn đang điều tra.
+
+## Batch: tiến độ, hủy an toàn và benchmark local
+
+Trong **Edit hàng loạt**, bấm **Lập kế hoạch / dry-run** sau khi quét và chọn video. Thanh tiến độ chuẩn bị dùng số video đã xử lý; FFprobe có thể cần thời gian trước khi phần trăm tăng. Nút **Hủy tác vụ chuẩn bị / preview** ở cửa sổ chính gửi yêu cầu hủy tới các tác vụ nền đang chạy, gồm Batch; tác vụ đang thực hiện FFprobe sẽ hủy hợp tác ở mốc an toàn tiếp theo. Nếu đã hủy, app không cho dùng phần kết quả lập kế hoạch dở để Preview hay **Chạy toàn bộ**. Video lỗi được báo riêng; chỉ video hợp lệ đã có plan mới có thể enqueue.
+
+Nút **Chạy toàn bộ** ghi tất cả render job của lô bằng **một transaction SQLite**: lỗi ghi ở giữa khiến cả lượt thêm job mới rollback, không để nửa lô chạy. Bản dry-run vẫn còn để sửa lỗi và thử lại; dữ liệu/video nguồn không bị xóa hoặc sửa. Đây không phải resume từng frame render hoặc sửa được database hỏng do lỗi thiết bị.
+
+Để tự đo hiệu năng **lập kế hoạch** bằng video synthetic trên máy phát triển (Python 3.12, uv, FFmpeg/ffprobe), từ thư mục repo chạy:
+
+```bash
+uv sync --locked
+uv run python scripts/benchmark_batch.py --copies 128 --output .local/batch-benchmark.json
+```
+
+Script tạo video MP4 thử nghiệm trong thư mục tạm, đọc FFprobe và xóa corpus sau đó; JSON có số video, thời gian, thông lượng, RSS trước/sau và peak allocation Python. File báo cáo không được tự commit và đường dẫn đã có sẽ **không bị ghi đè**. Đây không phải benchmark render hay dự đoán dung lượng video đầu ra; muốn so sánh máy thật, phải chạy đúng máy/corpus và ghi nguồn, hệ điều hành, phiên bản FFmpeg cùng điều kiện đo.

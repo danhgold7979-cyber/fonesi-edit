@@ -18,10 +18,25 @@ The previous [P08 source/test CI 40910523178](https://github.com/danhgold7979-cy
 
 ## Acceptance for this bounded slice
 
-- [ ] Progress is monotonic, bounded and reaches 100% only on completed planning, and cancellation is cooperative without partial publish or queued work.
-- [ ] Real Qt background cancellation and stale callbacks never revive plans, while normal partial-success reports and global audio failure semantics remain unchanged.
-- [ ] Configurable real FFprobe/FFmpeg benchmark records machine-dependent throughput and memory with explicit fixture and limitations; large logical-corpus test scales without fragile timed thresholds.
-- [ ] Full Linux and Windows CI test suite, packaged desktop/native-host and synthetic/localhost frozen proof PASS at the exact source/test SHA; record evidence.
+- [x] Progress is monotonic, bounded and reaches 100% only on completed planning, and cancellation is cooperative without partial publish or queued work.
+- [x] Real Qt background cancellation and stale callbacks never revive plans, while normal partial-success reports and global audio failure semantics remain unchanged.
+- [x] Configurable real FFprobe/FFmpeg benchmark records machine-dependent throughput and memory with explicit fixture and limitations; large logical-corpus test scales without fragile timed thresholds.
+- [x] Full Linux and Windows CI test suite, packaged desktop/native-host and synthetic/localhost frozen proof PASS at the exact source/test SHA; record evidence.
 - [ ] P08/P11 remain OPEN for user-device long-corpus performance, ETA of actual render, GPU/VRAM, physical Windows NTFS/AV/ACL, audio meters/playlist, Chrome/live sources, installer and intermittent SQLite [issue #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6).
 
 **Note:** A dry-run progress fraction or synthetic benchmark is **not** an evidence-based prediction of FFmpeg render time or output file size. No secret, personal media, fake release state, schema migration or destructive SQLite workaround.
+
+## Verified code, tests and CI
+
+[code/test 6534c41](https://github.com/danhgold7979-cyber/fonesi-edit/commit/6534c41ed457f4380b319b9cd83a7409cba8cd10) adds optional cooperative progress/cancel in `batch_plan` and `batch_plan_report`, checks cancellation even during audio assignment, returns no usable plans when canceled, and wires the existing global Qt preparation-cancel control into BatchPage. Regression covers 512 logical sources, no fabricated completion, mid-probe/cancelled audio, stale revision handling and actual Qt Task cancellation. `scripts/benchmark_batch.py` generates and removes its own 0.5-second 640×360 MP4 clones and records FFprobe dry-run throughput, Python memory-tracing peak and process RSS snapshots; source-only, no render, no personal media.
+
+[CI 40914027736](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40914027736) **SUCCESS exact SHA 6534c41**: 627 Linux passed / 626 Windows passed + 1 intentional POSIX-only skip; source, 128-file FFprobe benchmark, desktop/native-host and frozen packaged synthetic/localhost proofs passed on both runners. Windows development artifact uploaded.
+
+**Measured 128-source synthetic planning (same run):**
+
+| CI runner | Planning seconds | Files/second | Python traced peak | RSS before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Ubuntu Linux | 5.937889 | 21.556 | 840520 bytes | 30375936 → 32043008 bytes |
+| Windows Server runner | 10.462162 | 12.235 | 848744 bytes | 32342016 → 33329152 bytes |
+
+These are runner/fixture-specific, and do **not** measure peak FFprobe process RSS, full render speed, ETA/file size, or physical Windows/GPU/4K acceptance. Follow-up [CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) also passed 128-file benchmark on both runners at source SHA d6b218a (Linux 6.336078 s / 20.202 files/s; Windows 8.413274 s / 15.214 files/s), illustrating variability; no strict timing threshold is claimed.

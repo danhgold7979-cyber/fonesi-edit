@@ -18,9 +18,15 @@ P08 cancelled-progress/benchmark source+test SHA `6534c41` and its CI are checke
 
 ## Bounded acceptance
 
-- [ ] Full or zero job enqueue on real SQLite failure, previous jobs untouched; all payloads validated with a single app-owned tool snapshot.
-- [ ] Duplicate/malformed outputs are rejected before insertion; Qt retains safe dry-run on failure and retries with no duplicates.
-- [ ] Legacy `Store.submit` semantics and existing Batch/Matrix/download workflows unaffected; Linux/Windows tests, benchmark and frozen CI PASS on code/test SHA.
+- [x] Full or zero job enqueue on real SQLite failure, previous jobs untouched; all payloads validated with a single app-owned tool snapshot.
+- [x] Duplicate/malformed outputs are rejected before insertion; Qt retains safe dry-run on failure and retries with no duplicates.
+- [x] Legacy `Store.submit` semantics and existing Batch/Matrix/download workflows unaffected; Linux/Windows tests, benchmark and frozen CI PASS on code/test SHA.
 - [ ] Full P08/P11, physical Windows user machine/AV/NTFS/ACL/power-loss soak, live Chrome/provider/GPU/HiDPI and intermittent [SQLite #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) remain OPEN.
 
 No SQLite schema change, force push, `main` merge, destructive WAL repair, downloaded/private media or credential artifacts.
+
+## Verified implementation and evidence
+
+[Source 5c35b2f](https://github.com/danhgold7979-cyber/fonesi-edit/commit/5c35b2f8ab989c05346c01adefe77e27f6e8a0dc) adds `Store.submit_many`: a single app-owned tool snapshot is validated for every payload *before* the transaction, then all rows are inserted under `BEGIN IMMEDIATE` in one `Store.connect()` scope. `enqueue_batch` now checks each composition/output and rejects duplicate resolved targets before publishing anything. Existing single-job submission is unchanged. [code/test d6b218a](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d6b218af9a7bd6cc0ac2a9789c3d9fec224da664) adds SQLite second-INSERT trigger faults proving rollback, preservation of earlier unrelated jobs, full retry, payload/tool consistency, and Qt no-navigation/no-partial-queue until successful retry.
+
+[CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) **SUCCESS exact SHA d6b218a**: 631 Linux passed / 630 Windows passed + 1 intentional POSIX-only skip; source, 128-file FFprobe benchmark, desktop/native-host and frozen packaged synthetic/localhost proofs passed on both runners. Windows development artifact uploaded. No real device installer/NTFS/AV/power-cut, GPU or live-source acceptance is implied, and intermittent [SQLite #6](https://github.com/danhgold7979-cyber/fonesi-edit/issues/6) remains OPEN with UNKNOWN root cause. This prevents deterministic partial batch enqueue but does not repair database corruption.
