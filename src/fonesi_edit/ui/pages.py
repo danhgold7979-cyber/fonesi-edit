@@ -1491,7 +1491,8 @@ class MatrixPage(QWidget):
         durations=self._reordered_vector(self.scene_durations,order,'Thời lượng cảnh')
         transformed=reorder_matrix_scenes(
             self.scenes,self.model.rows,self.model.locked,self.old_history,order,
-            self.window.value(),self.different.value(),self.compare.isChecked())
+            self.window.value(),self.different.value(),self.compare.isChecked(),
+            all_scenes=self._available_scenes if self._history_reordered and self._available_scenes else None)
         current=normalize_matrix_history(
             self.scenes,history(self.host.store,self.scope()),
             all_scenes=self._available_scenes if self._history_reordered and self._available_scenes else None)
