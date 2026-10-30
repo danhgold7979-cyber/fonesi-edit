@@ -21,7 +21,7 @@ from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batc
 from ..matrix import (scan_scenes,scene_directories,scene_manifest,select_matrix_scenes,
                       scene_generation_locks,reorder_matrix_scenes,normalize_matrix_history,
                       generate,history,combination,valid_against,matrix_rows_valid,
-                      regenerate_row,angle_usage,row_composition,enqueue_rows)
+                      regenerate_row,angle_usage,row_composition,enqueue_rows,MatrixEnqueueCancelled)
 from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
                          caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
 from .cue_timeline import CueTimingView
@@ -1239,7 +1239,7 @@ class MatrixModel(QAbstractTableModel):
                 self.rows[index.row()][index.column()-1]=old
                 raise ValueError('Thay góc vi phạm unique/W/K/history')
             # Formula column depends on every scene cell: refresh together.
-            self.page._matrix_revision+=1
+            self.page.matrix_options_changed()
             self.dataChanged.emit(index,self.index(index.row(),len(self.scenes)+1))
             return True
         except (ValueError,StopIteration) as exc:
@@ -1251,7 +1251,7 @@ class MatrixModel(QAbstractTableModel):
 
 class MatrixPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._scene_list_updating=False;self._history_reordered=False;self._available_scenes=[];self._scene_filter_updating=False;self._pin_by_folder={};self._pinned_columns=set();layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._enqueue_task=None;self._scene_list_updating=False;self._history_reordered=False;self._available_scenes=[];self._scene_filter_updating=False;self._pin_by_folder={};self._pinned_columns=set();layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Folder chứa C1…Cn',host,True);self.audio=file_row(form,'Âm thanh chính',host);self.output=file_row(form,'Thư mục xuất',host,True)
         self.count=QSpinBox();self.count.setRange(1,100000);self.count.setValue(10);form.addRow('Số đầu ra',self.count)
         self.window=QSpinBox();self.window.setRange(0,10000);form.addRow('W — không lặp góc trong số video trước',self.window)
@@ -1290,11 +1290,20 @@ class MatrixPage(QWidget):
             widget.valueChanged.connect(lambda _value:self.matrix_options_changed())
         self.compare.toggled.connect(lambda _checked:self.matrix_options_changed())
         self.allocation.currentIndexChanged.connect(lambda _index:self.matrix_options_changed())
+        self.host.editor.changed.connect(self.matrix_options_changed)
+
+    def revoke_pending_enqueue(self):
+        # Cancellation is cooperative: if SQLite has already committed, the
+        # resulting job IDs remain valid and the callback must report that.
+        task=self._enqueue_task
+        if task is not None and task in self.host.tasks:
+            task.cancel.set()
 
     def matrix_options_changed(self):
-        # Pending composition previews and regenerations are only valid for
-        # the exact options from the moment they were requested.
+        # Revision changes revoke stale previews, regenerations AND queue
+        # preparation; immutable jobs committed earlier are never deleted.
         self._matrix_revision+=1
+        self.revoke_pending_enqueue()
 
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
 
@@ -1390,7 +1399,7 @@ class MatrixPage(QWidget):
         if self._scene_filter_updating:return
         # Never let a prior row snapshot render after source/angle selection
         # changes. The queued jobs are independent and remain unchanged.
-        self._matrix_revision+=1
+        self.matrix_options_changed()
         self.scenes=[];self.old_history=[];self._history_reordered=False
         self._pinned_columns=set()
         self.model.replace([],[]);self.refresh_scene_list()
@@ -1400,7 +1409,7 @@ class MatrixPage(QWidget):
     def scan_scene_choices(self):
         if not self.folder.text().strip():
             raise ValueError('Chọn thư mục chứa cảnh trước')
-        self._matrix_revision+=1
+        self.matrix_options_changed()
         revision=self._matrix_revision;folder=Path(self.folder.text())
         self.scenes=[];self.old_history=[];self._history_reordered=False
         self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
@@ -1444,7 +1453,7 @@ class MatrixPage(QWidget):
     def source_folder_changed(self):
         # A newly typed source must never retain rows, locks or async results
         # from a different root; no media or matrix history is deleted.
-        self._matrix_revision+=1
+        self.matrix_options_changed()
         self.scenes=[];self.old_history=[];self._history_reordered=False
         self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
         self._scene_filter_updating=True
@@ -1502,7 +1511,7 @@ class MatrixPage(QWidget):
         selected_row=self.table.currentIndex().row()
         # A failed settings write must not publish partially moved rows/locks.
         self.host.store.set_setting(self.scene_order_key(),ordered)
-        self._matrix_revision+=1
+        self.matrix_options_changed()
         self.scenes=transformed['scenes'];self.old_history=transformed['history']
         self._history_reordered=True
         self.model.replace(self.scenes,transformed['rows'])
@@ -1548,7 +1557,7 @@ class MatrixPage(QWidget):
         # value snapshots and rescans the actual files before using them.
         choices=self._scene_choice_snapshot() if self._available_scenes else None
         manifest=scene_manifest(self._available_scenes) if choices is not None else None
-        self._matrix_revision+=1
+        self.matrix_options_changed()
         folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value()
         w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
         scope=self.scope();revision=self._matrix_revision
@@ -1682,7 +1691,7 @@ class MatrixPage(QWidget):
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
             changed=True
-        if changed:self._matrix_revision+=1
+        if changed:self.matrix_options_changed()
         self.table.viewport().update()
     def statistics(self):
         if not self.model.rows:raise ValueError('Chưa có ma trận để thống kê')
@@ -1738,19 +1747,50 @@ class MatrixPage(QWidget):
             lambda result:self.host.preview_composition(result) if revision==self._matrix_revision
             else self.host.message('Đã bỏ preview vì thứ tự cảnh/cấu hình thay đổi'))
     def enqueue(self):
-        if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
-        if not self.output.text():raise ValueError('Chọn thư mục xuất')
-        rows=deepcopy(self.model.rows);preset=deepcopy(self.host.editor.composition);scope=self.scope();root=Path(self.output.text());audio=self.audio.text() or None;allocation=self.allocation.currentText()
+        if self._enqueue_task is not None and self._enqueue_task in self.host.tasks:
+            raise ValueError('Đang chuẩn bị hàng đợi ma trận; không enqueue hai lần')
+        if not self.model.rows or not self.valid_rows():
+            raise ValueError('Ma trận chưa hợp lệ')
+        if not self.output.text():
+            raise ValueError('Chọn thư mục xuất')
+        # Take an immutable snapshot for the worker. Changes made after this
+        # point revoke its Task.cancel Event rather than mutating in-flight rows.
+        rows=deepcopy(self.model.rows)
+        preset=deepcopy(self.host.editor.composition)
+        scope=self.scope();revision=self._matrix_revision
+        root=Path(self.output.text());audio=self.audio.text() or None
+        allocation=self.allocation.currentText()
         weights=self.duration_weights();durations=self.duration_scene_lengths()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
         minimum,maximum=self.minimum.value(),self.maximum.value()
         scene_order=deepcopy(self.scenes) if self._history_reordered else None
         all_scenes=deepcopy(self._available_scenes) if scene_order is not None and self._available_scenes else None
-        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
-            minimum=minimum,maximum=maximum,window=w,different=k,
-            compare_window=compare,weights=weights,manual_durations=durations,
-            scene_order=scene_order,all_scenes=all_scenes),
-            lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
+        def work(progress,cancel):
+            try:
+                ids=enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
+                    minimum=minimum,maximum=maximum,window=w,different=k,
+                    compare_window=compare,weights=weights,manual_durations=durations,
+                    scene_order=scene_order,all_scenes=all_scenes,
+                    progress=progress,cancel=cancel)
+                return {'ids':ids,'cancelled':False}
+            except MatrixEnqueueCancelled:
+                return {'ids':[],'cancelled':True}
+        def done(result):
+            if result['cancelled']:
+                self.host.message('Đã hủy chuẩn bị ma trận; không ghi thêm job hoặc lịch sử đặt chỗ')
+                return
+            ids=result['ids']
+            if revision!=self._matrix_revision or self.scope()!=scope:
+                self.host.message(f'Đã enqueue {len(ids)} job theo snapshot cũ; thay đổi sau commit không hủy job đã lưu')
+            else:
+                self.host.message(f'Đã enqueue {len(ids)} hàng ma trận')
+            self.host.activate_queue()
+        task=self.host.background(work,done)
+        self._enqueue_task=task
+        task.finished.connect(
+            lambda: setattr(self,'_enqueue_task',None)
+            if self._enqueue_task is task else None)
+
     def csv(self):
         if not self.model.rows or not self.valid_rows():
             raise ValueError('Chưa có ma trận hợp lệ để xuất CSV; hãy sinh lại sau khi chọn cảnh/góc')
@@ -1787,7 +1827,7 @@ class MatrixPage(QWidget):
             if job['state'] in {'pending','running','blocked'} and any(clip.get('path') in paths for clip in job['payload'].get('composition',{}).get('clips',[])):raise ValueError('Nguồn còn được queue dùng; hủy/hoàn tất các job đó trước khi đổi tên')
         paused=self.host.scheduler.paused;self.host.scheduler.paused=True
         def done(result):
-            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self._matrix_revision+=1;self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={};self._scene_filter_updating=True;self.scene_filter.clear();self._scene_filter_updating=False;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
+            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self.matrix_options_changed();self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={};self._scene_filter_updating=True;self.scene_filter.clear();self._scene_filter_updating=False;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
         task=self.host.background(lambda progress,cancel:function(cancel),done)
         task.finished.connect(lambda:setattr(self.host.scheduler,'paused',paused))
 
