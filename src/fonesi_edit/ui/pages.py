@@ -865,7 +865,7 @@ class BatchPage(QWidget):
         self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
         self.audio_folder=file_row(form,'Thư mục nhiều audio (khi ghép riêng)',host,True)
         self.audio_mode=QComboBox()
-        for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random')]:
+        for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random'),('Playlist thủ công (nhiều thư mục)','playlist')]:
             self.audio_mode.addItem(label,mode)
         form.addRow('Ghép âm thanh chính',self.audio_mode)
         self.audio_playlist_label=QLabel('Playlist audio thủ công')
