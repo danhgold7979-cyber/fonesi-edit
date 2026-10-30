@@ -934,8 +934,8 @@ class BatchPage(QWidget):
         for field in (self.audio,self.audio_folder):
             field.textChanged.connect(lambda _:self.invalidate_plan())
         self.audio_playlist.textChanged.connect(lambda _:self.invalidate_plan())
-        self.audio_playlist_pick.clicked.connect(self.select_audio_playlist)
-        self.audio_playlist_clear.clicked.connect(self.clear_audio_playlist)
+        self.audio_playlist_pick.clicked.connect(lambda _checked=False:self.select_audio_playlist())
+        self.audio_playlist_clear.clicked.connect(lambda _checked=False:self.clear_audio_playlist())
         self.audio_mode.currentIndexChanged.connect(self.audio_mode_changed)
         self.policy.currentIndexChanged.connect(lambda _:self.invalidate_plan())
         self.update_playlist_controls()
@@ -1180,7 +1180,7 @@ class BatchPage(QWidget):
         plans=report['plans'] if isinstance(report,dict) else report
         self.plan_failures=report.get('failures',[]) if isinstance(report,dict) else []
         self.plans=plans
-        preview='\n'.join(p['output']+(' • audio: '+Path(p['audio_source']).name if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
+        preview='\n'.join(p['output']+(' • audio: '+p['audio_source'] if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
         skipped=''
         if self.plan_failures:
             detail=', '.join(Path(f['source']).name+' ('+f['reason']+')'

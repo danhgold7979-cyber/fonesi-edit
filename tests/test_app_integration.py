@@ -1451,6 +1451,8 @@ def test_batch_manual_audio_playlist_picker_order_clear_and_dry_run_snapshot(tmp
         captured['done'](report)
         assert page.plans==[]
         assert 'Đã bỏ bản dry-run cũ' in window.status.text()
+        page.planned({'plans':[{'output':'planned.mp4','audio_source':str(audio_a)}],'failures':[]})
+        assert str(audio_a) in page.summary.text()  # Same basenames across folders remain distinguishable.
         page.clear_audio_playlist()
         assert page.audio_playlist.toPlainText()==''
         page.audio_mode.setCurrentIndex(page.audio_mode.findData('shared'))
