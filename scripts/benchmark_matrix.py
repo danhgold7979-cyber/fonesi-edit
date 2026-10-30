@@ -64,7 +64,7 @@ def benchmark(scenes: int = 12, angles: int = 5, outputs: int = 200,
         "platform": platform.platform(),
         "limitations": ("Generated logical source IDs only; no FFprobe, FFmpeg "
                         "render, large real-media corpus, Windows device, GPU "
-                        "or claim that an incomplete search proves UNSAT."),
+                        "; no claim that an incomplete search proves UNSAT."),
     }
 
 
