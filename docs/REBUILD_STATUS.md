@@ -96,3 +96,6 @@ New cpu_snapshot.py has separately tagged version1 canonical immutable source/de
 ## Owned stable-input preparation primitive
 
 prepared_input.py copies to an owned temporary input, checks explicit SHA256, byte budget, cooperative timeout/cancel and source identity/timestamps before yielding, closes source handle before consumer work, and cleans only owned staging. Snapshot creation still does no IO; this is a separate opt-in primitive and is not yet wired into queue/render. Consumer failure/fsync fault/stale hash/concurrent-source mutation/bounds/symlink regressions covered; 127 local tests PASS. Symlink regression is explicitly skipped when host cannot create symlinks, not counted as verified there. No hostile-filesystem isolation or hard syscall-timeout guarantee.
+
+
+Windows CI41117830249 on aebe7f1: Linux both PASS127; Windows both FAIL (1 failure/1 error) at pre-open lstat/fstat identity comparison before copy. Existing happy-path copy and several guards passed; do not infer all identity fields are generally incompatible or weaken the guard. Added fixed differing-field names only to the existing failure for exact hosted diagnosis; no raw paths/file IDs/timestamps and no changed acceptance. Windows stable-input support remains FAIL pending evidence-backed correction.

@@ -71,8 +71,19 @@ def stage_verified_input(
     descriptor = os.open(source, flags)
     with os.fdopen(descriptor, "rb") as reader:
         opened = os.fstat(reader.fileno())
-        if not stat.S_ISREG(opened.st_mode) or _identity(opened) != _identity(original):
-            raise ValueError("INPUT_CHANGED")
+        if not stat.S_ISREG(opened.st_mode):
+            raise ValueError("INPUT_CHANGED_KIND")
+        if _identity(opened) != _identity(original):
+            fields = ("DEVICE", "INODE", "SIZE", "MTIME", "CTIME")
+            changed = [
+                name
+                for name, before, after in zip(
+                    fields, _identity(original), _identity(opened)
+                )
+                if before != after
+            ]
+            # Fixed field names only: no path, file/volume IDs or timestamps in logs.
+            raise ValueError("INPUT_CHANGED_PREOPEN_" + "_".join(changed))
         with tempfile.TemporaryDirectory(
             prefix=".fonesi-input-", dir=staging_parent
         ) as directory:
