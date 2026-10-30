@@ -1749,6 +1749,8 @@ class MatrixPage(QWidget):
             scene_order=scene_order,all_scenes=all_scenes),
             lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
+        if not self.model.rows or not self.valid_rows():
+            raise ValueError('Chưa có ma trận hợp lệ để xuất CSV; hãy sinh lại sau khi chọn cảnh/góc')
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
         if path:
             with Path(path).open('w',encoding='utf-8-sig',newline='') as stream:
@@ -1757,9 +1759,14 @@ class MatrixPage(QWidget):
 
     def rename_preview(self):
         if not self.scenes:raise ValueError('Quét cảnh trước')
-        if (self._available_scenes and set(scene_directories(self.scenes))
-                !=set(scene_directories(self._available_scenes))):
-            raise ValueError('Đổi tên file thật yêu cầu đủ mọi cảnh; hãy bật lại cảnh đã loại')
+        if self._available_scenes:
+            active={folder:{angle.path for angle in scene}
+                    for folder,scene in zip(scene_directories(self.scenes),self.scenes)}
+            original={folder:{angle.path for angle in scene}
+                      for folder,scene in zip(scene_directories(self._available_scenes),
+                                             self._available_scenes)}
+            if active!=original:
+                raise ValueError('Đổi tên file thật yêu cầu đủ mọi cảnh/góc; hãy bật lại nguồn đã loại')
         from ..renaming import scene_rename_plan,apply_rename
         operations=scene_rename_plan(self.scenes)
         if not operations:raise ValueError('Tên C/G đã đúng')
