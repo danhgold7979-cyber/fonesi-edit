@@ -2,6 +2,8 @@
 from pathlib import Path
 import time
 
+import pytest
+
 from fonesi_edit.domain import Composition
 from fonesi_edit.jobs import Scheduler
 from fonesi_edit.matrix import Angle, enqueue_rows, history
