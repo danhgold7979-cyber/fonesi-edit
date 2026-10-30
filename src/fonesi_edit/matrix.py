@@ -106,6 +106,8 @@ def scene_generation_locks(scenes,pins,count,window=0,locks=None):
     if count>effective:
         raise ValueError('Số tổ hợp khả thi không đủ với khóa góc toàn cảnh')
     merged={int(row):dict(columns) for row,columns in (locks or {}).items()}
+    if not pins:
+        return merged
     for row in range(count):
         slots=merged.setdefault(row,{})
         for scene_index,digest in pins.items():
@@ -122,8 +124,10 @@ def normalize_matrix_history(scenes, previous, all_scenes=None):
     explicitly filtered matrix supplies its complete scanned universe, older
     rows may include extra hashes from intentionally excluded scenes; they
     are projected away only if every hash is uniquely attributable and every
-    enabled scene appears exactly once. A missing/ambiguous hash fails closed.
-    Nothing is ever written back to SQLite history.
+    enabled scene appears exactly once. A *known* shorter historical scene-set
+    is structurally incomparable and cannot match the selected combination,
+    so it is not projected into W/K. An unknown/ambiguous hash still fails
+    closed. Nothing is ever written back to SQLite history.
     """
     selected_folders=scene_directories(scenes)
     universe=scenes if all_scenes is None else all_scenes
@@ -153,7 +157,13 @@ def normalize_matrix_history(scenes, previous, all_scenes=None):
                 raise ValueError('Matrix history contains more than one angle from the same scene')
             mapped[folder]=digest
         if any(folder not in mapped for folder in selected_folders):
-            raise ValueError('Matrix history is missing a source scene')
+            if all_scenes is None:
+                raise ValueError('Matrix history is missing a source scene')
+            # The old output intentionally used a smaller/different known
+            # set of scenes. It cannot duplicate a composition containing
+            # additional source scenes. A full old output still projects
+            # conservatively into any requested subset above.
+            continue
         aligned.append([mapped[folder] for folder in selected_folders])
     return aligned
 
