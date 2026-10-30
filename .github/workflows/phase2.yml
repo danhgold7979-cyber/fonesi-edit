@@ -58,6 +58,8 @@ jobs:
         run: uv run pytest -q --junitxml=desktop-tests.xml
       - name: Benchmark 128 synthetic Batch videos (FFprobe dry-run only)
         run: uv run python scripts/benchmark_batch.py --copies 128 --output .local/batch-benchmark.json
+      - name: Benchmark 10-billion-space Matrix balance (logical IDs only)
+        run: uv run python scripts/benchmark_matrix.py --scenes 10 --angles 10 --outputs 2000 --window 1 --different 2 --seed 91 --budget-seconds 10 --balance-candidates 4 --output .local/matrix-benchmark.json --require-complete
       - name: Build production desktop and native host
         run: uv run python scripts/build_desktop.py --native-host
       - name: Exercise packaged application and workers
@@ -72,6 +74,7 @@ jobs:
           path: |
             desktop-tests.xml
             .local/batch-benchmark.json
+            .local/matrix-benchmark.json
             .local/packaged-ci/proof.json
             .local/packaged-ci/frame-*.png
             .local/packaged-ci/desktop.png
