@@ -12,13 +12,14 @@ import time
 from PySide6.QtCore import Qt,QAbstractTableModel,QModelIndex,QTimer
 from PySide6.QtGui import QColor,QDesktopServices
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPushButton,QLabel,QLineEdit,QPlainTextEdit,
-    QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QFileDialog,QTableWidget,QTableWidgetItem,QTableView,QTreeWidget,
+    QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QFileDialog,QTableWidget,QTableWidgetItem,QTableView,QTreeWidget,QListWidget,QListWidgetItem,QAbstractItemView,
     QTreeWidgetItem,QHeaderView,QTabWidget,QInputDialog,QApplication,QMessageBox,QToolBar,QDialog,QDialogButtonBox)
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS,AUDIO_EXTENSIONS
-from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
+from ..matrix import (scan_scenes,scene_directories,reorder_matrix_scenes,normalize_matrix_history,generate,history,
+                      combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows)
 from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
                          caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
 from .cue_timeline import CueTimingView
@@ -1247,7 +1248,7 @@ class MatrixModel(QAbstractTableModel):
 
 class MatrixPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.scenes=[];self.old_history=[];layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._scene_list_updating=False;self._history_reordered=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Folder chứa C1…Cn',host,True);self.audio=file_row(form,'Âm thanh chính',host);self.output=file_row(form,'Thư mục xuất',host,True)
         self.count=QSpinBox();self.count.setRange(1,100000);self.count.setValue(10);form.addRow('Số đầu ra',self.count)
         self.window=QSpinBox();self.window.setRange(0,10000);form.addRow('W — không lặp góc trong số video trước',self.window)
@@ -1260,20 +1261,144 @@ class MatrixPage(QWidget):
         self.scene_weights=QLineEdit();self.scene_weights.setPlaceholderText('Trọng số từng cảnh, ví dụ: 1,2,1');form.addRow('Trọng số cảnh (nếu chọn weights)',self.scene_weights)
         self.scene_durations=QLineEdit();self.scene_durations.setPlaceholderText('Thời lượng mỗi cảnh (s), ví dụ: 2.5,4,3');form.addRow('Giây/cảnh (nếu chọn manual)',self.scene_durations)
         buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        layout.addWidget(QLabel('Thứ tự cảnh (kéo để đổi, hoặc chọn cảnh rồi dùng Lên/Xuống). C là vị trí logic; tên folder và tệp gốc không đổi.'))
+        self.scene_list=QListWidget();self.scene_list.setMaximumHeight(140)
+        self.scene_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.scene_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.scene_list.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.scene_list.setDropIndicatorShown(True)
+        layout.addWidget(self.scene_list)
+        buttons(layout,host,[('Cảnh lên',lambda:self.move_scene(-1)),('Cảnh xuống',lambda:self.move_scene(1))])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        self.scene_list.model().rowsMoved.connect(lambda *_:self.scene_list_reordered())
+        self.folder.textChanged.connect(lambda _:self.source_folder_changed())
+
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
+
+    def scene_order_key(self):
+        root=str(Path(self.folder.text()).expanduser().resolve())
+        return 'matrix_scene_order_v1:'+hashlib.sha256(root.encode()).hexdigest()
+
+    def source_folder_changed(self):
+        # A newly typed source must never retain rows, locks or async results
+        # from a different root; no media or matrix history is deleted.
+        self._matrix_revision+=1
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self.model.replace([],[])
+        self.refresh_scene_list()
+        self.summary.setText('Đã đổi nguồn cảnh; quét/sinh lại trước khi preview hoặc render.')
+
+    def refresh_scene_list(self,selected=None):
+        self._scene_list_updating=True
+        try:
+            self.scene_list.clear()
+            for index,(folder,scene) in enumerate(zip(scene_directories(self.scenes),self.scenes)):
+                item=QListWidgetItem(f'C{index+1} ← {Path(folder).name} • {len(scene)} góc')
+                item.setData(Qt.ItemDataRole.UserRole,folder)
+                item.setToolTip(folder)
+                self.scene_list.addItem(item)
+                if selected==folder:self.scene_list.setCurrentItem(item)
+        finally:
+            self._scene_list_updating=False
+
+    def _reordered_vector(self,field,order,description):
+        value=field.text().strip()
+        if not value:return ''
+        parts=[piece.strip() for piece in value.split(',')]
+        if (len(parts)!=len(order) or any(not piece for piece in parts)):
+            raise ValueError(description+' cần đúng một số cho mỗi cảnh trước khi đổi thứ tự')
+        try:
+            numbers=[float(piece) for piece in parts]
+        except ValueError:
+            raise ValueError(description+' chứa số không hợp lệ') from None
+        if any(not math.isfinite(number) or number<=0 for number in numbers):
+            raise ValueError(description+' chỉ chấp nhận số dương hữu hạn')
+        return ','.join(parts[index] for index in order)
+
+    def apply_scene_order(self,order,selected=None):
+        if not self.scenes:raise ValueError('Quét và sinh ma trận trước khi đổi cảnh')
+        before=scene_directories(self.scenes)
+        if list(order)==list(range(len(before))):
+            self.refresh_scene_list(selected)
+            return False
+        weights=self._reordered_vector(self.scene_weights,order,'Trọng số cảnh')
+        durations=self._reordered_vector(self.scene_durations,order,'Thời lượng cảnh')
+        transformed=reorder_matrix_scenes(
+            self.scenes,self.model.rows,self.model.locked,self.old_history,order,
+            self.window.value(),self.different.value(),self.compare.isChecked())
+        current=normalize_matrix_history(self.scenes,history(self.host.store,self.scope()))
+        if current!=self.old_history:
+            raise ValueError('Lịch sử ma trận đã thay đổi hoặc không cùng thứ tự; sinh lại trước')
+        ordered=[before[index] for index in order]
+        # A failed settings write must not publish partially moved rows/locks.
+        self.host.store.set_setting(self.scene_order_key(),ordered)
+        self._matrix_revision+=1
+        self.scenes=transformed['scenes'];self.old_history=transformed['history']
+        self._history_reordered=True
+        self.model.replace(self.scenes,transformed['rows'])
+        self.model.locked=transformed['locked']
+        self.scene_weights.setText(weights)
+        self.scene_durations.setText(durations)
+        self.refresh_scene_list(selected)
+        self.summary.setText('Đã đổi thứ tự cảnh logic; mỗi góc/ô khóa/giây cảnh giữ đúng nguồn. Job cũ không đổi; Preview/Render mới sẽ dùng thứ tự này.')
+        return True
+
+    def move_scene(self,direction):
+        index=self.scene_list.currentRow()
+        target=index+direction
+        if index<0 or not 0<=target<len(self.scenes):
+            raise ValueError('Chọn cảnh có thể chuyển lên hoặc xuống')
+        current=scene_directories(self.scenes)
+        order=list(range(len(current)))
+        order[index],order[target]=order[target],order[index]
+        return self.apply_scene_order(order,selected=current[index])
+
+    def scene_list_reordered(self):
+        if self._scene_list_updating or not self.scenes:return
+        before=scene_directories(self.scenes)
+        selected=self.scene_list.currentItem()
+        selected_key=selected.data(Qt.ItemDataRole.UserRole) if selected is not None else None
+        try:
+            requested=[self.scene_list.item(i).data(Qt.ItemDataRole.UserRole)
+                       for i in range(self.scene_list.count())]
+            order=[before.index(key) for key in requested]
+            self.apply_scene_order(order,selected_key)
+        except (ValueError,OSError) as exc:
+            self.refresh_scene_list(selected_key)
+            self.host.message('Không đổi thứ tự cảnh: '+str(exc))
+
     def generate(self):
         folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value();w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
-        self.old_history=history(self.host.store,self.scope())
+        scope=self.scope();revision=self._matrix_revision
+        saved=self.host.store.setting(self.scene_order_key(),[])
         locks={}
         for row,col in self.model.locked:
             if col>0 and col<=len(self.model.scenes):locks.setdefault(row,{})[col-1]=self.model.rows[row][col-1].hash
-        old=self.old_history
         def work(progress,cancel):
-            scenes=scan_scenes(folder);result=generate(scenes,n,seed,w,k,compare,old,seconds=10,locks=locks,cancel=cancel);return scenes,result
+            scenes=scan_scenes(folder)
+            natural=scene_directories(scenes)
+            reordered=(isinstance(saved,list) and len(saved)==len(natural)
+                       and len(set(saved))==len(natural) and set(saved)==set(natural))
+            if reordered:
+                order=[natural.index(value) for value in saved]
+                scenes=reorder_matrix_scenes(scenes,[],set(),[],order)['scenes']
+            prior=history(self.host.store,scope)
+            if reordered:
+                prior=normalize_matrix_history(scenes,prior)
+            result=generate(scenes,n,seed,w,k,compare,prior,seconds=10,locks=locks,cancel=cancel)
+            return scenes,prior,reordered,result
         def done(data):
-            self.scenes,result=data;self.model.replace(self.scenes,result['rows']);self.summary.setText(f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}. "+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
+            if (revision!=self._matrix_revision or self.scope()!=scope
+                    or self.folder.text()!=str(folder)
+                    or (self.count.value(),self.seed.value(),self.window.value(),
+                        self.different.value(),self.compare.isChecked())!=(n,seed,w,k,compare)):
+                self.host.message('Đã bỏ ma trận sinh nền vì nguồn/cấu hình/thứ tự cảnh thay đổi')
+                return
+            self.scenes,self.old_history,self._history_reordered,result=data
+            self.model.replace(self.scenes,result['rows'])
+            self.refresh_scene_list()
+            self.summary.setText(f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}. "+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
             if not self.output.text():self.output.setText(str(folder.parent/(folder.name+' edit')))
         self.host.background(work,done)
     def valid_rows(self):
@@ -1293,12 +1418,13 @@ class MatrixPage(QWidget):
         previous=[list(entry) for entry in self.old_history]
         scope=self.scope()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
-        seed=self.seed.value()
+        seed=self.seed.value();revision=self._matrix_revision;reordered=self._history_reordered
         locked={column-1:current[row][column-1].hash
                 for r,column in self.model.locked
                 if r==row and 1<=column<=len(scenes)}
         def work(progress,cancel):
             latest=history(self.host.store,scope)
+            if reordered:latest=normalize_matrix_history(scenes,latest)
             if latest!=previous:
                 raise ValueError('Lịch sử đặt chỗ đã thay đổi; hãy sinh lại ma trận')
             return regenerate_row(scenes,current,row,seed,w,k,compare,
@@ -1306,12 +1432,14 @@ class MatrixPage(QWidget):
         def done(result):
             # Async worker must never overwrite edits, locks or constraints
             # the user changed while regeneration was running.
-            if ([combination(item) for item in self.model.rows]!=baseline
+            if (revision!=self._matrix_revision
+                    or [combination(item) for item in self.model.rows]!=baseline
                     or [[angle.hash for angle in scene] for scene in self.model.scenes]
                        !=[[angle.hash for angle in scene] for scene in scenes]
                     or self.scope()!=scope
                     or self.old_history!=previous
-                    or history(self.host.store,scope)!=previous
+                    or (normalize_matrix_history(scenes,history(self.host.store,scope))
+                        if reordered else history(self.host.store,scope))!=previous
                     or (self.window.value(),self.different.value(),
                         self.compare.isChecked(),self.seed.value())!=(w,k,compare,seed)
                     or {column-1:self.model.rows[row][column-1].hash
@@ -1382,8 +1510,11 @@ class MatrixPage(QWidget):
         preset=deepcopy(self.host.editor.composition);angles=self.model.rows[row];audio=self.audio.text() or None;allocation=self.allocation.currentText()
         weights=self.duration_weights();durations=self.duration_scene_lengths()
         minimum,maximum=self.minimum.value(),self.maximum.value()
+        revision=self._matrix_revision
         self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,
-            minimum=minimum,maximum=maximum,weights=weights,manual_durations=durations),self.host.preview_composition)
+            minimum=minimum,maximum=maximum,weights=weights,manual_durations=durations),
+            lambda result:self.host.preview_composition(result) if revision==self._matrix_revision
+            else self.host.message('Đã bỏ preview vì thứ tự cảnh/cấu hình thay đổi'))
     def enqueue(self):
         if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
         if not self.output.text():raise ValueError('Chọn thư mục xuất')
@@ -1391,9 +1522,10 @@ class MatrixPage(QWidget):
         weights=self.duration_weights();durations=self.duration_scene_lengths()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
         minimum,maximum=self.minimum.value(),self.maximum.value()
+        scene_order=deepcopy(self.scenes) if self._history_reordered else None
         self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
             minimum=minimum,maximum=maximum,window=w,different=k,
-            compare_window=compare,weights=weights,manual_durations=durations),
+            compare_window=compare,weights=weights,manual_durations=durations,scene_order=scene_order),
             lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
@@ -1421,7 +1553,7 @@ class MatrixPage(QWidget):
             if job['state'] in {'pending','running','blocked'} and any(clip.get('path') in paths for clip in job['payload'].get('composition',{}).get('clips',[])):raise ValueError('Nguồn còn được queue dùng; hủy/hoàn tất các job đó trước khi đổi tên')
         paused=self.host.scheduler.paused;self.host.scheduler.paused=True
         def done(result):
-            self.host.relink_renamed(result['mapping']);self.scenes=[];self.model.replace([],[]);self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
+            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self._matrix_revision+=1;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
         task=self.host.background(lambda progress,cancel:function(cancel),done)
         task.finished.connect(lambda:setattr(self.host.scheduler,'paused',paused))
 
