@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
     QAbstractSpinBox,QComboBox,QAbstractItemView,QAbstractSlider,QAbstractButton)
 
 from .domain import Composition,atomic_json,canonical,identifier
+from .presets import build_preset_document,parse_preset_file
 from .paths import data_directory
 from .storage import Store
 from .jobs import Scheduler
@@ -467,9 +468,9 @@ class MainWindow(QMainWindow):
     def save_preset(self):
         name,ok=QInputDialog.getText(self,'Lưu preset','Tên preset')
         if ok:
-            c=deepcopy(self.editor.composition);c.clips=[]
-            for layer in c.layers:layer.clip_ids=[]
-            self.store.save_named('presets',name,c.to_dict());self.message('Đã lưu preset không kèm tệp video nguồn')
+            document=build_preset_document(self.editor.composition,name)
+            self.store.save_named('presets',document['name'],document['composition'])
+            self.message('Đã lưu preset không kèm video nguồn; các tài nguyên ngoài vẫn được tham chiếu theo đường dẫn')
 
     def load_preset(self):
         items=self.store.list_named('presets')
@@ -484,18 +485,23 @@ class MainWindow(QMainWindow):
     def export_preset(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất preset',filter='Fonesi preset (*.fonesipreset)')
         if not path:return
-        comp=Composition.from_dict(self.editor.composition.to_dict());comp.clips=[]
-        for layer in comp.layers:layer.clip_ids=[]
-        atomic_json(Path(path),{'schema_version':1,'name':Path(path).stem,'composition':comp.to_dict()});self.message('Đã xuất preset; logo/font/audio vẫn tham chiếu đường dẫn, không sao chép tệp riêng')
+        document=build_preset_document(self.editor.composition,Path(path).stem)
+        atomic_json(Path(path),document)
+        self.message('Đã xuất preset; logo/font/audio vẫn tham chiếu đường dẫn, không sao chép tệp riêng')
 
     def import_preset(self):
         path,_=QFileDialog.getOpenFileName(self,'Nhập preset',filter='Fonesi preset (*.fonesipreset *.json)')
         if not path:return
-        data=json.loads(Path(path).read_text(encoding='utf-8'))
-        if data.get('schema_version')!=1:raise ValueError('Preset schema không hỗ trợ')
-        comp=Composition.from_dict(data['composition']);comp.clips=[]
-        for layer in comp.layers:layer.clip_ids=[]
-        self.store.save_named('presets',str(data.get('name',Path(path).stem))[:120],comp.to_dict());self.message('Đã nhập preset; dùng Nạp preset và kiểm tra các tài nguyên đi kèm')
+        parsed=parse_preset_file(path)
+        # Validate the complete document before the first persistent write.
+        self.store.save_named('presets',parsed.name,parsed.composition.to_dict())
+        if parsed.missing_assets:
+            details=', '.join(parsed.missing_assets[:5])
+            remaining=len(parsed.missing_assets)-5
+            suffix=f' và {remaining} tài nguyên khác' if remaining>0 else ''
+            self.message(f'Đã nhập preset, nhưng cần kiểm tra tài nguyên tham chiếu bị thiếu: {details}{suffix}')
+        else:
+            self.message('Đã nhập preset hợp lệ; dùng Nạp preset để áp dụng vào project hiện tại')
 
     def relink(self):
         root=QFileDialog.getExistingDirectory(self,'Folder media mới')
