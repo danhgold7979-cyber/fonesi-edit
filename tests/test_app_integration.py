@@ -1226,7 +1226,7 @@ def test_audio_dialog_sfx_anchor_round_trip_and_input_validation(tmp_path,monkey
                 {'path':path,'mode':'sfx','volume':.8,
                  'placement':'percent','position_pct':65,'offset':.1}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==17
+        assert dialog.table.columnCount()==18
         assert dialog.table.cellWidget(0,11).currentData()=='percent'
         assert dialog.table.item(0,12).text()=='65'
         dialog.table.cellWidget(0,11).setCurrentIndex(
@@ -1492,7 +1492,7 @@ def test_audio_dialog_music_loop_crossfade_round_trip_and_mode_guard(tmp_path,mo
             clips=[Clip('video.mp4',end=1)],
             audio=[{'path':sample,'mode':'music','loop':True,'loop_crossfade':.2}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==17
+        assert dialog.table.columnCount()==18
         assert dialog.table.item(0,14).text()=='0.2'
         dialog.table.item(0,14).setText('0.15')
         dialog.apply()
@@ -1521,7 +1521,7 @@ def test_sfx_repeat_audio_dialog_round_trip_and_invalid_count(tmp_path,monkeypat
             clips=[Clip(source,end=1)],audio=[
                 {'path':source,'mode':'sfx','repeat_count':2,'repeat_interval':.2}]))
         dialog=AudioDialog(window.editor)
-        assert dialog.table.columnCount()==17
+        assert dialog.table.columnCount()==18
         assert dialog.table.item(0,15).text()=='2'
         assert dialog.table.item(0,16).text()=='0.2'
         dialog.table.item(0,15).setText('3')
@@ -1539,6 +1539,40 @@ def test_sfx_repeat_audio_dialog_round_trip_and_invalid_count(tmp_path,monkeypat
         assert window.editor.composition.audio[0]['repeat_count']==3
     finally:
         close(window)
+
+def test_sfx_custom_trigger_times_dialog_round_trip_and_invalid_input(tmp_path,monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from fonesi_edit.ui.dialogs import AudioDialog
+    window=MainWindow(tmp_path/'state')
+    try:
+        media=create_fixture(tmp_path/'media',duration=1)
+        source=str(media['source'])
+        window.editor.set_composition(Composition(width=320,height=180,fps=25,
+            clips=[Clip(source,end=1)],audio=[
+                {'path':source,'mode':'sfx','trigger_times':[.1,.4,.75]}]))
+        dialog=AudioDialog(window.editor)
+        assert dialog.table.columnCount()==18
+        assert dialog.table.item(0,17).text()=='0.1, 0.4, 0.75'
+        dialog.table.item(0,17).setText('0.15; 0.43, 0.81')
+        dialog.apply()
+        saved=window.editor.composition.audio[0]
+        assert saved['trigger_times']==[.15,.43,.81]
+        reopened=AudioDialog(window.editor)
+        assert reopened.table.item(0,17).text()=='0.15, 0.43, 0.81'
+        warnings=[]
+        monkeypatch.setattr(QMessageBox,'warning',lambda *args:warnings.append(args[2]))
+        reopened.table.item(0,17).setText('0.2, nope')
+        reopened.apply()
+        assert warnings and 'không phải số' in warnings[-1]
+        assert window.editor.composition.audio[0]['trigger_times']==[.15,.43,.81]
+        reopened.table.item(0,17).setText('0.2, 0.6')
+        reopened.table.cellWidget(0,1).setCurrentText('music')
+        reopened.apply()
+        assert warnings[-1] and 'chỉ dùng cho SFX' in warnings[-1]
+        assert window.editor.composition.audio[0]['mode']=='sfx'
+    finally:
+        close(window)
+
 
 def test_save_as_creates_independent_file_and_project_record(tmp_path, monkeypatch):
     window = MainWindow(tmp_path / 'state')

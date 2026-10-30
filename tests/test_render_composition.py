@@ -598,6 +598,72 @@ def test_repeated_sfx_invalid_configuration_is_rejected(track):
         composition.validate()
 
 
+@pytest.mark.parametrize('trigger_times',[
+    [],[0],[0,.2,.2],[.2,.1],[0,-.1],[0,float('nan')],[0,float('inf')],
+    [0,86401],[0,'1'],[0,True],tuple([0,.2]),'0,.2',list(range(33)),
+])
+def test_custom_sfx_trigger_times_reject_invalid_schedules(trigger_times):
+    composition=Composition(clips=[Clip('unused.mp4',end=1)],audio=[
+        {'path':'sfx.wav','mode':'sfx','trigger_times':trigger_times}])
+    with pytest.raises(ValueError,match='Custom SFX trigger times'):
+        composition.validate()
+
+
+@pytest.mark.parametrize('overrides',[
+    {'mode':'music'},
+    {'placement':'percent','position_pct':20},
+    {'offset':.1},
+    {'repeat_count':2,'repeat_interval':.2},
+    {'loop':True},
+])
+def test_custom_sfx_trigger_times_reject_conflicting_track_modes(overrides):
+    track={'path':'sfx.wav','mode':'sfx','trigger_times':[.1,.4]}
+    track.update(overrides)
+    composition=Composition(clips=[Clip('unused.mp4',end=1)],audio=[track])
+    with pytest.raises(ValueError,match='Custom SFX trigger times'):
+        composition.validate()
+
+
+def test_custom_sfx_trigger_times_round_trip_in_composition_payload():
+    composition=Composition(clips=[Clip('unused.mp4',end=1)],audio=[
+        {'path':'sfx.wav','mode':'sfx','trigger_times':[0,.27,.91]}])
+    restored=Composition.from_dict(composition.to_dict())
+    assert restored.audio[0]['trigger_times']==[0,.27,.91]
+
+
+def test_custom_sfx_trigger_times_render_non_uniform_audible_events(tmp_path):
+    from array import array
+    import subprocess
+    from fonesi_edit.render import compile_graph
+    from fonesi_edit.prototypes.tools import locate_tool
+    source=str(create_fixture(tmp_path/'media',duration=1)['source'])
+    composition=Composition(width=320,height=180,fps=25,encoder='cpu',
+        clips=[Clip(source,end=1)],mute_original=True,audio=[{
+            'path':source,'mode':'sfx','trigger_times':[.1,.4,.75],
+            'trim_end':.12,'volume':1}])
+    args,graph,total=compile_graph(composition,tmp_path/'graph')
+    assert abs(total-1)<.01
+    assert all(f'adelay={value}:all=1' in graph for value in (100,400,750))
+    assert 'amix=inputs=3:normalize=0:duration=longest[sfxtriggered0]' in graph
+    assert args.count(source)==4  # Video input plus three independent SFX inputs.
+    output=tmp_path/'custom-sfx.mp4'
+    result=render_composition(composition,output)
+    assert result['validated']
+    decoded=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(output),
+        '-vn','-ac','1','-ar','48000','-f','s16le','-'],
+        capture_output=True,check=True).stdout
+    samples=array('h');samples.frombytes(decoded)
+    assert len(samples)>43000
+    def peak(start,end):
+        return max(abs(sample) for sample in samples[round(start*48000):round(end*48000)])
+    assert peak(.02,.08)<20 and peak(.23,.34)<20 and peak(.55,.68)<20
+    assert peak(.13,.20)>100 and peak(.43,.50)>100 and peak(.78,.85)>100
+    invalid=deepcopy(composition)
+    invalid.audio[0]['trigger_times']=[.1,.4,1.0]
+    with pytest.raises(ValueError,match='outside the output timeline'):
+        compile_graph(invalid,tmp_path/'invalid-custom-sfx')
+
+
 def test_sfx_repeat_anchors_render_two_audible_events_without_leaking_outside(tmp_path):
     from array import array
     import subprocess

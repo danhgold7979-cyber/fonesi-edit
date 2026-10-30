@@ -239,6 +239,21 @@ class Composition:
                 number=track.get('scene_index')
                 if type(number) is not int or not 1<=number<=len(self.clips):
                     raise ValueError('SFX scene index must reference an existing clip (1-based)')
+            trigger_times=track.get('trigger_times')
+            if trigger_times is not None:
+                if track.get('mode','music')!='sfx':
+                    raise ValueError('Custom SFX trigger times require an SFX track')
+                if not isinstance(trigger_times,list) or not 2<=len(trigger_times)<=32:
+                    raise ValueError('Custom SFX trigger times must contain 2 to 32 timestamps')
+                previous=-1.0
+                for timestamp in trigger_times:
+                    if (type(timestamp) not in (int,float) or not math.isfinite(timestamp)
+                            or not 0<=timestamp<=86400 or timestamp<=previous):
+                        raise ValueError('Custom SFX trigger times must be finite, ordered, unique values from 0 to 86400 seconds')
+                    previous=float(timestamp)
+                if (placement!='absolute' or track.get('offset',0)!=0
+                        or repeats!=1 or interval!=0 or track.get('loop')):
+                    raise ValueError('Custom SFX trigger times require absolute placement, zero offset, no repeat, and no loop')
         ids = [item.id for item in [*self.clips, *self.layers]]
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate clip/layer IDs")

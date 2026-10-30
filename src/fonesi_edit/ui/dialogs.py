@@ -398,7 +398,7 @@ class AudioDialog(QDialog):
         delete=QPushButton('Bỏ track chọn');delete.clicked.connect(self.remove);row.addWidget(delete)
         self.mute=QCheckBox('Tắt tiếng video gốc');self.mute.setChecked(editor.composition.mute_original);row.addWidget(self.mute)
         layout.addWidget(QLabel('SFX: Offset là giây sau mốc (đầu cảnh / phần trăm), hoặc giây TRƯỚC mốc (cuối cảnh / cuối video). Cảnh đánh số từ 1.'))
-        self.table=QTableWidget(0,17);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Offset s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo','Mốc SFX','Vị trí %','Cảnh #','Crossfade lặp (s)','SFX số lần','SFX cách (s)']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
+        self.table=QTableWidget(0,18);self.table.setHorizontalHeaderLabels(['Tệp','Vai trò','Volume','Offset s','Lặp','Fade in s','Fade out s','Cắt đầu s','Cắt cuối s (0=hết)','Mute','Solo','Mốc SFX','Vị trí %','Cảnh #','Crossfade lặp (s)','SFX số lần','SFX cách (s)','SFX mốc tùy chỉnh (s)']);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         for track in editor.composition.audio:self.add_track(track)
         row=QHBoxLayout();layout.addLayout(row);self.fit=QCheckBox('Khớp video theo âm thanh chính');row.addWidget(self.fit);self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);row.addWidget(self.policy)
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);buttons.accepted.connect(self.apply);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
@@ -411,6 +411,9 @@ class AudioDialog(QDialog):
         choice=placement.findData(track.get('placement','absolute'))
         if choice>=0:placement.setCurrentIndex(choice)
         self.table.setCellWidget(row,11,placement)
+        trigger_times=track.get('trigger_times',[])
+        trigger_text=', '.join(format(float(value),'.12g') for value in trigger_times)
+        self.table.setItem(row,17,QTableWidgetItem(trigger_text))
         for col,key in [(4,'loop'),(9,'mute'),(10,'solo')]:
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if track.get(key) else Qt.CheckState.Unchecked);self.table.setItem(row,col,check)
     def add(self):
@@ -437,6 +440,17 @@ class AudioDialog(QDialog):
                     track['placement']=placement
                     if placement=='percent':track['position_pct']=float(self.table.item(row,12).text())
                     if placement in {'scene_start','scene_end'}:track['scene_index']=int(self.table.item(row,13).text())
+                trigger_text=self.table.item(row,17).text().strip()
+                if trigger_text:
+                    if track['mode']!='sfx':
+                        raise ValueError('Danh sách mốc tùy chỉnh chỉ dùng cho SFX')
+                    parts=trigger_text.replace(';',',').split(',')
+                    if any(not part.strip() for part in parts):
+                        raise ValueError('Danh sách mốc SFX phải là các giây phân tách bằng dấu phẩy hoặc chấm phẩy')
+                    try:
+                        track['trigger_times']=[float(part.strip()) for part in parts]
+                    except ValueError as exc:
+                        raise ValueError('Danh sách mốc SFX chứa giá trị không phải số') from exc
                 for col,key in [(9,'mute'),(10,'solo')]:track[key]=self.table.item(row,col).checkState()==Qt.CheckState.Checked
                 tracks.append(track)
             c.audio=tracks;c.mute_original=self.mute.isChecked()
