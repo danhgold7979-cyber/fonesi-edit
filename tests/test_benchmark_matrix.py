@@ -61,6 +61,19 @@ def test_matrix_seeded_logical_result_is_reproducible_without_clock_threshold():
         assert first[key]==second[key]
 
 
+def test_logical_benchmark_reports_incomplete_search_without_claiming_unsat():
+    # Under K=2 a binary 2-scene matrix must alternate exact complements.
+    # A third unique composition cannot follow; the budget is deliberately tiny.
+    report=benchmark(scenes=2,angles=2,outputs=3,window=1,different=2,
+                     seed=11,budget_seconds=.025)
+    assert report["requested"]==3
+    assert 0<=report["generated"]<3
+    assert report["complete"] is False
+    assert report["unique_and_wk_valid"]
+    assert "no claim" in report["limitations"]
+
+
+
 @pytest.mark.parametrize("kwargs",[
     {"scenes":0},{"angles":0},{"outputs":False},{"window":-1},
     {"different":100},{"budget_seconds":float("nan")},
