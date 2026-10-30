@@ -92,21 +92,33 @@ def test_large_space_candidate_competition_improves_per_scene_balance():
 
 def test_large_space_balancing_keeps_equal_hashes_separate_per_scene():
     from fonesi_edit.matrix import combination
+    # C1 is pinned to the shared hash for every output. C2 also contains
+    # that same hash but must balance it locally against its other three Gs;
+    # a global hash counter would treat C1's 120 uses as C2's usage.
     scenes=[
-        [Angle(1,index+1,f"virtual/C1/G{index+1}.mp4",f"same-{index}")
+        [Angle(1,index+1,f"virtual/C1/G{index+1}.mp4",
+               "shared" if index==0 else f"c1-{index}")
          for index in range(101)],
-        [Angle(2,index+1,f"virtual/C2/G{index+1}.mp4",f"same-{index}")
+        [Angle(2,index+1,f"virtual/C2/G{index+1}.mp4",
+               "shared" if index==0 else f"c2-{index}")
+         for index in range(4)],
+        [Angle(3,index+1,f"virtual/C3/G{index+1}.mp4",f"c3-{index}")
+         for index in range(101)],
+        [Angle(4,index+1,f"virtual/C4/G{index+1}.mp4",f"c4-{index}")
          for index in range(101)],
     ]
-    result=generate(scenes,120,seed=41,window=1,different=1,
-                    seconds=5,balance_candidates=6)
+    locks={row:{"0":"shared"} for row in range(120)}
+    result=generate(scenes,120,seed=41,window=0,different=0,
+                    locks=locks,seconds=5,balance_candidates=8)
     assert result["complete"] and len(result["rows"])==120
     assert len({combination(row) for row in result["rows"]})==120
-    assert [scene["scene"] for scene in result["usage"]]==[1,2]
+    assert result["usage"][0]["angles"][0]["uses"]==120
+    # The same hash in C2 is balanced as a separate scene-local identity.
+    assert result["usage"][1]["angles"][0]["hash"]=="shared"
+    assert result["usage"][1]["angles"][0]["uses"]==30
     assert all(sum(angle["uses"] for angle in scene["angles"])==120
                for scene in result["usage"])
-    assert result["usage"][0]["angles"][0]["hash"]==result["usage"][1]["angles"][0]["hash"]
-    assert result["usage"][0]["angles"][0]["uses"]==result["usage"][1]["angles"][0]["uses"]
+
 
 
 @pytest.mark.parametrize("kwargs",[
