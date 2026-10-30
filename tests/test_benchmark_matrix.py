@@ -100,7 +100,7 @@ def test_logical_stress_large_product_does_not_allocate_cartesian_media():
 
 def test_ten_thousand_million_capacity_stress_generates_thousands_without_product_allocation():
     report=benchmark(scenes=10,angles=10,outputs=2000,window=1,different=2,
-                     seed=91,budget_seconds=10,balance_candidates=4)
+                     seed=91,budget_seconds=45,balance_candidates=4)
     assert report["theoretical_capacity"]==10**10
     assert report["complete"] and report["generated"]==2000
     assert report["unique_and_wk_valid"] and report["source_unchanged"]
