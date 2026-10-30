@@ -10,8 +10,10 @@
 - Đã sửa: REBUILD_REVIEW.md, REBUILD_STATUS.md (local, chưa push).
 - Đã loại implementation/test/build/extension cũ khỏi nhánh rebuild trong commit riêng; lịch sử và full bundle giữ nguyên.
 - Code mới: timing.py (rational time map), snapshot.py (immutable versioned intent).
-- Test mới: 18/18 unittest PASS trên Python 3.12.14 Linux; chưa test Windows.
-- Chưa làm: UI/worker/SQLite/render mới, acceptance Windows/live, publish.
+- Test mới: 27/27 unittest PASS trên Python 3.12.14 Linux; chưa test Windows.
+- SQLite intent/lease ledger đã có code và test mới; không có worker/render thực thi hoặc validation artifact hoàn chỉnh.
+- Đã publish checkpoint foundation đầu tiên: 4037276770bff5f002f11d9e4e42cdd2ea8d9d7e; main giữ nguyên.
+- Chưa làm: UI/worker/render mới, acceptance Windows/live.
 - Kết quả 92 tests của baseline là lịch sử, không phải pass của rebuild.
 - Tiếp theo: khóa hợp đồng triển khai chi tiết và sửa toàn bộ Pxx_PLAN trước khi code.
 - Blocker target: Windows/Chrome/GPU/live provider validation chưa được thực hiện cho rebuild; không chặn công việc độc lập.
