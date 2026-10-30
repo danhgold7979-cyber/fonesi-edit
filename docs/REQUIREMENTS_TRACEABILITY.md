@@ -183,3 +183,8 @@ SRC-09/SRC-10/FLOW-04: [CI 40855868306](https://github.com/danhgold7979-cyber/fo
 ## P08-07 / P11-02/03 Batch planning and transactional enqueue evidence (29/10/2026)
 
 BAT-04 / OPS-01 / OPS-02: [CI 40914027736](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40914027736) confirms progress monotonic for a known selected count, cooperative cancel yields no usable partial plan, and a synthetic FFprobe benchmark of 128 files measured actual runner throughput (Linux 5.937889 s; Windows 10.462162 s). [CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) confirms BAT-04 / OPS-03/06: a failed second SQLite render-job INSERT rolls back every new Batch job while pre-existing jobs survive, without disabling earlier validation. **Both proofs are synthetic/local**; they do not satisfy physical Windows endurance, render ETA/GPU/VRAM or full P08/P11 acceptance.
+
+
+## AUD-01/AUD-02 — Decoded PCM playback meter evidence (30/10/2026)
+
+[CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) SUCCESS on exact SHA 743e68b: 676 Linux /675 Windows passed + one intentional POSIX-only skip, packaged synthetic proof both OS. Peak/RMS and near-full-scale sample warnings use the same Qt QMediaPlayer as decoded raw source/proxy or rendered output preview. **Only rendered preview reflects the composition mix**; neither case measures post-QAudioOutput volume, physical speaker/driver output, true-peak or calibrated EBU integrated loudness. AUD-01/AUD-02 remain partially covered until per-track and hardware gates pass.
