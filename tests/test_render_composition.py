@@ -519,6 +519,7 @@ def test_sfx_anchor_rejects_out_of_range_onset_without_silent_fallback(tmp_path)
 def test_exported_sfx_is_audible_only_after_percent_anchor(tmp_path):
     from array import array
     import subprocess
+    from fonesi_edit.render import compile_graph
     from fonesi_edit.prototypes.tools import locate_tool
     media=create_fixture(tmp_path/'media',duration=1)
     source=str(media['source'])
@@ -526,16 +527,20 @@ def test_exported_sfx_is_audible_only_after_percent_anchor(tmp_path):
         clips=[Clip(source,end=1)],mute_original=True,audio=[
             {'path':source,'mode':'sfx','volume':1,'placement':'percent',
              'position_pct':50,'offset':0}])
+    args,graph,total=compile_graph(c,tmp_path/'graph')
+    assert abs(total-1)<.01 and 'adelay=500|500' in graph
     out=tmp_path/'sfx-at-half.mp4'
     assert render_composition(c,out)['validated']
     result=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(out),
                            '-vn','-ac','2','-ar','48000','-f','s16le','-'],
                           capture_output=True,check=True)
     samples=array('h');samples.frombytes(result.stdout)
-    assert len(samples)>40000
-    assert max(abs(value) for value in samples[4800:14400])<20
-    assert max(abs(value) for value in samples[30000:42000])>100
-
+    assert len(samples)>86000
+    def peak(start,end,channel):
+        return max(abs(value) for value in samples[round(start*48000)*2+channel:round(end*48000)*2:2])
+    for channel in (0,1):
+        assert peak(.10,.40,channel)<20
+        assert peak(.60,.90,channel)>100
 
 
 @pytest.mark.parametrize('track',[
@@ -651,7 +656,7 @@ def test_custom_sfx_trigger_times_render_non_uniform_audible_events(tmp_path):
     result=render_composition(composition,output)
     assert result['validated']
     decoded=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(output),
-        '-vn','-ac','1','-ar','48000','-f','s16le','-'],
+        '-vn','-ac','2','-ar','48000','-f','s16le','-'],
         capture_output=True,check=True).stdout
     samples=array('h');samples.frombytes(decoded)
     assert len(samples)>86000

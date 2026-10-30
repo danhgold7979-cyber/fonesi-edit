@@ -471,7 +471,11 @@ def compile_graph(c:Composition,stage:Path):
         fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
         if fi>0:filters.append(f'afade=t=in:d={fi}')
         if fo>0:filters.append(f'afade=t=out:st={max(0,min(total-offset,total if track.get("loop") else end-start)-fo)}:d={fo}')
-        filters += [f'adelay={round(offset*1000)}:all=1','apad',f'atrim=duration={total}']
+        delay=round(offset*1000)
+        if track.get('mode','music')=='sfx':
+            filters += [f'adelay={delay}|{delay}','apad',f'atrim=duration={total}']
+        else:
+            filters += [f'adelay={delay}:all=1','apad',f'atrim=duration={total}']
         graph.append(f'[{input_audio}]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
     music=[i for i,mode in enumerate(modes) if mode=='music']
     if c.adjustments.get('ducking') and music:
