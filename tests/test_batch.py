@@ -129,6 +129,125 @@ def test_batch_main_audio_mapping_by_name_is_correct_and_renders_real_audio(tmp_
     assert result['validated'] and probe(out).audio_codec
 
 
+def _write_playlist_tone(path,frequency,duration=1):
+    import subprocess
+    from fonesi_edit.prototypes.tools import locate_tool
+    path.parent.mkdir(parents=True,exist_ok=True)
+    subprocess.run([locate_tool('ffmpeg'),'-v','error','-nostdin','-n',
+        '-f','lavfi','-i',f'sine=frequency={frequency}:sample_rate=48000',
+        '-t',str(duration),'-c:a','pcm_s16le',str(path)],capture_output=True,check=True)
+    return path
+
+
+def test_batch_manual_playlist_preserves_cross_folder_order_and_renders_expected_audio(tmp_path):
+    import struct,subprocess
+    from shutil import copyfile
+    from fonesi_edit.prototypes.tools import locate_tool
+    media=create_fixture(tmp_path/'channel/videos',duration=1)
+    first=Path(media['source']);second=first.with_name('clip2.mp4');copyfile(first,second)
+    audio_a=_write_playlist_tone(tmp_path/'music-a'/'same.wav',880)
+    audio_b=_write_playlist_tone(tmp_path/'music-b'/'same.wav',660)
+    groups={str(tmp_path/'channel'):[str(first),str(second)]}
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu',mute_original=True,
+        audio=[{'path':str(audio_a),'mode':'music','volume':.2},
+               {'path':str(audio_b),'mode':'sfx','volume':.3}])
+    before=preset.to_dict()
+    plans=batch_plan(groups,preset,audio_mode='playlist',
+                     playlist_paths=[str(audio_b),str(audio_a)])
+    assert [p['audio_source'] for p in plans]==[str(audio_b.resolve()),str(audio_a.resolve())]
+    for plan in plans:
+        composition=Composition.from_dict(plan['composition'])
+        assert composition.audio[0]['mode']=='main'
+        assert composition.audio[0]['path']==plan['audio_source']
+        assert [x['path'] for x in composition.audio[1:]]==[str(audio_a),str(audio_b)]
+        assert composition.mute_original
+    assert preset.to_dict()==before
+    real=Composition.from_dict(plans[0]['composition']);real.audio=real.audio[:1]
+    output=tmp_path/'playlist-proof.mp4'
+    assert render_composition(real,output)['validated'] and probe(output).audio_codec
+    decoded=subprocess.run([locate_tool('ffmpeg'),'-v','error','-nostdin','-i',
+        str(output),'-map','0:a:0','-ac','1','-ar','48000','-f','f32le','-'],
+        capture_output=True,check=True).stdout
+    assert len(decoded)%4==0
+    samples=struct.unpack('<'+'f'*(len(decoded)//4),decoded)
+    segment=samples[7200:21600]
+    crossings=sum((x<=0<y) or (x>=0>y) for x,y in zip(segment,segment[1:]))
+    frequency=crossings/(2*(len(segment)/48000))
+    assert 620<frequency<700
+
+
+def test_batch_manual_playlist_allows_duplicate_path_and_probes_once(tmp_path,monkeypatch):
+    import fonesi_edit.batch as batch_module
+    from shutil import copyfile
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    first=Path(media['source']);second=first.with_name('clip2.mp4');copyfile(first,second)
+    audio=_write_playlist_tone(tmp_path/'audio'/'tone.wav',440,.5)
+    calls=[];original=batch_module.audio_duration
+    def counted(path):
+        calls.append(str(Path(path).resolve()));return original(path)
+    monkeypatch.setattr(batch_module,'audio_duration',counted)
+    groups={str(tmp_path/'channel'):[str(first),str(second)]}
+    assigned=batch_module.batch_audio_assignments(groups,'playlist',
+        playlist_paths=[str(audio),str(audio)])
+    assert calls==[str(audio.resolve())]
+    assert assigned[str(first.resolve())][0]==str(audio.resolve())
+    assert assigned[str(second.resolve())]==assigned[str(first.resolve())]
+
+
+def test_batch_manual_playlist_rejects_invalid_paths_before_video_planning(tmp_path,monkeypatch):
+    import subprocess
+    import fonesi_edit.batch as batch_module
+    from fonesi_edit.prototypes.tools import locate_tool
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    video=Path(media['source']);valid=_write_playlist_tone(tmp_path/'audio'/'valid.wav',440,.5)
+    groups={str(tmp_path/'channel'):[str(video)]}
+    preset=Composition(width=320,height=180,fps=25,encoder='cpu')
+    with pytest.raises(ValueError,match='đúng một mục'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[])
+    with pytest.raises(ValueError,match='danh sách'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=str(valid))
+    with pytest.raises(ValueError,match='tuyệt đối'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=['relative.wav'])
+    with pytest.raises(ValueError,match='không rỗng'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[''])
+    with pytest.raises(FileNotFoundError,match='không tồn tại'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(tmp_path/'missing.wav')])
+    directory=tmp_path/'directory.wav';directory.mkdir()
+    with pytest.raises(ValueError,match='tệp audio'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(directory)])
+    unsupported=tmp_path/'unsupported.txt';unsupported.write_text('not audio')
+    with pytest.raises(ValueError,match='không được hỗ trợ'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(unsupported)])
+    link=tmp_path/'linked.wav'
+    try:link.symlink_to(valid)
+    except OSError:pytest.skip('Symlink creation is not permitted on this runner')
+    with pytest.raises(ValueError,match='symbolic link'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(link)])
+    no_audio=tmp_path/'no-audio.mp4'
+    subprocess.run([locate_tool('ffmpeg'),'-v','error','-nostdin','-n','-i',
+        str(video),'-an','-c:v','libx264','-threads','2',str(no_audio)],
+        capture_output=True,check=True)
+    monkeypatch.setattr(batch_module,'probe',lambda *_:pytest.fail('Video planning ran before playlist preflight'))
+    with pytest.raises(ValueError,match='audio stream hợp lệ'):
+        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(no_audio)])
+
+
+def test_batch_manual_playlist_checks_cooperative_cancellation(tmp_path,monkeypatch):
+    from threading import Event
+    from fonesi_edit.batch import BatchPlanCancelled
+    import fonesi_edit.batch as batch_module
+    media=create_fixture(tmp_path/'channel/videos',duration=.5)
+    audio=_write_playlist_tone(tmp_path/'audio'/'tone.wav',440,.5)
+    cancelled=Event()
+    def finish_then_cancel(_path):
+        cancelled.set();return .5
+    monkeypatch.setattr(batch_module,'audio_duration',finish_then_cancel)
+    with pytest.raises(BatchPlanCancelled):
+        batch_module.batch_audio_assignments(
+            {str(tmp_path/'channel'):[str(media['source'])]},
+            'playlist',playlist_paths=[str(audio)],cancel=cancelled)
+
+
 def test_batch_audio_ordered_and_seeded_random_are_deterministic(tmp_path):
     from shutil import copyfile
     media=create_fixture(tmp_path/'channel/videos',duration=.5)
