@@ -16,12 +16,15 @@ The large-space (>10,000 combinations) generator samples one candidate row at a 
 6. Run phase-reference check, full Linux/Windows CI and packaged proofs; update status/coverage/traceability/results/ledger only after exact-SHA success.
 
 ## Acceptance
-- [ ] Large-space generation improves per-scene use balance measurably versus one-candidate baseline under the same deterministic seed and candidate count.
-- [ ] W/K/history/locks/uniqueness and per-scene identity remain intact; duplicate content hashes in different scenes do not merge their frequency counters.
-- [ ] Candidate sampling is bounded, cancellable and time-budget-aware; incomplete is never reported as proven infeasible.
-- [ ] Linux/Windows regression and frozen packaged proof pass on exact code/test SHA.
+- [x] Large-space generation improves per-scene use balance measurably versus one-candidate baseline under the same deterministic seed and candidate count.
+- [x] W/K/history/locks/uniqueness and per-scene identity remain intact; duplicate content hashes in different scenes do not merge their frequency counters.
+- [x] Candidate sampling is bounded, cancellable and time-budget-aware; incomplete is never reported as proven infeasible.
+- [x] Linux/Windows regression and frozen packaged proof pass on exact code/test SHA.
 
 External gates remain open: real 100k-media corpus and solver optimality, physical Windows/HiDPI/installer, NTFS/exFAT/power loss and SQLite issue #6, live Chrome/providers and GPU. Do not merge main.
 
 ## CI budget calibration (30/10/2026)
 The first 10-scene × 10-angle × 2,000-output run on GitHub Linux reached the explicit 10-second search budget while tracemalloc was enabled: 779 tests passed and the one stress test correctly reported incomplete rather than fabricating completion. This is a valid bounded-search result, not a solver correctness failure. Keep the 10-billion theoretical space and 2,000 outputs, but raise this test/CI benchmark budget to 45 seconds (still bounded below the script's 60-second cap); do not weaken the completion, uniqueness, W/K or memory assertions. Re-run both OS and retain the JSON evidence artifact.
+
+## Exact-HEAD acceptance evidence
+[CI 41030170331](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41030170331) SUCCESS on exact code/test SHA [4e759cdbaaa738b3df60a577e0a4cd6091cf6ed5](https://github.com/danhgold7979-cyber/fonesi-edit/commit/4e759cdbaaa738b3df60a577e0a4cd6091cf6ed5). Linux: 781 PASS; 10^10 theoretical combinations, 2,000 generated, 9.302552 s, Python tracemalloc peak 1,379,048 bytes, max per-scene spread 5. Windows: 780 PASS + 1 intentional POSIX-only skip; 10^10 theoretical combinations, 2,000 generated, 19.737411 s, Python tracemalloc peak 1,379,264 bytes, max per-scene spread 5. Both passed 128-source FFprobe synthetic Batch benchmark, phase-reference check, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost-download/Qt proof. Artifacts: Linux evidence 390,000 bytes (expires 2026-11-02); Windows evidence 322,514 bytes (expires 2026-11-02); Windows development build 197,343,856 bytes (expires 2026-11-06). Logical-ID and synthetic/localhost CI proof only; not 10 billion real videos, 100k real-media corpus, physical Windows, GPU or live provider acceptance.
