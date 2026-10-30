@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fonesi-edit"
+version = "0.1.0.dev1"
+requires-python = ">=3.12,<3.14"
+description = "Clean rebuild of Fonesi Edit; foundation under verification"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fonesi_edit"]
