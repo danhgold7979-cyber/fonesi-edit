@@ -2052,17 +2052,37 @@ class SettingsPage(QWidget):
             overrides=self.host.store.setting('tool_paths',{});overrides[name]=path;self.host.store.set_setting('tool_paths',overrides);configure_tools(overrides);self.scan()
     def install(self):self.install_name(self.selected_tool())
     def install_name(self,name):
-        if name=='Google Chrome':self.host.background(lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
-        elif name=='ffprobe':self.install_name('ffmpeg')
-        elif name in {'gallery-dl','yt-dlp'}:raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
-        else:self.host.background(lambda p,c:install(self.host.store,resolve_manifest(name),p,c),lambda _:(self.refresh_managed_tools(),self.scan()))
+        if name=='ffprobe':
+            name='ffmpeg'
+        if name in {'gallery-dl','yt-dlp'}:
+            raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
+        if name=='Google Chrome':
+            return self._schedule_tool_operation(
+                name,lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
+        return self._schedule_tool_operation(
+            name,lambda p,c:install(self.host.store,resolve_manifest(name),p,c),
+            lambda _:(self.refresh_managed_tools(),self.scan()))
     def install_missing(self):
         names={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
-        if {'ffmpeg','ffprobe'}&names:self.install_name('ffmpeg')
-        if 'Google Chrome' in names:self.install_name('Google Chrome')
-        if 'node' in names:self.install_name('node')
+        requested=[]
+        if {'ffmpeg','ffprobe'}&names:
+            requested.append('ffmpeg')
+        if 'Google Chrome' in names:
+            requested.append('Google Chrome')
+        if 'node' in names:
+            requested.append('node')
+        skipped=[]
+        for name in requested:
+            if self._tool_is_busy(name):
+                skipped.append(name)
+                continue
+            self.install_name(name)
+        if skipped:
+            self.host.message('Bỏ qua công cụ đang bận (không báo cài thành công): '+', '.join(skipped))
     def rollback(self):
         name=self.selected_tool()
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể rollback')
         with self.host.store.connect() as c:versions=[r[0] for r in c.execute('SELECT version FROM tool_versions WHERE name=?',(name,))]
         if not versions:raise ValueError('Chưa có bản do app quản lý')
         version,ok=QInputDialog.getItem(self,'Rollback','Phiên bản',versions,0,False)
