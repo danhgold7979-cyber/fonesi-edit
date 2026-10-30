@@ -1,6 +1,9 @@
 """Durable intent ledger. Workers require an exact claim token; no auto replay."""
 
+import math
+import os
 import sqlite3
+import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -78,6 +81,51 @@ class JobStore:
 
     def close(self):
         self.db.close()
+
+    def backup_new(self, destination: Path, *, timeout=30, cancel=None):
+        if (
+            type(timeout) not in (int, float)
+            or not math.isfinite(timeout)
+            or not 0 < timeout <= 60
+        ):
+            raise ValueError("Invalid backup timeout")
+        if self.db.in_transaction:
+            raise Conflict("Backup requires an idle transaction boundary")
+        destination = destination.absolute()
+        if not destination.parent.is_dir():
+            raise ValueError("Backup directory required")
+        if destination.exists() or destination.is_symlink():
+            raise FileExistsError("Backup destination exists")
+        deadline = time.monotonic() + timeout
+
+        def check(*_):
+            if cancel is not None and cancel.is_set():
+                raise ValueError("BACKUP_CANCELED")
+            if time.monotonic() >= deadline:
+                raise TimeoutError("BACKUP_TIMEOUT")
+
+        check()
+        with tempfile.TemporaryDirectory(
+            prefix=".fonesi-backup-", dir=destination.parent
+        ) as directory:
+            staged = Path(directory) / "ledger.db"
+            target = sqlite3.connect(staged, timeout=1, isolation_level=None)
+            try:
+                self.db.backup(target, pages=64, progress=check, sleep=0.05)
+                check()
+                if target.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+                    raise ValueError("BACKUP_INTEGRITY_FAILED")
+                if target.execute("PRAGMA user_version").fetchone()[0] != 1:
+                    raise ValueError("BACKUP_SCHEMA_FAILED")
+                if _schema_objects(target) != _schema_objects(self.db):
+                    raise ValueError("BACKUP_SCHEMA_FAILED")
+            finally:
+                target.close()
+            with staged.open("r+b") as stream:
+                os.fsync(stream.fileno())
+            check()
+            os.link(staged, destination)
+        return destination
 
     def enqueue(self, job_id: str, intent: RenderIntent):
         if not isinstance(job_id, str) or not job_id or len(job_id) > 128:

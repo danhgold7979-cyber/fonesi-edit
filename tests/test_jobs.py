@@ -78,6 +78,77 @@ class JobsTests(unittest.TestCase):
             self.store.transition("job", token, "validating", now=101)
         self.assertEqual(self.store.get("job")["state"], "running")
 
+    def test_online_backup_preserves_lease_without_replay(self):
+        token = self.store.claim("job", now=100, lease_seconds=10)
+        destination = Path(self.temp.name) / "backup.db"
+        self.assertEqual(self.store.backup_new(destination), destination)
+        restored = JobStore(destination)
+        try:
+            self.assertEqual(restored.get("job"), self.store.get("job"))
+            self.assertEqual(restored.get("job")["token"], token)
+            self.assertEqual(restored.reconcile_expired(now=110), 1)
+            self.assertEqual(restored.get("job")["state"], "interrupted")
+            self.assertEqual(self.store.get("job")["state"], "running")
+            with self.assertRaises(Conflict):
+                restored.retry("job")
+        finally:
+            restored.close()
+
+    def test_backup_no_overwrite_and_cancellation(self):
+        import threading
+
+        destination = Path(self.temp.name) / "backup.db"
+        destination.write_bytes(b"keep")
+        with self.assertRaises(FileExistsError):
+            self.store.backup_new(destination)
+        self.assertEqual(destination.read_bytes(), b"keep")
+        canceled = threading.Event()
+        canceled.set()
+        new = Path(self.temp.name) / "canceled.db"
+        with self.assertRaisesRegex(ValueError, "BACKUP_CANCELED"):
+            self.store.backup_new(new, cancel=canceled)
+        self.assertFalse(new.exists())
+        self.assertFalse(list(Path(self.temp.name).glob(".fonesi-backup-*")))
+
+    def test_backup_rejects_active_transaction_and_bad_bounds(self):
+        destination = Path(self.temp.name) / "backup.db"
+        with self.store.transaction(), self.assertRaises(Conflict):
+            self.store.backup_new(destination)
+        for timeout in (True, 0, -1, float("inf"), float("nan"), 61):
+            with self.subTest(timeout=timeout), self.assertRaises(ValueError):
+                self.store.backup_new(destination, timeout=timeout)
+        self.assertFalse(destination.exists())
+
+    def test_backup_timeout_leaves_no_output(self):
+        from unittest.mock import patch
+
+        destination = Path(self.temp.name) / "backup.db"
+        with (
+            patch("fonesi_edit.jobs.time.monotonic", side_effect=[0, 31]),
+            self.assertRaises(TimeoutError),
+        ):
+            self.store.backup_new(destination, timeout=30)
+        self.assertFalse(destination.exists())
+
+    def test_backup_failure_cleans_owned_staging(self):
+        from unittest.mock import patch
+
+        class FailedSource:
+            in_transaction = False
+
+            def backup(self, *args, **kwargs):
+                raise sqlite3.OperationalError("Injected backup failure")
+
+        destination = Path(self.temp.name) / "failed.db"
+        with (
+            patch.object(self.store, "db", FailedSource()),
+            self.assertRaises(sqlite3.OperationalError),
+        ):
+            self.store.backup_new(destination)
+        self.assertFalse(destination.exists())
+        self.assertFalse(list(Path(self.temp.name).glob(".fonesi-backup-*")))
+        self.assertEqual(self.store.get("job")["intent"], self.intent.canonical())
+
 
 class SchemaTests(unittest.TestCase):
     def test_reject_foreign_schema_without_mutation(self):
