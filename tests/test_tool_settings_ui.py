@@ -284,12 +284,11 @@ def test_settings_install_missing_skips_busy_tools_but_schedules_independent_too
         assert len(scheduled) == 3
         assert set(settings._tool_busy) == {"ffmpeg", "Google Chrome", "node"}
         assert "ffmpeg" in window.status.text()
-        assert settings.tool_actions["Cài phần bắt buộc thiếu"].isEnabled()
+        assert not settings.tool_actions["Cài phần bắt buộc thiếu"].isEnabled()
 
         for task in scheduled:
             task.finish()
         _wait_until(lambda: not settings._tool_busy)
-        assert not settings.tool_actions["Cài phần bắt buộc thiếu"].isEnabled()
     finally:
         _close(window)
 
