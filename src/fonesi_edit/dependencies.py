@@ -73,7 +73,7 @@ def extract_zip(archive,destination):
             path=PurePosixPath(normalized_parts)
             components=normalized_parts.split('/') if normalized_parts else []
             mode=(item.external_attr>>16)&0o170000
-            is_directory=item.is_dir()
+            is_directory=normalized.endswith('/')
             if (not raw_name or not normalized_parts or '\x00' in raw_name
                     or any(ord(char)<32 or ord(char)==127 for char in raw_name)
                     or path.is_absolute() or not path.parts

@@ -381,7 +381,10 @@ def test_extract_zip_rejects_encrypted_member_before_writing_any_member(tmp_path
 
 
 def test_extract_zip_normalizes_safe_backslash_paths(tmp_path):
-    archive = _zip_with_members([("bin\\tools\\ffmpeg.exe", b"binary", None)])
+    archive = _zip_with_members([
+        ("bin\\tools\\", b"", 0o40755),
+        ("bin\\tools\\ffmpeg.exe", b"binary", None),
+    ])
     destination = tmp_path / "unpack"
     destination.mkdir()
     dependencies.extract_zip(archive, destination)
