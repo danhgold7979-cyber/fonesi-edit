@@ -45,6 +45,33 @@ def test_reservation_atomic_and_worker_commits_validated_output(tmp_path):
     with store.connect() as c:assert c.execute('SELECT state FROM matrix_history').fetchone()[0]=='succeeded'
 
 
+def test_failed_reservation_retry_updates_job_id_on_sql_conflict(tmp_path):
+    fixture=create_fixture(tmp_path/'media',duration=.5)
+    source=str(fixture['source'])
+    row=[Angle(1,1,source,'first'),Angle(2,1,source,'second')]
+    key=combination(row)
+    store=Store(tmp_path/'state.db')
+    preset=Composition(width=320,height=180,encoder='cpu')
+    with store.connect() as conn:
+        conn.execute(
+            'INSERT INTO matrix_history(scope,combination,state,job_id,created) '
+            'VALUES(?,?,?,?,?)',
+            ('retry-scope',key,'failed','original-failed-job',1.0))
+    ids=enqueue_rows(store,'retry-scope',[row],preset,tmp_path/'out')
+    assert len(ids)==1
+    with store.connect() as conn:
+        state,linked_job=conn.execute(
+            'SELECT state,job_id FROM matrix_history '
+            'WHERE scope=? AND combination=?',('retry-scope',key)).fetchone()
+        assert state=='reserved'
+        assert linked_job==ids[0] and linked_job!='original-failed-job'
+        assert conn.execute(
+            'SELECT COUNT(*) FROM matrix_history WHERE scope=?',
+            ('retry-scope',)).fetchone()[0]==1
+    assert len(store.jobs())==1
+    assert history(store,'retry-scope')==[['first','second']]
+
+
 def test_final_reservation_rechecks_current_history_window_atomically(tmp_path):
     f=create_fixture(tmp_path/'media',duration=.5);path=str(f['source']);store=Store(tmp_path/'state.db');preset=Composition(width=320,height=180,encoder='cpu')
     first=[Angle(1,1,path,'a'),Angle(2,1,path,'b')]
