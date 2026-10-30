@@ -7,6 +7,7 @@
 | Tổng quan | Việc đang chạy, metrics có timestamp, shortcut quy trình | OPS, AUTO | Chưa có job; metric không đọc được là unknown |
 | Tải nội dung | URL list, platform/account, filter, cây quét, đích, enqueue | SRC, AUTH | URL sai, thiếu session, quét dở, rate limit, source không hỗ trợ |
 | Phụ đề | Media, cue gốc/dịch, ngôn ngữ, provider, preview/timeline | SUB, ED | Thiếu sub, mơ hồ, thiếu provider, cue lỗi |
+| Editor | Media/preview/inspector/timeline, undo, scope clip | ED, SUB, AUD | Thiếu media/font; preview stale; export chưa xác minh |
 | Edit hàng loạt | Folder tree, preset/scope, editor, audio, output plan | BAT, AUD, ED | Không có media, thiếu tool/asset, duration bất khả thi |
 | Ghép theo cảnh | Scene tree, W/K, N, audio target, bảng matrix, preview | MAT, AUD | Cảnh rỗng, thiếu tổ hợp, timeout khác vô nghiệm |
 | Hàng đợi/Lịch sử | State/step/ETA, filter, retry/pause/cancel, artifacts | OPS, AUTO | Chưa có việc, crash recovery, blocked configuration |

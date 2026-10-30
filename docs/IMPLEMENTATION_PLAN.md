@@ -1,6 +1,6 @@
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
-Phiên bản: 1.1 — 27/10/2026. Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
+Phiên bản: rebuild-2026-10-30. Trạng thái bản mới: P01 đang rà soát; tất cả checkbox đã reset, các dẫn chứng CI phía sau thuộc baseline edbb471 và không chứng nhận rebuild. Lịch sử v1.1 — 27/10/2026: Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
 
 Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_SPEC.md](EDITOR_SPEC.md), [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Tài liệu kèm theo: [thiết kế kỹ thuật](TECHNICAL_DESIGN.md), [đối chiếu yêu cầu](REQUIREMENTS_TRACEABILITY.md), [ma trận nền tảng](PLATFORM_SUPPORT_MATRIX.md).
 
@@ -10,18 +10,18 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 
 | Phase | Kết quả chính | Phụ thuộc để hoàn tất | Trạng thái |
 | --- | --- | --- | --- |
-| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | Hoàn tất thiết kế — xem phases/P01_RESULTS.md |
-| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | CI source + packaged proof Linux/Windows đạt; cổng live/API/Chrome/GPU còn mở — xem phases/P02_RESULTS.md |
-| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | Code + storage/security hardening CI Linux/Windows pass; soak và nghiệm thu máy người dùng còn mở — xem CURRENT_STATUS.md |
-| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | Có code / QA local; xem CURRENT_STATUS.md |
-| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | Có code / QA local; xem CURRENT_STATUS.md |
-| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | Có code / QA local; xem CURRENT_STATUS.md |
-| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | Có code / QA local; xem CURRENT_STATUS.md |
-| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | Có code / QA local; xem CURRENT_STATUS.md |
-| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | Có code / QA local; xem CURRENT_STATUS.md |
-| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | Có code / QA local; xem CURRENT_STATUS.md |
-| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | Có code / QA local; xem CURRENT_STATUS.md |
-| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | Có code / QA local; xem CURRENT_STATUS.md |
+| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
 
 Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 khi biết engine, mức hỗ trợ nguồn, máy mục tiêu và rủi ro đóng gói.
 
@@ -42,14 +42,14 @@ Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 
 
 **Mục tiêu:** chuyển danh sách chức năng thành màn hình, dữ liệu và tình huống code được.
 
-- [x] P01-01: đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.
-- [x] P01-02: wireframe bảy khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.
-- [x] P01-03: luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.
-- [x] P01-04: preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.
-- [x] P01-05: định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.
-- [x] P01-06: corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.
-- [x] P01-07: hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.
-- [x] P01-08: wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.
+- [ ] P01-01: đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.
+- [ ] P01-02: wireframe tám khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.
+- [ ] P01-03: luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.
+- [ ] P01-04: preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.
+- [ ] P01-05: định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.
+- [ ] P01-06: corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.
+- [ ] P01-07: hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.
+- [ ] P01-08: wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.
 
 **Bàn giao:** wireframe, luồng, hợp đồng bản đầu, bảng truy vết đủ phạm vi.
 
@@ -64,7 +64,7 @@ Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 
 - [ ] P02-03: thử dịch Trung–Việt với thuật ngữ/tên riêng/câu dài; so chất lượng, tốc độ, chi phí, cache và quota.
 - [ ] P02-04: so engine preview cho Qt; mẫu alpha logo, chữ Việt/Trung, blur, seek, waveform, keyframe, audio; so mốc với FFmpeg export.
 - [ ] P02-05: thử CPU/encoder GPU thật, phân biệt encode GPU và filter CPU; đo RAM/VRAM và fallback.
-- [x] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. CI frozen proof đạt; nghiệm thu máy Windows người dùng vẫn là cổng riêng.
+- [ ] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. CI frozen proof đạt; nghiệm thu máy Windows người dùng vẫn là cổng riêng.
 - [ ] P02-07: benchmark có máy/mẫu; chốt ngân sách UI/proxy/seek, sai số hình/thời gian và mức song song ban đầu trước P04/P07.
 - [ ] P02-08: ghi quyết định provider dịch, preview, FFmpeg build, packaging; blocker cho Windows/nguồn chưa truy cập được.
 - [ ] P02-09: thử discovery/tool manifest, nguồn Windows đáng tin, đường dẫn tùy chỉnh/version/capability, tải-cài-verify và rollback khi job đang dùng bản cũ.
@@ -157,7 +157,7 @@ Ba đợt kỹ thuật, không giảm phạm vi: A YouTube/Bilibili; B TikTok/Fa
 - [ ] P08-01: nhiều folder/đệ quy/checkbox/loại/đảo chọn/tìm/lọc, không xóa nguồn, không nhận output/cache.
 - [ ] P08-02: preset/ghi đè clip/xem tác động/snapshot, output theo kênh/mẫu tên/phiên bản không đè.
 - [ ] P08-03: tiếng gốc/âm chính/nhạc/SFX, mute/solo/gain/fade/trim/delay, meter/clipping/chuẩn hóa.
-- [x] P08-04: audio cả lô/theo tên/danh sách/random và playlist thủ công đa thư mục có preflight/snapshot/render verification; nhạc lặp chuyển tiếp; SFX theo giây/cảnh/tỷ lệ và trigger không đều; ducking theo chính sách hỗ trợ. Bằng chứng: [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) Linux 682 / Windows 681 + 1 skip, frozen proof hai hệ.
+- [ ] P08-04: audio cả lô/theo tên/danh sách/random và playlist thủ công đa thư mục có preflight/snapshot/render verification; nhạc lặp chuyển tiếp; SFX theo giây/cảnh/tỷ lệ và trigger không đều; ducking theo chính sách hỗ trợ. Bằng chứng: [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) Linux 682 / Windows 681 + 1 skip, frozen proof hai hệ.
 - [ ] P08-05: duration planner một hoặc nhiều clip; đích video/audio/nhập tay, min/max speed/đoạn, giữ cao độ, lặp/freeze/cắt theo lựa chọn.
 - [ ] P08-06: tính chuyển cảnh/audio crossfade vào thời lượng, time map sub; báo bất khả thi, không tự bỏ cảnh/ghép clip ngoài chế độ.
 - [ ] P08-07: chạy thử một video/đoạn, ước tính dung lượng/ETA, render lô/resume, kiểm tra duration/tracks/media.

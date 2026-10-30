@@ -17,7 +17,7 @@ Trạng thái: đặc tả để lập kế hoạch và triển khai, chưa ph�
 
 ## 2. Giao diện và luồng công việc
 
-Các khu vực: Tổng quan; Tải nội dung; Phụ đề; Edit hàng loạt; Ghép theo cảnh; Hàng đợi/Lịch sử; Preset/Cài đặt.
+Các khu vực: Tổng quan; Tải nội dung; Phụ đề; Editor; Edit hàng loạt; Ghép theo cảnh; Hàng đợi/Lịch sử; Preset/Cài đặt.
 
 Luồng tự động: nguồn → quét → tải → kiểm tra tệp → chọn/tải sub → dịch nếu cần → áp dụng edit → render → kiểm tra đầu ra.
 
