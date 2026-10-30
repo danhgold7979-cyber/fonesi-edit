@@ -542,8 +542,14 @@ def test_store_submit_holds_writer_lock_until_tool_snapshot_is_inserted(tmp_path
     update_thread = Thread(target=update_tool)
     update_thread.start()
     assert update_at_activation.wait(10)
-    time.sleep(0.05)
-    # The update cannot commit while submit owns BEGIN IMMEDIATE.
+    # A second writer must be unable to acquire SQLite's write reservation
+    # while submit is paused after reading the immutable tool snapshot.
+    probe = sqlite3.connect(store.path, timeout=0)
+    try:
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            probe.execute("BEGIN IMMEDIATE")
+    finally:
+        probe.close()
     assert not update_finished.is_set()
     release_submit.set()
     submit_thread.join(10)
