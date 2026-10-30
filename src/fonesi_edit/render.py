@@ -7,7 +7,7 @@ from fractions import Fraction
 from hashlib import sha256
 from pathlib import Path
 
-from fonesi_edit.media import probe
+from fonesi_edit.media import LOCAL_MEDIA_INPUT_OPTIONS, probe
 from fonesi_edit.process import run_bounded
 from fonesi_edit.timing import ClipMap
 
@@ -77,8 +77,7 @@ def render_cpu(
                 "-v",
                 "error",
                 "-n",
-                "-protocol_whitelist",
-                "file,pipe",
+                *LOCAL_MEDIA_INPUT_OPTIONS,
                 "-i",
                 str(source),
                 "-map",
@@ -115,8 +114,7 @@ def render_cpu(
                 "-nostdin",
                 "-v",
                 "error",
-                "-protocol_whitelist",
-                "file,pipe",
+                *LOCAL_MEDIA_INPUT_OPTIONS,
                 "-i",
                 str(staged),
                 "-map",

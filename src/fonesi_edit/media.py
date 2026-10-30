@@ -8,6 +8,14 @@ from pathlib import Path
 
 from fonesi_edit.process import run_bounded
 
+# Allowed demuxers are narrower than arbitrary local playlists; not a sandbox.
+LOCAL_MEDIA_INPUT_OPTIONS = (
+    "-protocol_whitelist",
+    "file,pipe",
+    "-format_whitelist",
+    "mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi,wav,mp3",
+)
+
 
 @dataclass(frozen=True)
 class MediaInfo:
@@ -54,8 +62,7 @@ def probe(source: Path, executable: Path, *, cancel=None) -> MediaInfo:
             str(executable),
             "-v",
             "error",
-            "-protocol_whitelist",
-            "file,pipe",
+            *LOCAL_MEDIA_INPUT_OPTIONS,
             "-show_entries",
             "format=duration:stream=codec_type",
             "-of",

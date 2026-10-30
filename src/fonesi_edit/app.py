@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from fonesi_edit.media import probe
+from fonesi_edit.media import LOCAL_MEDIA_INPUT_OPTIONS, probe
 from fonesi_edit.prepared_input import capture_source, stage_verified_input
 from fonesi_edit.process import run_bounded
 from fonesi_edit.project import Project, ProjectMedia, load_project, save_new
@@ -365,8 +365,7 @@ class MainWindow(QMainWindow):
                             "-nostdin",
                             "-v",
                             "error",
-                            "-protocol_whitelist",
-                            "file,pipe",
+                            *LOCAL_MEDIA_INPUT_OPTIONS,
                             "-i",
                             str(captured.path),
                             "-frames:v",

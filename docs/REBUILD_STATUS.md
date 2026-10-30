@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 149/149 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
+- Kiểm tra local: 152/152 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -114,3 +114,6 @@ P06 find/replace checkpoint228bab4 CI41132986787 SUCCESS (actual Windows3.12 log
 
 
 Tool-selection checkpointa08e5d3 CI41137290389 SUCCESS all4jobs. Follow-on close-admission regression blocks new work/open-child actions while parent close is pending and starts child close-wait lifecycle;149localtestsPASS, newCI pending. Tool selection remains session-only, origin trust/user-installed prerequisite, no installation/PATH/persistent registry or binary lease guarantee.
+
+
+Explicit media demuxer boundary: common MOV/MP4-family, Matroska/WebM, AVI, WAV/MP3 allowlist now accompanies file/pipe restriction in probe/preview/encode/decode. Owned valid HLS baseline demonstrates file/pipe alone permits playlists; guarded probe/render reject it without output/source mutation. Disguised extension was already rejected on inspected Linux build, so no claim of demonstrated private-file leak in captured UI. Existing supported-container controls and all regressions pass locally152tests; target CI pending. Broader formats/corpus and hostile-process/filesystem isolation are not accepted by this change.

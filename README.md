@@ -34,3 +34,5 @@ Windows: đặt biến QT_QPA_PLATFORM=offscreen theo cú pháp shell Windows kh
 ## Kiểm chứng đóng gói đang phát triển
 
 `uv run fonesi-edit --smoke-test` chỉ kiểm tra mở UI và thoát, không phải nghiệm thu tính năng. CI có build one-folder Windows/Python3.12 và chạy executable riêng với PATH công cụ trống. Không có installer/release hoặc FFmpeg bundled trong lát cắt này; chỉ công nhận Windows proof sau khi job đúng commit PASS. Mọi output build nằm trong `.local/`, không phải source cần commit.
+
+Phạm vi demuxer của lát cắt hiện tại: MOV/MP4-family, Matroska/WebM, AVI, WAV/MP3. Playlist (HLS/concat/DASH), raw và format khác chưa hỗ trợ; không suy định dạng từ đuôi file để cấp quyền. Allowlist không phải sandbox hoặc cam kết mọi codec trong container đều chạy được.
