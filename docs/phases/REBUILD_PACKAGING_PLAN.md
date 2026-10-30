@@ -1,0 +1,7 @@
+# Rebuild P02-06 — early frozen Windows UI proof
+
+Before code: test a one-folder PyInstaller application on hosted Windows Python3.12, not cross-compile Linux and call it Windows. Pin PyInstaller6.22.3 from public PyPI, retain resolved hashes in uv.lock, and keep it developer-only. Primary references reviewed: https://pypi.org/project/pyinstaller/ and https://pyinstaller.org/en/stable/ . Qt6.8.3 remains unchanged. No release/installer signing, no public binary upload, no user-PC acceptance.
+
+An explicit --smoke-test command opens the actual main window plus empty subtitle and batch dialogs on the event loop, verifies expected widgets and frozen runtime flag, then closes cleanly. Emit fixed JSON booleans only and fail nonzero for any failed check. Unknown CLI arguments reject. Supervisor uses subprocess timeout60 with bounded expected tiny output and no shell; smoke launches no FFmpeg/provider/worker and creates no user data. Local source smoke verifies plumbing only; frozen Windows must run in CI. Build output stays in ignored local directories and is not committed.
+
+FFmpeg is NOT bundled by this slice: provenance/license/distribution and target tool discovery remain open. Frozen smoke must also launch with PATH cleared to show missing media tools do not prevent UI startup; verify export stays unavailable with empty input. Font shaping, target display/HiDPI, GPU, media export, installer and complete product acceptance remain separate. Preserve PyInstaller/Qt license obligations before future distribution.
