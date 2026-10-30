@@ -514,3 +514,28 @@ def test_qt_reorder_after_excluding_one_angle_keeps_old_history_provenance(tmp_p
         assert not window.failures,window.failures
     finally:
         close(window)
+
+
+def test_qt_default_generate_reconciles_prior_known_subset_without_filter_panel(tmp_path,monkeypatch):
+    from fonesi_edit.domain import canonical
+    root=tmp_path/"source"
+    full=synthetic_scenes(root)
+    monkeypatch.setattr(pages_module,"scan_scenes",lambda _root:full)
+    window=MainWindow(tmp_path/"state");window.scheduler.paused=True
+    try:
+        page=window.matrix;page.folder.setText(str(root));page.count.setValue(1)
+        assert page._available_scenes==[]  # User did not explicitly scan choices.
+        with window.store.connect() as conn:
+            conn.execute(
+                "INSERT INTO matrix_history(scope,combination,state,job_id,created) "
+                "VALUES(?,?,'succeeded',NULL,?)",
+                (page.scope(),canonical(["one-0","three-0"]),time.time()))
+        page.generate()
+        wait_until(lambda:not window.tasks)
+        assert len(page.scenes)==3 and len(page.model.rows)==1
+        assert page._history_reordered
+        assert page._available_scenes==full
+        assert page.old_history==[]  # Known 2-scene result is incomparable to 3 scenes.
+        assert not window.failures,window.failures
+    finally:
+        close(window)
