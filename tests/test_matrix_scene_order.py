@@ -283,3 +283,64 @@ def test_known_shorter_subset_history_does_not_block_return_to_full_matrix():
     # Malformed, removed or cross-scene ambiguous hashes are never skipped.
     with pytest.raises(ValueError,match="unique source scene"):
         normalize_matrix_history(full,[*original,["a2","missing"]],all_scenes=full)
+
+
+def test_source_filtered_matrix_renders_without_modifying_original_files(tmp_path):
+    from fonesi_edit.matrix import scan_scenes,select_matrix_scenes
+    import hashlib
+    root=tmp_path/"source-corpus"
+    videos=[create_fixture(root/f"C{number}",duration=.5)["source"]
+            for number in (1,2,3)]
+    before={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in videos}
+    full=scan_scenes(root)
+    choices=_choices_for(full)
+    choices[list(choices)[1]]["enabled"]=False
+    chosen=select_matrix_scenes(full,choices)["scenes"]
+    assert len(chosen)==2 and [row[0].scene for row in chosen]==[1,2]
+    comp=row_composition([scene[0] for scene in chosen],
+                         Composition(width=320,height=180,fps=25,encoder="cpu"))
+    assert [clip.path for clip in comp.clips]==[str(videos[0].resolve()),
+                                                str(videos[2].resolve())]
+    assert render_composition(comp,tmp_path/"filtered-output.mp4")["validated"]
+    assert abs(probe(tmp_path/"filtered-output.mp4").duration-1)<.15
+    assert before=={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
+                   for path in videos}
+
+
+def test_full_subset_full_project_matrix_history_does_not_lock_selected_scene_sets(tmp_path):
+    from fonesi_edit.matrix import select_matrix_scenes
+    root=tmp_path/"source"
+    source_a=create_fixture(root/"C1",duration=.5)["source"]
+    source_a2=create_fixture(root/"C1-alt",duration=.75)["source"]
+    # Reuse a root collection of three explicit scene folders below.
+    b=create_fixture(root/"C2",duration=.5)["source"]
+    c=create_fixture(root/"C3",duration=.5)["source"]
+    full=[
+        [Angle(1,1,str(source_a),"a0"),Angle(1,2,str(source_a2),"a1")],
+        [Angle(2,1,str(b),"b0")],
+        [Angle(3,1,str(c),"c0")],
+    ]
+    store=Store(tmp_path/"state.db")
+    preset=Composition(width=320,height=180,fps=25,encoder="cpu")
+    whole=[[scene[0] for scene in full]]
+    one=enqueue_rows(store,"project",whole,preset,tmp_path/"out",scene_order=full,
+                     all_scenes=full)
+    choices=_choices_for(full)
+    choices[list(choices)[1]]["enabled"]=False
+    selected=select_matrix_scenes(full,choices)["scenes"]
+    fresh_short=[[selected[0][1],selected[1][0]]]
+    two=enqueue_rows(store,"project",fresh_short,preset,tmp_path/"out",
+                     scene_order=selected,all_scenes=full)
+    assert len(two)==1
+    # A different full composition remains valid; the old shorter render
+    # cannot be mistaken for a complete 3-scene tuple.
+    old=history(store,"project")
+    full_previous=normalize_matrix_history(full,old,all_scenes=full)
+    assert full_previous==[["a0","b0","c0"]]
+    full_new=[[full[0][1],full[1][0],full[2][0]]]
+    three=enqueue_rows(store,"project",full_new,preset,tmp_path/"out",
+                       scene_order=full,all_scenes=full)
+    assert len(three)==1
+    assert len(store.jobs())==3
+    assert all(video.is_file() for video in (source_a,source_a2,b,c))
+    assert not (tmp_path/"out").exists()
