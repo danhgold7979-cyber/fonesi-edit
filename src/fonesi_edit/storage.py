@@ -292,9 +292,25 @@ class Store:
             if not row or row['state'] not in {'failed','blocked','canceled'}:return
             data=json.loads(row['payload'])
             if data.get('matrix_scope'):
-                reservation=conn.execute('SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',(data['matrix_scope'],data['matrix_combination'])).fetchone()
-                if reservation and reservation['job_id']!=job_id and reservation['state'] in {'reserved','succeeded'}:raise ValueError('Combination already reserved by a different job')
-                conn.execute("UPDATE matrix_history SET state='reserved',job_id=? WHERE scope=? AND combination=?",(job_id,data['matrix_scope'],data['matrix_combination']))
+                scope=data.get('matrix_scope')
+                combination=data.get('matrix_combination')
+                if not isinstance(scope,str) or not scope or not isinstance(combination,str) or not combination:
+                    raise ValueError('Matrix retry is missing its reservation identity')
+                reservation=conn.execute(
+                    'SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',
+                    (scope,combination)).fetchone()
+                if not reservation:
+                    raise ValueError('Matrix reservation is missing; refusing retry')
+                if reservation['job_id']!=job_id:
+                    raise ValueError('Matrix reservation belongs to a different job')
+                if reservation['state'] not in {'failed','reserved'}:
+                    raise ValueError('Matrix reservation is not retryable')
+                updated=conn.execute(
+                    "UPDATE matrix_history SET state='reserved' "
+                    "WHERE scope=? AND combination=? AND job_id=? AND state IN ('failed','reserved')",
+                    (scope,combination,job_id))
+                if updated.rowcount!=1:
+                    raise ValueError('Matrix reservation changed during retry')
             conn.execute("UPDATE jobs SET state='pending',error=NULL,cancel_requested=0,progress=0,updated=? WHERE id=? AND state IN ('failed','blocked','canceled')", (time.time(), job_id))
 
     def recover(self, stale_seconds=60,exclude=()):
