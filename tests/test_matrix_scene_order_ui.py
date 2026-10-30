@@ -180,3 +180,56 @@ def test_qt_source_root_change_clears_old_matrix_but_not_history(tmp_path):
         assert 'quét/sinh lại' in page.summary.text()
     finally:
         close(window)
+
+
+def test_qt_corrupted_persisted_scene_order_is_ignored_without_loss(tmp_path,monkeypatch):
+    window=MainWindow(tmp_path/"state")
+    window.scheduler.paused=True
+    try:
+        root=tmp_path/"source"
+        page,original=setup_page(window,root)
+        page.count.setValue(1)
+        # A legacy or damaged preference is untrusted; do not crash on
+        # an unhashable JSON object or treat it as a valid permutation.
+        page.host.store.set_setting(page.scene_order_key(),[{},[],None])
+        monkeypatch.setattr(pages_module,"scan_scenes",lambda _folder:original)
+        page.generate()
+        wait_until(lambda:not window.tasks)
+        assert scene_directories(page.scenes)==scene_directories(original)
+        assert len(page.model.rows)==1
+        assert not window.failures,window.failures
+    finally:
+        close(window)
+
+
+def test_qt_second_generate_supersedes_identical_inflight_request(tmp_path,monkeypatch):
+    root=tmp_path/"source"
+    window=MainWindow(tmp_path/"state")
+    window.scheduler.paused=True
+    old_started,release=Event(),Event()
+    try:
+        page,original=setup_page(window,root)
+        page.count.setValue(1)
+        first=[True]
+        def slow_scan(_root):
+            if first[0]:
+                first[0]=False
+                old_started.set()
+                assert release.wait(8)
+            return original
+        monkeypatch.setattr(pages_module,"scan_scenes",slow_scan)
+        page.generate()
+        wait_until(old_started.is_set)
+        page.generate()  # Same options, but a newer request wins.
+        wait_until(lambda:len(page.model.rows)==1 and
+                   page._matrix_revision>=3 and
+                   "tối đa lý thuyết" in page.summary.text())
+        expected=scene_directories(page.scenes)
+        release.set()
+        wait_until(lambda:not window.tasks)
+        assert scene_directories(page.scenes)==expected
+        assert "Đã bỏ ma trận sinh nền" in window.status.text()
+        assert not window.failures,window.failures
+    finally:
+        release.set()
+        close(window)
