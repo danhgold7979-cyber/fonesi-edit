@@ -8,7 +8,8 @@
 - Nghiệm thu bản làm lại: 0 task; chưa khóa denominator sau audit.
 - Backup: complete Git bundle verified; independent restore matches baseline.
 - Đã sửa: REBUILD_REVIEW.md, REBUILD_STATUS.md (local, chưa push).
-- Chưa làm: xóa source cũ, code mới, test mới, publish.
+- Đã loại implementation/test/build/extension cũ khỏi nhánh rebuild trong commit riêng; lịch sử và full bundle giữ nguyên.
+- Chưa làm: code mới, test mới, publish.
 - Kết quả 92 tests của baseline là lịch sử, không phải pass của rebuild.
 - Tiếp theo: khóa hợp đồng triển khai chi tiết và sửa toàn bộ Pxx_PLAN trước khi code.
 - Blocker target: Windows/Chrome/GPU/live provider validation chưa được thực hiện cho rebuild; không chặn công việc độc lập.
