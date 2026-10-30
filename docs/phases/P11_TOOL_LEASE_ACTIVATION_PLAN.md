@@ -31,7 +31,7 @@ Install resolves and verifies an existing version receipt before calling _save_t
 
 ## 4. Acceptance criteria
 
-- [ ] Activation verifies receipt identity, executable containment, executable SHA-256 and optional ffprobe companion while holding the same SQLite writer lock as cleanup.
+- [x] Activation verifies receipt identity, executable containment, executable SHA-256 and optional ffprobe companion while holding the same SQLite writer lock as cleanup.
 - [x] Cleanup-first ordering cannot activate a deleted version or recreate stale metadata.
 - [x] Activation-first ordering prevents cleanup from removing the active/configured version.
 - [x] Settings inventory accurately displays eligibility and confirmed removal deletes only an eligible app-managed version.
@@ -41,9 +41,11 @@ Install resolves and verifies an existing version receipt before calling _save_t
 
 ## Progress (30/10/2026)
 
-Acceptance items 2–7 are now backed by the cleanup/activation race regressions, existing lease/install suite, and [exact-HEAD CI 41066952938](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41066952938) on `28b938589b495d9e0c8aff66a6d37a06f840cead`. The Settings inventory, confirmation, cancel and Chrome non-interference checks are covered by [P11_TOOL_SETTINGS_UI_PLAN.md](P11_TOOL_SETTINGS_UI_PLAN.md).
+All acceptance criteria are now backed by the activation/cleanup ordering regressions, receipt identity tests, rollback ownership tests, existing lease/install suite, and [exact-HEAD CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) on 13a044e51f96498d7b3ee0728e7892fffd8c4194. The separate [Settings UI regression plan](P11_TOOL_SETTINGS_UI_PLAN.md) also passed on exact source/test SHA 28b9385.
 
-**Acceptance item 1 remains OPEN:** `_save_tool_activation` validates the managed folder, executable containment/hash and companion location, but does not yet explicitly assert that receipt `name` and `version` match the activation arguments. A follow-up slice must close this identity check before this plan can be fully accepted.
+The implementation now rejects malformed or mismatched receipt identity, requires non-symlink regular executable/ffprobe files inside the exact managed version folder, and refuses rollback from external registry paths even when the recorded hash matches. If an older FFmpeg version has no companion, rollback removes only a stale app-managed ffprobe override and preserves a separately selected external/system ffprobe path.
+
+CI: Linux 879 passed / 0 skipped; Windows 875 passed / 4 intentional skips. Both runners passed Batch/Matrix benchmarks, production/native-host builds and frozen packaged proof.
 
 ## 5. Limits
 

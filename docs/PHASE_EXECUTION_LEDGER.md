@@ -313,3 +313,15 @@ This closes the synthetic replacement-install failure-boundary slice only. Real 
 Three Qt integration tests verify inventory/protection reasons, explicit Yes/No behavior, active tool and Chrome profile/account preservation, and rejection of a version held by a retryable job before confirmation. CI: Linux 873 passed / 0 skipped; Windows 871 passed / 2 intentional skips / 0 failures. Both runners passed Batch 128-source FFprobe dry-run, 2,000-output logical Matrix benchmark (complete, max spread 5), production/native-host build and frozen packaged proof. Windows development artifact 197,404,488 bytes.
 
 This is synthetic Qt/SQLite/filesystem evidence, not physical Windows user-machine acceptance. Receipt name/version identity validation and the remaining P11/P12 release gates remain OPEN.
+
+## P11-08 / TOL-06 — Receipt identity and rollback path ownership (30/10/2026)
+
+[Plan](P11_TOOL_ROLLBACK_IDENTITY_PLAN.md) → [implementation/tests 13a044e](https://github.com/danhgold7979-cyber/fonesi-edit/commit/13a044e51f96498d7b3ee0728e7892fffd8c4194) → [CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) **SUCCESS exact HEAD**.
+
+The installer activation path now validates receipt object/name/version identity, SHA-256 format, and requires the executable and optional ffprobe companion to be regular non-symlink files within the exact app-managed version folder before updating active metadata. Rollback now validates registry identity, managed-root ownership, executable hash/startup readiness, and any existing ffprobe companion under the same SQLite writer transaction. It rejects a registry path pointing outside the managed folder even when the external binary has identical bytes/hash, and rejects symlinked companions without changing active paths. If the selected FFmpeg version has no companion, only a stale app-managed ffprobe override is removed; a separate user/system override is preserved.
+
+New tests cover malformed/name/version-mismatched receipts, external byte-identical rollback executable, symlinked ffprobe during activation, and symlinked ffprobe during rollback; the existing successful matching FFmpeg/ffprobe rollback test remains green.
+
+Exact-HEAD CI: Linux **879 passed / 0 skipped**; Windows **875 passed / 4 intentional skips / 0 failures** (one POSIX fixture installer and three Windows symlink-privilege tests). Both runners passed 128-source synthetic FFprobe Batch dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch: 7.526041 s Linux / 10.676617 s Windows. Matrix: 19.938691 s Linux / 18.143151 s Windows. Artifacts: Linux evidence 391,632 bytes; Windows evidence 324,455 bytes; Windows development build 197,408,920 bytes.
+
+This closes the bounded receipt/rollback ownership slice only. Physical Windows ACL/AV/disk-full/power-loss, signed installer/update UX, Chrome real login/DPAPI/session handoff, live providers, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12 remain OPEN.

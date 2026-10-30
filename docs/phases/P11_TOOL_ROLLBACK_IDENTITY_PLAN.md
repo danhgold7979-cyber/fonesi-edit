@@ -32,14 +32,27 @@ These are bounded local registry/receipt integrity gaps; no live network or cred
 
 ## 4. Acceptance criteria
 
-- [ ] Activation refuses non-object or name/version-mismatched receipts without mutating active metadata or tool_paths.
-- [ ] Activation requires the executable path and hash to belong to the requested managed version folder.
-- [ ] Rollback refuses an external registry path even when its bytes match the recorded hash.
-- [ ] Rollback refuses an external/symlinked ffprobe companion and preserves the currently active tool selection.
-- [ ] Valid rollback still selects the matching FFmpeg/ffprobe pair and updates the live resolver.
-- [ ] Existing activation/cleanup locks, job leases, installer failure atomicity, repair, archive safety and full suite remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
+- [x] Activation refuses non-object or name/version-mismatched receipts without mutating active metadata or tool_paths.
+- [x] Activation requires the executable path and hash to belong to the requested managed version folder.
+- [x] Rollback refuses an external registry path even when its bytes match the recorded hash.
+- [x] Rollback refuses an external/symlinked ffprobe companion and preserves the currently active tool selection.
+- [x] Valid rollback still selects the matching FFmpeg/ffprobe pair and updates the live resolver.
+- [x] Existing activation/cleanup locks, job leases, installer failure atomicity, repair, archive safety and full suite remain passing.
+- [x] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
 
-## 5. Limits
+## 5. Results (30/10/2026)
+
+[Implementation and regressions 13a044e](https://github.com/danhgold7979-cyber/fonesi-edit/commit/13a044e51f96498d7b3ee0728e7892fffd8c4194) → [exact-HEAD CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) **SUCCESS**.
+
+- Linux: **879 passed**, 0 skipped, 0 failures/errors.
+- Windows: **875 passed**, 4 intentional skips, 0 failures/errors. Skips: one POSIX-only fixture installer test and three symlink tests requiring Windows user-machine symlink privilege.
+- New regressions cover non-object/name/version-mismatched receipts without active-path mutation, rollback refusing an external executable even when its bytes match the stored SHA-256, and refusal of a symlinked ffprobe companion during both activation and rollback. The pre-existing successful FFmpeg/ffprobe rollback test still passes.
+- Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof.
+- Batch: 7.526041 s Linux / 10.676617 s Windows. Matrix: 19.938691 s Linux / 18.143151 s Windows.
+- Artifacts: Linux evidence 391,632 bytes; Windows evidence 324,455 bytes; Windows development build 197,408,920 bytes.
+
+This closes the bounded receipt/rollback ownership regression only. It is synthetic CI evidence, not physical Windows user-machine acceptance or completion of all P11/P12 requirements.
+
+## 6. Limits
 
 Synthetic SQLite/filesystem/tool fixtures do not certify physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, real Chrome login/DPAPI/session handoff, live providers, GPU/HiDPI/audio, large real-media performance, SQLite issue #6 or complete P11/P12 acceptance. Do not merge to main or force-push.
