@@ -10,7 +10,9 @@ import pytest
 
 from fonesi_edit import dependencies
 from fonesi_edit.dependencies import install, rollback
-from fonesi_edit.prototypes.tools import ToolStatus
+from fonesi_edit.prototypes.tools import ToolStatus, check_tool, scan_tools
+from fonesi_edit.prototypes.translation import TranslationNotConfigured, translate
+from fonesi_edit.prototypes.subtitles import Cue
 from fonesi_edit.storage import Store
 
 
@@ -223,3 +225,20 @@ def test_rollback_updates_ffmpeg_and_matching_ffprobe_and_live_resolver(tmp_path
     }
     assert _active_versions(store) == {"6.0.0": 1, "7.0.0": 0}
     assert activated[-1] == store.setting("tool_paths")
+
+
+def test_explicit_missing_tool_path_does_not_fall_back_to_system(tmp_path):
+    missing = str(tmp_path / "missing-ffmpeg")
+    tools = scan_tools({"ffmpeg": missing})
+    ffmpeg = next(tool for tool in tools if tool.name == "ffmpeg")
+    assert ffmpeg.status == "missing" and ffmpeg.path == missing
+
+
+def test_missing_chrome_is_not_replaced_by_chromium(tmp_path):
+    assert check_tool("Google Chrome", str(tmp_path / "missing-chrome")).status == "missing"
+
+
+def test_translation_requires_config_and_never_fakes_output(monkeypatch):
+    monkeypatch.delenv("FONESI_GOOGLE_TRANSLATE_API_KEY", raising=False)
+    with pytest.raises(TranslationNotConfigured):
+        translate([Cue(0, 1000, "你好")])
