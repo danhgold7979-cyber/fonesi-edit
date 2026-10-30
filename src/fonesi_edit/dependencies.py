@@ -104,7 +104,7 @@ def extract_zip(archive,destination):
         # and Windows without weakening the all-or-nothing validation boundary.
         for item,normalized in zip(members,normalized_names):
             item.filename=normalized
-        package.extractall(destination)
+        package.extractall(destination,members=members)
 
 
 def _check_cancel(cancel):
