@@ -11,8 +11,12 @@ Reviewed AGENTS.md, README.md, docs/IMPLEMENTATION_PLAN.md P09-02/03 and P11-03,
 4. Check source plan/test and CI Linux/Windows plus packaged proof; update evidence only after exact-HEAD results.
 
 ## Acceptance
-- [ ] All invalid generator parameters fail with explicit ValueError rather than hangs or approximate behavior.
-- [ ] The benchmark reports reproducible logical-source shape and preserves W/K, source identity, bounded enumeration and honest incomplete state.
-- [ ] Linux/Windows CI source tests and packaged synthetic proof pass at the exact code/test SHA.
+- [x] All invalid generator parameters fail with explicit ValueError rather than hangs or approximate behavior.
+- [x] The benchmark reports reproducible logical-source shape and preserves W/K, source identity, bounded enumeration and honest incomplete state.
+- [x] Linux/Windows CI source tests and packaged synthetic proof pass at the exact code/test SHA.
 
 Full P09 remains OPEN: 100k-real-media matrix and solver optimality, physical Windows GUI/HiDPI, Chrome/live providers/GPU, filesystem power loss and SQLite issue #6. Do not merge main.
+
+## Bounded CI evidence (30/10/2026)
+[CI 41025266091](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41025266091) SUCCESS, exact code/test SHA `7d2d74a7173184d1e752e508ff83aa8971f72321`: 764 Linux PASS; 763 Windows PASS + one intentional POSIX skip; 128-source synthetic FFprobe benchmark, production desktop/native-host builds, frozen packaged render/Batch/Matrix/localhost/Qt proof PASS both runners. Windows development artifact 197,335,201 bytes, expires 2026-11-06. Synthetic/localhost evidence only; NOT physical Windows/HiDPI/installer, full 100k-real-media throughput/solver optimality, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/provider or GPU acceptance.
+Logical-only stress and incomplete-budget reporting are demonstrated; real media throughput is still unproven.

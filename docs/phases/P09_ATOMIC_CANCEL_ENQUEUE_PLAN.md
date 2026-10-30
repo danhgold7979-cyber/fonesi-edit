@@ -18,13 +18,17 @@ Previous exact source/test [CI 41021003352](https://github.com/danhgold7979-cybe
 
 ## Bounded acceptance
 
-- [ ] Canceled Matrix enqueue publishes no new jobs/history for a pre-publication cancel, and already existing rows remain intact.
-- [ ] Qt obsolete matrix/snapshot changes revoke active preparation, duplicate Render clicks are blocked, and a successful completed commit is not silently removed.
-- [ ] Normal legacy callers and non-canceled Matrix render/scheduler paths behave exactly as before.
-- [ ] Full CI Linux and Windows at exact code/test SHA and packaged synthetic proofs PASS.
+- [x] Canceled Matrix enqueue publishes no new jobs/history for a pre-publication cancel, and already existing rows remain intact.
+- [x] Qt obsolete matrix/snapshot changes revoke active preparation, duplicate Render clicks are blocked, and a successful completed commit is not silently removed.
+- [x] Normal legacy callers and non-canceled Matrix render/scheduler paths behave exactly as before.
+- [x] Full CI Linux and Windows at exact code/test SHA and packaged synthetic proofs PASS.
 
 **External blockers:** real NTFS/exFAT loss-of-power and SQLite intermittent issue #6, user Windows controls/HiDPI/installer, live Chrome/provider, GPU/audio and large solver performance remain OPEN; this slice does not close P09 or the 95 requirements.
 
 ## CI regression follow-up (30/10/2026, before repair)
 - [CI 41022883448](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41022883448) at SHA `a09af716bbacbadafd274154105d672d132f1a94` is **FAIL** on both Linux and Windows. Source unit suite logged 6 failures all caused by `sqlite3.OperationalError: no such column: excluded.job` at `matrix.enqueue_rows` UPSERT on the newly added cancel-safe path; Linux 746 passed / 6 failed. The actual `matrix_history` column is `job_id`.
 - First change the erroneous `excluded.job` to `excluded.job_id` without modifying schema, data, cancellation rules or existing assertions. Add an explicit SQLite regression for retrying a failed reservation, ensuring the new queued job owns the `job_id` after an ON CONFLICT UPSERT; existing create/duplicate/rollback tests remain mandatory. Verify exact new commit on Linux and Windows CI and packaged proof before calling this regression resolved.
+
+## Bounded CI evidence (30/10/2026)
+[CI 41025266091](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41025266091) SUCCESS, exact code/test SHA `7d2d74a7173184d1e752e508ff83aa8971f72321`: 764 Linux PASS; 763 Windows PASS + one intentional POSIX skip; 128-source synthetic FFprobe benchmark, production desktop/native-host builds, frozen packaged render/Batch/Matrix/localhost/Qt proof PASS both runners. Windows development artifact 197,335,201 bytes, expires 2026-11-06. Synthetic/localhost evidence only; NOT physical Windows/HiDPI/installer, full 100k-real-media throughput/solver optimality, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/provider or GPU acceptance.
+SQLite cancel/preflight/after-INSERT rollback and Qt global cancel, edit, scene order and late commit are covered by automated tests.
