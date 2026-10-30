@@ -3,7 +3,13 @@ from threading import Event
 import math
 import pytest
 from fonesi_edit.matrix import Angle, generate, matrix_rows_valid
-from scripts.benchmark_matrix import benchmark
+from pathlib import Path
+from runpy import run_path
+
+# The CLI lives outside the installed package. Load its actual file, not a
+# fictitious importable `scripts` package (pytest runs from installed src).
+benchmark = run_path(str(Path(__file__).resolve().parents[1] /
+                         "scripts" / "benchmark_matrix.py"))["benchmark"]
 
 
 def _scenes():
