@@ -9,3 +9,5 @@ Draft edits invalidate prior verification; an async result applies only to its e
 Tests: actual trusted CLI positive; missing paths/wrong roles/missing encoders/nonzero/oversize/cancel; stale draft result, busy apply refusal, parent propagation and inspection invalidation; worker Escape/Close safe. UI retains existing theme. Installer/trusted manifests/tool ownership/version leases/persistence/rollback remain open, not hidden by this slice.
 
 Parent Close must resume automatically after child tool/batch/subtitle workers safely finish, using one completion subscription per worker and a deferred UI close after child state clears. Do not leave a stale waiting message requiring a hidden second close. Reset closing state; test this explicitly. Each verification attempt also gets a fresh generation, even when path text is unchanged.
+
+Close-admission regression: while parent close is pending, reject newly queued work/open-child actions and disable their controls; initiate each active child’s own close-wait path, not only cancellation. Existing completion callbacks may finish safely but cannot admit new work.

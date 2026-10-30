@@ -254,3 +254,16 @@ class UiTests(unittest.TestCase):
         )
         self.assertFalse(self.window.export.isEnabled())
         self.assertFalse(self.window.export_to(Path("/must-not-create.mp4")))
+
+    def test_pending_close_rejects_new_work_and_windows(self):
+        self.window.closing = True
+        self.window.refresh()
+        self.assertFalse(self.window.start(lambda cancel: True, lambda value: None))
+        self.assertFalse(self.window.open_batch())
+        self.assertFalse(self.window.open_subtitles())
+        self.assertFalse(self.window.open_tools())
+        self.assertFalse(self.window.add.isEnabled())
+        self.assertFalse(self.window.batch_button.isEnabled())
+        self.assertFalse(self.window.subtitle_button.isEnabled())
+        self.assertFalse(self.window.tools_button.isEnabled())
+        self.assertIsNone(self.window.worker)

@@ -196,8 +196,12 @@ class MainWindow(QMainWindow):
             )
 
     def refresh(self):
-        busy = self.worker is not None
-        self.tools_button.setEnabled(not self.has_active_media_jobs())
+        busy = self.worker is not None or self.closing
+        self.tools_button.setEnabled(
+            not self.closing and not self.has_active_media_jobs()
+        )
+        self.subtitle_button.setEnabled(not self.closing)
+        self.batch_button.setEnabled(not self.closing)
         self.open_button.setEnabled(not busy)
         self.save_button.setEnabled(not busy and bool(self.media))
         row = self.list.currentRow()
@@ -220,14 +224,14 @@ class MainWindow(QMainWindow):
             or Fraction(str(self.end_time.value())) > self.selected[1].duration
         ):
             self.export.setEnabled(False)
-        self.cancel_button.setEnabled(busy)
+        self.cancel_button.setEnabled(self.worker is not None)
         self.list.setEnabled(not busy)
         self.progress.setRange(0, 0 if busy else 1)
         if not busy:
             self.progress.setValue(0)
 
     def start(self, operation, on_result):
-        if self.worker is not None:
+        if self.worker is not None or self.closing:
             return False
         worker = Worker(operation)
         self.worker = worker
@@ -264,7 +268,7 @@ class MainWindow(QMainWindow):
     def open_tools(self):
         from fonesi_edit.tool_dialog import ToolDialog
 
-        if self.has_active_media_jobs():
+        if self.closing or self.has_active_media_jobs():
             self.status.setText("Đợi công việc media hoàn tất trước khi đổi công cụ.")
             return False
         if self.tool_window is not None and self.tool_window.worker:
@@ -308,6 +312,8 @@ class MainWindow(QMainWindow):
         return True
 
     def open_batch(self):
+        if self.closing:
+            return False
         from fonesi_edit.batch_editor import BatchEditor
 
         if self.batch_window is None:
@@ -317,6 +323,8 @@ class MainWindow(QMainWindow):
         self.batch_window.activateWindow()
 
     def open_subtitles(self):
+        if self.closing:
+            return False
         from fonesi_edit.subtitle_editor import SubtitleEditor
 
         if self.subtitle_window is None:
@@ -659,6 +667,8 @@ class MainWindow(QMainWindow):
             child.worker.finished.connect(finished)
         if cancel:
             child.cancel_work()
+        child.close()
+        self.refresh()
 
     def closeEvent(self, event):
         if self.tool_window is not None and self.tool_window.worker:
