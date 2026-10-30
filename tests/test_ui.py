@@ -61,3 +61,26 @@ class UiTests(unittest.TestCase):
         self.assertEqual(self.window.edits[0],(1.5,2.0,1.0))
         self.window.end_time.setValue(3)
         self.assertFalse(self.window.export.isEnabled())
+
+    def test_project_save_open_retains_unprobed_media(self):
+        from fractions import Fraction
+        from fonesi_edit.media import MediaInfo
+        with tempfile.TemporaryDirectory() as folder:
+            self.window.loaded((Path(folder)/'missing.mp4',MediaInfo(Fraction(2),('video',)),b''))
+            self.window.start_time.setValue(.5)
+            project=Path(folder)/'saved.fonesi'
+            self.assertTrue(self.window.save_project_to(project));self.wait_worker()
+            self.assertTrue(project.is_file())
+            self.assertFalse(self.window.open_project_path(project))
+            self.assertTrue(self.window.open_project_path(project,replace=True));self.wait_worker()
+            self.assertIsNone(self.window.media[0][1]);self.assertFalse(self.window.export.isEnabled())
+            self.assertEqual(self.window.edits[0],(.5,2.0,1.0))
+            self.assertEqual(self.window.list.count(),1)
+
+    def test_unedited_project_preserves_rational_time(self):
+        from fractions import Fraction as F
+        from fonesi_edit.project import Project,ProjectMedia
+        from fonesi_edit.timing import ClipMap,Interval
+        project=Project('12345678-1234-5678-1234-567812345678','Exact',(ProjectMedia('22345678-1234-5678-1234-567812345678','/missing.mp4',ClipMap(Interval(F(1,3),F(7,3)),F(3,2))),))
+        self.window.project_loaded(project)
+        self.assertEqual(self.window.current_project(),project)

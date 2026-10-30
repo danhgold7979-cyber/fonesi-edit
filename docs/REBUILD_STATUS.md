@@ -32,3 +32,7 @@
 - One immutable ClipMap can drive real video/audio trim and speed0.5–2, with explicit duration policy. Real2s audio/video fixture -> one-second interval at2x -> approximately0.5s verified.
 - Qt start/end/speed controls preserve per-row edits; invalid/beyond-source interval disables export. Source preview remains clearly distinct from output.
 - Local43 tests PASS; Windows/Python3.12 run41099958032 passed41 tests on prior UI/fsync checkpoint, other matrix jobs awaited. New trim/speed increment not yet CI-verified.
+
+## Project persistence slice
+
+New strict project schema/save-as/open, no media auto-probe on load, missing references retained and exact rational edits preserved until explicit numeric edit. Existing destination never overwritten. UI replacement requires confirmation. Current schema rejects unsupported nonzero timeline offsets. Local54 tests PASS. Saves are bounded-size local filesystem work; no claim of interruptible network-filesystem flush or autosave/migration acceptance. Project code not yet Windows CI-verified.

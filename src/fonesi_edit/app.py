@@ -4,14 +4,16 @@ from pathlib import Path
 import shutil
 import sys
 import threading
+from uuid import uuid4
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,
-    QPushButton,QLabel,QListWidget,QSplitter,QFileDialog,QProgressBar,QTabBar,QDoubleSpinBox,QFormLayout)
+    QPushButton,QLabel,QListWidget,QSplitter,QFileDialog,QProgressBar,QTabBar,QDoubleSpinBox,QFormLayout,QMessageBox)
 from fonesi_edit.media import probe
 from fonesi_edit.process import run_bounded
 from fonesi_edit.render import render_cpu
 from fonesi_edit.timing import ClipMap, Interval
+from fonesi_edit.project import Project,ProjectMedia,save_new,load_project
 
 
 class Worker(QThread):
@@ -29,7 +31,7 @@ class Worker(QThread):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False;self.edits={};self._loading_controls=False
+        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False;self.edits={};self._loading_controls=False;self.media_ids=[];self.exact_edits={};self.project_id=str(uuid4());self.project_title='Dự án mới'
         self.ffmpeg=shutil.which('ffmpeg');self.ffprobe=shutil.which('ffprobe')
         self.setWindowTitle('Fonesi Edit · Bản xây lại đang phát triển');self.resize(1280,800)
         root=QWidget();self.setCentralWidget(root);layout=QVBoxLayout(root);layout.setContentsMargins(20,16,20,16);layout.setSpacing(14)
@@ -43,7 +45,9 @@ class MainWindow(QMainWindow):
         tabs.setCurrentIndex(3);layout.addWidget(tabs)
         controls=QHBoxLayout();self.add=QPushButton('Thêm media…');self.export=QPushButton('Xuất thử MP4 CPU…');self.cancel_button=QPushButton('Hủy tác vụ')
         self.add.clicked.connect(self.choose_source);self.export.clicked.connect(self.choose_output);self.cancel_button.clicked.connect(self.cancel_work)
-        controls.addWidget(self.add);controls.addWidget(self.export);controls.addStretch();controls.addWidget(self.cancel_button);layout.addLayout(controls)
+        self.open_button=QPushButton('Mở project…');self.save_button=QPushButton('Lưu thành project mới…');self.inspect_button=QPushButton('Kiểm tra media chọn')
+        self.open_button.clicked.connect(self.choose_project);self.save_button.clicked.connect(self.choose_save);self.inspect_button.clicked.connect(self.inspect_selected)
+        controls.addWidget(self.open_button);controls.addWidget(self.save_button);controls.addWidget(self.add);controls.addWidget(self.inspect_button);controls.addWidget(self.export);controls.addStretch();controls.addWidget(self.cancel_button);layout.addLayout(controls)
         panes=QSplitter();layout.addWidget(panes,1)
         left=QWidget();ll=QVBoxLayout(left);ll.addWidget(QLabel('MEDIA CỤC BỘ'));self.list=QListWidget();ll.addWidget(self.list);panes.addWidget(left)
         center=QWidget();cl=QVBoxLayout(center);cl.addWidget(QLabel('KHUNG HÌNH NGUỒN · chưa áp hiệu ứng'))
@@ -68,6 +72,8 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
 
     def refresh(self):
         busy=self.worker is not None
+        self.open_button.setEnabled(not busy);self.save_button.setEnabled(not busy and bool(self.media))
+        row=self.list.currentRow();self.inspect_button.setEnabled(not busy and 0<=row<len(self.media) and bool(self.ffmpeg and self.ffprobe))
         self.add.setEnabled(not busy and bool(self.ffmpeg and self.ffprobe));self.export.setEnabled(not busy and self.selected is not None and 'video' in self.selected[1].stream_types)
         for control in (self.start_time,self.end_time,self.speed):control.setEnabled(not busy and self.selected is not None)
         if self.selected is not None and (self.start_time.value()>=self.end_time.value() or Fraction(str(self.end_time.value()))>self.selected[1].duration):self.export.setEnabled(False)
@@ -88,7 +94,7 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
     def choose_source(self):
         path,_=QFileDialog.getOpenFileName(self,'Chọn media nguồn','','Media (*.mp4 *.mkv *.mov *.avi *.webm *.wav *.mp3);;Tất cả (*)')
         if path:self.load_source(Path(path))
-    def load_source(self,path):
+    def load_source(self,path,replace_row=None):
         if not self.ffmpeg or not self.ffprobe:return False
         def work(cancel):
             info=probe(path,Path(self.ffprobe),cancel=cancel);thumbnail=b''
@@ -99,13 +105,20 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
             if cancel.is_set():raise ValueError('CANCELED')
             return path,info,thumbnail
         self.status.setText('Đang kiểm tra media và đọc khung hình…')
-        return self.start(work,self.loaded)
-    def loaded(self,result):
-        self.media.append(result);self.list.addItem(result[0].name);self.list.setCurrentRow(len(self.media)-1)
-        self.status.setText('Đã đọc nguồn. Đây là khung nguồn, chưa có hiệu ứng.');self.select_row(len(self.media)-1)
+        return self.start(work,lambda result:self.loaded(result,replace_row))
+    def loaded(self,result,replace_row=None):
+        if replace_row is None:
+            self.media.append(result);self.media_ids.append(str(uuid4()));self.list.addItem(result[0].name);row=len(self.media)-1
+        else:
+            row=replace_row;self.media[row]=result
+        self.list.setCurrentRow(row)
+        self.status.setText('Đã đọc nguồn. Đây là khung nguồn, chưa có hiệu ứng.');self.select_row(row)
     def select_row(self,row):
         if not 0<=row<len(self.media):return
-        self.selected=self.media[row];path,info,data=self.selected
+        path,info,data=self.media[row]
+        if info is None:
+            self.selected=None;self.details.setText(path.name+'\nChưa kiểm tra nguồn; bấm Kiểm tra media chọn.');self.preview.setText('Tham chiếu media được giữ nguyên.\nKhông tự mở tệp khi nạp project.');self.refresh();return
+        self.selected=self.media[row]
         self._loading_controls=True
         values=self.edits.get(row,(0,(info.duration.numerator*1000000//info.duration.denominator)/1000000,1))
         for control,value in zip((self.start_time,self.end_time,self.speed),values):control.setValue(value)
@@ -117,9 +130,52 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         self.refresh()
     def changed_edit(self):
         if self._loading_controls or self.selected is None:return
+        self.exact_edits.pop(self.list.currentRow(),None)
         self.edits[self.list.currentRow()]=(self.start_time.value(),self.end_time.value(),self.speed.value())
         self.status.setText('Thiết lập xuất đã đổi. Khung đang xem vẫn là nguồn, chưa áp trim/tốc độ.')
         self.refresh()
+    def inspect_selected(self):
+        row=self.list.currentRow()
+        if 0<=row<len(self.media):return self.load_source(self.media[row][0],replace_row=row)
+        return False
+    def current_project(self):
+        entries=[]
+        for row,(path,info,data) in enumerate(self.media):
+            edit=self.exact_edits.get(row)
+            if edit is None and row in self.edits:
+                start,end,speed=self.edits[row]
+                edit=ClipMap(Interval(Fraction(str(start)),Fraction(str(end))),Fraction(str(speed)))
+            entries.append(ProjectMedia(self.media_ids[row],str(path.absolute()),edit))
+        return Project(self.project_id,self.project_title,tuple(entries))
+    def choose_save(self):
+        path,_=QFileDialog.getSaveFileName(self,'Lưu thành project mới','project.fonesi','Fonesi project (*.fonesi)')
+        if path:self.save_project_to(Path(path))
+    def save_project_to(self,path):
+        if self.worker:return False
+        try:project=self.current_project()
+        except ValueError:self.status.setText('Không thể lưu: sửa khoảng trim chưa hợp lệ trước.');return False
+        self.status.setText('Đang lưu project mới; không ghi đè tệp đã có…')
+        return self.start(lambda cancel:save_new(project,path),lambda result:self.status.setText('Đã lưu project mới. Media nguồn không bị sao chép hoặc thay đổi.'))
+    def choose_project(self):
+        if self.media and QMessageBox.question(self,'Thay project đang mở?','Các thay đổi chưa lưu sẽ rời khỏi cửa sổ. Bạn đã lưu project cần giữ?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
+        path,_=QFileDialog.getOpenFileName(self,'Mở project','','Fonesi project (*.fonesi)')
+        if path:self.open_project_path(Path(path),replace=True)
+    def open_project_path(self,path,*,replace=False):
+        if self.worker or (self.media and not replace):return False
+        self.status.setText('Đang kiểm tra cấu trúc project; không tự mở media…')
+        return self.start(lambda cancel:load_project(path),self.project_loaded)
+    def project_loaded(self,project):
+        self.project_id=project.id;self.project_title=project.title;self.selected=None;self.media=[];self.media_ids=[];self.edits={};self.exact_edits={}
+        self.list.blockSignals(True);self.list.clear()
+        for row,entry in enumerate(project.media):
+            self.media.append((Path(entry.source),None,b''));self.media_ids.append(entry.id);self.list.addItem(Path(entry.source).name)
+            if entry.edit is not None:
+                self.exact_edits[row]=entry.edit
+                self.edits[row]=(float(entry.edit.source.start),float(entry.edit.source.end),float(entry.edit.speed))
+        self.list.blockSignals(False)
+        if self.media:self.list.setCurrentRow(0);self.select_row(0)
+        else:self.preview.setText('Project không có media.');self.details.setText('Chưa chọn media')
+        self.status.setText('Đã mở project. Chọn media và bấm kiểm tra; tham chiếu thiếu vẫn được giữ.')
     def choose_output(self):
         if not self.selected:return
         path,_=QFileDialog.getSaveFileName(self,'Chọn tên đầu ra mới',self.selected[0].stem+'-edit.mp4','MP4 (*.mp4)')
@@ -127,8 +183,8 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
     def export_to(self,destination):
         if not self.selected or self.worker:return False
         source=self.selected[0]
-        mapping=None
-        if self.list.currentRow() in self.edits:
+        mapping=self.exact_edits.get(self.list.currentRow())
+        if mapping is None and self.list.currentRow() in self.edits:
             try:mapping=ClipMap(Interval(Fraction(str(self.start_time.value())),Fraction(str(self.end_time.value()))),Fraction(str(self.speed.value())))
             except ValueError:self.status.setText('Khoảng trim không hợp lệ: kết thúc phải lớn hơn bắt đầu.');return False
         self.status.setText('Đang xuất thử CPU và giải mã kiểm tra; chưa biết % chính xác…')
