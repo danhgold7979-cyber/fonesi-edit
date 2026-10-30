@@ -233,3 +233,31 @@ def test_qt_second_generate_supersedes_identical_inflight_request(tmp_path,monke
     finally:
         release.set()
         close(window)
+
+
+def test_qt_scene_move_keeps_selected_matrix_row_and_settings_invalidate_preview(tmp_path):
+    window=MainWindow(tmp_path/"state")
+    try:
+        page,groups=setup_page(window,tmp_path/"source")
+        page.model.replace(groups,[
+            [scene[0] for scene in groups],
+            [scene[1] for scene in groups],
+        ])
+        page.table.selectRow(1)
+        selected_before=page.table.currentIndex().row()
+        before=page._matrix_revision
+        page.scene_list.setCurrentRow(0)
+        page.move_scene(1)
+        assert page.table.currentIndex().row()==selected_before==1
+        assert [a.hash for a in page.model.rows[1]]==[
+            "two-1","one-1","three-1"
+        ]
+        assert page._matrix_revision>before
+        before=page._matrix_revision
+        page.scene_weights.setText("2,1,3")
+        assert page._matrix_revision>before
+        before=page._matrix_revision
+        page.minimum.setValue(.75)
+        assert page._matrix_revision>before
+    finally:
+        close(window)
