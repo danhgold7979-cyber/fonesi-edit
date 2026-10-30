@@ -407,3 +407,59 @@ def test_qt_stale_selection_scan_is_discarded_after_source_change(tmp_path,monke
     finally:
         finish.set()
         close(window)
+
+
+def test_qt_scene_pin_moves_with_reordered_scene_and_remains_uneditable(tmp_path,monkeypatch):
+    root=tmp_path/"source"
+    monkeypatch.setattr(pages_module,"scan_scenes",lambda _root:synthetic_scenes(root))
+    window=MainWindow(tmp_path/"state");window.scheduler.paused=True
+    try:
+        page=window.matrix;page.folder.setText(str(root));page.count.setValue(1)
+        page.scan_scene_choices();wait_until(lambda:not window.tasks)
+        pinned=page.scene_filter.topLevelItem(1).child(1)
+        page.scene_filter.setCurrentItem(pinned)
+        page.pin_selected_angle()
+        page.generate();wait_until(lambda:not window.tasks)
+        assert page._pinned_columns=={2} and page.model.locked=={(0,2)}
+        assert page.model.rows[0][1].hash=="two-1"
+        page.scene_list.setCurrentRow(1)
+        assert page.move_scene(-1)
+        assert page._pinned_columns=={1} and page.model.locked=={(0,1)}
+        assert page.model.rows[0][0].hash=="two-1"
+        assert page.model.rows[0][0].scene==1
+        assert not page.model.setData(page.model.index(0,1),"G1")
+        page.table.setCurrentIndex(page.model.index(0,1))
+        page.lock()
+        assert page.model.locked=={(0,1)}
+        page.scene_filter.setCurrentItem(pinned)
+        page.unpin_selected_scene()
+        assert not page.model.rows and not page._pinned_columns
+    finally:
+        close(window)
+
+
+def test_qt_filter_change_discards_inflight_generation(tmp_path,monkeypatch):
+    root=tmp_path/"source"
+    original=synthetic_scenes(root)
+    started,release=Event(),Event()
+    real=pages_module.generate
+    def gated(*args,**kwargs):
+        started.set()
+        assert release.wait(8)
+        return real(*args,**kwargs)
+    monkeypatch.setattr(pages_module,"scan_scenes",lambda _folder:original)
+    window=MainWindow(tmp_path/"state");window.scheduler.paused=True
+    try:
+        page=window.matrix;page.folder.setText(str(root));page.count.setValue(1)
+        page.scan_scene_choices();wait_until(lambda:not window.tasks)
+        monkeypatch.setattr(pages_module,"generate",gated)
+        page.generate()
+        wait_until(started.is_set)
+        page.scene_filter.topLevelItem(1).setCheckState(0,Qt.CheckState.Unchecked)
+        release.set()
+        wait_until(lambda:not window.tasks)
+        assert not page.model.rows and not page.scenes
+        assert 'Đã bỏ ma trận sinh nền' in window.status.text()
+    finally:
+        release.set()
+        close(window)
