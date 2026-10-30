@@ -693,3 +693,22 @@ def test_submit_many_validates_all_payloads_before_inserting_any_job(tmp_path):
             {"output": str(tmp_path / "bad.mp4"), "token": "must-not-store"},
         ])
     assert store.jobs() == []
+
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows symlink privilege requires user-machine acceptance")
+def test_tool_cleanup_refuses_symlink_inside_managed_version_folder(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    _install_next_ffmpeg_version(store, monkeypatch)
+    old_folder = Path(first["path"]).parent.parent
+    outside = tmp_path / "outside-target"
+    outside.write_bytes(b"must remain untouched")
+    link = old_folder / "external-link"
+    link.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="symlink"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+
+    assert outside.read_bytes() == b"must remain untouched"
+    assert old_folder.is_dir()
+    assert Path(first["path"]).is_file()
