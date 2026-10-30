@@ -91,6 +91,17 @@ def test_logical_stress_large_product_does_not_allocate_cartesian_media():
     assert "no FFprobe" in report["limitations"]
 
 
+def test_ten_thousand_million_capacity_stress_generates_thousands_without_product_allocation():
+    report=benchmark(scenes=10,angles=10,outputs=2000,window=1,different=2,
+                     seed=91,budget_seconds=10,balance_candidates=4)
+    assert report["theoretical_capacity"]==10**10
+    assert report["complete"] and report["generated"]==2000
+    assert report["unique_and_wk_valid"] and report["source_unchanged"]
+    assert report["attempts"]<=2000*4
+    assert report["python_tracemalloc_peak_bytes"]<64*1024**2
+    assert report["max_per_scene_spread"]<25
+
+
 def test_matrix_seeded_logical_result_is_reproducible_without_clock_threshold():
     first=benchmark(scenes=4,angles=3,outputs=8,window=1,different=2,
                     seed=3,budget_seconds=3)
