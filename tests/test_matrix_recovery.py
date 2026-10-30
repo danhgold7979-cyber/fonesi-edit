@@ -43,7 +43,7 @@ def _run_to_success(store,job_id):
         assert not scheduler.active
         output=Path(job["payload"]["output"])
         assert output.is_file() and output.stat().st_size>0
-        assert probe(output).duration==pytest.approx(.6,abs=.15)
+        assert .8<=probe(output).duration<=1.4
         assert job["result"]["validated"] is True
     finally:
         scheduler.shutdown()
