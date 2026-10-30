@@ -171,7 +171,7 @@ def normalize_matrix_history(scenes, previous, all_scenes=None):
 
 
 def reorder_matrix_scenes(scenes,rows,locked,previous,order,window=0,different=0,
-                          compare_window=False):
+                          compare_window=False,all_scenes=None):
     """Atomically calculate a new logical scene order without changing files/DB.
 
     The permutation contains zero-based *old* scene positions in new order.
@@ -193,8 +193,23 @@ def reorder_matrix_scenes(scenes,rows,locked,previous,order,window=0,different=0
             or not 0<=row<len(rows) or not 1<=col<=count)
            for row,col in locked):
         raise ValueError('Matrix has an invalid locked cell')
+    # Historical content hashes may refer to an *excluded* angle of an
+    # otherwise selected source scene. Validate against the complete scanned
+    # identity universe when available; do not mistake a known, excluded
+    # angle for an invalid or unrelated history record.
+    history_allowed=allowed
+    if all_scenes is not None:
+        universe_folders=scene_directories(all_scenes)
+        universe_allowed=[{angle.hash for angle in scene} for scene in all_scenes]
+        selected_folders=scene_directories(scenes)
+        if not set(selected_folders).issubset(set(universe_folders)):
+            raise ValueError('Current scenes are not present in full source manifest')
+        history_allowed=[universe_allowed[universe_folders.index(folder)]
+                         for folder in selected_folders]
+        if any(not allowed[i].issubset(history_allowed[i]) for i in range(count)):
+            raise ValueError('Current angle is absent from full source manifest')
     if any(not isinstance(row,(list,tuple)) or len(row)!=count or
-           any(value not in allowed[i] for i,value in enumerate(row))
+           any(value not in history_allowed[i] for i,value in enumerate(row))
            for row in previous):
         raise ValueError('Matrix history is not aligned with current source scenes')
 
