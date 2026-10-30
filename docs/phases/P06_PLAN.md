@@ -27,7 +27,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. UTF8 SRT parser/exporter, diagnostics. Còn mở: VTT/ASS/style/sidecar matching và ambiguity. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P06-02
 
@@ -82,7 +82,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. SRT table edit/manual lock/undo-redo. Còn mở: Bilingual/find/replace/split/merge/translation integration. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P06-05
 
@@ -100,7 +100,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Rational cue map/trim/speed/overlap diagnostics. Còn mở: Timeline/offset UI và đầy đủ source/render integration. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P06-06
 
@@ -118,7 +118,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Xuất SRT mới không overwrite. Còn mở: ASS/bilingual/style/burn-in pipeline. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ## Hồ sơ thực hiện trước rebuild (chỉ tham khảo)
 

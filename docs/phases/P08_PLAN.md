@@ -27,7 +27,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Bounded scan/no-follow và dialog chọn checkbox. Còn mở: Multi-folder UI/filter/search/tree/exclusion controls. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P08-02
 
@@ -46,7 +46,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Selected tuple snapshot và tên output preview/no-overwrite. Còn mở: Presets/clip override/source-content snapshot/versioning. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P08-03
 
@@ -135,7 +135,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Actual CPU batch/decode/probe và isolated failures. Còn mở: ETA/resume/durable queue/full duration-tracks corpus. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ## Hồ sơ thực hiện trước rebuild (chỉ tham khảo)
 

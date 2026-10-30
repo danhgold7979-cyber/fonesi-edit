@@ -27,7 +27,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Khóa Python/Qt/Ruff/PyInstaller và CI tool versions. Còn mở: Corpus/codec/filter/font/target inventory đầy đủ. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P02-02
 
@@ -79,7 +79,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Qt khung đầu nguồn và mở UI thật. Còn mở: Preview layer/audio/seek và parity với export. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P02-05
 
@@ -97,7 +97,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Render CPU synthetic có decode/probe/hash. Còn mở: GPU/RAM/VRAM/fallback benchmark trên target. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P02-06
 
@@ -114,7 +114,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. EXE Windows khởi động Editor/SRT/batch, 6 checks PASS. Còn mở: Installer/signing/media/font/Unicode/target-PC acceptance. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P02-07
 
@@ -148,7 +148,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Ghi candidate Qt/FFmpeg/PyInstaller và giới hạn proof. Còn mở: Provider/preview/full packaging decisions. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P02-09
 

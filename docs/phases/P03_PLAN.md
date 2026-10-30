@@ -27,7 +27,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Scaffold, dependency lock, Windows/Linux CI. Còn mở: Config/user-data ownership và nền ứng dụng đầy đủ. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-02
 
@@ -44,7 +44,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Project/job schema1, reject drift, online backup validated. Còn mở: Các schema preset/artifact/history/cache; migrations/restore faults. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-03
 
@@ -61,7 +61,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. ffprobe thật, rational interval/time mapping. Còn mở: Strong source fingerprint/VFR corpus và provenance đầy đủ. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-04
 
@@ -80,7 +80,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Qt worker, bounded direct child, SQLite lease primitive. Còn mở: Durable scheduler/descendant containment/pause/crash recovery integration. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-05
 
@@ -97,7 +97,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Immutable intent/seed/hash, lỗi UI được lọc. Còn mở: Queue UI, typed error taxonomy và worker snapshot integration. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-06
 
@@ -116,7 +116,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Staging/decode/probe/hash/atomic no-overwrite; scan exclude output. Còn mở: Artifact/job provenance transaction và toàn ma trận filesystem. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-07
 
@@ -133,7 +133,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** NOT_STARTED. Bằng chứng cũ bên dưới chỉ dùng để thiết kế regression.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Project save-as/open, exact edits, ledger backup. Còn mở: Autosave/relink/cache recovery và abrupt-close fault corpus. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P03-08
 
