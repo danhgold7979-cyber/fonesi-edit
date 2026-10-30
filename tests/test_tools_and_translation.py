@@ -578,7 +578,7 @@ def test_active_tool_version_is_protected_and_old_version_can_be_removed(tmp_pat
     inventory = managed_tool_versions(store)
     old = next(item for item in inventory if item["version"] == "1.0.0")
     new = next(item for item in inventory if item["version"] == "2.0.0")
-    assert not old["in_use"] and old["reason"] == "Có thể gỡ"
+    assert not old["in_use"] and old["reason"] == "Có thể gỡ an toàn"
     assert new["in_use"] and new["active"]
     removed = remove_tool_version(store, "ffmpeg", "1.0.0")
     assert removed["directory_removed"]
