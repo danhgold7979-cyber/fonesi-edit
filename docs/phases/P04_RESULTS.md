@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](../REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # P04 — Kết quả lớp editor
 
 Đã code canvas layer text/image/mask với kéo/resize/rotate, khóa/thứ tự, căn snap và zoom không đổi model; inspector style/motion/keyframes; undo snapshot; timeline move/trim/split/playhead/zoom và Qt playback. Hai test editor đã qua: sửa Unicode/undo/redo/nhân bản/xóa/round-trip và split giữ ánh xạ source time. Lưu project/preset nối với Store ở app shell, render tham chiếu nối compositor P07.

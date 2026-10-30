@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](../REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # P07 — Compositor local
 
 Đã có normalize/trim/speed/fit/crop/blur nền/concat/xfade/audio mix, ASS font/style/alpha/rotation/scale, image alpha, mask, motion AST dùng chung, reference render, GPU capability probe và manifest/hash/no-overwrite/reuse. 14 test compositor/motion đã qua với render thực nhiều clip/text/logo/mask/sub/audio và crossfade/crop/reference.

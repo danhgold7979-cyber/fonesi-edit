@@ -1,4 +1,5 @@
 """Exact half-open media time maps, independent of GUI and media engines."""
+
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -18,7 +19,7 @@ class Interval:
 
     def __post_init__(self):
         if not isinstance(self.start, Fraction) or not isinstance(self.end, Fraction):
-            raise ValueError("Interval requires exact fractions")
+            raise ValueError("Interval requires exact fractions")  # noqa: TRY004 - stable public validation error contract.
         if self.start < 0 or self.end <= self.start:
             raise ValueError("Interval must be nonempty and nonnegative")
 
@@ -39,7 +40,7 @@ class ClipMap:
 
     def __post_init__(self):
         if not isinstance(self.source, Interval):
-            raise ValueError("Source interval required")
+            raise ValueError("Source interval required")  # noqa: TRY004 - stable public validation error contract.
         if not isinstance(self.speed, Fraction) or self.speed <= 0:
             raise ValueError("Speed must be positive exact fraction")
         if not isinstance(self.output_start, Fraction) or self.output_start < 0:
@@ -47,11 +48,15 @@ class ClipMap:
 
     @property
     def output(self) -> Interval:
-        return Interval(self.output_start, self.output_start + self.source.duration / self.speed)
+        return Interval(
+            self.output_start, self.output_start + self.source.duration / self.speed
+        )
 
     def map_interval(self, cue: Interval) -> Interval | None:
         clipped = self.source.intersect(cue)
         if clipped is None:
             return None
-        return Interval(self.output_start + (clipped.start - self.source.start) / self.speed,
-                        self.output_start + (clipped.end - self.source.start) / self.speed)
+        return Interval(
+            self.output_start + (clipped.start - self.source.start) / self.speed,
+            self.output_start + (clipped.end - self.source.start) / self.speed,
+        )

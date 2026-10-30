@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](../REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # P08 — Batch/duration triển khai
 
 Đã có scan folder loại output/cache/symlink, batch dry-run/snapshot/output theo kênh và duration water-filling với bounds, equal/proportional/weights, trim/loop/freeze rõ lựa chọn. Audio main/music/SFX qua compositor có volume/fade/delay/loop và giới hạn thời lượng. Test mới đối chiếu số cảnh, tốc độ, bất khả thi, folder exclusions và render loop/freeze thực; kết quả được cập nhật ở báo cáo tích hợp cuối.

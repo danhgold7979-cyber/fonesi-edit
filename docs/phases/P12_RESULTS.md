@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](../REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # P12 — Kết quả đóng gói bản phát triển
 
 Đã tạo app production và native messaging host trên Linux bằng PyInstaller. Gói chứa module downloader/extractor/EJS/formats/Qt plugins, extension, FFmpeg/ffprobe, hướng dẫn, docs và build-info/hash. FFmpeg Linux được tách thư viện khỏi Qt; Windows builder tránh gói nhầm Chocolatey shim. Entrypoint phân biệt GUI, worker và verification.

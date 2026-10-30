@@ -40,6 +40,10 @@ jobs:
           python -c "import shutil; assert shutil.which('ffmpeg') and shutil.which('ffprobe')"
           ffmpeg -version
           ffprobe -version
+      - name: Static checks and formatting
+        run: |
+          uv run ruff check src tests scripts
+          uv run ruff format --check src tests scripts
       - name: Compile new source
         run: uv run python -m compileall -q src tests
       - name: Test independent foundation only

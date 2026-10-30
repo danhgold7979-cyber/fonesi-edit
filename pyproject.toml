@@ -16,3 +16,8 @@ fonesi-edit = "fonesi_edit.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fonesi_edit"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]

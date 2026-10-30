@@ -59,3 +59,7 @@ Bounded/no-follow folder scan, output subtree exclusion/dedup, real per-file CPU
 ## Regression and UI consistency checkpoint
 
 Scan-limit now retains already visited candidates before returning PARTIAL; invalid checkbox state cannot unlock a cue; randomized interval sweep matches a pairwise oracle. Shared native theme keeps subtitle table/header contrast consistent with the main app. Local92 tests PASS; fresh screenshots inspected with synthetic data only. Full design/interaction acceptance remains open.
+
+## Readability/static gate
+
+Ruff0.17.3 added as locked developer tool from PyPI; newly authored source/tests formatted, imports cleaned. Intentional sanitized Qt thread catch boundaries and stable ValueError contracts explicitly documented at their lint exceptions, not runtime-test exemptions. Qt model root-index default made explicit. Static+format checks and unchanged92-test suite pass locally; CI now enforces both.

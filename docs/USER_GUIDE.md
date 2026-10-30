@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # Fonesi Edit — Hướng dẫn bản phát triển
 
 Đây là bản phát triển desktop, không phải lời cam kết mọi mạng xã hội đã tải nguyên kênh được. Xem CURRENT_STATUS và bảng nền tảng cho phần đã thử/chưa thử.

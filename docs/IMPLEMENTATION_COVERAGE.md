@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # Đối chiếu triển khai với đặc tả
 
 Đây là bản phát triển nội bộ. Có code hoặc một test đạt không có nghĩa toàn nhóm yêu cầu đã nghiệm thu. Bảng này ghi rõ phần đã làm và phần còn lại; tiêu chí đầy đủ vẫn ở [traceability](REQUIREMENTS_TRACEABILITY.md).

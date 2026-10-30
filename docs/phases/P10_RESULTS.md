@@ -1,3 +1,5 @@
+**HỒ SƠ BASELINE TRƯỚC REBUILD:** nội dung/bằng chứng dưới đây thuộc implementation trước đợt làm lại 30/10/2026, không chứng nhận code mới. Xem [trạng thái rebuild hiện hành](../REBUILD_STATUS.md). Baseline tích hợp được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c`.
+
 # P10 — Auto và tools triển khai
 
 Đã có idempotent job IDs, dependency workflow download→translate→render, watcher ổn định/loại output, schedule persisted và chống overlap, resource metrics/admission/profile/giới hạn từng loại, heartbeat worker. Tool manager có TLS/hash/staging/archive guard/versioned install/rollback, Chrome installer kiểm tra Authenticode, không đè bản hệ thống. 4 test chuyên biệt qua cho idempotence/watcher, thiếu tài nguyên, archive/hash và repeatable fixture installation.
