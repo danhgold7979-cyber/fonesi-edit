@@ -933,7 +933,7 @@ class BatchPage(QWidget):
         self.extra_roots.textChanged.connect(self.source_changed)
         for field in (self.audio,self.audio_folder):
             field.textChanged.connect(lambda _:self.invalidate_plan())
-        self.audio_playlist.textChanged.connect(lambda _:self.invalidate_plan())
+        self.audio_playlist.textChanged.connect(self.invalidate_plan)
         self.audio_playlist_pick.clicked.connect(lambda _checked=False:self.select_audio_playlist())
         self.audio_playlist_clear.clicked.connect(lambda _checked=False:self.clear_audio_playlist())
         self.audio_mode.currentIndexChanged.connect(self.audio_mode_changed)

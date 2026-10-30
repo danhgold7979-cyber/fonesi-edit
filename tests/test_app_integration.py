@@ -913,7 +913,7 @@ def test_batch_ui_exposes_separate_audio_mapping_modes(tmp_path):
     window=MainWindow(tmp_path/'state')
     try:
         choices={window.batch.audio_mode.itemData(i) for i in range(window.batch.audio_mode.count())}
-        assert choices=={'shared','by_name','ordered','random'}
+        assert choices=={'shared','by_name','ordered','random','playlist'}
         assert window.batch.audio_mode.currentData()=='shared'
         window.batch.audio_mode.setCurrentIndex(window.batch.audio_mode.findData('random'))
         assert window.batch.audio_mode.currentData()=='random'
