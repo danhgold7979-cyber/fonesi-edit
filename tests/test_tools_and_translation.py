@@ -750,3 +750,94 @@ def test_activation_winning_before_cleanup_protects_version_and_companion(tmp_pa
     assert store.setting("tool_paths")["ffmpeg"] == old_receipt["path"]
     assert store.setting("tool_paths")["ffprobe"] == old_receipt["ffprobe"]
     assert Path(new_receipt["path"]).is_file()
+
+
+@pytest.mark.parametrize("mutation", ["not-a-dict", "name", "version"])
+def test_activation_rejects_receipt_identity_mismatch_without_mutation(
+    tmp_path, monkeypatch, mutation
+):
+    store, _first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    before_paths = store.setting("tool_paths")
+    before_versions = _active_versions(store)
+    receipt = dict(second)
+    if mutation == "not-a-dict":
+        receipt = None
+    elif mutation == "name":
+        receipt["name"] = "yt-dlp"
+    else:
+        receipt["version"] = "3.0.0"
+
+    with pytest.raises(ValueError, match="receipt identity"):
+        dependencies._save_tool_activation(store, "ffmpeg", "2.0.0", receipt)
+
+    assert store.setting("tool_paths") == before_paths
+    assert _active_versions(store) == before_versions
+    assert Path(second["path"]).is_file()
+
+
+def test_rollback_refuses_external_executable_even_when_hash_matches(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    external = tmp_path / "external-ffmpeg"
+    external.write_bytes(Path(first["path"]).read_bytes())
+    with store.connect() as conn:
+        row = conn.execute(
+            "SELECT hash FROM tool_versions WHERE name='ffmpeg' AND version='1.0.0'"
+        ).fetchone()
+        assert hashlib.sha256(external.read_bytes()).hexdigest() == row["hash"]
+        conn.execute(
+            "UPDATE tool_versions SET path=? WHERE name='ffmpeg' AND version='1.0.0'",
+            (str(external),),
+        )
+    before_paths = store.setting("tool_paths")
+    before_versions = _active_versions(store)
+
+    with pytest.raises(ValueError, match="Rollback version unavailable"):
+        rollback(store, "ffmpeg", "1.0.0")
+
+    assert external.read_bytes() == Path(first["path"]).read_bytes()
+    assert store.setting("tool_paths") == before_paths
+    assert _active_versions(store) == before_versions
+    assert Path(second["path"]).is_file()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows symlink privilege requires user-machine acceptance")
+def test_rollback_refuses_symlinked_ffprobe_companion(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    companion = Path(first["ffprobe"])
+    external = tmp_path / "external-ffprobe"
+    external.write_bytes(companion.read_bytes())
+    companion.unlink()
+    companion.symlink_to(external)
+    before_paths = store.setting("tool_paths")
+    before_versions = _active_versions(store)
+
+    with pytest.raises(ValueError, match="ffprobe companion is a symlink"):
+        rollback(store, "ffmpeg", "1.0.0")
+
+    assert external.read_bytes() == b"known-good-ffprobe"
+    assert store.setting("tool_paths") == before_paths
+    assert _active_versions(store) == before_versions
+    assert Path(second["path"]).is_file()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows symlink privilege requires user-machine acceptance")
+def test_activation_refuses_symlinked_ffprobe_companion(tmp_path, monkeypatch):
+    store, _first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    companion = Path(second["ffprobe"])
+    external = tmp_path / "external-activation-ffprobe"
+    external.write_bytes(companion.read_bytes())
+    companion.unlink()
+    companion.symlink_to(external)
+    before_paths = store.setting("tool_paths")
+    before_versions = _active_versions(store)
+
+    with pytest.raises(ValueError, match="ffprobe companion"):
+        dependencies._save_tool_activation(store, "ffmpeg", "2.0.0", second)
+
+    assert external.read_bytes() == b"replacement-ffprobe"
+    assert store.setting("tool_paths") == before_paths
+    assert _active_versions(store) == before_versions

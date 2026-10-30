@@ -145,27 +145,62 @@ def _verified_receipt(name, final, manifest):
         return None
 
 
+def _managed_version_file(store,name,version,path):
+    """Resolve one regular, non-symlink file inside an app-managed version folder."""
+    if not isinstance(path,str) or not path:
+        return None
+    folder=_version_directory(store,name,version,path)
+    if folder is None or folder.is_symlink() or not folder.is_dir():
+        return None
+    try:
+        candidate=Path(path)
+        if not candidate.is_absolute():
+            return None
+        relative=candidate.absolute().relative_to(folder.absolute())
+        if not relative.parts or any(part in {'','.','..'} for part in relative.parts):
+            return None
+        current=folder.absolute()
+        for part in relative.parts:
+            current=current/part
+            if current.is_symlink():
+                return None
+        resolved_folder=folder.resolve(strict=True)
+        resolved=current.resolve(strict=True)
+        if not resolved.is_file() or not resolved.is_relative_to(resolved_folder):
+            return None
+        return resolved
+    except (OSError,RuntimeError,ValueError,TypeError):
+        return None
+
+
 def _save_tool_activation(store,name,version,receipt):
-    """Validate and activate a managed tool while holding the cleanup writer lock."""
+    """Validate receipt identity and managed files while holding the cleanup writer lock."""
+    if (not isinstance(receipt,dict) or receipt.get('name')!=name
+            or receipt.get('version')!=version):
+        raise ValueError('Tool receipt identity mismatch; activation refused')
+    executable_value=receipt.get('path')
+    expected_hash=receipt.get('hash')
+    if (not isinstance(executable_value,str) or not executable_value
+            or not isinstance(expected_hash,str)
+            or not re.fullmatch(r'[a-fA-F0-9]{64}',expected_hash)):
+        raise ValueError('Tool receipt executable/hash is invalid; activation refused')
     with store.connect() as conn:
         conn.execute('BEGIN IMMEDIATE')
-        folder=_version_directory(store,name,version,receipt.get('path'))
+        folder=_version_directory(store,name,version,executable_value)
         if folder is None or folder.is_symlink() or not folder.is_dir():
             raise ValueError('Tool receipt version folder is unavailable; activation refused')
-        try:
-            executable=Path(receipt['path']).resolve(strict=True)
-            if (not executable.is_file() or not executable.is_relative_to(folder.resolve(strict=True))
-                    or fingerprint(executable).lower()!=str(receipt.get('hash','')).lower()
-                    or check_tool(name,str(executable)).status!='ready'):
-                raise ValueError('Tool receipt executable is unavailable or changed; activation refused')
-            companion=receipt.get('ffprobe')
-            if companion:
-                companion_path=Path(companion).resolve(strict=True)
-                if (not companion_path.is_file()
-                        or not companion_path.is_relative_to(folder.resolve(strict=True))):
-                    raise ValueError('Tool receipt ffprobe companion is unavailable; activation refused')
-        except (OSError,RuntimeError) as exc:
-            raise ValueError('Tool receipt files are unavailable; activation refused') from exc
+        executable=_managed_version_file(store,name,version,executable_value)
+        if (executable is None or fingerprint(executable).lower()!=expected_hash.lower()
+                or check_tool(name,str(executable)).status!='ready'):
+            raise ValueError('Tool receipt executable is unavailable, changed or not ready; activation refused')
+        companion_value=receipt.get('ffprobe')
+        companion_path=None
+        if companion_value is not None:
+            if not isinstance(companion_value,str) or not companion_value:
+                raise ValueError('Tool receipt ffprobe path is invalid; activation refused')
+            companion_path=_managed_version_file(store,name,version,companion_value)
+            if companion_path is None:
+                raise ValueError('Tool receipt ffprobe companion is not a regular managed file; activation refused')
         row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
         try:
             overrides=json.loads(row['value']) if row else {}
@@ -175,14 +210,14 @@ def _save_tool_activation(store,name,version,receipt):
             raise ValueError('Tool path configuration is invalid; activation refused')
         overrides[name]=str(executable)
         if name=='ffmpeg':
-            if companion:
+            if companion_path is not None:
                 overrides['ffprobe']=str(companion_path)
             else:
                 overrides.pop('ffprobe',None)
         encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
         conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',
-                     (name,version,str(executable),receipt['hash']))
+                     (name,version,str(executable),expected_hash.lower()))
         conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
                      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
     # Workers in this process must use the newly committed path immediately.
@@ -433,27 +468,46 @@ def rollback(store,name,version):
         row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
         if not row:
             raise ValueError('Rollback version unavailable/modified')
-        path=Path(row['path'])
-        try:
-            intact=path.is_file() and fingerprint(path).lower()==str(row['hash']).lower()
-        except OSError:
-            intact=False
-        if not intact:
+        if row['name']!=name or row['version']!=version:
+            raise ValueError('Rollback version identity mismatch')
+        path=_managed_version_file(store,name,version,row['path'])
+        expected_hash=row['hash']
+        if (path is None or not isinstance(expected_hash,str)
+                or not re.fullmatch(r'[a-fA-F0-9]{64}',expected_hash)
+                or fingerprint(path).lower()!=expected_hash.lower()
+                or check_tool(name,str(path)).status!='ready'):
             raise ValueError('Rollback version unavailable/modified')
         selection_row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
-        overrides=json.loads(selection_row['value']) if selection_row else {}
-        overrides[name]=str(path.resolve())
+        try:
+            overrides=json.loads(selection_row['value']) if selection_row else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; rollback refused') from exc
+        if not isinstance(overrides,dict):
+            raise ValueError('Tool path configuration is invalid; rollback refused')
+        overrides[name]=str(path)
         if name=='ffmpeg':
             companion=path.with_name('ffprobe.exe' if os.name=='nt' else 'ffprobe')
-            if companion.is_file():
-                overrides['ffprobe']=str(companion.resolve())
+            if companion.is_symlink():
+                raise ValueError('Rollback ffprobe companion is a symlink; rollback refused')
+            if companion.exists():
+                companion_path=_managed_version_file(store,name,version,str(companion))
+                if (companion_path is None
+                        or check_tool('ffprobe',str(companion_path)).status!='ready'):
+                    raise ValueError('Rollback ffprobe companion is not a regular managed file; rollback refused')
+                overrides['ffprobe']=str(companion_path)
             else:
-                overrides.pop('ffprobe',None)
+                managed_root=store.path.parent/'tools'/'ffmpeg'
+                existing_probe=overrides.get('ffprobe')
+                # Drop a stale app-managed companion only; preserve a user's
+                # separately selected system/external ffprobe.
+                if isinstance(existing_probe,str) and _path_is_within(existing_probe,managed_root):
+                    overrides.pop('ffprobe',None)
         encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=(version=?) WHERE name=?',(version,name))
         conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
                      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
     configure_tools(overrides)
+
 
 def resolve_manifest(name):
     if name=='node' and os.name=='nt':
