@@ -302,3 +302,11 @@ Bounded candidate pool (default 8, validated 1..64) now competes legal rows usin
 [CI 41030170331](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41030170331) SUCCESS exact code/test SHA `4e759cdbaaa738b3df60a577e0a4cd6091cf6ed5`: Linux 781 PASS; Windows 780 PASS + 1 intentional POSIX-only skip. Both runners: 10^10 theoretical combinations, 2,000 outputs, per-scene max spread 5; Linux 9.302552 s / 1,379,048-byte Python tracemalloc peak, Windows 19.737411 s / 1,379,264-byte peak. Both passed Batch 128-source FFprobe synthetic benchmark, phase-reference check, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost-download/Qt proof. Artifacts: Linux evidence 390,000 bytes, Windows evidence 322,514 bytes (expire 2026-11-02); Windows development build 197,343,856 bytes (expires 2026-11-06). Logical IDs and synthetic/localhost proof only, not real 10-billion media or physical Windows/GPU/live-provider acceptance.
 
 Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/HiDPI/installer, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/providers and GPU. P09/P11/full release not complete.
+
+## P09-06 / P11-02 — Matrix reservation recovery (30/10/2026)
+
+- Implemented same-job reservation ownership checks for retry; partial/missing identity and missing/foreign/succeeded reservation states fail closed.
+- Added recovery/cancel/retry regressions, reassignment protection, unrelated-history invariants and missing-source no-false-success check.
+- Exact HEAD [a6d1e95](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a6d1e9577c2017519c0ecf22edf63f8695a79402); [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX-only skip. Both packaged synthetic proofs passed.
+- Logical Matrix benchmark: 10^10 theoretical capacity, 2,000 generated, complete=true, max per-scene spread 5. Synthetic Batch benchmark: 128 sources, failed_count=0.
+- P09/P11 remain OPEN. No physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root-cause, 100k real-media, live Chrome/provider or GPU acceptance is claimed. Do not merge main.

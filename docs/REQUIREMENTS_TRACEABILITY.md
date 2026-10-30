@@ -214,3 +214,12 @@ Bounded candidate pool (default 8, validated 1..64) now competes legal rows usin
 [CI 41030170331](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41030170331) SUCCESS exact code/test SHA `4e759cdbaaa738b3df60a577e0a4cd6091cf6ed5`: Linux 781 PASS; Windows 780 PASS + 1 intentional POSIX-only skip. Both runners: 10^10 theoretical combinations, 2,000 outputs, per-scene max spread 5; Linux 9.302552 s / 1,379,048-byte Python tracemalloc peak, Windows 19.737411 s / 1,379,264-byte peak. Both passed Batch 128-source FFprobe synthetic benchmark, phase-reference check, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost-download/Qt proof. Artifacts: Linux evidence 390,000 bytes, Windows evidence 322,514 bytes (expire 2026-11-02); Windows development build 197,343,856 bytes (expires 2026-11-06). Logical IDs and synthetic/localhost proof only, not real 10-billion media or physical Windows/GPU/live-provider acceptance.
 
 Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/HiDPI/installer, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/providers and GPU. P09/P11/full release not complete.
+
+## MAT-07 / OPS-04 / OPS-05 / OPS-06 — Matrix recovery and retry evidence (30/10/2026)
+
+- MAT-07: stale worker recovery retains the reservation; cancellation marks it failed; retry requires the same job owner and rejects missing, partial, succeeded or foreign-owned reservations.
+- OPS-04: the job ID, immutable payload, Matrix combination and output target remain unchanged across recovery/retry; reservation restoration is conditional and transactional.
+- OPS-05: worker failure after source disappearance is recorded as failed/blocked rather than success.
+- OPS-06: missing media cannot produce a succeeded job or succeeded Matrix history row; valid synthetic FFmpeg output is validated before success.
+- Evidence: [plan](phases/P11_MATRIX_RECOVERY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/58d94f738ca7cd9b5dab39caef8f952719b78718), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a6d1e9577c2017519c0ecf22edf63f8695a79402), [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX skip.
+- Limits: synthetic/localhost only; no physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real 100k-media corpus, live Chrome/provider or GPU proof. P11/P12 remain OPEN.
