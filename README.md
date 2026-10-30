@@ -11,3 +11,21 @@
 Code cũ đã được loại khỏi nhánh rebuild trong commit riêng, không xóa lịch sử. Baseline mới nhất được giữ tại commit `edbb47189b0e864c74623d0a4db5b5f169f2103c` và full Git bundle đã kiểm tra khôi phục. Các báo cáo CURRENT_STATUS, Pxx_RESULTS và evidence cũ là lịch sử, không chứng nhận code mới.
 
 Mục tiêu vẫn là ứng dụng Windows: tải nội dung có quyền truy cập, phụ đề, editor, batch và ma trận. Không suy từ test Linux sang nghiệm thu Windows/Chrome/GPU/nền tảng thật. Không thêm tính năng giả để báo hoàn thiện.
+
+## Chạy bản phát triển mới
+
+Cần Python3.12/3.13, uv, FFmpeg/ffprobe đã cài từ nguồn đáng tin:
+
+```bash
+uv sync --locked
+uv run fonesi-edit
+```
+
+Đây là đường chạy cho nhà phát triển, chưa phải installer người dùng cuối. UI mới có import/probe/khung nguồn, CPU MP4 trim/speed, project save-as/open và công cụ SRT riêng. Save-as không ghi đè tệp; project cũ không được migrate bằng suy đoán. Preview nguồn chưa phản ánh hiệu ứng xuất. Download/auth/dịch/ma trận/editor layer đầy đủ còn chưa nối.
+
+```bash
+QT_QPA_PLATFORM=offscreen uv run python -m unittest discover -s tests -v
+uv run python scripts/check_rebuild_plan.py
+```
+
+Windows: đặt biến QT_QPA_PLATFORM=offscreen theo cú pháp shell Windows khi chạy test. Chạy GUI bình thường không cần biến đó. Các phép thử codec cần FFmpeg/ffprobe; không coi test bị skip là đã kiểm chứng media.

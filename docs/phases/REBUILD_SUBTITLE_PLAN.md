@@ -1,0 +1,7 @@
+# Rebuild P06-01/05 — strict SRT, reviewable diagnostics and exact time map
+
+Independent local subtitle slice. UTF-8/UTF-8 BOM SRT only in this increment; VTT/ASS and provider translation remain unavailable, not falsely supported. Bounded4MiB/10000cues, numeric sequence line, HH:MM:SS,mmm timestamps, nonempty text, explicit invalid range rejection. Preserve text, literal styling tags, cue IDs and order. Report overlaps/out-of-order as diagnostics without silently deleting or rearranging cues. Export canonical SRT with documented millisecond rounding (nearest, ties upward) and reject collapsed intervals.
+
+Map cues by clipping against ClipMap source interval before trim/speed; retain cue identity/text and manual lock. Out-of-range cues excluded only in explicit mapped export, never mutate original document. Tests Unicode/multiline/BOM, duplicates and malformed time, overlap diagnostics, exact rational map, manual-lock/text retention and roundtrip text. No OCR/ASR/translation or render-burn-in claim yet.
+
+UI slice: separate nonmodal SRT editor, native virtual table (no 10000 widget-per-cell allocation), editable start/end/text and manual lock, bounded100-command undo/redo, explicit new-file save (no overwrite). Read/parse/write in cancellable-owned worker lifecycle; no translation controls or burn-in promise. Plain-text cells/status; invalid edits retain prior cue. Close while file operation waits for safe completion. Tests model edits/invalid interval/lock/undo/redo and actual dialog load/save Unicode with no overwrite.

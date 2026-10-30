@@ -36,3 +36,10 @@
 ## Project persistence slice
 
 New strict project schema/save-as/open, no media auto-probe on load, missing references retained and exact rational edits preserved until explicit numeric edit. Existing destination never overwritten. UI replacement requires confirmation. Current schema rejects unsupported nonzero timeline offsets. Local54 tests PASS. Saves are bounded-size local filesystem work; no claim of interruptible network-filesystem flush or autosave/migration acceptance. Project code not yet Windows CI-verified.
+
+## SRT editor slice
+
+- Strict UTF-8 SRT parser/exporter, exact cue time maps, overlap/order diagnostics, literal text retained. VTT/ASS/translation/burn-in NOT_IMPLEMENTED.
+- Native virtual table edits text/times/lock, bounded100-command undo/redo, asynchronous new-file save/open, no overwrite. SRT does not persist manual-lock metadata; UI states this explicitly.
+- Plain-text user-controlled labels prevent accidental rich-text interpretation.
+- Local72 tests PASS, Python3.12.14/Qt6.8.3/Linux/FFmpeg7.1.5. All4 jobs CI41099958032 passed41 tests on prior UI/fsync checkpoint; newer increments await CI.

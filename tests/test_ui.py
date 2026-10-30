@@ -84,3 +84,8 @@ class UiTests(unittest.TestCase):
         project=Project('12345678-1234-5678-1234-567812345678','Exact',(ProjectMedia('22345678-1234-5678-1234-567812345678','/missing.mp4',ClipMap(Interval(F(1,3),F(7,3)),F(3,2))),))
         self.window.project_loaded(project)
         self.assertEqual(self.window.current_project(),project)
+
+    def test_untrusted_labels_are_plain_text(self):
+        from PySide6.QtCore import Qt
+        for label in (self.window.status,self.window.details,self.window.preview):
+            self.assertEqual(label.textFormat(),Qt.PlainText)

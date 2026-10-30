@@ -45,15 +45,16 @@ class MainWindow(QMainWindow):
         tabs.setCurrentIndex(3);layout.addWidget(tabs)
         controls=QHBoxLayout();self.add=QPushButton('Thêm media…');self.export=QPushButton('Xuất thử MP4 CPU…');self.cancel_button=QPushButton('Hủy tác vụ')
         self.add.clicked.connect(self.choose_source);self.export.clicked.connect(self.choose_output);self.cancel_button.clicked.connect(self.cancel_work)
+        self.subtitle_button=QPushButton('Sửa SRT…');self.subtitle_button.clicked.connect(self.open_subtitles);self.subtitle_window=None
         self.open_button=QPushButton('Mở project…');self.save_button=QPushButton('Lưu thành project mới…');self.inspect_button=QPushButton('Kiểm tra media chọn')
         self.open_button.clicked.connect(self.choose_project);self.save_button.clicked.connect(self.choose_save);self.inspect_button.clicked.connect(self.inspect_selected)
-        controls.addWidget(self.open_button);controls.addWidget(self.save_button);controls.addWidget(self.add);controls.addWidget(self.inspect_button);controls.addWidget(self.export);controls.addStretch();controls.addWidget(self.cancel_button);layout.addLayout(controls)
+        controls.addWidget(self.open_button);controls.addWidget(self.save_button);controls.addWidget(self.add);controls.addWidget(self.inspect_button);controls.addWidget(self.export);controls.addWidget(self.subtitle_button);controls.addStretch();controls.addWidget(self.cancel_button);layout.addLayout(controls)
         panes=QSplitter();layout.addWidget(panes,1)
         left=QWidget();ll=QVBoxLayout(left);ll.addWidget(QLabel('MEDIA CỤC BỘ'));self.list=QListWidget();ll.addWidget(self.list);panes.addWidget(left)
         center=QWidget();cl=QVBoxLayout(center);cl.addWidget(QLabel('KHUNG HÌNH NGUỒN · chưa áp hiệu ứng'))
-        self.preview=QLabel('Thêm một video để kiểm tra nội dung.\nNguồn gốc luôn được giữ nguyên.');self.preview.setObjectName('preview');self.preview.setAlignment(Qt.AlignCenter);self.preview.setMinimumSize(480,320);cl.addWidget(self.preview,1)
+        self.preview=QLabel('Thêm một video để kiểm tra nội dung.\nNguồn gốc luôn được giữ nguyên.');self.preview.setObjectName('preview');self.preview.setTextFormat(Qt.PlainText);self.preview.setAlignment(Qt.AlignCenter);self.preview.setMinimumSize(480,320);cl.addWidget(self.preview,1)
         cl.addWidget(QLabel('Hiện có: probe thật, khung đầu và xuất CPU.\nTimeline, phụ đề, layer và chuyển động chưa được nối.'));panes.addWidget(center)
-        right=QWidget();rl=QVBoxLayout(right);rl.addWidget(QLabel('THUỘC TÍNH NGUỒN'));self.details=QLabel('Chưa chọn media');self.details.setWordWrap(True);rl.addWidget(self.details)
+        right=QWidget();rl=QVBoxLayout(right);rl.addWidget(QLabel('THUỘC TÍNH NGUỒN'));self.details=QLabel('Chưa chọn media');self.details.setTextFormat(Qt.PlainText);self.details.setWordWrap(True);rl.addWidget(self.details)
         form=QFormLayout();self.start_time=QDoubleSpinBox();self.end_time=QDoubleSpinBox();self.speed=QDoubleSpinBox()
         for control in (self.start_time,self.end_time):control.setDecimals(6);control.setRange(0,31536000);control.setSuffix(' s')
         self.speed.setDecimals(3);self.speed.setRange(.5,2);self.speed.setValue(1);self.speed.setSingleStep(.1);self.speed.setSuffix(' ×')
@@ -62,7 +63,7 @@ class MainWindow(QMainWindow):
         rl.addStretch()
         rl.addWidget(QLabel('Trim/tốc độ áp dụng khi xuất.\nKhung nguồn không phải preview hiệu ứng.\nKhông ghi đè tệp đã có.'));panes.addWidget(right);panes.setSizes([220,760,260])
         self.progress=QProgressBar();self.progress.setTextVisible(False);layout.addWidget(self.progress)
-        self.status=QLabel('Sẵn sàng · Chọn media cục bộ.');self.status.setWordWrap(True);layout.addWidget(self.status)
+        self.status=QLabel('Sẵn sàng · Chọn media cục bộ.');self.status.setTextFormat(Qt.PlainText);self.status.setWordWrap(True);layout.addWidget(self.status)
         self.list.currentRowChanged.connect(self.select_row)
         self.setStyleSheet('''QWidget{background:#111827;color:#f1f5f9;font-size:13px;} QLabel#brand{font-size:24px;color:#c4b5fd;font-weight:600;}
 QPushButton{background:#28364d;border:1px solid #52617c;padding:9px 14px;border-radius:5px;} QPushButton:hover{background:#3c4764;} QPushButton:focus{border:2px solid #c4b5fd;} QPushButton:disabled{color:#8b97aa;background:#1f2937;}
@@ -91,6 +92,10 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         if self.closing:self.close()
     def cancel_work(self):
         if self.worker:self.worker.cancel.set();self.status.setText('Đang yêu cầu hủy; chờ tiến trình dừng an toàn…')
+    def open_subtitles(self):
+        from fonesi_edit.subtitle_editor import SubtitleEditor
+        if self.subtitle_window is None:self.subtitle_window=SubtitleEditor(self)
+        self.subtitle_window.show();self.subtitle_window.raise_();self.subtitle_window.activateWindow()
     def choose_source(self):
         path,_=QFileDialog.getOpenFileName(self,'Chọn media nguồn','','Media (*.mp4 *.mkv *.mov *.avi *.webm *.wav *.mp3);;Tất cả (*)')
         if path:self.load_source(Path(path))
@@ -192,6 +197,8 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         return self.start(lambda cancel:render_cpu(source,destination,Path(self.ffmpeg),Path(self.ffprobe),duration_tolerance=Fraction(1,10),cancel=cancel,clip_map=mapping),
             lambda artifact:self.status.setText(f'Đã kiểm tra đầu ra: {artifact.path.name} · {artifact.size:,} bytes.'))
     def closeEvent(self,event):
+        if self.subtitle_window is not None and self.subtitle_window.worker:
+            self.status.setText("Đợi thao tác tệp phụ đề hoàn tất trước khi đóng ứng dụng.");event.ignore();return
         if self.worker:
             self.closing=True;self.cancel_work();event.ignore()
         else:event.accept()
