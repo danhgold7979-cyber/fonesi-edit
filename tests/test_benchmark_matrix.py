@@ -8,8 +8,10 @@ from runpy import run_path
 
 # The CLI lives outside the installed package. Load its actual file, not a
 # fictitious importable `scripts` package (pytest runs from installed src).
-benchmark = run_path(str(Path(__file__).resolve().parents[1] /
-                         "scripts" / "benchmark_matrix.py"))["benchmark"]
+benchmark_module = run_path(str(Path(__file__).resolve().parents[1] /
+                              "scripts" / "benchmark_matrix.py"))
+benchmark = benchmark_module["benchmark"]
+benchmark_main = benchmark_module["main"]
 
 
 def _scenes():
@@ -105,6 +107,23 @@ def test_ten_thousand_million_capacity_stress_generates_thousands_without_produc
     assert report["attempts"]<=2000*4
     assert report["python_tracemalloc_peak_bytes"]<64*1024**2
     assert report["max_per_scene_spread"]<25
+
+
+def test_benchmark_cli_writes_machine_readable_evidence_and_requires_completion(
+        tmp_path,capsys):
+    output=tmp_path/"evidence"/"matrix.json"
+    result=benchmark_main([
+        "--scenes","3","--angles","3","--outputs","5",
+        "--window","1","--different","2","--seed","3",
+        "--budget-seconds","2","--balance-candidates","4",
+        "--output",str(output),"--require-complete",
+    ])
+    assert result==0 and output.is_file()
+    import json
+    payload=json.loads(output.read_text(encoding="utf-8"))
+    assert payload["complete"] and payload["generated"]==5
+    assert payload["balance_candidates"]==4
+    assert json.loads(capsys.readouterr().out)["theoretical_capacity"]==27
 
 
 def test_matrix_seeded_logical_result_is_reproducible_without_clock_threshold():
