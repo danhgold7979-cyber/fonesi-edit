@@ -103,3 +103,12 @@ SFX `repeat_count` (mặc định 1, tối đa 32) và `repeat_interval` (giây)
 - CI: **656 Linux PASS**, **655 Windows PASS + 1 intentional POSIX skip**; check_plan, benchmark 128 file, desktop/native-host và frozen packaged proof PASS hai OS. Windows artifact development được upload; lần provisioning đầu lỗi Chocolatey 503, retry thành công.
 
 **Còn mở:** playlist nhiều file/track, meter/clipping/solo realtime, thiết bị Windows thật, corpus lớn/ETA/output size, Windows installer/ACL/AV/HiDPI/GPU, Chrome/live provider, long soak và SQLite #6. Không đóng toàn P08/P11 hoặc nghiệm thu sản phẩm.
+
+
+## P08-03 / P11-04 — Playback PCM peak/RMS meter (30/10/2026)
+
+[Plan](P08_AUDIO_PLAYBACK_METER_PLAN.md) → [source/tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c706930e2c5e8a5026e37fb5fd856901585330b5) → [Python 3.12 fix](https://github.com/danhgold7979-cyber/fonesi-edit/commit/743e68b3e4c262fa4bc824f9ccca4f1ec67361c2) → [CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) **SUCCESS exact SHA 743e68b**, **676 Linux PASS / 675 Windows PASS + 1 intentional POSIX-only skip**. Check_plan, benchmark 128 synthetic FFprobe, production desktop/native-host and frozen packaged synthetic/localhost proof PASS both runners. Windows development artifact uploaded.
+
+The new pure PCM helper validates complete frames/finite samples and handles native-order UInt8, Int16, Int32 and Float PCM (including >0 dBFS float), measures peak/RMS and counts samples >=0.99 full scale. The Editor shares one QMediaPlayer/QAudioBufferOutput between raw source/proxy playback and rendered composition preview; only the latter shows the rendered mix. The UI keeps invalid/unavailable PCM separate from digital silence and resets on source/session/EOS; project schema, source bytes and FFmpeg limiter/loudnorm remain unchanged. A separate follow-up test exercises absent Qt audio tap, subject to its own CI.
+
+**OPEN:** per-track meters/solo, true peak, real hardware audio, audio playlists, large corpus render ETA/output size, Windows installer/ACL/AV/HiDPI/GPU, live Chrome/providers and SQLite #6. P08/P11 still in progress.

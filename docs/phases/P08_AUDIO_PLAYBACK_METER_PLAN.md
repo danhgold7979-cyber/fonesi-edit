@@ -47,3 +47,13 @@ Still OPEN after this slice: multi-file playlist workflows, track-specific pre-m
 ## Clarification — Qt meter semantics
 
 The Qt 6.8 `QAudioBufferOutput` contract is a decoded-stream tap. Qt states that buffers are emitted alongside the corresponding audio output and are not scaled by playback rate; the API is FFmpeg-backend-only. Therefore this meter deliberately reports raw decoded PCM before device/room response. It does **not** claim post-`QAudioOutput` volume/mute, hardware gain or acoustic SPL. See the version-pinned [QAudioBufferOutput](https://doc.qt.io/qtforpython-6.8/PySide6/QtMultimedia/QAudioBufferOutput.html), [QMediaPlayer 6.8](https://doc.qt.io/qt-6.8/qmediaplayer.html) and [QAudioFormat 6.8](https://doc.qt.io/qtforpython-6.8/PySide6/QtMultimedia/QAudioFormat.html) API references.
+
+
+## 6. Implementation and verified evidence (30/10/2026)
+
+- [Code and PCM/Qt regression](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c706930e2c5e8a5026e37fb5fd856901585330b5) implemented the `audio_meter.py` PCM engine and an optional Qt 6.8 `QAudioBufferOutput` tap into the existing `QMediaPlayer`. UI displays decoded-stream Peak/RMS dBFS and sample-near-full-scale count (threshold 0.99), resets on source/session/EOS and preserves project/render/audio output gain.
+- Initial CI found an unused `typing.Buffer` import unsupported by Python 3.12. [Fix 743e68b](https://github.com/danhgold7979-cyber/fonesi-edit/commit/743e68b3e4c262fa4bc824f9ccca4f1ec67361c2) removed this import without weakening tests.
+- [CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) **SUCCESS exact SHA 743e68b**: **676 Linux passed, 675 Windows passed + 1 intentional POSIX fixture skip**; check_plan, 128 FFprobe synthetic benchmark, desktop/native-host and frozen packaged verification PASS on both runners. Windows development artifact uploaded, expires 06/11/2026.
+- A follow-up Qt regression checks missing audio-buffer API does not prevent normal playback; its own CI must pass before including that regression in the verified total.
+
+**Not accepted:** measured physical-device gain/room acoustics, post-QAudioOutput volume, true-peak/inter-sample clipping, per-track levels, real Windows audio/installer, live providers/Chrome, GPU, large corpus/ETA/size, SQLite #6 or whole P08/P11.

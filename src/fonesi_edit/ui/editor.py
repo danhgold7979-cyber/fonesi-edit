@@ -809,7 +809,7 @@ class Editor(QWidget):
         if self.meter_output is None:
             self.meter_status.setText('Meter không khả dụng (Qt/FFmpeg backend)')
         else:
-            self.meter_status.setText('Chờ PCM • trước thiết bị')
+            self.meter_status.setText('Chờ PCM (cần backend FFmpeg) • trước thiết bị')
 
     def setup_audio_meter(self):
         """Attach the optional decoded-stream tap without replacing audio output."""

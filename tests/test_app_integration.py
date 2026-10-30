@@ -90,6 +90,25 @@ def test_editor_decoded_pcm_meter_signal_and_source_reset(tmp_path):
         close(window)
 
 
+def test_editor_audio_meter_missing_qt_tap_keeps_playback_available(tmp_path,monkeypatch):
+    """No Qt audio-buffer API must not disable normal QMediaPlayer playback."""
+    from fonesi_edit.ui import editor as editor_module
+    monkeypatch.setattr(editor_module,'QAudioBufferOutput',None)
+    window=MainWindow(tmp_path/'state')
+    try:
+        editor=window.editor
+        assert editor.meter_output is None
+        assert editor.player.audioOutput() is not None
+        assert editor.player.audioOutput() is editor.audio
+        assert 'không khả dụng' in editor.meter_status.text()
+        before=editor.composition.to_dict()
+        editor.reset_audio_meter()
+        assert editor.meter_peak_bar.value()==0
+        assert editor.composition.to_dict()==before
+    finally:
+        close(window)
+
+
 def test_editor_audio_meter_invalid_buffer_does_not_mutate_project(tmp_path):
     import struct
     from PySide6.QtCore import QByteArray
