@@ -136,15 +136,24 @@ def receive_session(store,token,platform,cookies):
     if not allowed:raise PermissionError('No transferable session cookies for this platform')
     identity=cookie_identity(platform,allowed);binding_id=bind(store,pairing['profile_id'],platform)
     with store.connect() as c:
-        old=c.execute('SELECT identity FROM bindings WHERE id=?',(binding_id,)).fetchone()[0]
-    if old and identity and old!=identity:raise PermissionError('Account mismatch; old jobs keep the original account')
-    if platform in {'Facebook','Instagram','Bilibili','X'} and not identity:
-        with store.connect() as c:c.execute("UPDATE bindings SET status='login_required',checked=? WHERE id=?",(time.time(),binding_id))
-        return {'binding_id':binding_id,'status':'login_required','connector_verified':False}
-    encrypted=protect(canonical({'cookies':allowed,'captured':time.time()}).encode())
-    with store.connect() as c:
-        c.execute('INSERT INTO secrets VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',('session:'+binding_id,encrypted))
-        c.execute('UPDATE bindings SET identity=?,status=?,checked=? WHERE id=?',(identity,'available' if identity else 'identity_unverified',time.time(),binding_id))
+        c.execute('BEGIN IMMEDIATE')
+        row=c.execute('SELECT identity FROM bindings WHERE id=?',(binding_id,)).fetchone()
+        if not row:
+            raise PermissionError('Account binding disappeared; session handoff refused')
+        old=row['identity']
+        # Re-check under the writer lock so concurrent handoffs cannot silently
+        # replace a different account after both read an empty identity.
+        if old and identity and old!=identity:
+            raise PermissionError('Account mismatch; old jobs keep the original account')
+        if platform in {'Facebook','Instagram','Bilibili','X'} and not identity:
+            c.execute("UPDATE bindings SET status='login_required',checked=? WHERE id=?",
+                      (time.time(),binding_id))
+            return {'binding_id':binding_id,'status':'login_required','connector_verified':False}
+        encrypted=protect(canonical({'cookies':allowed,'captured':time.time()}).encode())
+        c.execute('INSERT INTO secrets VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                  ('session:'+binding_id,encrypted))
+        c.execute('UPDATE bindings SET identity=?,status=?,checked=? WHERE id=?',
+                  (identity,'available' if identity else 'identity_unverified',time.time(),binding_id))
     return {'binding_id':binding_id,'status':'available' if identity else 'identity_unverified','connector_verified':False}
 
 
@@ -161,5 +170,18 @@ def cookie_jar(store,binding_id,expected_identity=None):
         if expires and expires<time.time():continue
         jar.set_cookie(Cookie(0,item['name'],item['value'],None,False,item['domain'],True,item['domain'].startswith('.'),
             item.get('path','/'),True,bool(item.get('secure')),int(expires) if expires else None,not bool(expires),None,None,{},False))
-    if not len(jar):raise PermissionError('Session expired; login again in the same profile')
+    if not len(jar):
+        key='session:'+binding_id
+        with store.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
+            current=c.execute('SELECT value FROM secrets WHERE key=?',(key,)).fetchone()
+            # An explicit relogin may race this read. Remove only the exact
+            # expired snapshot used above; never delete a newer session.
+            if current and bytes(current['value'])==bytes(secret['value']):
+                c.execute('DELETE FROM secrets WHERE key=?',(key,))
+                c.execute(
+                    "UPDATE bindings SET status='login_required',checked=? "
+                    "WHERE id=? AND identity IS ?",
+                    (time.time(),binding_id,row['identity']))
+        raise PermissionError('Session expired; login again in the same profile')
     return jar

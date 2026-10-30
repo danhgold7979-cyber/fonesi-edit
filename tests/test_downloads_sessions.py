@@ -3,8 +3,10 @@ from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from threading import Thread,Event
 import os
 import sys
+import time
+import json
 import pytest
-from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity
+from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity,cookie_jar
 from fonesi_edit.downloads import platform_for,safe_name,execute_download_job
 from fonesi_edit.storage import Store
 from fonesi_edit.prototypes.media import create_fixture
@@ -313,3 +315,158 @@ def test_duplicate_scanned_urls_cannot_enqueue_two_jobs_for_same_item():
     with pytest.raises(ValueError,match='URL lặp'):
         selected_download_payloads(scan,[0,1])
     assert len(selected_download_payloads(scan,[0]))==1
+
+
+
+def _synthetic_facebook_cookie(identity, expires=None, domain=".facebook.com", partition_key=None):
+    cookie = {
+        "name": "c_user",
+        "value": identity,
+        "domain": domain,
+        "path": "/",
+        "secure": True,
+    }
+    if expires is not None:
+        cookie["expirationDate"] = expires
+    if partition_key is not None:
+        cookie["partitionKey"] = partition_key
+    return cookie
+
+
+def _use_test_only_reversible_protection(monkeypatch):
+    # Test adapter only. Production browser.protect remains Windows DPAPI
+    # with no plaintext fallback on unsupported platforms.
+    from fonesi_edit import browser as browser_module
+    monkeypatch.setattr(browser_module, "protect", lambda data, decrypt=False: data)
+
+
+def test_chrome_profiles_keep_distinct_same_platform_session_cookies(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile_a = create_profile(store, "Chrome A")
+    profile_b = create_profile(store, "Chrome B")
+    token_a = pair(store, pairing_code(store, profile_a))
+    token_b = pair(store, pairing_code(store, profile_b))
+
+    session_a = receive_session(
+        store, token_a, "Facebook",
+        [_synthetic_facebook_cookie("facebook-A"),
+         {"name": "xs", "value": "session-A", "domain": ".facebook.com", "path": "/"}],
+    )
+    session_b = receive_session(
+        store, token_b, "Facebook",
+        [_synthetic_facebook_cookie("facebook-B"),
+         {"name": "xs", "value": "session-B", "domain": ".facebook.com", "path": "/"}],
+    )
+
+    assert session_a["binding_id"] != session_b["binding_id"]
+    jar_a = cookie_jar(store, session_a["binding_id"], "facebook-A")
+    jar_b = cookie_jar(store, session_b["binding_id"], "facebook-B")
+    values_a = {cookie.name: cookie.value for cookie in jar_a}
+    values_b = {cookie.name: cookie.value for cookie in jar_b}
+    assert values_a == {"c_user": "facebook-A", "xs": "session-A"}
+    assert values_b == {"c_user": "facebook-B", "xs": "session-B"}
+    assert values_a["c_user"] != values_b["c_user"]
+
+
+def test_account_mismatch_preserves_previous_session_and_expected_identity(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    first = receive_session(
+        store, token, "Facebook", [_synthetic_facebook_cookie("account-A")]
+    )
+    binding_id = first["binding_id"]
+    with store.connect() as conn:
+        before_secret = bytes(conn.execute(
+            "SELECT value FROM secrets WHERE key=?", ("session:" + binding_id,)
+        ).fetchone()[0])
+        before_binding = dict(conn.execute(
+            "SELECT identity,status FROM bindings WHERE id=?", (binding_id,)
+        ).fetchone())
+
+    with pytest.raises(PermissionError, match="Account mismatch"):
+        receive_session(
+            store, token, "Facebook", [_synthetic_facebook_cookie("account-B")]
+        )
+    with pytest.raises(PermissionError, match="Account mismatch"):
+        cookie_jar(store, binding_id, "account-B")
+
+    with store.connect() as conn:
+        after_secret = bytes(conn.execute(
+            "SELECT value FROM secrets WHERE key=?", ("session:" + binding_id,)
+        ).fetchone()[0])
+        after_binding = dict(conn.execute(
+            "SELECT identity,status FROM bindings WHERE id=?", (binding_id,)
+        ).fetchone())
+    assert after_secret == before_secret
+    assert after_binding == before_binding
+    assert {cookie.name: cookie.value for cookie in cookie_jar(store, binding_id, "account-A")} == {
+        "c_user": "account-A"
+    }
+
+
+def test_foreign_domain_and_partitioned_cookies_are_not_stored(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    invalid = [
+        _synthetic_facebook_cookie("attacker", domain=".facebook.com.attacker.invalid"),
+        _synthetic_facebook_cookie("partitioned", partition_key={"topLevelSite": "https://facebook.com"}),
+    ]
+
+    with pytest.raises(PermissionError, match="No transferable session cookies"):
+        receive_session(store, token, "Facebook", invalid)
+
+    with store.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM secrets WHERE key LIKE 'session:%'").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM bindings").fetchone()[0] == 0
+
+
+def test_expired_session_is_removed_and_binding_requires_relogin(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    expired = receive_session(
+        store, token, "Facebook",
+        [_synthetic_facebook_cookie("account-A", expires=time.time() - 10)],
+    )
+    binding_id = expired["binding_id"]
+
+    with pytest.raises(PermissionError, match="Session expired"):
+        cookie_jar(store, binding_id, "account-A")
+    with store.connect() as conn:
+        row = conn.execute(
+            "SELECT identity,status FROM bindings WHERE id=?", (binding_id,)
+        ).fetchone()
+        secret = conn.execute(
+            "SELECT 1 FROM secrets WHERE key=?", ("session:" + binding_id,)
+        ).fetchone()
+    assert row["identity"] == "account-A"
+    assert row["status"] == "login_required"
+    assert secret is None
+
+    renewed = receive_session(
+        store, token, "Facebook", [_synthetic_facebook_cookie("account-A")]
+    )
+    assert renewed["status"] == "available"
+    assert cookie_jar(store, binding_id, "account-A")
+
+
+def test_download_job_snapshot_keeps_account_reference_not_cookie_values(tmp_path):
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    binding_id = bind(store, profile, "Facebook")
+    job_id = store.submit("download", {
+        "url": "https://www.facebook.com/watch/123",
+        "account_ref": binding_id,
+        "expected_identity": "account-A",
+    })
+    payload = store.job(job_id)["payload"]
+    encoded = json.dumps(payload, sort_keys=True)
+    assert payload["account_ref"] == binding_id
+    assert payload["expected_identity"] == "account-A"
+    assert "c_user" not in encoded and "session-token" not in encoded
