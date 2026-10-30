@@ -18,8 +18,10 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
 from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS,AUDIO_EXTENSIONS
-from ..matrix import (scan_scenes,scene_directories,reorder_matrix_scenes,normalize_matrix_history,generate,history,
-                      combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows)
+from ..matrix import (scan_scenes,scene_directories,scene_manifest,select_matrix_scenes,
+                      scene_generation_locks,reorder_matrix_scenes,normalize_matrix_history,
+                      generate,history,combination,valid_against,matrix_rows_valid,
+                      regenerate_row,angle_usage,row_composition,enqueue_rows)
 from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
                          caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
 from .cue_timeline import CueTimingView
@@ -1249,7 +1251,7 @@ class MatrixModel(QAbstractTableModel):
 
 class MatrixPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._scene_list_updating=False;self._history_reordered=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._scene_list_updating=False;self._history_reordered=False;self._available_scenes=[];self._scene_filter_updating=False;self._pin_by_folder={};self._pinned_columns=set();layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Folder chứa C1…Cn',host,True);self.audio=file_row(form,'Âm thanh chính',host);self.output=file_row(form,'Thư mục xuất',host,True)
         self.count=QSpinBox();self.count.setRange(1,100000);self.count.setValue(10);form.addRow('Số đầu ra',self.count)
         self.window=QSpinBox();self.window.setRange(0,10000);form.addRow('W — không lặp góc trong số video trước',self.window)
@@ -1262,6 +1264,12 @@ class MatrixPage(QWidget):
         self.scene_weights=QLineEdit();self.scene_weights.setPlaceholderText('Trọng số từng cảnh, ví dụ: 1,2,1');form.addRow('Trọng số cảnh (nếu chọn weights)',self.scene_weights)
         self.scene_durations=QLineEdit();self.scene_durations.setPlaceholderText('Thời lượng mỗi cảnh (s), ví dụ: 2.5,4,3');form.addRow('Giây/cảnh (nếu chọn manual)',self.scene_durations)
         buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        layout.addWidget(QLabel('Chọn cảnh/góc (quét trước, bỏ chọn cảnh để loại khỏi *lần sinh mới*; không xóa media). Khóa một góc áp dụng cho mọi hàng mới.'))
+        buttons(layout,host,[('Quét cảnh/góc để chọn',self.scan_scene_choices),
+                             ('Khóa góc đã chọn',self.pin_selected_angle),
+                             ('Mở khóa góc cảnh',self.unpin_selected_scene)])
+        self.scene_filter=QTreeWidget();self.scene_filter.setHeaderLabels(['Cảnh / góc nguồn','Khóa toàn cảnh'])
+        self.scene_filter.setMaximumHeight(195);layout.addWidget(self.scene_filter)
         layout.addWidget(QLabel('Thứ tự cảnh (kéo để đổi, hoặc chọn cảnh rồi dùng Lên/Xuống). C là vị trí logic; tên folder và tệp gốc không đổi.'))
         self.scene_list=QListWidget();self.scene_list.setMaximumHeight(140)
         self.scene_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -1273,6 +1281,7 @@ class MatrixPage(QWidget):
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
         self.scene_list.model().rowsMoved.connect(lambda *_:self.scene_list_reordered())
+        self.scene_filter.itemChanged.connect(lambda *_:self.scene_filters_changed())
         self.folder.textChanged.connect(lambda _:self.source_folder_changed())
         for widget in (self.audio,self.output,self.scene_weights,self.scene_durations):
             widget.textChanged.connect(lambda _text:self.matrix_options_changed())
@@ -1293,11 +1302,154 @@ class MatrixPage(QWidget):
         root=str(Path(self.folder.text()).expanduser().resolve())
         return 'matrix_scene_order_v1:'+hashlib.sha256(root.encode()).hexdigest()
 
+
+    def scene_filter_key(self):
+        root=str(Path(self.folder.text()).expanduser().resolve())
+        return 'matrix_scene_filter_v1:'+hashlib.sha256(root.encode()).hexdigest()
+
+    def _scene_choice_snapshot(self):
+        if not self._available_scenes:
+            return None
+        choices={}
+        for index in range(self.scene_filter.topLevelItemCount()):
+            parent=self.scene_filter.topLevelItem(index)
+            folder=parent.data(0,Qt.ItemDataRole.UserRole)
+            if type(folder) is not str or folder in choices:
+                raise ValueError('Danh sách cảnh được chọn không hợp lệ')
+            angles=[parent.child(j).data(0,Qt.ItemDataRole.UserRole)
+                    for j in range(parent.childCount())
+                    if parent.child(j).checkState(0)==Qt.CheckState.Checked]
+            choices[folder]={'enabled':parent.checkState(0)==Qt.CheckState.Checked,
+                             'angles':angles,'pin':self._pin_by_folder.get(folder)}
+        # Validate before publishing/saving any source selection. Explicitly
+        # exclude unchecked scenes; an active scene with zero angles is an error.
+        select_matrix_scenes(self._available_scenes,choices)
+        return choices
+
+    def refresh_pin_indicators(self):
+        self._scene_filter_updating=True
+        try:
+            for index in range(self.scene_filter.topLevelItemCount()):
+                parent=self.scene_filter.topLevelItem(index)
+                folder=parent.data(0,Qt.ItemDataRole.UserRole)
+                pin=self._pin_by_folder.get(folder)
+                for j in range(parent.childCount()):
+                    child=parent.child(j)
+                    is_pin=child.data(0,Qt.ItemDataRole.UserRole)==pin
+                    child.setText(1,('📌 Khóa toàn cảnh' if child.checkState(0)==Qt.CheckState.Checked
+                                     else '📌 Chưa được chọn') if is_pin else '')
+        finally:
+            self._scene_filter_updating=False
+
+    def fill_scene_choices(self,scenes,restore=True):
+        manifest=scene_manifest(scenes)
+        folders=scene_directories(scenes)
+        defaults={folder:{'enabled':True,'angles':[angle.hash for angle in scene],'pin':None}
+                  for folder,scene in zip(folders,scenes)}
+        values=defaults
+        if restore:
+            saved=self.host.store.setting(self.scene_filter_key(),None)
+            if type(saved) is dict and saved.get('version')==1:
+                if saved.get('manifest')==manifest:
+                    try:
+                        select_matrix_scenes(scenes,saved.get('choices'))
+                    except (TypeError,ValueError):
+                        self.host.message('Bỏ lựa chọn cảnh/góc lưu lỗi; tất cả được chọn mặc định')
+                    else:
+                        values=saved['choices']
+                else:
+                    self.host.message('Nguồn cảnh/góc đã thay đổi; không áp dụng lựa chọn cũ')
+        self._scene_filter_updating=True
+        try:
+            self._available_scenes=[list(scene) for scene in scenes]
+            self._pin_by_folder={folder:entry['pin'] for folder,entry in values.items()
+                                 if entry['pin'] is not None}
+            self.scene_filter.clear()
+            for folder,scene in zip(folders,scenes):
+                parent=QTreeWidgetItem([Path(folder).name+' • '+str(len(scene))+' góc',''])
+                parent.setData(0,Qt.ItemDataRole.UserRole,folder)
+                parent.setToolTip(0,folder)
+                parent.setFlags(parent.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                parent.setCheckState(0,Qt.CheckState.Checked if values[folder]['enabled']
+                                     else Qt.CheckState.Unchecked)
+                self.scene_filter.addTopLevelItem(parent)
+                for angle in scene:
+                    child=QTreeWidgetItem([f'G{angle.index} • {Path(angle.path).name}',''])
+                    child.setData(0,Qt.ItemDataRole.UserRole,angle.hash)
+                    child.setToolTip(0,angle.path)
+                    child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                    child.setCheckState(0,Qt.CheckState.Checked if angle.hash in values[folder]['angles']
+                                        else Qt.CheckState.Unchecked)
+                    parent.addChild(child)
+                parent.setExpanded(True)
+        finally:
+            self._scene_filter_updating=False
+        self.refresh_pin_indicators()
+
+    def scene_filters_changed(self):
+        if self._scene_filter_updating:return
+        # Never let a prior row snapshot render after source/angle selection
+        # changes. The queued jobs are independent and remain unchanged.
+        self._matrix_revision+=1
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set()
+        self.model.replace([],[]);self.refresh_scene_list()
+        self.refresh_pin_indicators()
+        self.summary.setText('Lựa chọn cảnh/góc đã đổi; sinh lại ma trận để dùng cấu hình mới (không xóa file nguồn).')
+
+    def scan_scene_choices(self):
+        if not self.folder.text().strip():
+            raise ValueError('Chọn thư mục chứa cảnh trước')
+        self._matrix_revision+=1
+        revision=self._matrix_revision;folder=Path(self.folder.text())
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
+        self._scene_filter_updating=True
+        try:self.scene_filter.clear()
+        finally:self._scene_filter_updating=False
+        self.model.replace([],[]);self.refresh_scene_list()
+        self.summary.setText('Đang đọc tên/ID/hash của các cảnh để chọn góc...')
+        def done(scenes):
+            if (revision!=self._matrix_revision or
+                    str(Path(self.folder.text()).resolve())!=str(folder.resolve())):
+                self.host.message('Bỏ kết quả quét cảnh cũ do nguồn/cấu hình thay đổi')
+                return
+            self.fill_scene_choices(scenes)
+            self.summary.setText('Chọn/bỏ cảnh hoặc góc, có thể khóa một G cho mọi hàng mới. Sau đó bấm Quét / sinh ma trận.')
+        self.host.background(lambda progress,cancel:scan_scenes(folder),done)
+
+    def pin_selected_angle(self):
+        item=self.scene_filter.currentItem()
+        if item is None or item.parent() is None:
+            raise ValueError('Chọn một góc G thuộc cảnh đã quét để khóa')
+        parent=item.parent()
+        if (parent.checkState(0)!=Qt.CheckState.Checked
+                or item.checkState(0)!=Qt.CheckState.Checked):
+            raise ValueError('Chỉ khóa được góc đang chọn trong cảnh đã bật')
+        folder=parent.data(0,Qt.ItemDataRole.UserRole)
+        digest=item.data(0,Qt.ItemDataRole.UserRole)
+        self._pin_by_folder[folder]=digest
+        self.scene_filters_changed()
+
+    def unpin_selected_scene(self):
+        item=self.scene_filter.currentItem()
+        if item is None:
+            raise ValueError('Chọn cảnh hoặc một góc trong cảnh để mở khóa')
+        parent=item.parent() or item
+        folder=parent.data(0,Qt.ItemDataRole.UserRole)
+        if folder in self._pin_by_folder:
+            del self._pin_by_folder[folder]
+            self.scene_filters_changed()
+
     def source_folder_changed(self):
         # A newly typed source must never retain rows, locks or async results
         # from a different root; no media or matrix history is deleted.
         self._matrix_revision+=1
         self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
+        self._scene_filter_updating=True
+        try:self.scene_filter.clear()
+        finally:self._scene_filter_updating=False
         self.model.replace([],[])
         self.refresh_scene_list()
         self.summary.setText('Đã đổi nguồn cảnh; quét/sinh lại trước khi preview hoặc render.')
