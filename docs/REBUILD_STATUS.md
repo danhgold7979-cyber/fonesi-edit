@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 119/119 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
+- Kiểm tra local: 127/127 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -91,3 +91,8 @@ JobStore.backup_new uses SQLite online backup into owned staging, integrity/sche
 ## Complete CPU export snapshot, not execution
 
 New cpu_snapshot.py has separately tagged version1 canonical immutable source/destination/tool hashes, exact clip/time tolerance and seed. Old RenderIntentv1 is preserved and explicitly rejected by the executable-snapshot parser, never default-converted. Strict fields/duplicates/size/rational/path/digest limits; pinned Unicode/rational golden digest. 119 local tests PASS. No hashing/file copy/tool invocation or queue-success path is added by snapshot creation. Queued execution remains blocked on the explicit stable-input/tool-trust/lease/publication-reconciliation contracts in REBUILD_QUEUED_EXPORT_PLAN.md.
+
+
+## Owned stable-input preparation primitive
+
+prepared_input.py copies to an owned temporary input, checks explicit SHA256, byte budget, cooperative timeout/cancel and source identity/timestamps before yielding, closes source handle before consumer work, and cleans only owned staging. Snapshot creation still does no IO; this is a separate opt-in primitive and is not yet wired into queue/render. Consumer failure/fsync fault/stale hash/concurrent-source mutation/bounds/symlink regressions covered; 127 local tests PASS. Symlink regression is explicitly skipped when host cannot create symlinks, not counted as verified there. No hostile-filesystem isolation or hard syscall-timeout guarantee.
