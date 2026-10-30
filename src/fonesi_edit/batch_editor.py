@@ -30,8 +30,8 @@ class BatchEditor(QDialog):
         self.source = None
         self.output = None
         self.scan_result = None
-        self.ffmpeg = shutil.which("ffmpeg")
-        self.ffprobe = shutil.which("ffprobe")
+        self.ffmpeg = parent.ffmpeg if parent is not None else shutil.which("ffmpeg")
+        self.ffprobe = parent.ffprobe if parent is not None else shutil.which("ffprobe")
         self.setWindowTitle("Lô CPU cục bộ · Bản phát triển")
         self.resize(920, 580)
         self.setStyleSheet(STYLE)

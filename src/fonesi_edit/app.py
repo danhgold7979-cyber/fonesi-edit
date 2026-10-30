@@ -7,7 +7,7 @@ from fractions import Fraction
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self.selected = None
         self.media = []
         self.closing = False
+        self._close_waiters = set()
         self.edits = {}
         self._loading_controls = False
         self.media_ids = []
@@ -98,6 +99,10 @@ class MainWindow(QMainWindow):
         self.subtitle_button.clicked.connect(self.open_subtitles)
         self.subtitle_window = None
         self.batch_window = None
+        self.tool_window = None
+        self.tools_button = QPushButton("Chọn công cụ…")
+        self.tools_button.clicked.connect(self.open_tools)
+        head.insertWidget(2, self.tools_button)
         self.batch_button = QPushButton("Lô CPU cục bộ…")
         self.batch_button.clicked.connect(self.open_batch)
         self.open_button = QPushButton("Mở project…")
@@ -137,7 +142,7 @@ class MainWindow(QMainWindow):
         cl.addWidget(self.preview, 1)
         cl.addWidget(
             QLabel(
-                "Hiện có: probe thật, khung đầu và xuất CPU.\nTimeline, phụ đề, layer và chuyển động chưa được nối."
+                "Hiện có: probe thật, khung đầu và xuất CPU.\nTimeline, chèn phụ đề, layer và chuyển động chưa được nối."
             )
         )
         panes.addWidget(center)
@@ -187,11 +192,12 @@ class MainWindow(QMainWindow):
         self.refresh()
         if not self.ffmpeg or not self.ffprobe:
             self.status.setText(
-                "Thiếu FFmpeg/ffprobe. Cài công cụ đáng tin cậy rồi mở lại; không tự cài hoặc đổi PATH."
+                "Thiếu FFmpeg/ffprobe. Bấm Chọn công cụ để trỏ tới bản tin cậy đã cài; không tự tải/cài hoặc sửa PATH."
             )
 
     def refresh(self):
         busy = self.worker is not None
+        self.tools_button.setEnabled(not self.has_active_media_jobs())
         self.open_button.setEnabled(not busy)
         self.save_button.setEnabled(not busy and bool(self.media))
         row = self.list.currentRow()
@@ -249,6 +255,57 @@ class MainWindow(QMainWindow):
         if self.worker:
             self.worker.cancel.set()
             self.status.setText("Đang yêu cầu hủy; chờ tiến trình dừng an toàn…")
+
+    def has_active_media_jobs(self):
+        return self.worker is not None or (
+            self.batch_window is not None and self.batch_window.worker is not None
+        )
+
+    def open_tools(self):
+        from fonesi_edit.tool_dialog import ToolDialog
+
+        if self.has_active_media_jobs():
+            self.status.setText("Đợi công việc media hoàn tất trước khi đổi công cụ.")
+            return False
+        if self.tool_window is not None and self.tool_window.worker:
+            self.tool_window.raise_()
+            return False
+        if self.tool_window is None:
+            self.tool_window = ToolDialog(
+                self.ffmpeg,
+                self.ffprobe,
+                self.apply_media_tools,
+                self.has_active_media_jobs,
+                self,
+            )
+        for field, value in zip(self.tool_window.fields, (self.ffmpeg, self.ffprobe)):
+            field.setText(value or "")
+        self.tool_window.changed()
+        self.tool_window.show()
+        self.tool_window.raise_()
+        return True
+
+    def apply_media_tools(self, tools):
+        from fonesi_edit.media_tools import MediaTools
+
+        if self.has_active_media_jobs() or not isinstance(tools, MediaTools):
+            return False
+        self.ffmpeg, self.ffprobe = str(tools.ffmpeg), str(tools.ffprobe)
+        if self.batch_window is not None:
+            self.batch_window.ffmpeg, self.batch_window.ffprobe = (
+                self.ffmpeg,
+                self.ffprobe,
+            )
+            self.batch_window.refresh()
+        self.source_hashes.clear()
+        self.media = [(path, None, b"") for path, _, _ in self.media]
+        self.selected = None
+        self.select_row(self.list.currentRow())
+        self.status.setText(
+            "Đã chọn công cụ cho phiên này; cần kiểm tra lại media. Không sửa PATH hoặc cài phần mềm."
+        )
+        self.refresh()
+        return True
 
     def open_batch(self):
         from fonesi_edit.batch_editor import BatchEditor
@@ -588,13 +645,34 @@ class MainWindow(QMainWindow):
             ),
         )
 
+    def wait_for_child_close(self, child, *, cancel=False):
+        self.closing = True
+        token = id(child.worker)
+        if token not in self._close_waiters:
+            self._close_waiters.add(token)
+
+            def finished():
+                self._close_waiters.discard(token)
+                # Run after the child's finished handler clears its worker reference.
+                QTimer.singleShot(0, self.close)
+
+            child.worker.finished.connect(finished)
+        if cancel:
+            child.cancel_work()
+
     def closeEvent(self, event):
+        if self.tool_window is not None and self.tool_window.worker:
+            self.wait_for_child_close(self.tool_window, cancel=True)
+            self.status.setText("Đợi kiểm tra công cụ dừng an toàn trước khi đóng.")
+            event.ignore()
+            return
         if self.batch_window is not None and self.batch_window.worker:
-            self.batch_window.cancel_work()
+            self.wait_for_child_close(self.batch_window, cancel=True)
             self.status.setText("Đợi lô CPU dừng an toàn trước khi đóng ứng dụng.")
             event.ignore()
             return
         if self.subtitle_window is not None and self.subtitle_window.worker:
+            self.wait_for_child_close(self.subtitle_window)
             self.status.setText(
                 "Đợi thao tác tệp phụ đề hoàn tất trước khi đóng ứng dụng."
             )
@@ -605,6 +683,10 @@ class MainWindow(QMainWindow):
             self.cancel_work()
             event.ignore()
         else:
+            for child in (self.subtitle_window, self.batch_window, self.tool_window):
+                if child is not None:
+                    child.close()
+            self.closing = False
             event.accept()
 
 
