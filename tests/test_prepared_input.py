@@ -200,3 +200,12 @@ class PreparedInputTests(unittest.TestCase):
         ):
             self.assertEqual(result.path.read_bytes(), self.data)
         self.assertFalse(list(self.root.glob(".fonesi-input-*")))
+
+    def test_initial_capture_is_distinct_from_required_digest_verification(self):
+        from fonesi_edit.prepared_input import capture_source
+
+        with capture_source(self.source, self.root, max_bytes=100000) as result:
+            self.assertEqual(result.sha256, self.digest)
+            self.assertEqual(result.path.read_bytes(), self.data)
+        with self.assertRaises(ValueError):
+            stage_verified_input(self.source, None, self.root, max_bytes=100000)

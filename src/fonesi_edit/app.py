@@ -2,6 +2,7 @@
 
 import shutil
 import sys
+import tempfile
 from fractions import Fraction
 from pathlib import Path
 from uuid import uuid4
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from fonesi_edit.media import probe
+from fonesi_edit.prepared_input import capture_source, stage_verified_input
 from fonesi_edit.process import run_bounded
 from fonesi_edit.project import Project, ProjectMedia, load_project, save_new
 from fonesi_edit.render import render_cpu
@@ -46,6 +48,7 @@ class MainWindow(QMainWindow):
         self._loading_controls = False
         self.media_ids = []
         self.source_refs = {}
+        self.source_hashes = {}
         self.exact_edits = {}
         self.project_id = str(uuid4())
         self.project_title = "Dự án mới"
@@ -201,6 +204,7 @@ class MainWindow(QMainWindow):
         self.export.setEnabled(
             not busy
             and self.selected is not None
+            and self.list.currentRow() in self.source_hashes
             and "video" in self.selected[1].stream_types
         )
         for control in (self.start_time, self.end_time, self.speed):
@@ -279,43 +283,54 @@ class MainWindow(QMainWindow):
             return False
 
         def work(cancel):
-            info = probe(path, Path(self.ffprobe), cancel=cancel)
-            thumbnail = b""
-            if "video" in info.stream_types:
-                result = run_bounded(
-                    [
-                        self.ffmpeg,
-                        "-nostdin",
-                        "-v",
-                        "error",
-                        "-protocol_whitelist",
-                        "file,pipe",
-                        "-i",
-                        str(path.resolve()),
-                        "-frames:v",
-                        "1",
-                        "-vf",
-                        "scale=640:-2",
-                        "-f",
-                        "image2pipe",
-                        "-vcodec",
-                        "png",
-                        "-",
-                    ],
-                    limit=1048576,
-                    cancel=cancel,
-                )
-                if result.status != "OK":
-                    raise ValueError("PREVIEW_" + result.status)
-                thumbnail = result.stdout
-            if cancel.is_set():
-                raise ValueError("CANCELED")
-            return path, info, thumbnail
+            native = path.absolute()
+            with capture_source(
+                native,
+                Path(tempfile.gettempdir()).absolute(),
+                max_bytes=max(1, native.stat().st_size),
+                timeout=60,
+                cancel=cancel,
+            ) as captured:
+                info = probe(captured.path, Path(self.ffprobe), cancel=cancel)
+                thumbnail = b""
+                if "video" in info.stream_types:
+                    result = run_bounded(
+                        [
+                            self.ffmpeg,
+                            "-nostdin",
+                            "-v",
+                            "error",
+                            "-protocol_whitelist",
+                            "file,pipe",
+                            "-i",
+                            str(captured.path),
+                            "-frames:v",
+                            "1",
+                            "-vf",
+                            "scale=640:-2",
+                            "-f",
+                            "image2pipe",
+                            "-vcodec",
+                            "png",
+                            "-",
+                        ],
+                        limit=1048576,
+                        cancel=cancel,
+                    )
+                    if result.status != "OK":
+                        raise ValueError("PREVIEW_" + result.status)
+                    thumbnail = result.stdout
+                if cancel.is_set():
+                    raise ValueError("CANCELED")
+                return (path, info, thumbnail), captured.sha256
 
         self.status.setText("Đang kiểm tra media và đọc khung hình…")
-        return self.start(work, lambda result: self.loaded(result, replace_row))
+        return self.start(
+            work,
+            lambda result: self.loaded(result[0], replace_row, source_sha=result[1]),
+        )
 
-    def loaded(self, result, replace_row=None):
+    def loaded(self, result, replace_row=None, *, source_sha=None):
         if replace_row is None:
             self.media.append(result)
             self.media_ids.append(str(uuid4()))
@@ -325,6 +340,10 @@ class MainWindow(QMainWindow):
         else:
             row = replace_row
             self.media[row] = result
+        if source_sha is not None:
+            self.source_hashes[row] = source_sha
+        else:
+            self.source_hashes.pop(row, None)
         self.list.setCurrentRow(row)
         self.status.setText("Đã đọc nguồn. Đây là khung nguồn, chưa có hiệu ứng.")
         self.select_row(row)
@@ -474,6 +493,7 @@ class MainWindow(QMainWindow):
         self.media = []
         self.media_ids = []
         self.source_refs = {}
+        self.source_hashes = {}
         self.edits = {}
         self.exact_edits = {}
         self.list.blockSignals(True)
@@ -516,7 +536,11 @@ class MainWindow(QMainWindow):
     def export_to(self, destination):
         if not self.selected or self.worker:
             return False
-        source = self.selected[0]
+        source = self.selected[0].absolute()
+        source_sha = self.source_hashes.get(self.list.currentRow())
+        if source_sha is None:
+            self.status.setText("Cần kiểm tra nguồn trước khi xuất.")
+            return False
         mapping = self.exact_edits.get(self.list.currentRow())
         if mapping is None and self.list.currentRow() in self.edits:
             try:
@@ -535,17 +559,30 @@ class MainWindow(QMainWindow):
         self.status.setText(
             "Đang xuất thử CPU và giải mã kiểm tra; chưa biết % chính xác…"
         )
+        ffmpeg, ffprobe = Path(self.ffmpeg), Path(self.ffprobe)
+
+        def work(cancel):
+            with stage_verified_input(
+                source,
+                source_sha,
+                destination.absolute().parent,
+                max_bytes=max(1, source.stat().st_size),
+                timeout=60,
+                cancel=cancel,
+            ) as captured:
+                return render_cpu(
+                    captured.path,
+                    destination,
+                    ffmpeg,
+                    ffprobe,
+                    duration_tolerance=Fraction(1, 10),
+                    cancel=cancel,
+                    clip_map=mapping,
+                )
+
         # Provisional developer proof tolerance, not a general editor acceptance gate.
         return self.start(
-            lambda cancel: render_cpu(
-                source,
-                destination,
-                Path(self.ffmpeg),
-                Path(self.ffprobe),
-                duration_tolerance=Fraction(1, 10),
-                cancel=cancel,
-                clip_map=mapping,
-            ),
+            work,
             lambda artifact: self.status.setText(
                 f"Đã kiểm tra đầu ra: {artifact.path.name} · {artifact.size:,} bytes."
             ),

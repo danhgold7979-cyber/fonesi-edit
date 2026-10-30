@@ -6,6 +6,7 @@ from fractions import Fraction
 from hashlib import sha256
 from pathlib import Path
 
+from fonesi_edit.prepared_input import capture_source
 from fonesi_edit.render import Artifact, render_cpu
 
 
@@ -185,14 +186,21 @@ def render_batch(
             if item.source.is_symlink() or not item.source.is_file():
                 raise ValueError("SOURCE_NOT_REGULAR")
             destination.parent.mkdir(parents=True, exist_ok=True)
-            artifact = render_cpu(
-                item.source,
-                destination,
-                ffmpeg,
-                ffprobe,
-                duration_tolerance=duration_tolerance,
+            with capture_source(
+                item.source.absolute(),
+                destination.parent,
+                max_bytes=max(1, item.source.stat().st_size),
+                timeout=60,
                 cancel=cancel,
-            )
+            ) as captured:
+                artifact = render_cpu(
+                    captured.path,
+                    destination,
+                    ffmpeg,
+                    ffprobe,
+                    duration_tolerance=duration_tolerance,
+                    cancel=cancel,
+                )
             artifacts.append(artifact)
         except FileExistsError:
             failures.append((index, "OUTPUT_EXISTS"))

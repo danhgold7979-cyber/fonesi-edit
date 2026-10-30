@@ -104,7 +104,8 @@ class UiTests(unittest.TestCase):
         from fonesi_edit.media import MediaInfo
 
         self.window.loaded(
-            (Path("/synthetic.mp4"), MediaInfo(Fraction(2), ("video",)), b"")
+            (Path("/synthetic.mp4"), MediaInfo(Fraction(2), ("video",)), b""),
+            source_sha="a" * 64,
         )
         self.window.start_time.setValue(1.5)
         self.window.end_time.setValue(1)
@@ -187,7 +188,8 @@ class UiTests(unittest.TestCase):
         from fonesi_edit.media import MediaInfo
 
         self.window.loaded(
-            (Path("/source.mp4"), MediaInfo(Fraction(2), ("video",)), b"")
+            (Path("/source.mp4"), MediaInfo(Fraction(2), ("video",)), b""),
+            source_sha="a" * 64,
         )
         self.assertTrue(self.window.export.isEnabled())
         self.window.list.setCurrentRow(-1)
@@ -197,3 +199,58 @@ class UiTests(unittest.TestCase):
         self.assertEqual(len(self.window.media), 1)
         self.window.list.setCurrentRow(0)
         self.assertTrue(self.window.export.isEnabled())
+
+    def test_changed_source_blocks_export_until_explicit_reinspection(self):
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg or not shutil.which("ffprobe"):
+            self.skipTest("Media tools unavailable")
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "source.mp4"
+            replacement = Path(folder) / "replacement.mp4"
+            for path, duration in ((source, 1), (replacement, 2)):
+                result = run_bounded(
+                    [
+                        ffmpeg,
+                        "-v",
+                        "error",
+                        "-n",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        f"testsrc2=s=160x90:r=24:d={duration}",
+                        "-c:v",
+                        "libx264",
+                        str(path),
+                    ]
+                )
+                self.assertEqual(result.status, "OK")
+            self.assertTrue(self.window.load_source(source))
+            self.wait_worker()
+            old_hash = self.window.source_hashes[0]
+            source.write_bytes(replacement.read_bytes())
+            expected_source = source.read_bytes()
+            blocked = Path(folder) / "blocked.mp4"
+            self.assertTrue(self.window.export_to(blocked))
+            self.wait_worker()
+            self.assertFalse(blocked.exists())
+            self.assertIn("INPUT_DIGEST_MISMATCH", self.window.status.text())
+            self.assertEqual(source.read_bytes(), expected_source)
+            self.assertTrue(self.window.inspect_selected())
+            self.wait_worker()
+            self.assertNotEqual(self.window.source_hashes[0], old_hash)
+            output = Path(folder) / "verified.mp4"
+            self.assertTrue(self.window.export_to(output))
+            self.wait_worker()
+            self.assertTrue(output.is_file())
+            self.assertEqual(source.read_bytes(), expected_source)
+
+    def test_missing_inspection_digest_blocks_export(self):
+        from fractions import Fraction
+
+        from fonesi_edit.media import MediaInfo
+
+        self.window.loaded(
+            (Path("/source.mp4"), MediaInfo(Fraction(2), ("video",)), b"")
+        )
+        self.assertFalse(self.window.export.isEnabled())
+        self.assertFalse(self.window.export_to(Path("/must-not-create.mp4")))

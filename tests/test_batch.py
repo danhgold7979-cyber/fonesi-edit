@@ -117,3 +117,55 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(len(result.items), 1)
             self.assertEqual(result.status, "PARTIAL")
             self.assertIn("SYMLINK_SKIPPED", result.warnings)
+
+    def test_batch_renders_captured_bytes_after_external_source_change(self):
+        from unittest.mock import patch
+
+        from fonesi_edit.render import render_cpu
+
+        ffmpeg, ffprobe = shutil.which("ffmpeg"), shutil.which("ffprobe")
+        if not ffmpeg or not ffprobe:
+            self.skipTest("Media tools unavailable")
+        with tempfile.TemporaryDirectory() as folder:
+            root, output = Path(folder) / "input", Path(folder) / "output"
+            root.mkdir()
+            output.mkdir()
+            source = root / "clip.mp4"
+            result = run_bounded(
+                [
+                    ffmpeg,
+                    "-v",
+                    "error",
+                    "-n",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=blue:s=64x64:r=24:d=1",
+                    "-c:v",
+                    "libx264",
+                    str(source),
+                ]
+            )
+            self.assertEqual(result.status, "OK")
+            original = source.read_bytes()
+            items = scan((root,), output).items
+
+            def external_change_then_render(staged, *args, **kwargs):
+                self.assertNotEqual(staged, source)
+                self.assertEqual(staged.read_bytes(), original)
+                source.write_bytes(b"external change after preparation")
+                return render_cpu(staged, *args, **kwargs)
+
+            with patch("fonesi_edit.batch.render_cpu", external_change_then_render):
+                batch = render_batch(
+                    items,
+                    output,
+                    Path(ffmpeg),
+                    Path(ffprobe),
+                    duration_tolerance=Fraction(1, 10),
+                )
+            self.assertEqual(batch.status, "COMPLETE")
+            self.assertEqual(len(batch.artifacts), 1)
+            self.assertTrue(batch.artifacts[0].path.is_file())
+            self.assertEqual(source.read_bytes(), b"external change after preparation")
+            self.assertFalse(list(output.rglob(".fonesi-input-*")))

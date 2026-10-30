@@ -37,7 +37,7 @@ def _cross_api_identity(info):
 
 
 @contextmanager
-def stage_verified_input(
+def _stage_input(
     source, expected_sha256, staging_parent, *, max_bytes, timeout=30, cancel=None
 ):
     if (
@@ -48,7 +48,7 @@ def stage_verified_input(
         or not staging_parent.is_dir()
     ):
         raise ValueError("NATIVE_PATHS_REQUIRED")
-    if (
+    if expected_sha256 is not None and (
         not isinstance(expected_sha256, str)
         or re.fullmatch("[0-9a-f]{64}", expected_sha256) is None
     ):
@@ -121,8 +121,41 @@ def stage_verified_input(
                 source.lstat()
             ) != _identity(original):
                 raise ValueError("INPUT_CHANGED")
-            if count != opened.st_size or digest.hexdigest() != expected_sha256:
+            if count != opened.st_size or (
+                expected_sha256 is not None and digest.hexdigest() != expected_sha256
+            ):
                 raise ValueError("INPUT_DIGEST_MISMATCH")
             reader.close()
             check()
             yield PreparedInput(staged, digest.hexdigest(), count)
+
+
+def stage_verified_input(
+    source, expected_sha256, staging_parent, *, max_bytes, timeout=30, cancel=None
+):
+    """Require a previously established digest; never infer missing identity."""
+    if (
+        not isinstance(expected_sha256, str)
+        or re.fullmatch("[0-9a-f]{64}", expected_sha256) is None
+    ):
+        raise ValueError("INVALID_INPUT_DIGEST")
+    return _stage_input(
+        source,
+        expected_sha256,
+        staging_parent,
+        max_bytes=max_bytes,
+        timeout=timeout,
+        cancel=cancel,
+    )
+
+
+def capture_source(source, staging_parent, *, max_bytes, timeout=30, cancel=None):
+    """Create initial inspection bytes/digest, not authority for queued execution."""
+    return _stage_input(
+        source,
+        None,
+        staging_parent,
+        max_bytes=max_bytes,
+        timeout=timeout,
+        cancel=cancel,
+    )
