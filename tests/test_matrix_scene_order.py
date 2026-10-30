@@ -226,9 +226,7 @@ def test_project_full_legacy_history_safely_projects_only_known_excluded_scenes(
     assert old==[["c1","a0","b2"],["a1","b0","c2"]]
     for unsafe,message in [
         ([["a1","b1","not-an-angle"]],"unique source scene"),
-        ([["a0","b0"]],"missing a source scene"),
         ([["a1","b1","b0","c1"]],"incompatible scene count"),
-        ([["a1","b1","b2"]],"missing a source scene"),
     ]:
         with pytest.raises(ValueError,match=message):
             normalize_matrix_history(selected,unsafe,all_scenes=full)
@@ -263,3 +261,25 @@ def test_subset_enqueue_does_not_reuse_project_reserved_full_scene_history(tmp_p
     assert history(store,"same-project")==persisted
     assert all(path.is_file() for path in source)
     assert not (tmp_path/"out").exists()
+
+
+def test_known_shorter_subset_history_does_not_block_return_to_full_matrix():
+    from fonesi_edit.matrix import select_matrix_scenes,generate
+    full=scenes()
+    choices=_choices_for(full)
+    choices[list(choices)[1]]["enabled"]=False
+    short=select_matrix_scenes(full,choices)["scenes"]
+    original=[["a0","b0","c0"],["a1","b1","c1"]]
+    short_record=["a2","c2"]
+    # Full -> subset: complete historic rows project, so used pairs cannot
+    # be reused even when the removed B angle differs.
+    projected=normalize_matrix_history(short,original,all_scenes=full)
+    assert projected==[["a0","c0"],["a1","c1"]]
+    # Subset -> full: a render missing B is a different composition, not
+    # a false duplicate or reason to permanently lock the user's project.
+    restored=normalize_matrix_history(full,[*original,short_record],all_scenes=full)
+    assert restored==original
+    assert len(generate(full,1,seed=4,history=restored)["rows"])==1
+    # Malformed, removed or cross-scene ambiguous hashes are never skipped.
+    with pytest.raises(ValueError,match="unique source scene"):
+        normalize_matrix_history(full,[*original,["a2","missing"]],all_scenes=full)
