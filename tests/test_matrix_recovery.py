@@ -2,6 +2,8 @@
 from pathlib import Path
 import time
 
+import pytest
+
 from fonesi_edit.domain import Composition, canonical
 from fonesi_edit.jobs import Scheduler
 from fonesi_edit.matrix import Angle, enqueue_rows, history
@@ -140,3 +142,92 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
             "SELECT attempts FROM jobs WHERE id=?",(job_id,)).fetchone()[0]==2
     assert ["scene-a","scene-b"] in history(store,"cancel-retry-scope")
     assert ["other-a","other-b"] in history(store,"cancel-retry-scope")
+
+
+def test_retry_refuses_missing_matrix_reservation_without_requeueing_job(tmp_path):
+    store,job_id,_=_prepared(tmp_path,"missing-reservation-scope")
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==job_id
+    store.fail(job_id,"synthetic first attempt failure")
+    with store.connect() as conn:
+        conn.execute(
+            "DELETE FROM matrix_history WHERE scope=? AND combination=?",
+            ("missing-reservation-scope",canonical(["scene-a","scene-b"])))
+    with pytest.raises(ValueError,match="reservation is missing"):
+        store.retry(job_id)
+    assert store.job(job_id)["state"]=="failed"
+    with store.connect() as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
+            ("missing-reservation-scope",)).fetchone()[0]==0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE id=? AND state='failed'",
+            (job_id,)).fetchone()[0]==1
+
+
+def test_retry_cannot_steal_failed_reservation_reassigned_to_newer_job(tmp_path):
+    store,older_id,row=_prepared(tmp_path,"reassigned-reservation-scope")
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==older_id
+    store.fail(older_id,"older attempt failed")
+
+    preset=Composition(width=320,height=180,fps=25,encoder="cpu")
+    newer_id=enqueue_rows(
+        store,"reassigned-reservation-scope",row,preset,tmp_path/"out")[0]
+    assert newer_id!=older_id
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==newer_id
+    store.fail(newer_id,"newer attempt failed")
+
+    with store.connect() as conn:
+        reservation=conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("reassigned-reservation-scope",canonical(["scene-a","scene-b"]))).fetchone()
+        assert tuple(reservation)==("failed",newer_id)
+    with pytest.raises(ValueError,match="different job"):
+        store.retry(older_id)
+    assert store.job(older_id)["state"]=="failed"
+    assert store.job(newer_id)["state"]=="failed"
+    with store.connect() as conn:
+        reservation=conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("reassigned-reservation-scope",canonical(["scene-a","scene-b"]))).fetchone()
+        assert tuple(reservation)==("failed",newer_id)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
+            ("reassigned-reservation-scope",)).fetchone()[0]==1
+
+    store.retry(newer_id)
+    assert store.job(newer_id)["state"]=="pending"
+    with store.connect() as conn:
+        reservation=conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("reassigned-reservation-scope",canonical(["scene-a","scene-b"]))).fetchone()
+        assert tuple(reservation)==("reserved",newer_id)
+
+
+def test_missing_matrix_source_after_enqueue_never_marks_history_succeeded(tmp_path):
+    store,job_id,row=_prepared(tmp_path,"missing-source-scope")
+    Path(row[0][0].path).unlink()
+
+    scheduler=Scheduler(store)
+    deadline=time.monotonic()+25
+    try:
+        while time.monotonic()<deadline:
+            scheduler.tick()
+            job=store.job(job_id)
+            if job["state"] in {"failed","blocked","canceled"} and not scheduler.active:
+                break
+            time.sleep(.04)
+        job=store.job(job_id)
+        assert job["state"] in {"failed","blocked"}
+        assert job["result"] is None
+        assert not scheduler.active
+        with store.connect() as conn:
+            reservation=conn.execute(
+                "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+                ("missing-source-scope",canonical(["scene-a","scene-b"]))).fetchone()
+            assert tuple(reservation)==("failed",job_id)
+        assert history(store,"missing-source-scope")==[]
+    finally:
+        scheduler.shutdown()
