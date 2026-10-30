@@ -35,8 +35,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install ffmpeg --version=7.1.1 --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg install failed' }
+          $installed = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            Write-Host "Install pinned FFmpeg 7.1.1: attempt $attempt of 3"
+            choco install ffmpeg --version=7.1.1 --yes --no-progress
+            if ($LASTEXITCODE -eq 0) {
+              $installed = $true
+              break
+            }
+            if ($attempt -lt 3) {
+              Start-Sleep -Seconds (5 * $attempt)
+            }
+          }
+          if (-not $installed) { throw 'Pinned FFmpeg installation failed after 3 attempts' }
       - name: Install exact locked dependencies
         run: uv sync --locked
       - name: Check phase references
@@ -45,6 +56,10 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: uv run pytest -q --junitxml=desktop-tests.xml
+      - name: Benchmark 128 synthetic Batch videos (FFprobe dry-run only)
+        run: uv run python scripts/benchmark_batch.py --copies 128 --output .local/batch-benchmark.json
+      - name: Benchmark 10-billion-space Matrix balance (logical IDs only)
+        run: uv run python scripts/benchmark_matrix.py --scenes 10 --angles 10 --outputs 2000 --window 1 --different 2 --seed 91 --budget-seconds 45 --balance-candidates 4 --output .local/matrix-benchmark.json --require-complete
       - name: Build production desktop and native host
         run: uv run python scripts/build_desktop.py --native-host
       - name: Exercise packaged application and workers
@@ -58,6 +73,8 @@ jobs:
           include-hidden-files: true
           path: |
             desktop-tests.xml
+            .local/batch-benchmark.json
+            .local/matrix-benchmark.json
             .local/packaged-ci/proof.json
             .local/packaged-ci/frame-*.png
             .local/packaged-ci/desktop.png

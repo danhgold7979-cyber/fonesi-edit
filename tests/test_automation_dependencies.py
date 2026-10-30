@@ -66,3 +66,116 @@ def test_download_workflow_translates_subtitle_layers_once_then_waits_for_transl
     render=next(j for j in store.jobs() if j['kind']=='render');translation=next(j for j in store.jobs() if j['kind']=='translate')
     assert render['payload']['composition']['layers'][0]['path']==translation['payload']['output']
     assert translation['id'] in render['depends_on']
+
+
+def test_invalid_resource_profile_does_not_default_to_maximum():
+    data={'ram_available':8*1024**3,'disk_free':10**10,'cores':16,'cpu_percent':1}
+    with pytest.raises(ValueError,match='Unknown resource profile'):
+        recommended_parallel(data,'maax')
+
+
+def test_gpu_sampler_drops_stale_data_when_binary_missing(monkeypatch):
+    import fonesi_edit.automation as module
+    original=dict(module._GPU)
+    try:
+        module._GPU.update({'data':[{'name':'stale-GPU'}],'busy':True,'checked':0})
+        monkeypatch.setattr(module.shutil,'which',lambda _:None)
+        module.update_gpu()
+        assert module._GPU['data'] is None
+        assert module._GPU['busy'] is False
+        assert module._GPU['checked']>0
+    finally:
+        module._GPU.clear();module._GPU.update(original)
+
+
+def test_automation_error_reports_are_sanitized(tmp_path):
+    store=Store(tmp_path/'state.db')
+    automation=Automation(store)
+    def fail():
+        raise RuntimeError('HTTP 403 https://example.test/a?token=private Authorization: Bearer hidden-secret')
+    automation.tick=fail
+    class TwoSteps:
+        def __init__(self):self.calls=0
+        def wait(self,seconds):
+            self.calls+=1
+            return self.calls>1
+    automation.stop_event=TwoSteps()
+    automation.loop()
+    assert len(automation.errors)==1
+    assert 'HTTP 403' in automation.errors[0]
+    assert 'private' not in automation.errors[0]
+    assert 'hidden-secret' not in automation.errors[0]
+
+
+
+def test_watcher_does_not_auto_edit_quality_upgrade_variants(tmp_path):
+    """Upgrades are opt-in for Batch/Automation, not duplicate new source media."""
+    import shutil
+    store=Store(tmp_path/'state.db')
+    fixture=create_fixture(tmp_path/'Channel'/'videos',duration=.5)
+    original=fixture['source']
+    upgrade=tmp_path/'Channel'/'quality-upgrades'/'720p'/'videos'/'high.mp4'
+    upgrade.parent.mkdir(parents=True)
+    shutil.copyfile(original,upgrade)
+    store.set_setting('watches',[{
+        'folder':str(tmp_path/'Channel'),
+        'preset':Composition(width=320,height=180).to_dict()}])
+    auto=Automation(store)
+    auto.watch();auto.watch();auto.watch()
+    render_jobs=[j for j in store.jobs() if j['kind']=='render']
+    assert len(render_jobs)==1
+    assert str(original) in render_jobs[0]['payload']['composition']['clips'][0]['path']
+    assert upgrade.is_file()
+
+
+def test_submit_many_once_single_transaction_rollback_and_idempotence(tmp_path):
+    """An injected failure on the second INSERT never leaves a partial sync."""
+    import sqlite3
+    from fonesi_edit.automation import submit_many_once
+    store=Store(tmp_path/'batch-state.db')
+    old={'url':'https://example.test/first','folder':str(tmp_path/'media'),
+         'engine':'video','media':'videos'}
+    new={**old,'url':'https://example.test/second'}
+    batch=[(old,'sync:first'),(new,'sync:second')]
+    with store.connect() as conn:
+        conn.execute("""
+            CREATE TRIGGER deny_second_sync BEFORE INSERT ON jobs
+            WHEN json_extract(NEW.payload,'$.url')='https://example.test/second'
+            BEGIN SELECT RAISE(ABORT, 'injected-second-insert'); END
+        """)
+    with pytest.raises(sqlite3.IntegrityError,match='injected-second-insert'):
+        submit_many_once(store,'download',batch)
+    assert store.jobs()==[]
+    with store.connect() as conn:
+        conn.execute('DROP TRIGGER deny_second_sync')
+    accepted=submit_many_once(store,'download',batch)
+    assert accepted['created']==2 and accepted['existing']==0
+    assert len(set(accepted['ids']))==2
+    repeated=submit_many_once(store,'download',batch)
+    assert repeated['ids']==accepted['ids']
+    assert repeated['created']==0 and repeated['existing']==2
+    assert len(store.jobs())==2
+    with pytest.raises(ValueError,match='snapshot khác'):
+        submit_many_once(store,'download',[
+            ({**old,'account_ref':'changed-account'},'sync:first'),
+            ({**new,'url':'https://example.test/third'},'sync:third')])
+    with pytest.raises(ValueError,match='snapshot khác'):
+        submit_many_once(store,'scan',[(old,'sync:first')])
+    assert len(store.jobs())==2
+    assert all(j['kind']=='download' for j in store.jobs())
+
+
+def test_submit_many_once_rejects_untrusted_and_duplicate_batch_before_writing(tmp_path):
+    from fonesi_edit.automation import submit_many_once
+    store=Store(tmp_path/'batch-state.db')
+    good={'url':'https://example.test/first','folder':str(tmp_path/'media')}
+    with pytest.raises(ValueError,match='Secret'):
+        submit_many_once(store,'download',[
+            (good,'safe'),
+            ({'api_key':'do-not-store'},'second')])
+    assert store.jobs()==[]
+    with pytest.raises(ValueError,match='trùng'):
+        submit_many_once(store,'download',[(good,'repeated'),(good,'repeated')])
+    with pytest.raises(ValueError,match='500'):
+        submit_many_once(store,'download',[(good,str(i)) for i in range(501)])
+    assert store.jobs()==[]

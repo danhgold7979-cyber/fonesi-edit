@@ -1,8 +1,10 @@
 """Transactional local state. Connections are never shared across worker processes."""
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 import json
+import os
 import sqlite3
+import tempfile
 import time
 
 from .domain import canonical, checked_payload, identifier
@@ -30,6 +32,49 @@ CREATE TABLE IF NOT EXISTS schedules(id TEXT PRIMARY KEY,data TEXT NOT NULL,next
 """
 
 
+def _backup_connection(source: sqlite3.Connection, destination: Path) -> Path:
+    """Create, validate, then atomically publish a backup without overwriting a file."""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError(destination)
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".fonesi-backup-", suffix=".tmp", dir=destination.parent
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        with closing(sqlite3.connect(temporary)) as target:
+            source.backup(target)
+            target.commit()
+
+        with closing(sqlite3.connect(temporary)) as check:
+            row = check.execute("PRAGMA integrity_check").fetchone()
+            if not row or row[0] != "ok":
+                detail = row[0] if row else "no result"
+                raise sqlite3.DatabaseError(f"Backup integrity_check failed: {detail}")
+
+        with temporary.open("rb+") as stream:
+            stream.flush()
+            os.fsync(stream.fileno())
+
+        try:
+            # Source and destination share a directory/filesystem. Hard-link
+            # publication is atomic and fails if the destination appeared meanwhile.
+            os.link(temporary, destination)
+        except FileExistsError:
+            raise
+        except OSError as exc:
+            raise RuntimeError(
+                "Atomic backup publication requires hard-link support on the destination "
+                "filesystem; backup was not published"
+            ) from exc
+        return destination
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 class Store:
     def __init__(self, path: Path):
         self.path = path.resolve()
@@ -40,7 +85,7 @@ class Store:
                 raise ValueError("Database is newer than this application")
             if version==1:
                 backup=self.path.with_name(self.path.stem+'.before-v2-'+identifier()[:8]+'.db')
-                with sqlite3.connect(backup) as target:conn.backup(target)
+                _backup_connection(conn, backup)
             conn.executescript(SCHEMA)
             columns={r[1] for r in conn.execute('PRAGMA table_info(jobs)')}
             if 'started' not in columns:conn.execute('ALTER TABLE jobs ADD COLUMN started REAL')
@@ -49,23 +94,25 @@ class Store:
     @contextmanager
     def connect(self):
         conn = sqlite3.connect(self.path, timeout=15)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=15000")
         try:
-            yield conn
-            conn.commit()
-        except BaseException:
-            conn.rollback()
-            raise
+            # SQLite PRAGMAs can fail before yielding (e.g. locked WAL or
+            # interrupted I/O). The connection must still be closed on
+            # Windows; otherwise its file handle may outlive this attempt.
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=15000")
+            try:
+                yield conn
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
         finally:
             conn.close()
 
     def backup(self, destination: Path):
-        if destination.exists():
-            raise FileExistsError(destination)
-        with self.connect() as source, sqlite3.connect(destination) as target:
-            source.backup(target)
+        with self.connect() as source:
+            return _backup_connection(source, destination)
 
     def setting(self, key, default=None):
         with self.connect() as conn:
@@ -77,14 +124,21 @@ class Store:
         with self.connect() as conn:
             conn.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, data))
 
-    def save_named(self, table, name, data, item_id=None):
+    def save_named(self, table, name, data, item_id=None, *, select_as_last=False):
         if table not in {"projects", "presets"}:
             raise ValueError("Invalid table")
+        if select_as_last and table != "projects":
+            raise ValueError("Only projects can be selected as last_project")
         item_id = item_id or identifier()
         data = canonical(checked_payload(data))
         with self.connect() as conn:
             conn.execute(f"INSERT INTO {table} VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,data=excluded.data,updated=excluded.updated",
                          (item_id, name, data, time.time()))
+            if select_as_last:
+                # One SQLite transaction: never publish a project row with a
+                # missing/stale last_project pointer after a partial autosave.
+                conn.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                             ("last_project", canonical(item_id)))
         return item_id
 
     def list_named(self, table):
@@ -94,17 +148,54 @@ class Store:
             return [{**dict(row), "data": json.loads(row["data"])} for row in conn.execute(f"SELECT * FROM {table} ORDER BY updated DESC")]
 
     def submit(self, kind, payload, priority=0, depends_on=()):
-        if kind not in {'render','scan','download','translate'}:raise ValueError('Unknown job kind')
-        payload={**payload,'_tools':self.setting('tool_paths',{})}
-        data = canonical(checked_payload(payload))
+        if kind not in {'render','scan','download','translate'}:
+            raise ValueError('Unknown job kind')
+        if type(payload) is not dict:
+            raise ValueError('Job payload must be an object')
+        dependencies=list(depends_on)
         job_id, now = identifier(), time.time()
         with self.connect() as conn:
-            for dependency in depends_on:
+            # Tool-path snapshot and job insertion share the same write lock
+            # as managed-version cleanup. A job cannot acquire a stale path
+            # after its version has been safely removed.
+            conn.execute('BEGIN IMMEDIATE')
+            row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+            tools=json.loads(row['value']) if row else {}
+            data=canonical(checked_payload({**payload,'_tools':tools}))
+            for dependency in dependencies:
                 if not conn.execute("SELECT 1 FROM jobs WHERE id=?", (dependency,)).fetchone():
                     raise ValueError("Unknown dependency")
             conn.execute("INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) VALUES(?,?,'pending',?,?,?,?,?)",
-                         (job_id, kind, data, int(priority), now, now, canonical(list(depends_on))))
+                         (job_id, kind, data, int(priority), now, now, canonical(dependencies)))
         return job_id
+
+    def submit_many(self, kind, payloads, priority=0):
+        """Atomically enqueue jobs and lease one consistent tool-path snapshot."""
+        if kind not in {'render','scan','download','translate'}:
+            raise ValueError('Unknown job kind')
+        requests=list(payloads)
+        if not requests:
+            return []
+        priority=int(priority)
+        now=time.time()
+        prepared=[]
+        with self.connect() as conn:
+            # Acquire the writer lock before reading tool_paths. Cleanup uses
+            # the same lock while checking leases and removing version folders.
+            conn.execute('BEGIN IMMEDIATE')
+            row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+            tools=json.loads(row['value']) if row else {}
+            for payload in requests:
+                if type(payload) is not dict:
+                    raise ValueError('Job payload must be an object')
+                # Validate every payload before the first INSERT (all-or-none).
+                serialized=canonical(checked_payload({**payload,'_tools':tools}))
+                prepared.append((identifier(),kind,serialized,priority,now,now,'[]'))
+            for item in prepared:
+                conn.execute(
+                    "INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) "
+                    "VALUES(?,?,'pending',?,?,?,?,?)",item)
+        return [item[0] for item in prepared]
 
     def job(self, job_id):
         with self.connect() as conn:
@@ -116,6 +207,29 @@ class Store:
     def jobs(self, limit=500):
         with self.connect() as conn:
             return [self._job(row) for row in conn.execute("SELECT * FROM jobs ORDER BY created DESC LIMIT ?", (limit,))]
+
+    def download_jobs_for_urls(self, urls):
+        """Find all matching download jobs without truncating older history.
+
+        URLs are bound SQL parameters, not statements. One UI batch is capped
+        at 500 distinct URLs; unrelated job payloads are not returned.
+        """
+        if not isinstance(urls, (list, tuple, set)):
+            raise ValueError("Danh sách URL đồng bộ không hợp lệ")
+        urls = list(dict.fromkeys(urls))
+        if len(urls) > 500 or any(type(u) is not str or not u for u in urls):
+            raise ValueError("Chỉ kiểm tra tối đa 500 URL hợp lệ trong một lần đồng bộ")
+        if not urls:
+            return []
+        placeholders = ",".join("?" for _ in urls)
+        statement = (
+            "SELECT * FROM jobs WHERE kind='download' "
+            "AND json_extract(payload, '$.url') IN (" + placeholders + ") "
+            "ORDER BY created DESC, id"
+        )
+        with self.connect() as conn:
+            rows = conn.execute(statement, urls).fetchall()
+        return [self._job(row) for row in rows]
 
     @staticmethod
     def _job(row):
@@ -166,10 +280,14 @@ class Store:
             conn.execute("UPDATE matrix_history SET state='succeeded' WHERE job_id=?",(job_id,))
 
     def fail(self, job_id, message, blocked=False):
+        # Every caller, including schedulers and recovery paths, passes through
+        # this persistence boundary. Never trust callers to redact first.
+        from .worker import sanitize_error_message
+        safe_error = sanitize_error_message(message, limit=3000)
         with self.connect() as conn:
             row = conn.execute("SELECT cancel_requested FROM jobs WHERE id=?", (job_id,)).fetchone()
             state = "canceled" if row and row[0] else "blocked" if blocked else "failed"
-            conn.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=?", (state, str(message)[-3000:], time.time(), job_id))
+            conn.execute("UPDATE jobs SET state=?,error=?,updated=? WHERE id=?", (state, safe_error, time.time(), job_id))
             conn.execute("UPDATE matrix_history SET state='failed' WHERE job_id=?",(job_id,))
 
     def cancel(self, job_id):
@@ -184,10 +302,26 @@ class Store:
             row=conn.execute('SELECT payload,state FROM jobs WHERE id=?',(job_id,)).fetchone()
             if not row or row['state'] not in {'failed','blocked','canceled'}:return
             data=json.loads(row['payload'])
-            if data.get('matrix_scope'):
-                reservation=conn.execute('SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',(data['matrix_scope'],data['matrix_combination'])).fetchone()
-                if reservation and reservation['job_id']!=job_id and reservation['state'] in {'reserved','succeeded'}:raise ValueError('Combination already reserved by a different job')
-                conn.execute("UPDATE matrix_history SET state='reserved',job_id=? WHERE scope=? AND combination=?",(job_id,data['matrix_scope'],data['matrix_combination']))
+            if 'matrix_scope' in data or 'matrix_combination' in data:
+                scope=data.get('matrix_scope')
+                combination=data.get('matrix_combination')
+                if not isinstance(scope,str) or not scope.strip() or not isinstance(combination,str) or not combination.strip():
+                    raise ValueError('Matrix retry is missing its reservation identity')
+                reservation=conn.execute(
+                    'SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',
+                    (scope,combination)).fetchone()
+                if not reservation:
+                    raise ValueError('Matrix reservation is missing; refusing retry')
+                if reservation['job_id']!=job_id:
+                    raise ValueError('Matrix reservation belongs to a different job')
+                if reservation['state'] not in {'failed','reserved'}:
+                    raise ValueError('Matrix reservation is not retryable')
+                updated=conn.execute(
+                    "UPDATE matrix_history SET state='reserved' "
+                    "WHERE scope=? AND combination=? AND job_id=? AND state IN ('failed','reserved')",
+                    (scope,combination,job_id))
+                if updated.rowcount!=1:
+                    raise ValueError('Matrix reservation changed during retry')
             conn.execute("UPDATE jobs SET state='pending',error=NULL,cancel_requested=0,progress=0,updated=? WHERE id=? AND state IN ('failed','blocked','canceled')", (time.time(), job_id))
 
     def recover(self, stale_seconds=60,exclude=()):

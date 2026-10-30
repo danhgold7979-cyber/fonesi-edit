@@ -70,11 +70,17 @@ def forget_session(store,binding_id):
 
 
 def revoke_pairing(store,profile_id):
+    """Revoke every pending or active bridge for one profile atomically."""
     with store.connect() as c:
+        c.execute('BEGIN IMMEDIATE')
         rows=c.execute("SELECT key,value FROM settings WHERE key LIKE 'bridge:%' OR key LIKE 'pair:%'").fetchall()
         for row in rows:
-            if json.loads(row['value']).get('profile_id')==profile_id:c.execute('DELETE FROM settings WHERE key=?',(row['key'],))
-
+            try:
+                data=json.loads(row['value'])
+            except (TypeError,ValueError,json.JSONDecodeError):
+                continue
+            if isinstance(data,dict) and data.get('profile_id')==profile_id:
+                c.execute('DELETE FROM settings WHERE key=?',(row['key'],))
 
 def bindings(store):
     with store.connect() as c:
@@ -99,11 +105,19 @@ def login(store,profile_id,platform,chrome=None):
 
 def pairing_code(store,profile_id):
     with store.connect() as c:
-        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():raise ValueError('Unknown profile')
-    code=secrets.token_urlsafe(18)
-    store.set_setting('pair:'+hashlib.sha256(code.encode()).hexdigest(),{'profile_id':profile_id,'expires':time.time()+300})
+        # Code issuance and profile revocation share one writer lock. A code
+        # created before revocation is visible to the revocation sweep.
+        c.execute('BEGIN IMMEDIATE')
+        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():
+            raise ValueError('Unknown profile')
+        code=secrets.token_urlsafe(18)
+        key='pair:'+hashlib.sha256(code.encode()).hexdigest()
+        value=canonical({'profile_id':profile_id,'expires':time.time()+300})
+        c.execute(
+            'INSERT INTO settings(key,value) VALUES(?,?) '
+            'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+            (key,value))
     return code
-
 
 def pair(store,code):
     key='pair:'+hashlib.sha256(code.encode()).hexdigest()
@@ -124,29 +138,59 @@ def cookie_identity(platform,cookies):
 
 
 def receive_session(store,token,platform,cookies):
-    pairing=store.setting('bridge:'+hashlib.sha256(token.encode()).hexdigest())
-    if not pairing or platform not in DOMAINS:raise PermissionError('Bridge is not paired')
-    if not isinstance(cookies,list) or len(cookies)>1000:raise ValueError('Invalid cookie snapshot')
-    allowed=[]
-    for cookie in cookies:
-        domain=cookie.get('domain','').lstrip('.').lower()
-        if not any(domain==d or domain.endswith('.'+d) for d in DOMAINS[platform]):continue
-        if cookie.get('partitionKey'):continue  # Do not pretend CHIPS context transfers to arbitrary HTTP requests.
-        allowed.append({k:cookie[k] for k in ('name','value','domain','path','secure','expirationDate') if k in cookie})
-    if not allowed:raise PermissionError('No transferable session cookies for this platform')
-    identity=cookie_identity(platform,allowed);binding_id=bind(store,pairing['profile_id'],platform)
+    if not isinstance(token,str) or not token or platform not in DOMAINS:
+        raise PermissionError('Bridge is not paired')
+    bridge_key='bridge:'+hashlib.sha256(token.encode()).hexdigest()
     with store.connect() as c:
-        old=c.execute('SELECT identity FROM bindings WHERE id=?',(binding_id,)).fetchone()[0]
-    if old and identity and old!=identity:raise PermissionError('Account mismatch; old jobs keep the original account')
-    if platform in {'Facebook','Instagram','Bilibili','X'} and not identity:
-        with store.connect() as c:c.execute("UPDATE bindings SET status='login_required',checked=? WHERE id=?",(time.time(),binding_id))
-        return {'binding_id':binding_id,'status':'login_required','connector_verified':False}
-    encrypted=protect(canonical({'cookies':allowed,'captured':time.time()}).encode())
-    with store.connect() as c:
-        c.execute('INSERT INTO secrets VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',('session:'+binding_id,encrypted))
-        c.execute('UPDATE bindings SET identity=?,status=?,checked=? WHERE id=?',(identity,'available' if identity else 'identity_unverified',time.time(),binding_id))
+        # Pairing revocation uses this same writer lock. Whichever operation
+        # acquires it first completes before the other can inspect or mutate state.
+        c.execute('BEGIN IMMEDIATE')
+        bridge_row=c.execute('SELECT value FROM settings WHERE key=?',(bridge_key,)).fetchone()
+        try:
+            pairing=json.loads(bridge_row['value']) if bridge_row else None
+        except (TypeError,ValueError,json.JSONDecodeError):
+            pairing=None
+        if not isinstance(pairing,dict) or not isinstance(pairing.get('profile_id'),str):
+            raise PermissionError('Bridge is not paired')
+        if not isinstance(cookies,list) or len(cookies)>1000 or any(not isinstance(item,dict) for item in cookies):
+            raise ValueError('Invalid cookie snapshot')
+        allowed=[]
+        for cookie in cookies:
+            domain=cookie.get('domain','').lstrip('.').lower()
+            if not any(domain==d or domain.endswith('.'+d) for d in DOMAINS[platform]):continue
+            if cookie.get('partitionKey'):continue  # Do not pretend CHIPS context transfers to arbitrary HTTP requests.
+            allowed.append({k:cookie[k] for k in ('name','value','domain','path','secure','expirationDate') if k in cookie})
+        if not allowed:raise PermissionError('No transferable session cookies for this platform')
+        identity=cookie_identity(platform,allowed)
+        profile_id=pairing['profile_id']
+        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():
+            raise PermissionError('Bridge profile is unavailable')
+        binding=c.execute(
+            'SELECT id,identity FROM bindings WHERE profile_id=? AND platform=?',
+            (profile_id,platform)).fetchone()
+        if binding:
+            binding_id=binding['id']
+            old=binding['identity']
+        else:
+            binding_id=identifier()
+            c.execute(
+                'INSERT INTO bindings(id,profile_id,platform) VALUES(?,?,?)',
+                (binding_id,profile_id,platform))
+            old=None
+        # Re-check under the writer lock so concurrent handoffs cannot silently
+        # replace a different account after both read an empty identity.
+        if old and identity and old!=identity:
+            raise PermissionError('Account mismatch; old jobs keep the original account')
+        if platform in {'Facebook','Instagram','Bilibili','X'} and not identity:
+            c.execute("UPDATE bindings SET status='login_required',checked=? WHERE id=?",
+                      (time.time(),binding_id))
+            return {'binding_id':binding_id,'status':'login_required','connector_verified':False}
+        encrypted=protect(canonical({'cookies':allowed,'captured':time.time()}).encode())
+        c.execute('INSERT INTO secrets VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                  ('session:'+binding_id,encrypted))
+        c.execute('UPDATE bindings SET identity=?,status=?,checked=? WHERE id=?',
+                  (identity,'available' if identity else 'identity_unverified',time.time(),binding_id))
     return {'binding_id':binding_id,'status':'available' if identity else 'identity_unverified','connector_verified':False}
-
 
 def cookie_jar(store,binding_id,expected_identity=None):
     with store.connect() as c:
@@ -161,5 +205,18 @@ def cookie_jar(store,binding_id,expected_identity=None):
         if expires and expires<time.time():continue
         jar.set_cookie(Cookie(0,item['name'],item['value'],None,False,item['domain'],True,item['domain'].startswith('.'),
             item.get('path','/'),True,bool(item.get('secure')),int(expires) if expires else None,not bool(expires),None,None,{},False))
-    if not len(jar):raise PermissionError('Session expired; login again in the same profile')
+    if not len(jar):
+        key='session:'+binding_id
+        with store.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
+            current=c.execute('SELECT value FROM secrets WHERE key=?',(key,)).fetchone()
+            # An explicit relogin may race this read. Remove only the exact
+            # expired snapshot used above; never delete a newer session.
+            if current and bytes(current['value'])==bytes(secret['value']):
+                c.execute('DELETE FROM secrets WHERE key=?',(key,))
+                c.execute(
+                    "UPDATE bindings SET status='login_required',checked=? "
+                    "WHERE id=? AND identity IS ?",
+                    (time.time(),binding_id,row['identity']))
+        raise PermissionError('Session expired; login again in the same profile')
     return jar

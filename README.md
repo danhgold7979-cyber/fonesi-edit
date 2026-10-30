@@ -47,3 +47,9 @@ Windows: `scripts/build_windows.ps1` tạo `dist/FonesiEdit/FonesiEdit.exe` và 
 Nền tảng mục tiêu đầu tiên là Windows. Giọng AI, ASR, OCR và tracking tự động được tích hợp ở giai đoạn sau.
 
 Theo yêu cầu người dùng: trước mỗi phase đọc master plan, lập phase plan, triển khai và ghi kết quả; không đánh dấu phase hoàn tất khi cổng bắt buộc còn bị chặn. Quy trình lưu ở AGENTS.md.
+
+## Sổ thực hiện và nghiệm thu
+
+Xem [nhật ký thực hiện tích hợp](docs/PHASE_EXECUTION_LEDGER.md) để theo dõi từng phase, commit/CI proof và các cổng bắt buộc vẫn còn mở; các bản build/fixture không chứng minh 95 nhóm đã được nghiệm thu.
+
+Để xem bản build Windows thử nghiệm từ CI: [Desktop verification run 40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) → Artifacts → `FonesiEdit-Windows-development` (có hạn lưu); xem [trạng thái nghiệm thu](docs/PHASE_EXECUTION_LEDGER.md) trước khi dùng.

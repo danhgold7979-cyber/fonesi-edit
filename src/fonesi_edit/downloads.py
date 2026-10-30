@@ -1,8 +1,12 @@
 """Downloader adapters. Live capability remains separate from implementation."""
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qsl
 import io
+import logging
+import math
 import re
+from datetime import date, datetime
+from copy import deepcopy
 
 from .browser import cookie_jar,DOMAINS
 from .prototypes.media import probe
@@ -27,6 +31,542 @@ def safe_name(value):
     return name
 
 
+def selectable_scan_url(value):
+    """Return a public, re-downloadable URL or None, never a signed media URL.
+
+    Playlist scan metadata may contain temporary CDN URLs with authentication
+    in query strings. Those must not be persisted into SQLite job results.
+    Only ordinary HTTP(S) links and canonical YouTube watch IDs are accepted.
+    """
+    if not isinstance(value, str) or not value or any(c.isspace() for c in value):
+        return None
+    try:
+        parts = urlsplit(value)
+        if (parts.scheme not in {'http', 'https'} or not parts.hostname
+                or parts.username is not None or parts.password is not None
+                or parts.fragment):
+            return None
+        if parts.query:
+            host = parts.hostname.lower()
+            if (host not in {'youtube.com', 'www.youtube.com', 'm.youtube.com'}
+                    or parts.path != '/watch'):
+                return None
+            pairs = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
+            if (not pairs or any(k not in {'v', 'list', 'index'} or
+                    not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', v)
+                    for k, v in pairs)):
+                return None
+        # Keep the original canonical link, including YouTube watch IDs,
+        # but never the URL fragment or a URL carrying other query keys.
+        return value
+    except (TypeError, ValueError):
+        return None
+
+
+
+def scan_video_item_url(entry, source_url=None, *, single=False):
+    """Resolve a stable page URL from yt-dlp scan metadata without probing live."""
+    candidates = [entry.get('webpage_url'), entry.get('original_url')]
+    if entry.get('_type') in {'url','url_transparent'}:
+        candidates.append(entry.get('url'))
+    if single:
+        candidates.append(source_url)
+    for candidate in candidates:
+        safe = selectable_scan_url(candidate)
+        if safe:
+            return safe
+    # yt-dlp playlist flat entries may only expose extractor + stable ID.
+    # Generate a canonical watch URL *only* for known video ID formats.
+    source_id = entry.get('id')
+    key = entry.get('ie_key')
+    if key in {'Youtube', 'YoutubeIE'} and isinstance(source_id, str):
+        if re.fullmatch(r'[A-Za-z0-9_-]{11}', source_id):
+            return f'https://www.youtube.com/watch?v={source_id}'
+    if key in {'BiliBili', 'Bilibili', 'BiliBiliIE'} and isinstance(source_id, str):
+        if re.fullmatch(r'BV[A-Za-z0-9]{10}', source_id):
+            return f'https://www.bilibili.com/video/{source_id}'
+    return None
+
+
+def normalize_scan_date(value):
+    """Return a calendar-validated YYYYMMDD date, or None for unknown metadata."""
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return value.strftime('%Y%m%d')
+    if not isinstance(value, str) or not re.fullmatch(
+            r'(?:[0-9]{8}|[0-9]{4}-[0-9]{2}-[0-9]{2})', value):
+        return None
+    try:
+        return datetime.strptime(value.replace('-', ''), '%Y%m%d').strftime('%Y%m%d')
+    except ValueError:
+        return None
+
+
+def _scan_number(value, *, integer=False, positive=False):
+    """Reject booleans, nonfinite/negative numbers and malformed numeric strings."""
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        return None
+    if isinstance(value, str) and not re.fullmatch(
+            r'[0-9]+(?:\.[0-9]+)?', value.strip()):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(number) or number < 0 or (positive and number == 0):
+        return None
+    if integer:
+        return int(number) if number.is_integer() else None
+    return number
+
+
+def normalize_scan_metadata(data):
+    """Keep only safe, known metadata from an extractor; never its raw URLs."""
+    if not isinstance(data, dict):
+        return {}
+    metadata = {}
+    for candidate in (data.get('upload_date'), data.get('date')):
+        date_value = normalize_scan_date(candidate)
+        if date_value is not None:
+            metadata['upload_date'] = date_value
+            break
+    for key in ('duration', 'width', 'height'):
+        number = _scan_number(data.get(key), integer=key != 'duration',
+                              positive=key != 'duration')
+        if number is not None:
+            metadata[key] = number
+    return metadata
+
+
+def parse_scan_metadata_filters(*, after='', before='', duration_min='',
+                                duration_max='', max_height='', include_missing=True):
+    """Validate user inputs atomically; an unfinished edit is not a valid filter."""
+    if not isinstance(include_missing, bool):
+        raise ValueError('Giữ metadata thiếu phải là lựa chọn đúng/sai')
+
+    def date_bound(value, label):
+        if not isinstance(value, str):
+            raise ValueError(label + ': ngày không hợp lệ')
+        if not value.strip():
+            return None
+        result = normalize_scan_date(value.strip())
+        if result is None:
+            raise ValueError(label + ': dùng YYYYMMDD hoặc YYYY-MM-DD hợp lệ')
+        return result
+
+    def number_bound(value, label, *, integer=False, positive=False):
+        if not isinstance(value, str):
+            raise ValueError(label + ': số không hợp lệ')
+        if not value.strip():
+            return None
+        result = _scan_number(value, integer=integer, positive=positive)
+        if result is None:
+            raise ValueError(label + ': nhập số hữu hạn ' +
+                             ('nguyên dương' if integer else 'không âm'))
+        return result
+
+    parsed = {
+        'after': date_bound(after, 'Ngày từ'),
+        'before': date_bound(before, 'Ngày đến'),
+        'duration_min': number_bound(duration_min, 'Thời lượng tối thiểu'),
+        'duration_max': number_bound(duration_max, 'Thời lượng tối đa'),
+        'max_height': number_bound(max_height, 'Chiều cao tối đa',
+                                   integer=True, positive=True),
+        'include_missing': include_missing,
+    }
+    if parsed['after'] and parsed['before'] and parsed['after'] > parsed['before']:
+        raise ValueError('Ngày từ phải không muộn hơn ngày đến')
+    if (parsed['duration_min'] is not None and parsed['duration_max'] is not None
+            and parsed['duration_min'] > parsed['duration_max']):
+        raise ValueError('Thời lượng tối thiểu phải không lớn hơn tối đa')
+    return parsed
+
+
+def scan_matches_metadata(item, filters):
+    """Inclusive local filtering; missing metadata passes only when opted in."""
+    values = normalize_scan_metadata(item)
+    missing_allowed = filters['include_missing']
+    after, before = filters['after'], filters['before']
+    if after is not None or before is not None:
+        uploaded = values.get('upload_date')
+        if uploaded is None:
+            if not missing_allowed:
+                return False
+        elif (after is not None and uploaded < after) or (before is not None and uploaded > before):
+            return False
+    lower, upper = filters['duration_min'], filters['duration_max']
+    if lower is not None or upper is not None:
+        duration = values.get('duration')
+        if duration is None:
+            if not missing_allowed:
+                return False
+        elif (lower is not None and duration < lower) or (upper is not None and duration > upper):
+            return False
+    if filters['max_height'] is not None:
+        height = values.get('height')
+        if height is None:
+            if not missing_allowed:
+                return False
+        elif height > filters['max_height']:
+            return False
+    return True
+
+
+MAX_SCAN_PAGE_SIZE = 200
+MAX_SCAN_SNAPSHOT_ITEMS = 2000
+SCAN_WINDOW_MODE = 'yt-dlp-index-window-v1'
+
+
+def continuation_scan_payload(scan_job):
+    """Generate a frozen next-window request only from a verified scan snapshot.
+
+    The cursor is an yt-dlp playlist index window, NOT a provider checkpoint.
+    A source can change ordering or ignore playliststart; full-channel
+    completion is never inferred from this cursor.
+    """
+    if not isinstance(scan_job, dict) or scan_job.get('kind') != 'scan' or scan_job.get('state') != 'succeeded':
+        raise ValueError('Chỉ quét tiếp từ kết quả scan đã hoàn tất')
+    original = scan_job.get('payload')
+    result = scan_job.get('result')
+    if not isinstance(original, dict) or not isinstance(result, dict):
+        raise ValueError('Thiếu snapshot quét trước')
+    if original.get('engine') != 'video':
+        raise ValueError('Quét tiếp chỉ hỗ trợ playlist với bộ tải video yt-dlp được chọn rõ')
+    limit = original.get('limit')
+    window = result.get('scan_window')
+    if (type(limit) is not int or not 1 <= limit <= MAX_SCAN_PAGE_SIZE
+            or not isinstance(window, dict)
+            or window.get('mode') != SCAN_WINDOW_MODE
+            or type(window.get('start')) is not int
+            or type(window.get('limit')) is not int
+            or window['limit'] != limit
+            or window['start'] < 1):
+        raise ValueError('Lần quét không có khoảng yt-dlp có thể tiếp tục (cần giới hạn 1–200)')
+    start = window['start']
+    next_start = window.get('next_start')
+    if (type(next_start) is not int or next_start != start + limit
+            or next_start > MAX_SCAN_SNAPSHOT_ITEMS + 1):
+        raise ValueError('Không có vị trí quét tiếp hợp lệ; nguồn có thể chưa hỗ trợ hoặc đã dừng')
+    if 'scan_parent_id' in original or 'scan_start' in original:
+        if (not isinstance(original.get('scan_parent_id'), str)
+                or type(original.get('scan_start')) is not int
+                or original['scan_start'] != start):
+            raise ValueError('Chuỗi quét có thông tin trang trước không hợp lệ')
+    elif start != 1:
+        raise ValueError('Vị trí bắt đầu không khớp scan gốc')
+    if result.get('platform') != platform_for(original.get('url')):
+        raise ValueError('Nền tảng trong snapshot quét không khớp nguồn')
+    items = result.get('items')
+    if (not isinstance(items, list) or not items
+            or len(items) > MAX_SCAN_SNAPSHOT_ITEMS - limit
+            or any(not isinstance(item, dict) or
+                   (item.get('url') is not None and not selectable_scan_url(item.get('url')))
+                   for item in items)):
+        raise ValueError('Snapshot quét đầy, không hợp lệ hoặc chứa URL không an toàn')
+    scan_id = scan_job.get('id')
+    if not isinstance(scan_id, str) or not scan_id:
+        raise ValueError('Thiếu ID scan gốc')
+    payload = deepcopy({key:value for key,value in original.items()
+                        if key not in {'_tools', 'scan_parent_id', 'scan_start'}})
+    payload.update(scan_parent_id=scan_id, scan_start=next_start)
+    return payload
+
+
+def selected_download_payloads(scan_job, indices, *, subtitles_only=False):
+    """Turn verified scan row indices into individual frozen download requests.
+
+    Only selectable items from this *successful* scan are accepted. Account
+    binding and output settings are inherited from the scan snapshot, not from
+    whatever profile is currently selected in the desktop UI.
+    """
+    if type(subtitles_only) is not bool:
+        raise ValueError('Chế độ tải phụ đề phải là boolean')
+    if scan_job.get('kind') != 'scan' or scan_job.get('state') != 'succeeded':
+        raise ValueError('Chỉ chọn mục từ job quét đã hoàn tất')
+    original = scan_job.get('payload') or {}
+    result = scan_job.get('result') or {}
+    source_platform = platform_for(original.get('url', ''))
+    if result.get('platform') != source_platform:
+        raise ValueError('Nguồn quét không trùng nền tảng trong snapshot')
+    entries = result.get('items')
+    if not isinstance(entries, list):
+        raise ValueError('Kết quả quét không có danh sách nội dung')
+    indices = list(indices)
+    if not indices or len(set(indices)) != len(indices):
+        raise ValueError('Chọn ít nhất một mục không trùng lặp')
+    requests = []
+    seen_urls = set()
+    for index in indices:
+        if type(index) is not int or not 0 <= index < len(entries):
+            raise ValueError('Chỉ số nội dung quét không hợp lệ')
+        item = entries[index]
+        if not isinstance(item, dict):
+            raise ValueError('Nội dung quét không hợp lệ')
+        url = selectable_scan_url(item.get('url'))
+        if not url or item.get('selectable') is False:
+            raise ValueError('Mục đã chọn không có URL tải lại an toàn')
+        if url in seen_urls:
+            raise ValueError('URL lặp lại trong các mục đã chọn')
+        seen_urls.add(url)
+        item_platform = platform_for(url)
+        if original.get('account_ref') and item_platform != source_platform:
+            raise PermissionError('Không chuyển phiên tài khoản sang host khác từ kết quả quét')
+        kind = item.get('kind', 'video')
+        if kind not in {'video', 'videos', 'images'}:
+            raise ValueError('Loại media chưa có adapter tải từng mục')
+        # A gallery extractor can carry video media too; do not switch it
+        # to yt-dlp and silently alter extractor behaviour.
+        adapter=item.get('engine')
+        if adapter not in {None,'video','gallery'}:
+            raise ValueError('Kết quả quét có adapter không hợp lệ')
+        if kind == 'images' and adapter == 'video':
+            raise ValueError('Bộ tải video không hỗ trợ mục ảnh này')
+        # Keep the extractor that produced the scanned item, even when one
+        # source was scanned via both engines (Facebook/TikTok mixed media).
+        engine=adapter or ('gallery' if kind in {'images','videos'} else 'video')
+        if subtitles_only and (kind not in {'video','videos'} or engine != 'video'):
+            raise ValueError('Chỉ tải phụ đề riêng cho mục video có adapter yt-dlp, không hỗ trợ ảnh/gallery')
+        payload = {key:value for key,value in original.items()
+                   if key not in {'_tools','scan_parent_id','scan_start','download_mode'}}
+        payload.update(url=url,engine=engine,
+                       media='images' if kind == 'images' else 'videos',limit=1)
+        if subtitles_only:
+            payload.pop('workflow',None)
+            payload.update(download_mode='subtitles_only',subtitles=True,
+                           auto_subtitles=True,thumbnail=False)
+        requests.append(payload)
+    return requests
+
+
+
+def _quality_source_height_hint(source_job):
+    """Persisted height hint; FFprobe in the worker remains authoritative."""
+    payload = source_job['payload']
+    result = source_job['result']
+    media = result['files'][0]
+    height = media.get('height')
+    if payload.get('download_mode', 'media') == 'media':
+        if height is None:
+            return 0  # Legacy original download with no height receipt.
+        return height if type(height) is int and height > 0 else None
+    target = payload.get('height')
+    actual = result.get('actual_height')
+    previous = result.get('source_height')
+    if (type(target) is not int or not 144 <= target <= 4320
+            or type(actual) is not int or type(previous) is not int
+            or not 0 < previous < actual <= target
+            or result.get('download_mode') != 'quality_upgrade'
+            or result.get('target_height') != target
+            or result.get('account_ref') != payload.get('account_ref')
+            or height != actual or media.get('source_height') != previous
+            or not isinstance(payload.get('upgrade_from_job_id'), str)
+            or not payload['upgrade_from_job_id']):
+        return None
+    return actual
+
+
+def _matches_quality_source(source_job, request):
+    """Only an original or a verified variant for this same video/account."""
+    if (not isinstance(source_job, dict)
+            or source_job.get('kind') != 'download'
+            or source_job.get('state') != 'succeeded'):
+        return False
+    source = source_job.get('payload')
+    result = source_job.get('result')
+    if not isinstance(source, dict) or not isinstance(result, dict):
+        return False
+    if (source.get('engine') != 'video' or source.get('media') != 'videos'
+            or source.get('download_mode', 'media') not in {'media', 'quality_upgrade'}):
+        return False
+    if any(source.get(key) != request.get(key)
+           for key in ('url', 'folder', 'account_ref', 'expected_identity')):
+        return False
+    if result.get('platform') != platform_for(request['url']):
+        return False
+    media = result.get('files')
+    return (isinstance(media, list) and len(media) == 1
+            and isinstance(media[0], dict)
+            and media[0].get('kind') == 'video'
+            and isinstance(media[0].get('id'), str) and bool(media[0]['id'])
+            and isinstance(media[0].get('path'), str) and bool(media[0]['path'])
+            and _quality_source_height_hint(source_job) is not None)
+
+
+def selected_quality_upgrade_payloads(scan_job, indices, existing_jobs, target_height):
+    """Choose the highest eligible persisted source for a new ceiling.
+
+    Job metadata only selects a candidate: worker rechecks path, identity,
+    channel, lineage and actual FFprobe height before cookies/network.
+    """
+    if type(target_height) is not int or not 144 <= target_height <= 4320:
+        raise ValueError('Chiều cao bản nâng cấp phải là số nguyên 144–4320 px')
+    requests = selected_download_payloads(scan_job, indices)
+    if not isinstance(existing_jobs, list):
+        raise ValueError('Danh sách job đã tải không hợp lệ')
+    upgraded = []
+    for request in requests:
+        if request['engine'] != 'video' or request['media'] != 'videos':
+            raise ValueError('Chỉ nâng chất lượng video yt-dlp đã tải, không hỗ trợ gallery/ảnh')
+        candidates = []
+        for index, candidate in enumerate(existing_jobs):
+            if (not _matches_quality_source(candidate, request)
+                    or not isinstance(candidate.get('id'), str) or not candidate['id']):
+                continue
+            mode = candidate['payload'].get('download_mode', 'media')
+            if (mode == 'quality_upgrade'
+                    and candidate['payload']['height'] >= target_height):
+                continue  # Prevent reuse of the same or a lower quality tier.
+            height = _quality_source_height_hint(candidate)
+            if height and height >= target_height:
+                continue
+            candidates.append((height, -index, candidate))
+        if not candidates:
+            raise ValueError('Chưa có bản video nguồn đã tải thành công và đủ điều kiện cho mục đã chọn')
+        source = max(candidates, key=lambda item: (item[0], item[1]))[2]
+        payload = deepcopy(request)
+        for field in ('workflow', 'scan_parent_id', 'scan_start'):
+            payload.pop(field, None)
+        payload.update(download_mode='quality_upgrade',
+                       upgrade_from_job_id=source['id'],
+                       height=target_height, subtitles=False,
+                       auto_subtitles=False, thumbnail=False)
+        upgraded.append(payload)
+    return upgraded
+
+
+def validated_quality_source(source_job, request, root, platform, *, store=None):
+    """Verify a source video, its channel, and prior-variant provenance."""
+    if not _matches_quality_source(source_job, request):
+        raise ValueError('Video nguồn không thành công hoặc URL/thư mục/tài khoản đã thay đổi')
+    mode = source_job['payload'].get('download_mode', 'media')
+    if mode == 'quality_upgrade':
+        if store is None:
+            raise ValueError('Cần xác minh lịch sử nâng chất lượng của video nguồn')
+        ancestor = source_job
+        visited = set()
+        while ancestor['payload'].get('download_mode', 'media') == 'quality_upgrade':
+            ident = ancestor.get('id')
+            parent_id = ancestor['payload']['upgrade_from_job_id']
+            if (ident in visited or parent_id in visited or len(visited) >= 32):
+                raise ValueError('Chuỗi nâng chất lượng lặp hoặc quá dài')
+            visited.add(ident)
+            try:
+                parent = store.job(parent_id)
+            except KeyError:
+                raise ValueError('Không tìm thấy bản video tổ tiên của biến thể') from None
+            if (not _matches_quality_source(parent, request)
+                    or parent['result']['files'][0]['id'] != ancestor['result']['files'][0]['id']):
+                raise ValueError('Chuỗi nâng chất lượng khác video/tài khoản nguồn')
+            if (parent['payload'].get('download_mode', 'media') == 'quality_upgrade'
+                    and parent['payload']['height'] >= ancestor['payload']['height']):
+                raise ValueError('Chuỗi nâng chất lượng không tăng trần độ phân giải')
+            ancestor = parent
+        if source_job['payload']['height'] >= request['height']:
+            raise ValueError('Trần chất lượng mới phải cao hơn trần biến thể nguồn')
+    media = source_job['result']['files'][0]
+    source = Path(media['path'])
+    if not source.is_absolute() or source.is_symlink() or not source.is_file():
+        raise ValueError('Tệp video nguồn đã tải không còn hợp lệ')
+    platform_root = (root / platform).resolve()
+    try:
+        relative = source.resolve(strict=True).relative_to(platform_root)
+    except (OSError, ValueError):
+        raise ValueError('Đường dẫn video nguồn nằm ngoài thư mục Fonesi') from None
+    if mode == 'media':
+        if len(relative.parts) != 3 or relative.parts[1] != 'videos':
+            raise ValueError('Video nguồn phải là bản gốc trong thư mục videos')
+    elif (len(relative.parts) != 5 or relative.parts[1] != 'quality-upgrades'
+          or relative.parts[2] != f"{source_job['payload']['height']}p"
+          or relative.parts[3] != 'videos'):
+        raise ValueError('Video nguồn biến thể nằm ngoài thư mục chất lượng đã xác minh')
+    for parent in (source, *source.parents):
+        if parent == platform_root:
+            break
+        if parent.is_symlink():
+            raise ValueError('Đường dẫn nguồn chứa symbolic link không an toàn')
+    baseline = probe(source)
+    if baseline.height <= 0 or baseline.width <= 0:
+        raise ValueError('Không đọc được độ phân giải video nguồn')
+    hint = _quality_source_height_hint(source_job)
+    if hint and baseline.height != hint:
+        raise ValueError('Video nguồn không còn khớp độ phân giải đã ghi nhận')
+    stat = source.stat()
+    return source, baseline, media['id'], (stat.st_size, stat.st_mtime_ns), relative.parts[0]
+
+
+SUBTITLE_EXTENSIONS = frozenset({'srt', 'vtt', 'ass', 'ssa'})
+MAX_SUBTITLE_BYTES = 16 * 1024 * 1024
+
+
+def verified_subtitle_artifacts(info, ydl, platform_root):
+    """Accept only parsable, expected sidecars; never persist subtitle source URLs.
+
+    yt-dlp supplies requested_subtitles[lang].filepath after downloading.
+    When an existing subtitle is skipped without a filepath, the expected
+    name can be derived from the yt-dlp subtitle output template.
+    """
+    requested = info.get('requested_subtitles')
+    if not isinstance(requested, dict) or not requested:
+        raise RuntimeError('Nguồn không cung cấp phụ đề trong ngôn ngữ đã chọn')
+    if len(requested) > 32:
+        raise ValueError('Danh sách track phụ đề quá lớn')
+    platform_root = Path(platform_root).resolve()
+    from yt_dlp.utils import subtitles_filename
+    try:
+        # yt-dlp writes to the default/video template first, then moves the
+        # sidecar to its dedicated subtitle template in after_move.
+        temp_base = ydl.prepare_filename(info)
+        final_base = ydl.prepare_filename(info, 'subtitle')
+    except (TypeError, ValueError, KeyError, OSError):
+        raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ') from None
+    if not temp_base or not final_base:
+        raise RuntimeError('Không xác định được đường dẫn phụ đề hợp lệ')
+    results = []
+    from .subtitles import read_captions
+    for language, track in requested.items():
+        if (not isinstance(language, str)
+                or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', language)
+                or not isinstance(track, dict)):
+            raise ValueError('Ngôn ngữ/track phụ đề không hợp lệ')
+        ext = track.get('ext')
+        if not isinstance(ext, str) or ext.lower() not in SUBTITLE_EXTENSIONS:
+            raise ValueError('Định dạng phụ đề chưa được hỗ trợ để kiểm tra')
+        ext = ext.lower()
+        expected = Path(subtitles_filename(final_base, language, ext, info.get('ext')))
+        temporary = Path(subtitles_filename(temp_base, language, ext, info.get('ext')))
+        raw = track.get('filepath', str(expected))
+        if not isinstance(raw, str) or not raw:
+            raise ValueError('Đường dẫn phụ đề thiếu hoặc không hợp lệ')
+        reported = Path(raw)
+        # The extractor's raw filepath may be its original temp location, or
+        # the final path when the file already existed. Neither may point
+        # outside the exact names derived from yt-dlp's output templates.
+        if (reported.resolve() not in {temporary.resolve(), expected.resolve()}
+                or reported.is_symlink()
+                or expected.is_symlink()
+                or expected.parent.name != 'subtitles'
+                or not expected.resolve().is_relative_to(platform_root)):
+            raise ValueError('Đường dẫn phụ đề không khớp thư mục đầu ra')
+        # After extract_info returns, accept only the final moved sidecar.
+        candidate = expected
+        if not candidate.is_file():
+            raise RuntimeError('Không có tệp phụ đề đã tải để kiểm tra')
+        size = candidate.stat().st_size
+        if not 0 < size <= MAX_SUBTITLE_BYTES:
+            raise RuntimeError('Tệp phụ đề trống hoặc vượt giới hạn an toàn')
+        try:
+            cues = read_captions(candidate)
+        except Exception:
+            raise RuntimeError('Tệp phụ đề không giải mã được hoặc không đúng định dạng') from None
+        if not cues:
+            raise RuntimeError('Tệp phụ đề không có câu/timecode hợp lệ')
+        results.append({'path':str(candidate),'kind':'subtitle',
+                        'id':safe_name(info.get('id','unknown')),
+                        'language':language,'cues':len(cues)})
+    return results
+
+
 class QuietLogger:
     def debug(self,message):pass
     def warning(self,message):pass
@@ -34,9 +574,89 @@ class QuietLogger:
 
 
 def execute_download_job(store,job,progress,cancel):
-    payload=job['payload'];url=payload['url'];platform=platform_for(url)
-    binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
+    if not isinstance(job,dict) or not isinstance(job.get('payload'),dict):
+        raise ValueError('Invalid downloader job payload')
+    payload=job['payload']
+    if job.get('kind') not in {'scan','download'}:
+        raise ValueError('Unsupported downloader job kind')
+    url=payload.get('url')
+    if not isinstance(url,str) or not url.strip():
+        raise ValueError('Download URL must be a non-empty HTTP(S) string')
+    platform=platform_for(url)
     engine=payload.get('engine','auto')
+    media=payload.get('media','both')
+    if not isinstance(engine,str) or engine not in {'auto','video','gallery'}:
+        raise ValueError('Unsupported downloader engine; use auto, video or gallery')
+    if not isinstance(media,str) or media not in {'both','videos','images'}:
+        raise ValueError('Unsupported media type; use both, videos or images')
+    raw_limit=payload.get('limit',0)
+    if isinstance(raw_limit,bool) or not isinstance(raw_limit,(int,str)):
+        raise ValueError('Download limit must be a nonnegative integer')
+    if isinstance(raw_limit,str):
+        raw_limit=raw_limit.strip()
+        if not raw_limit.isdigit():
+            raise ValueError('Download limit must be a nonnegative integer')
+    limit=int(raw_limit)
+    if limit<0:
+        raise ValueError('Download limit must be a nonnegative integer')
+    download_mode=payload.get('download_mode','media')
+    if type(download_mode) is not str or download_mode not in {'media','subtitles_only','quality_upgrade'}:
+        raise ValueError('Download mode không hợp lệ')
+    subtitles_only=download_mode=='subtitles_only'
+    quality_upgrade=download_mode=='quality_upgrade'
+    if subtitles_only:
+        languages=payload.get('languages',['vi','zh.*','en'])
+        if (job['kind']!='download' or engine!='video' or media!='videos'
+                or limit!=1 or payload.get('workflow') is not None
+                or payload.get('thumbnail') not in (None,False)
+                or not isinstance(languages,list) or not 1<=len(languages)<=16
+                or any(not isinstance(lang,str) or not 1<=len(lang)<=64
+                       or not lang.strip() or '\n' in lang or '\r' in lang
+                       for lang in languages)):
+            raise ValueError('Sub-only yêu cầu 1 video yt-dlp, ngôn ngữ hợp lệ và không edit/thumbnail')
+    source_path=source_info=source_id=source_stamp=source_channel=target_height=None
+    if quality_upgrade:
+        target_height=payload.get('height')
+        source_job_id=payload.get('upgrade_from_job_id')
+        if (job['kind']!='download' or engine!='video' or media!='videos'
+                or limit!=1 or not selectable_scan_url(url)
+                or type(target_height) is not int or not 144<=target_height<=4320
+                or not isinstance(source_job_id,str) or not source_job_id
+                or payload.get('workflow') is not None
+                or payload.get('thumbnail') not in (None,False)
+                or payload.get('subtitles') not in (None,False)
+                or payload.get('auto_subtitles') not in (None,False)):
+            raise ValueError('Nâng chất lượng cần video yt-dlp đã tải, target hợp lệ, không sub/edit')
+        try:
+            source_job=store.job(source_job_id)
+        except KeyError:
+            raise ValueError('Không tìm thấy job video nguồn') from None
+        source_path,source_info,source_id,source_stamp,source_channel=validated_quality_source(
+            source_job,payload,Path(payload.get('folder',store.path.parent/'downloads')).resolve(),
+            platform,store=store)
+        if target_height<=source_info.height:
+            raise ValueError('Chất lượng mục tiêu phải cao hơn độ phân giải video nguồn')
+    elif 'upgrade_from_job_id' in payload:
+        raise ValueError('Chỉ dùng upgrade_from_job_id trong chế độ nâng chất lượng')
+    scan_parent = None
+    scan_start = 1
+    has_cursor = 'scan_parent_id' in payload or 'scan_start' in payload
+    if has_cursor:
+        if (job['kind'] != 'scan'
+                or not isinstance(payload.get('scan_parent_id'), str)
+                or type(payload.get('scan_start')) is not int
+                or payload['scan_start'] <= 1):
+            raise ValueError('Scan continuation requires a valid parent scan and positive offset')
+        try:
+            scan_parent = store.job(payload['scan_parent_id'])
+        except KeyError as exc:
+            raise ValueError('Không tìm thấy scan gốc để quét tiếp') from exc
+        expected = continuation_scan_payload(scan_parent)
+        actual = {key:value for key,value in payload.items() if key != '_tools'}
+        if actual != expected:
+            raise ValueError('Scan continuation snapshot mismatch: URL, account or options changed')
+        scan_start = payload['scan_start']
+    binding=payload.get('account_ref');jar=cookie_jar(store,binding,payload.get('expected_identity')) if binding else None
     if engine=='auto' and payload.get('media')=='both' and platform in {'Facebook','TikTok','Douyin','Kuaishou'}:
         combined=[];warnings=[]
         for index,(chosen,media) in enumerate([('video','videos'),('gallery','images')]):
@@ -47,7 +667,8 @@ def execute_download_job(store,job,progress,cancel):
                 combined.extend(result.get('files' if job['kind']=='download' else 'items',[]))
             except Exception as exc:
                 if cancel.is_set():raise
-                warnings.append(chosen+': '+str(exc)[-500:])
+                from .worker import sanitize_error_message
+                warnings.append(chosen+': '+sanitize_error_message(exc,limit=500))
         if not combined:raise RuntimeError('Không có artifact hợp lệ. '+'; '.join(warnings))
         return {'platform':platform,'files' if job['kind']=='download' else 'items':combined,'count':len(combined),'warnings':warnings,'complete':None,'live_channel_verified':False}
     if engine=='auto':engine='gallery' if payload.get('media')=='images' or (payload.get('media')=='both' and platform in {'Instagram','Threads','X','Xiaohongshu'}) else 'video'
@@ -63,15 +684,26 @@ def execute_download_job(store,job,progress,cancel):
         if total:progress(data.get('downloaded_bytes',0)/total*.9)
     prefix=str(root/platform).replace('%','%%')+'/%(channel,uploader,creator|channel)s__%(channel_id,uploader_id,id)s'
     limit=max(0,int(payload.get('limit',0)))
+    video_template=(prefix+'/videos/%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s')
+    if quality_upgrade:
+        video_template=(prefix+f'/quality-upgrades/{target_height}p/videos/'
+                        '%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s')
+    quality_format=(f'bestvideo[height>{source_info.height}][height<={target_height}]'
+                    f'+bestaudio/best[height>{source_info.height}][height<={target_height}]'
+                    if quality_upgrade else None)
     options={'quiet':True,'no_warnings':True,'logger':QuietLogger(),'socket_timeout':15,'retries':2,'fragment_retries':2,
         'noprogress':True,'overwrites':False,'continuedl':True,'windowsfilenames':True,'progress_hooks':[hook],
-        'outtmpl':{'default':prefix+'/videos/%(upload_date|NA)s_%(title).100B__%(id)s.%(ext)s',
+        'outtmpl':{'default':video_template,
                    'subtitle':prefix+'/subtitles/%(id)s.%(ext)s','infojson':prefix+'/metadata/%(id)s.%(ext)s'},
-        'writesubtitles':bool(payload.get('subtitles',True)),'writeautomaticsub':bool(payload.get('auto_subtitles',True)),
+        'writesubtitles':False if quality_upgrade else bool(payload.get('subtitles',True)),
+        'writeautomaticsub':False if quality_upgrade else bool(payload.get('auto_subtitles',True)),
         'subtitleslangs':payload.get('languages',['vi','zh.*','en']),'subtitlesformat':'srt/vtt/best',
-        'writethumbnail':bool(payload.get('thumbnail',False)),'writeinfojson':False,
-        'format':f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
-        'merge_output_format':'mp4','playlistend':limit or None,
+        'writethumbnail':False if subtitles_only or quality_upgrade else bool(payload.get('thumbnail',False)),
+        'writeinfojson':False,'skip_download':subtitles_only,
+        'noplaylist':subtitles_only or quality_upgrade,
+        'format':quality_format or f"bestvideo[height<={int(payload.get('height',1080))}]+bestaudio/best[height<={int(payload.get('height',1080))}]/best",
+        'merge_output_format':'mp4','playliststart':scan_start,
+        'playlistend':(scan_start + limit - 1) if limit else None,
         'extract_flat':'in_playlist' if job['kind']=='scan' else False,'lazy_playlist':True}
     runtime=locate_tool('node')
     if runtime:options['js_runtimes']={'node':{'path':runtime}}
@@ -87,23 +719,107 @@ def execute_download_job(store,job,progress,cancel):
         class Recorder(PostProcessor):
             def run(self,info):
                 path=Path(info.get('filepath') or info.get('_filename') or ydl.prepare_filename(info))
-                if path.is_file():
-                    actual=probe(path);files.append({'path':str(path),'id':str(info.get('id','')),'duration':actual.duration,'kind':'video'})
+                if quality_upgrade:
+                    if str(info.get('id',''))!=source_id:
+                        raise ValueError('Video nâng cấp có ID nguồn khác bản gốc')
+                    if path.is_symlink() or not path.is_file():
+                        raise RuntimeError('Không tìm thấy video biến thể an toàn sau tải')
+                    try:
+                        relative=path.resolve(strict=True).relative_to((root/platform).resolve())
+                    except (OSError,ValueError):
+                        raise ValueError('Video biến thể nằm ngoài thư mục Fonesi') from None
+                    if (len(relative.parts)!=5 or relative.parts[1]!='quality-upgrades'
+                            or relative.parts[2]!=f'{target_height}p'
+                            or relative.parts[3]!='videos'):
+                        raise ValueError('Video nâng cấp không nằm trong thư mục chất lượng riêng')
+                    if relative.parts[0] != source_channel:
+                        raise ValueError('Video nâng cấp không trùng kênh nguồn')
+                    actual=probe(path)
+                    if not source_info.height<actual.height<=target_height:
+                        raise ValueError('Video tải về không nâng được độ phân giải thực tế')
+                    files.append({'path':str(path),'id':source_id,'duration':actual.duration,
+                                  'kind':'video','width':actual.width,'height':actual.height,
+                                  'source_height':source_info.height})
+                elif path.is_file():
+                    actual=probe(path)
+                    files.append({'path':str(path),'id':str(info.get('id','')),
+                                  'duration':actual.duration,'kind':'video',
+                                  'width':actual.width,'height':actual.height})
                 return [],info
-        ydl.add_post_processor(Recorder(),when='after_move')
+        if not subtitles_only:
+            ydl.add_post_processor(Recorder(),when='after_move')
         info=ydl.extract_info(url,download=job['kind']=='download')
         if not info:raise RuntimeError('Source returned no accessible items')
+        if subtitles_only:
+            if cancel.is_set():raise RuntimeError('Canceled')
+            if info.get('_type') in {'playlist','multi_video'}:
+                raise ValueError('Chỉ tải phụ đề cho một video, không phải playlist')
+            subtitles=verified_subtitle_artifacts(info,ydl,root/platform)
+            progress(1)
+            return {'platform':platform,'files':subtitles,'count':len(subtitles),
+                    'download_mode':'subtitles_only',
+                    'account_ref':binding,'live_channel_verified':False}
         if job['kind']=='scan':
-            entries=info.get('entries') if info.get('_type') in {'playlist','multi_video'} else [info]
-            items=[]
+            is_playlist=info.get('_type') in {'playlist','multi_video'}
+            if scan_parent and not is_playlist:
+                raise ValueError('Nguồn không trả playlist cho vị trí quét tiếp đã yêu cầu')
+            entries=info.get('entries') if is_playlist else [info]
+            previous=(scan_parent.get('result') or {}).get('items',[]) if scan_parent else []
+            # Do not modify the parent snapshot; original scan indices remain
+            # stable across the new, cumulative job.
+            items=list(previous)
+            seen_urls={item.get('url') for item in items
+                       if isinstance(item,dict) and selectable_scan_url(item.get('url'))}
+            seen_signatures={(str(item.get('id')),item.get('url')) for item in items
+                             if isinstance(item,dict)}
+            fresh=0
+            page_items=[]
             for entry in entries or []:
                 if cancel.is_set():raise RuntimeError('Canceled')
-                if not entry:continue
-                item={k:entry.get(k) for k in ('id','title','webpage_url','duration','upload_date')}
-                item['url']=entry.get('webpage_url') or (entry.get('url') if entry.get('_type') in {'url','url_transparent'} else url)
-                items.append(item)
-                if limit and len(items)>=limit:break
-            return {'platform':platform,'items':items,'count':len(items),'complete':False if limit and len(items)>=limit else None,'account_ref':binding,'live_channel_verified':False}
+                if not isinstance(entry,dict):continue
+                item={k:entry.get(k) for k in ('id','title')}
+                item.update(normalize_scan_metadata(entry))
+                item['url']=scan_video_item_url(entry,url,single=entry is info)
+                item['kind']='video'
+                item['engine']='video'
+                item['selectable']=bool(item['url'])
+                if not item['selectable']:
+                    item['reason']='Không có URL tải lại an toàn; hãy mở bài trực tiếp'
+                signature=(str(item.get('id')),item['url'])
+                if signature not in seen_signatures:
+                    fresh+=1
+                seen_signatures.add(signature)
+                if item['url'] and item['url'] in seen_urls:
+                    item['selectable']=False
+                    item['reason']='URL đã có trong khoảng quét trước; bỏ qua tải trùng'
+                if item['url']:
+                    seen_urls.add(item['url'])
+                page_items.append(item)
+                if limit and len(page_items)>=limit:break
+            items.extend(page_items)
+            can_continue=(payload.get('engine')=='video' and is_playlist
+                          and 1<=limit<=MAX_SCAN_PAGE_SIZE)
+            next_start=(scan_start+limit if can_continue and
+                        len(page_items)==limit and fresh>0 and
+                        len(items)+limit<=MAX_SCAN_SNAPSHOT_ITEMS else None)
+            result={'platform':platform,'items':items,'count':len(items),
+                    'complete':False if limit and len(page_items)>=limit else None,
+                    'account_ref':binding,'live_channel_verified':False}
+            if can_continue:
+                result['scan_window']={'mode':SCAN_WINDOW_MODE,'start':scan_start,
+                                       'limit':limit,'next_start':next_start}
+            return result
+    if quality_upgrade:
+        if info.get('_type') in {'playlist','multi_video'} or len(files)!=1:
+            raise RuntimeError('Nâng chất lượng chỉ chấp nhận một video đã kiểm tra')
+        actual_stat=source_path.stat()
+        if (actual_stat.st_size,actual_stat.st_mtime_ns)!=source_stamp:
+            raise RuntimeError('Video nguồn bị thay đổi trong quá trình nâng chất lượng')
+        progress(1)
+        return {'platform':platform,'files':files,'count':1,
+                'download_mode':'quality_upgrade','source_height':source_info.height,
+                'target_height':target_height,'actual_height':files[0]['height'],
+                'account_ref':binding,'live_channel_verified':False}
     if not files:raise RuntimeError('Downloader finished without a validated media artifact')
     progress(1)
     return {'platform':platform,'files':files,'count':len(files),'account_ref':binding,'live_channel_verified':False}
@@ -111,8 +827,9 @@ def execute_download_job(store,job,progress,cancel):
 
 def _gallery(store,job,platform,root,jar,progress,cancel):
     from gallery_dl import config,job as gallery_job,exception
-    payload=job['payload'];limit=int(payload.get('limit',0)) or 1000000
-    config.clear();config.set(('extractor',),'base-directory',str(root/platform))
+    payload=job['payload'];limit=max(0,int(payload.get('limit',0))) or 1000000
+    config.clear();config.set(('output',),'mode','null')
+    config.set(('extractor',),'base-directory',str(root/platform))
     config.set(('extractor',),'directory',['{_fonesi_channel}','{_fonesi_kind}'])
     config.set(('extractor',),'filename','{_fonesi_id}.{extension}')
     config.set(('extractor',),'timeout',15);config.set(('extractor',),'retries',2)
@@ -132,7 +849,17 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
         def handle_url(self,url,data):
             if cancel.is_set():raise RuntimeError('Canceled')
             data=metadata(data)
-            items.append({'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],'title':str(data.get('description',''))[:200]})
+            candidates=[data.get('post_url'),data.get('postlink'),
+                        data.get('webpage_url'),url]
+            safe=next((link for candidate in candidates
+                if (link:=selectable_scan_url(candidate))),None)
+            entry={'id':data['_fonesi_id'],'kind':data['_fonesi_kind'],
+                   'engine':'gallery','title':str(data.get('description',''))[:200],
+                   'url':safe,'selectable':bool(safe)}
+            entry.update(normalize_scan_metadata(data))
+            if not safe:
+                entry['reason']='URL media chỉ có dạng tạm/đã ký hoặc không hợp lệ'
+            items.append(entry)
             if len(items)>=limit:raise exception.StopExtraction()
     class Downloader(gallery_job.DownloadJob):
         def handle_directory(self,data):super().handle_directory(metadata(data))
@@ -149,14 +876,51 @@ def _gallery(store,job,platform,root,jar,progress,cancel):
                 if data['_fonesi_kind']=='videos':probe(path)
                 else:
                     from PySide6.QtGui import QImageReader
-                    if not QImageReader(str(path)).canRead():raise RuntimeError('Downloaded image is invalid')
+                    reader=QImageReader(str(path))
+                    if not reader.canRead():
+                        supported=','.join(bytes(fmt).decode('ascii','replace') for fmt in QImageReader.supportedImageFormats())
+                        detected=bytes(reader.format()).decode('ascii','replace')
+                        raise RuntimeError(f'Image decoder unavailable or image invalid (detected={detected or path.suffix.lstrip(".")}; supported={supported[:300]})')
+                    image=reader.read()
+                    if image.isNull():raise RuntimeError(f'Image decoder failed: {reader.errorString()[:240]}')
                 files.append({'path':str(path),'id':data['_fonesi_id'],'kind':data['_fonesi_kind']})
             if len(files)>=limit:raise exception.StopExtraction()
     instance=Scanner(payload['url'],file=io.StringIO()) if job['kind']=='scan' else Downloader(payload['url'])
     if jar:
-        for cookie in jar:instance.extractor.session.cookies.set_cookie(cookie)
-    instance.run()
-    if getattr(instance,'status',0) and not files and not items:raise RuntimeError('Gallery extractor could not complete; check source/session')
+        # gallery-dl only creates the requests session during extractor.initialize().
+        # Initialize first, then attach the selected account's cookies to that
+        # session. Job.run() safely calls the now-idempotent initializer again.
+        instance.extractor.initialize()
+        for cookie in jar:
+            instance.extractor.session.cookies.set_cookie(cookie)
+
+    # gallery-dl handles many extractor exceptions internally and returns a status
+    # code. Capture warning/error records so a failed packaged proof is diagnosable,
+    # without enabling verbose logging or leaking signed URL query strings.
+    diagnostics=[]
+    class DiagnosticCapture(logging.Handler):
+        def emit(self,record):
+            try:
+                from .worker import sanitize_error_message
+                message=sanitize_error_message(record.getMessage(),limit=500)
+                diagnostics.append(f'{record.levelname}: {message[:500]}')
+                if len(diagnostics)>12:del diagnostics[:-12]
+            except Exception:
+                diagnostics.append(f'{record.levelname}: <diagnostic unavailable>')
+    capture=DiagnosticCapture(level=logging.WARNING)
+    logger=logging.getLogger()
+    logger.addHandler(capture)
+    try:
+        instance.run()
+    finally:
+        logger.removeHandler(capture)
+        capture.close()
+    status=int(getattr(instance,'status',0) or 0)
+    if status and not files and not items:
+        detail=' | '.join(diagnostics[-6:])
+        if detail:
+            raise RuntimeError(f'Gallery extractor failed (status={status}): {detail[:1800]}')
+        raise RuntimeError(f'Gallery extractor failed (status={status}); no valid media returned. Check extractor, HTTP transport, and image decoder.')
     result=items if job['kind']=='scan' else files
     if not result:raise RuntimeError('No accessible gallery media returned')
     progress(1)

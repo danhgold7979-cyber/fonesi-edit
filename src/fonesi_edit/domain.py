@@ -10,7 +10,17 @@ import re
 import tempfile
 
 SCHEMA_VERSION = 1
-SECRET_KEYS = {"password", "cookies", "cookie", "api_key", "access_token", "refresh_token", "secret"}
+_SECRET_KEY_NAMES = {
+    "password", "passwd", "pwd", "cookie", "cookies", "apikey", "authorization",
+    "token", "tokens", "accesstoken", "refreshtoken", "sessiontoken", "sessioncookie",
+    "clientsecret", "secret", "bearer", "bearertoken", "authtoken", "privatekey",
+    "xapikey", "idtoken", "csrftoken", "xsrftoken", "signature", "sig",
+    "signedurl", "jwt", "jwttoken", "apisecret", "sessionid", "sessionkey",
+}
+
+
+def _normalized_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", key.casefold())
 
 
 def identifier() -> str:
@@ -25,7 +35,9 @@ def checked_payload(value):
     def check(item):
         if isinstance(item, dict):
             for key, child in item.items():
-                if key.lower() in SECRET_KEYS:
+                if not isinstance(key, str):
+                    raise ValueError("Payload object keys must be strings")
+                if _normalized_key(key) in _SECRET_KEY_NAMES:
                     raise ValueError(f"Secret values cannot be stored in project/job: {key}")
                 check(child)
         elif isinstance(item, list):
@@ -71,6 +83,12 @@ class Clip:
     source_duration: float | None = None
     freeze: float = 0
     id: str = field(default_factory=identifier)
+    # Normalized crop rectangle in source-video coordinates. Defaults preserve
+    # projects created before manual crop support.
+    crop_x: float = 0.0
+    crop_y: float = 0.0
+    crop_width: float = 1.0
+    crop_height: float = 1.0
 
     def validate(self):
         if not self.path or not math.isfinite(self.start) or self.start < 0:
@@ -79,10 +97,19 @@ class Clip:
             raise ValueError("Speed must be 0.1–10")
         if self.end is not None and (not math.isfinite(self.end) or self.end <= self.start):
             raise ValueError("Clip end must be after start")
-        if not math.isfinite(self.rotation) or not 0 <= self.volume <= 4:
+        if (not math.isfinite(self.rotation) or not math.isfinite(self.volume)
+                or not 0 <= self.volume <= 4):
             raise ValueError("Invalid rotation/volume")
         if not math.isfinite(self.freeze) or self.freeze<0:raise ValueError("Freeze duration invalid")
         if self.offset is not None and (not math.isfinite(self.offset) or self.offset<0):raise ValueError('Clip offset invalid')
+        crop = (self.crop_x, self.crop_y, self.crop_width, self.crop_height)
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in crop):
+            raise ValueError("Crop region values must be finite numbers")
+        if (self.crop_x < 0 or self.crop_y < 0
+                or self.crop_width <= 0 or self.crop_height <= 0
+                or self.crop_x + self.crop_width > 1
+                or self.crop_y + self.crop_height > 1):
+            raise ValueError("Crop region must be positive and stay within the source frame")
 
 
 @dataclass
@@ -157,9 +184,11 @@ class Composition:
     def validate(self):
         if self.schema_version != SCHEMA_VERSION:
             raise ValueError("Unsupported composition schema")
-        if not 64 <= self.width <= 7680 or not 64 <= self.height <= 7680 or self.width % 2 or self.height % 2:
-            raise ValueError("Canvas must have even dimensions between 64 and 7680")
-        if not 1 <= self.fps <= 120 or self.fit not in {"fit", "crop", "blur"}:
+        if (type(self.width) is not int or type(self.height) is not int
+                or not 64 <= self.width <= 7680 or not 64 <= self.height <= 7680
+                or self.width % 2 or self.height % 2):
+            raise ValueError("Canvas must have even integer dimensions between 64 and 7680")
+        if type(self.fps) is not int or not 1 <= self.fps <= 120 or self.fit not in {"fit", "crop", "blur"}:
             raise ValueError("Invalid FPS/fit mode")
         if self.encoder not in {"auto", "cpu", "nvidia", "intel", "amd"} or not 0 <= self.quality <= 51:
             raise ValueError("Invalid encoder/quality")
@@ -174,8 +203,57 @@ class Composition:
             for key in ('volume','offset','trim_start','fade_in','fade_out'):
                 value=track.get(key,.2 if key=='volume' else 0)
                 if not isinstance(value,(int,float)) or not math.isfinite(value) or value<0 or key=='volume' and value>4:raise ValueError('Invalid audio '+key)
+            crossfade=track.get('loop_crossfade',0)
+            if (type(crossfade) not in (float,int) or not math.isfinite(crossfade)
+                    or not 0<=crossfade<=10):
+                raise ValueError('Music loop crossfade must be a finite duration from 0 to 10 seconds')
+            if crossfade and (track.get('mode','music')!='music' or not track.get('loop')):
+                raise ValueError('Music loop crossfade requires a looping music track')
+            repeats=track.get('repeat_count',1)
+            interval=track.get('repeat_interval',0)
+            if type(repeats) is not int or not 1<=repeats<=32:
+                raise ValueError('SFX repeat count must be an integer from 1 to 32')
+            if (type(interval) not in (int,float) or not math.isfinite(interval)
+                    or not 0<=interval<=3600):
+                raise ValueError('SFX repeat interval must be a finite duration from 0 to 3600 seconds')
+            if repeats>1:
+                if track.get('mode','music')!='sfx' or track.get('loop'):
+                    raise ValueError('SFX repeat requires a non-looping SFX track')
+                if interval==0:
+                    raise ValueError('SFX repeat interval must be greater than zero')
+            elif interval:
+                raise ValueError('SFX repeat interval requires repeat count > 1')
             end=track.get('trim_end')
             if end is not None and (not math.isfinite(end) or end<=track.get('trim_start',0)):raise ValueError('Invalid audio trim end')
+            placement=track.get('placement','absolute')
+            if placement not in {'absolute','percent','video_end','scene_start','scene_end'}:
+                raise ValueError('Invalid SFX placement')
+            if placement!='absolute' and track.get('mode','music')!='sfx':
+                raise ValueError('Relative placement is only available for SFX')
+            if placement=='percent':
+                position=track.get('position_pct')
+                if (type(position) not in (int,float) or not math.isfinite(position)
+                        or not 0<=position<=100):
+                    raise ValueError('SFX position percentage must be in 0–100')
+            if placement in {'scene_start','scene_end'}:
+                number=track.get('scene_index')
+                if type(number) is not int or not 1<=number<=len(self.clips):
+                    raise ValueError('SFX scene index must reference an existing clip (1-based)')
+            trigger_times=track.get('trigger_times')
+            if trigger_times is not None:
+                if track.get('mode','music')!='sfx':
+                    raise ValueError('Custom SFX trigger times require an SFX track')
+                if not isinstance(trigger_times,list) or not 2<=len(trigger_times)<=32:
+                    raise ValueError('Custom SFX trigger times must contain 2 to 32 timestamps')
+                previous=-1.0
+                for timestamp in trigger_times:
+                    if (type(timestamp) not in (int,float) or not math.isfinite(timestamp)
+                            or not 0<=timestamp<=86400 or timestamp<=previous):
+                        raise ValueError('Custom SFX trigger times must be finite, ordered, unique values from 0 to 86400 seconds')
+                    previous=float(timestamp)
+                if (placement!='absolute' or track.get('offset',0)!=0
+                        or repeats!=1 or interval!=0 or track.get('loop')):
+                    raise ValueError('Custom SFX trigger times require absolute placement, zero offset, no repeat, and no loop')
         ids = [item.id for item in [*self.clips, *self.layers]]
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate clip/layer IDs")

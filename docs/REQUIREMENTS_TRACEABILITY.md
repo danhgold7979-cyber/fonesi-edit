@@ -158,9 +158,9 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 | TOL-01 | Bảng tool và quét nguồn phổ biến/tùy chỉnh | PR 13; SB 2.1 | P01-08, P04-08 | Hiện đường dẫn/version/vai trò/trạng thái, không chỉ tìm tên exe |
 | TOL-02 | Trỏ đường dẫn, chọn bản, kiểm tra hoạt động | SB 2.1 | P02-09, P03-08 | Unicode/timeout/sai version/capability báo đúng, không sửa tool ngoài |
 | TOL-03 | FFmpeg/ffprobe/downloader và dependency theo workflow | SB 2.2 | P02-09, P03-08 | Manifest đúng kiến trúc/phiên bản/capability, không bắt cài dev tools vô cớ |
-| TOL-04 | Tải-cài thiếu, install-all, progress/cancel | SB 2 | P03-08, P04-08 | Nút chạy thật qua tải/xác minh/cài/kiểm tra; chưa xong không báo ready |
+| TOL-04 | Tải-cài thiếu, install-all, progress/cancel và chống thao tác cập nhật trùng | SB 2, 2.3 | P03-08, P04-08, P11-08 | Nút chạy thật qua tải/xác minh/cài/kiểm tra; chưa xong không báo ready; FFmpeg/ffprobe chung busy key, công cụ độc lập vẫn xếp hàng, install-missing bỏ qua thành phần đang bận. Qt regressions + [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) PASS synthetic Linux/Windows |
 | TOL-05 | Trusted artifacts, TLS/checksum/chữ ký | SB 2.3 | P02-09, P03-08 | Artifact lỗi bị chặn, bản cũ và cấu hình được giữ |
-| TOL-06 | Staging/repair/update/rollback và tool lease | SB 2.3 | P03-08, P10-07 | Job cũ giữ binary cũ, bản mới kích hoạt an toàn, rollback chạy được |
+| TOL-06 | Staging/repair/update/rollback, receipt identity, tool lease, Settings cleanup và update-busy | SB 2.3 | P03-08, P10-07, P11-08 | Job cũ giữ binary cũ; activation xác thực receipt identity/managed path/hash/companion; rollback chặn executable ngoài root và ffprobe symlink; Settings cleanup chỉ gỡ bản không còn lease; per-tool busy guard chặn cập nhật trùng và thao tác xung đột. [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) PASS synthetic Linux/Windows; máy Windows người dùng, cross-process mutex và live install/update vẫn mở |
 | TOL-07 | Chrome chính thức quét/trỏ/tải-cài | SB 2.2, 3 | P02-10, P04-08, P12-07 | Google Chrome thật, không WebView/Chromium giả thay thế |
 | TOL-08 | Runtime/font/model/driver có điều kiện | SB 2.2 | P03-08, P12-07 | Chỉ thành phần cần được yêu cầu, driver không tự thay, API không tự tải model |
 | TOL-09 | Readiness tool/phiên/quyền nguồn, nút sửa đúng lỗi | SB 7 | P04-08, P10-07 | Thiếu tool/login/nguồn có hành động khác nhau, media cục bộ không bị chặn vô cớ |
@@ -175,3 +175,92 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 | AUTH-09 | Đổi nick/mismatch, không xoay tài khoản tự động | SB 5 | P05-10, P11-08 | Job cũ không chạy bằng nick mới; rate limit không tự coi hết hạn |
 | AUTH-10 | Account-scoped cache và profile concurrency | SB 5 | P03-09, P10-07 | Cache/quyền A không dùng cho B, không giành user-data-dir |
 | AUTH-11 | Browser data riêng, export/dọn/xóa liên kết khác xóa profile | SB 4–5, 8 | P03-09, P10-07, P11-08 | Export không lộ session, cache cleanup không xóa profile, xóa dữ liệu có thao tác riêng |
+
+## P05/P10 evidence — synchronized only from validated local scan (29/10/2026)
+
+SRC-09/SRC-10/FLOW-04: [CI 40855868306](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40855868306) verifies exact-URL source/account and actual output, transactional batch no partial enqueue on errors; 537 Linux/536 Windows+1 skip. SRC-03/SRC-10/AUTO-02: [CI 40857385183](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40857385183) verifies bounded scheduled scan-first state, post-scan new-only reconciliation and Retry; 546 Linux/545 Windows+1 skip. These do NOT satisfy live provider checkpoint/full-channel/Chrome or physical Windows acceptance.
+
+## P08-07 / P11-02/03 Batch planning and transactional enqueue evidence (29/10/2026)
+
+BAT-04 / OPS-01 / OPS-02: [CI 40914027736](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40914027736) confirms progress monotonic for a known selected count, cooperative cancel yields no usable partial plan, and a synthetic FFprobe benchmark of 128 files measured actual runner throughput (Linux 5.937889 s; Windows 10.462162 s). [CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) confirms BAT-04 / OPS-03/06: a failed second SQLite render-job INSERT rolls back every new Batch job while pre-existing jobs survive, without disabling earlier validation. **Both proofs are synthetic/local**; they do not satisfy physical Windows endurance, render ETA/GPU/VRAM or full P08/P11 acceptance.
+
+
+## AUD-01/AUD-02 — Decoded PCM playback meter evidence (30/10/2026)
+
+[CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) SUCCESS on exact SHA 743e68b: 676 Linux /675 Windows passed + one intentional POSIX-only skip, packaged synthetic proof both OS. Peak/RMS and near-full-scale sample warnings use the same Qt QMediaPlayer as decoded raw source/proxy or rendered output preview. **Only rendered preview reflects the composition mix**; neither case measures post-QAudioOutput volume, physical speaker/driver output, true-peak or calibrated EBU integrated loudness. AUD-01/AUD-02 remain partially covered until per-track and hardware gates pass.
+
+
+## AUD-03 — Manual cross-folder Batch playlist evidence (30/10/2026)
+
+[Implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a4ea6a851ac912503ce4db6fb08841b9dae8257a) and [final Qt/plan invalidation fix](https://github.com/danhgold7979-cyber/fonesi-edit/commit/cfd2c4cf6a7c7a96e5619631d83c13ff2e2039c0) verified by [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) **SUCCESS exact SHA cfd2c4c**: 682 Linux PASS, 681 Windows PASS + 1 intentional POSIX-only skip; full packaged proof both OS. Playlist paths are absolute and explicitly ordered, one per selected video, may span directories and share basenames; duplicates are allowed and FFprobe is cached per distinct path. Missing/invalid/symlink/no-audio items reject the complete mapping before any video snapshot. Dry-run includes full audio_source, Composition snapshots preserve non-main music/SFX and an actual FFmpeg/PCM test proves the manually assigned audio is present. Existing shared/by-name/ordered/random modes are regression-tested unchanged.
+
+## P09-01/MAT-01, MAT-04, MAT-05, MAT-07 — Bounded C/G filtering and scene-pin evidence (30/10/2026)
+
+[Detailed plan](phases/P09_SCENE_SELECTION_LOCK_PLAN.md), [code/test SHA 7d1f928a798b8cb50997a25e8f8947dfc0f83999](https://github.com/danhgold7979-cyber/fonesi-edit/commit/7d1f928a798b8cb50997a25e8f8947dfc0f83999) and [CI 41021003352](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41021003352) **SUCCESS: 728 Linux PASS / 727 Windows PASS + 1 intentional skip**, packaged synthetic proof both OS. This confirms source-manifest-validated local C/G selection checkboxes, globally pinned G across newly generated rows, infeasible W/capacity detection, guarded Qt callbacks, immutable media and conservative mixed scene-set history/atomic enqueue QA. It does not verify 100k-matrix optimality, physical Windows/HiDPI/installer, cross-folder identical-hash identity, SQLite power loss, Chrome/live providers or GPU; all full phase and 95 requirement gates remain separately OPEN.
+
+
+## P09-03 / P09-06 — Solver benchmark and cancel-safe Matrix queue (30/10/2026)
+
+- Generator validates typed N/W/K/seed and finite positive budget; logical `scripts/benchmark_matrix.py` measures elapsed/tracemalloc on 14 scenes × 6 angles (capacity 6^14), validates 100 unique W=1/K=2 rows without full Cartesian media expansion, and explicitly reports incomplete rather than claiming UNSAT. No physical 100k-corpus proof.
+- `enqueue_rows` supports cooperative Task cancel and progress, with all-new SQLite jobs/history rolled back if revoked before commit. SQL upsert now uses valid `excluded.job_id`; failed reservation retry explicitly tests new job ID. MatrixPage cancels obsolete pre-publication work on C/G filter/order, cell/locks, seed/W/K/output/audio/editor options, and global cancel; duplicate clicks blocked; successful prior-snapshot commits reported truthfully. Backend synthetic-media/SQLite and real Qt offscreen regressions included.
+- [CI 41025266091](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41025266091) SUCCESS, exact code/test SHA `7d2d74a7173184d1e752e508ff83aa8971f72321`: 764 Linux PASS; 763 Windows PASS + one intentional POSIX skip; 128-source synthetic FFprobe benchmark, production desktop/native-host builds, frozen packaged render/Batch/Matrix/localhost/Qt proof PASS both runners. Windows development artifact 197,335,201 bytes, expires 2026-11-06. Synthetic/localhost evidence only; NOT physical Windows/HiDPI/installer, full 100k-real-media throughput/solver optimality, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/provider or GPU acceptance.
+- Full P09/P11 and all release gates remain OPEN; do not merge main.
+
+
+## P09-03 / MAT-04 — Large-space balance selection (30/10/2026)
+
+Bounded candidate pool (default 8, validated 1..64) now competes legal rows using projected per-scene sum-of-squares and seeded tie-breaking. Frequency is keyed by (scene index, content hash), so same-content assets in different scene folders are not merged. Candidate search preserves W/K/history/locks/uniqueness, bounded time and cancellation, with explicit incomplete-not-UNSAT result. The logical benchmark CLI records per-angle use, spread, elapsed time and tracemalloc peak; CI writes its JSON artifact.
+
+[CI 41030170331](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41030170331) SUCCESS exact code/test SHA `4e759cdbaaa738b3df60a577e0a4cd6091cf6ed5`: Linux 781 PASS; Windows 780 PASS + 1 intentional POSIX-only skip. Both runners: 10^10 theoretical combinations, 2,000 outputs, per-scene max spread 5; Linux 9.302552 s / 1,379,048-byte Python tracemalloc peak, Windows 19.737411 s / 1,379,264-byte peak. Both passed Batch 128-source FFprobe synthetic benchmark, phase-reference check, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost-download/Qt proof. Artifacts: Linux evidence 390,000 bytes, Windows evidence 322,514 bytes (expire 2026-11-02); Windows development build 197,343,856 bytes (expires 2026-11-06). Logical IDs and synthetic/localhost proof only, not real 10-billion media or physical Windows/GPU/live-provider acceptance.
+
+Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/HiDPI/installer, NTFS/exFAT/power loss, SQLite issue #6 root cause, live Chrome/providers and GPU. P09/P11/full release not complete.
+
+## MAT-07 / OPS-04 / OPS-05 / OPS-06 — Matrix recovery and retry evidence (30/10/2026)
+
+- MAT-07: stale worker recovery retains the reservation; cancellation marks it failed; retry requires the same job owner and rejects missing, partial, succeeded or foreign-owned reservations.
+- OPS-04: the job ID, immutable payload, Matrix combination and output target remain unchanged across recovery/retry; reservation restoration is conditional and transactional.
+- OPS-05: worker failure after source disappearance is recorded as failed/blocked rather than success.
+- OPS-06: missing media cannot produce a succeeded job or succeeded Matrix history row; valid synthetic FFmpeg output is validated before success.
+- Evidence: [plan](phases/P11_MATRIX_RECOVERY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/58d94f738ca7cd9b5dab39caef8f952719b78718), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a6d1e9577c2017519c0ecf22edf63f8695a79402), [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX skip.
+- Limits: synthetic/localhost only; no physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real 100k-media corpus, live Chrome/provider or GPU proof. P11/P12 remain OPEN.
+
+## MAT-07 / OPS-04 / OPS-05 / OPS-06 — Published Matrix artifact recovery (30/10/2026)
+
+- MAT-07: a stale Matrix job can reuse a previously published artifact only when its sidecar configuration hash and SHA-256 match; history is committed once under the same job/reservation.
+- OPS-04: retry keeps the immutable job payload and output target; matching artifact bytes remain unchanged across recovery.
+- OPS-05: a pre-existing output without provenance sidecar or with a stale SHA sidecar fails closed; the worker does not overwrite or adopt it.
+- OPS-06: missing/mismatched artifact provenance cannot produce succeeded job/history; valid artifact reuse is committed only after renderer validation.
+- Evidence: [plan](phases/P11_MATRIX_OUTPUT_RECOVERY_PLAN.md), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1), [CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS: 791 Linux PASS; 790 Windows PASS + 1 intentional POSIX skip; both packaged proofs passed.
+- Limits: synthetic crash boundary only; physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real-media corpus, live Chrome/provider and GPU acceptance remain open.
+
+
+## P11-05 / OPS-07 + AUTH-11 — Preset schema and profile-scoped pairing evidence (30/10/2026)
+
+- OPS-07: a shared schema-v1 builder/parser validates preset name and envelope, UTF-8, duplicate JSON keys, non-finite numbers, schema version, 2 MiB size, composition model and secret-key guard. Source clips and clip IDs are stripped on export and rejected on import. Logo/font/audio paths remain references; missing local resources are reported without mutating them.
+- OPS-07: invalid Qt import is rejected before Store.save_named and leaves both preset table and active project unchanged. Valid import stores one preset while leaving the active composition unchanged. Round-trip tests preserve external resource paths.
+- AUTH-11: profile A revoke removes A bridge and pending pairing code but preserves both A/B Chrome profile directories, both account bindings and B's bridge.
+- Evidence: plan [2774ef2](https://github.com/danhgold7979-cyber/fonesi-edit/commit/2774ef2955c44eee9a9bf61fcfec731231c4a5e4), implementation [a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec), follow-up regression [e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb), [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip; desktop/native-host builds and packaged proof both OS.
+- Limits: CI synthetic/local-file tests do not prove Windows user-machine Chrome login, DPAPI/real cookie bridge, provider availability, GPU/HiDPI, installer/update, or full AUTH-11/P11 acceptance.
+
+
+## P11-08 / TOL-05 — ZIP archive extraction safety and portability (30/10/2026)
+
+- TOL-05: extraction rejects traversal/absolute/drive paths, controls/NUL, symlinks and special Unix types, encrypted entries, Windows reserved names/invalid characters/trailing dot-space, case-fold duplicates and file/directory conflicts before the first write.
+- Entire archive is preflighted; safe backslash-separated file and directory entries are normalized to consistent nested paths on Linux/Windows.
+- Evidence: [plan](phases/P11_TOOL_ARCHIVE_PORTABILITY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8), [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX skip; production/native-host builds and packaged proofs both OS.
+- Limits: synthetic tests do not prove Windows user-machine ACL/AV/disk-full/power-loss, signed installer/update, Chrome/DPAPI/session bridge, live providers, GPU/HiDPI/audio or full TOL-04…06 acceptance.
+
+
+## P11-08 / TOL-04…06 — Interrupted installer and checksum failure boundaries (30/10/2026)
+
+- TOL-04/TOL-05: a partial download exception, SHA-256 mismatch, cancel after fetch and malicious archive rejection are now tested during replacement installation.
+- Each regression first activates a valid prior FFmpeg/ffprobe version, then verifies failure leaves old binary bytes, companion, active paths and active-version metadata unchanged; no new version is published, no staging folder remains and progress never reaches 1.
+- Evidence: [plan](phases/P11_TOOL_INSTALL_FAILURE_BOUNDARY_PLAN.md), [tests 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6), [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX skip; builds and packaged proofs both OS.
+- Limits: synthetic fetch/SQLite/filesystem tests do not prove physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC, Chrome/DPAPI/session bridge, live providers or GPU.
+
+
+## AUTH-06 / AUTH-08 — Bridge handoff and revocation ordering (30/10/2026)
+
+[Exact-HEAD CI 41088435585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41088435585) SUCCESS on 683f5326021f88da04441b43894d8e9dd16fcc83. Linux 892 passed / 0 skipped; Windows 888 passed / 4 intentional skips / 0 failures. receive_session revalidates the bridge inside BEGIN IMMEDIATE, and revoke_pairing uses the same writer lock. Deterministic revoke-first and handoff-first tests pass; both production/native-host builds and frozen packaged proofs pass.
+
+Pending pairing-code issuance/revocation serialization remains a follow-up. This synthetic evidence does not certify live Chrome/extension delivery, DPAPI user-account behavior, provider acceptance or physical Windows-machine acceptance.

@@ -5,26 +5,39 @@ from pathlib import Path
 import csv
 import hashlib
 import json
+import math
 import os
 import time
 
 from PySide6.QtCore import Qt,QAbstractTableModel,QModelIndex,QTimer
 from PySide6.QtGui import QColor,QDesktopServices
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPushButton,QLabel,QLineEdit,QPlainTextEdit,
-    QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QFileDialog,QTableWidget,QTableWidgetItem,QTableView,QTreeWidget,
+    QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QFileDialog,QTableWidget,QTableWidgetItem,QTableView,QTreeWidget,QListWidget,QListWidgetItem,QAbstractItemView,
     QTreeWidgetItem,QHeaderView,QTabWidget,QInputDialog,QApplication,QMessageBox,QToolBar,QDialog,QDialogButtonBox)
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,batch_plan,enqueue_batch
-from ..matrix import scan_scenes,generate,history,combination,valid_against,row_composition,enqueue_rows
-from ..subtitles import Caption,read_captions,write_captions,caption_warnings
-from ..downloads import platform_for
+from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS,AUDIO_EXTENSIONS
+from ..matrix import (scan_scenes,scene_directories,scene_manifest,select_matrix_scenes,
+                      scene_generation_locks,reorder_matrix_scenes,normalize_matrix_history,
+                      generate,history,combination,valid_against,matrix_rows_valid,
+                      regenerate_row,angle_usage,row_composition,enqueue_rows,MatrixEnqueueCancelled)
+from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
+                         caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
+from .cue_timeline import CueTimingView
+from ..downloads import (platform_for,selectable_scan_url,selected_download_payloads,
+                         parse_scan_metadata_filters,scan_matches_metadata,
+                         normalize_scan_metadata,continuation_scan_payload,
+                         selected_quality_upgrade_payloads)
+from ..sync import plan_new_only_sync,sync_media_identity
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
-from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses
-from ..automation import metrics,recommended_parallel
+from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses,managed_tool_versions,remove_tool_version
+from ..automation import metrics,recommended_parallel,submit_once,submit_many_once
+
+
+MAX_SCAN_SELECTION = 500
 
 
 def buttons(layout,host,items):
@@ -63,7 +76,54 @@ class DownloadsPage(QWidget):
         self.target_language=QComboBox();self.target_language.setEditable(True);self.target_language.addItems(['vi','en','zh','ja','ko','fr','de','es']);form.addRow('Ngôn ngữ dịch đích',self.target_language)
         self.bilingual=QCheckBox('Giữ sub gốc và bản dịch thành hai layer');form.addRow(self.bilingual)
         buttons(layout,host,[('Làm mới tài khoản',self.refresh_accounts),('Quét danh sách',lambda:self.submit('scan')),('Tải hàng loạt',lambda:self.submit('download')),('Xem kết quả quét',self.show_scan),('Đặt lịch',self.schedule)])
-        self.result=QPlainTextEdit();self.result.setReadOnly(True);layout.addWidget(self.result,1);self.last_scan=None;self.refresh_accounts()
+        selector=QHBoxLayout();layout.addLayout(selector);selector.addWidget(QLabel('Lần quét'))
+        self.scans=QComboBox();selector.addWidget(self.scans,1)
+        self.scans.currentIndexChanged.connect(lambda _:self.load_scan())
+        filter_row=QHBoxLayout();layout.addLayout(filter_row)
+        self.scan_search=QLineEdit()
+        self.scan_search.setPlaceholderText('Lọc tiêu đề / ID (không tìm trong URL)')
+        self.scan_search.setClearButtonEnabled(True)
+        self.scan_search.textChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_search,2)
+        self.scan_kind_filter=QComboBox()
+        for label,value in [('Tất cả loại','all'),('Ảnh','images'),('Video','videos'),('Có thể tải','selectable'),('Không thể tải','unselectable')]:
+            self.scan_kind_filter.addItem(label,value)
+        self.scan_kind_filter.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_kind_filter,1)
+        self.scan_sort=QComboBox()
+        for label,value in [('Thứ tự nguồn','source'),('Tên A–Z','title'),('Loại media','kind'),
+                            ('Ngày cũ trước','date_asc'),('Ngày mới trước','date_desc')]:
+            self.scan_sort.addItem(label,value)
+        self.scan_sort.currentIndexChanged.connect(lambda *_:self.reset_scan_filter_page())
+        filter_row.addWidget(self.scan_sort,1)
+        metadata_row=QHBoxLayout();layout.addLayout(metadata_row)
+        for attr,label,placeholder in (
+                ('scan_after','Đăng từ','YYYYMMDD'),
+                ('scan_before','Đến','YYYY-MM-DD'),
+                ('scan_duration_min','Giây ≥','0'),
+                ('scan_duration_max','Giây ≤','3600'),
+                ('scan_height_max','Cao ≤ px','1080')):
+            metadata_row.addWidget(QLabel(label))
+            field=QLineEdit();field.setPlaceholderText(placeholder)
+            field.setMaximumWidth(110)
+            setattr(self,attr,field)
+            field.textChanged.connect(lambda *_:self.reset_scan_filter_page())
+            metadata_row.addWidget(field)
+        self.scan_include_missing=QCheckBox('Giữ mục thiếu metadata')
+        self.scan_include_missing.setChecked(True)
+        self.scan_include_missing.toggled.connect(lambda *_:self.reset_scan_filter_page())
+        metadata_row.addWidget(self.scan_include_missing)
+        self.scan_filter_error=None
+        buttons(layout,host,[('Chọn mục trên trang',lambda:self.check_scan_items(True)),('Bỏ chọn trang',lambda:self.check_scan_items(False)),('Trang trước',lambda:self.change_scan_page(-1)),('Trang sau',lambda:self.change_scan_page(1)),('Tải mục đã chọn',self.download_selected),('Tải bổ sung phụ đề',self.download_subtitles_selected),
+                             ('Nâng chất lượng video đã tải',self.download_quality_upgrade_selected)])
+        buttons(layout,host,[('Chọn tất cả kết quả lọc',self.select_all_filtered),('Bỏ chọn kết quả lọc',self.clear_all_filtered),('Quét tiếp video (1–200 mục/trang)',self.continue_scan),('Đồng bộ mục mới (kết quả lọc)',self.sync_new_filtered)])
+        self.scan_page=0;self.scan_page_size=200;self.scan_selected={};self.loaded_scan_id=None
+        self.scan_note=QLabel('Chưa chọn kết quả quét');self.scan_note.setWordWrap(True);layout.addWidget(self.scan_note)
+        self.scan_tree=QTreeWidget();self.scan_tree.setHeaderLabels(['Nội dung / ID','Loại','Trạng thái URL'])
+        self.scan_tree.itemChanged.connect(self.remember_scan_choice)
+        self.scan_tree.setMinimumHeight(140);layout.addWidget(self.scan_tree,1)
+        self.result=QPlainTextEdit();self.result.setReadOnly(True);self.result.setMaximumHeight(100);layout.addWidget(self.result)
+        self.last_scan=None;self.refresh_accounts();self.refresh_scans()
 
     def refresh_accounts(self):
         selected=self.account.currentData();self.account.clear();self.account.addItem('Công khai / mặc định từng nền tảng',None)
@@ -96,12 +156,368 @@ class DownloadsPage(QWidget):
         for payload in payloads:
             key=self.host.store.submit(kind,payload)
             if kind=='scan':self.last_scan=key
+        if kind=='scan':self.refresh_scans(preferred=self.last_scan)
         self.host.message(f'Đã thêm {len(payloads)} tác vụ {kind}');self.host.activate_queue()
 
+    def refresh_scans(self,preferred=None):
+        selected=preferred or self.scans.currentData() or self.last_scan
+        self.scans.blockSignals(True);self.scans.clear()
+        for job in self.host.store.jobs(limit=2000):
+            if job['kind']!='scan':continue
+            # Do not expose a potentially signed source URL in the scan chooser.
+            self.scans.addItem(f"{job['state']} • {job['id'][:8]}",job['id'])
+        index=self.scans.findData(selected)
+        if index>=0:self.scans.setCurrentIndex(index)
+        self.scans.blockSignals(False)
+
     def show_scan(self):
-        if not self.last_scan:return
-        job=self.host.store.job(self.last_scan)
-        self.result.setPlainText(json.dumps(job['result'] or {'state':job['state'],'error':job['error']},ensure_ascii=False,indent=2))
+        self.refresh_scans()
+        self.load_scan()
+
+    def load_scan(self):
+        self.scan_tree.blockSignals(True)
+        self.scan_tree.clear()
+        job_id=self.scans.currentData()
+        if job_id != self.loaded_scan_id:
+            self.loaded_scan_id=job_id;self.scan_page=0
+        if not job_id:
+            self.scan_note.setText('Chưa có kết quả quét')
+            self.result.clear();self.scan_tree.blockSignals(False)
+            return
+        job=self.host.store.job(job_id)
+        if job['state']!='succeeded':
+            self.scan_note.setText(f"Quét {job['state']}; chưa có danh sách xác nhận.")
+            self.result.setPlainText('Lỗi: '+str(job['error'] or 'Chưa có kết quả'))
+            self.scan_tree.blockSignals(False)
+            return
+        data=job['result'] or {}
+        items=data.get('items') or []
+        complete=data.get('complete')
+        completeness='đã xác nhận đủ' if complete is True else 'quét một phần' if complete is False else 'chưa rõ đã quét hết'
+        visible_indexes=self._scan_visible_indexes(items)
+        filter_warning=(' • Bộ lọc metadata không hợp lệ: '+self.scan_filter_error
+                        if self.scan_filter_error else '')
+        last_page=max(0,(len(visible_indexes)-1)//self.scan_page_size)
+        self.scan_page=max(0,min(self.scan_page,last_page))
+        start=self.scan_page*self.scan_page_size;end=min(len(visible_indexes),start+self.scan_page_size)
+        if job_id not in self.scan_selected:
+            parent_id=(job.get('payload') or {}).get('scan_parent_id')
+            if parent_id in self.scan_selected:
+                try:
+                    parent=self.host.store.job(parent_id)
+                    prior=(parent.get('result') or {}).get('items')
+                    if (parent.get('state')=='succeeded' and isinstance(prior,list)
+                            and items[:len(prior)]==prior):
+                        self.scan_selected[job_id]={
+                            index for index in self.scan_selected[parent_id]
+                            if type(index) is int and 0 <= index < len(prior)}
+                except KeyError:
+                    pass
+        chosen=self.scan_selected.setdefault(job_id,set())
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {len(items)} mục gốc • hiển thị {len(visible_indexes)} • {completeness} • trang {self.scan_page+1}/{last_page+1} • đã chọn {len(chosen)}. Lọc không bỏ chọn mục đang ẩn.{filter_warning}")
+        self.result.setPlainText('Lựa chọn được giữ theo chỉ số gốc khi lọc/sắp xếp/chuyển trang; tài khoản và thư mục lấy từ snapshot quét. Tìm kiếm chỉ dùng tiêu đề/ID, không tìm hoặc hiển thị URL.')
+        parent=QTreeWidgetItem([f"Job {job_id[:8]} • hàng hiển thị {start+1 if visible_indexes else 0}–{end}",'Nguồn',completeness])
+        self.scan_tree.addTopLevelItem(parent)
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
+        for index in visible_indexes[start:end]:
+            item=items[index]
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            duplicate=bool(safe) and first_by_url.get(safe)!=index
+            selectable=bool(safe) and item.get('selectable') is not False and not duplicate
+            label=str(item.get('title') or item.get('id') or 'Mục không tên')[:160]
+            state='Có thể tải' if selectable else ('URL trùng trong lần quét' if duplicate else str(item.get('reason') or 'Thiếu URL tải lại an toàn'))
+            child=QTreeWidgetItem([label,str(item.get('kind','video')),state])
+            child.setData(0,Qt.ItemDataRole.UserRole,index)
+            if selectable:
+                child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(0,Qt.CheckState.Checked if index in chosen else Qt.CheckState.Unchecked)
+            else:
+                child.setFlags(child.flags() & ~(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable))
+            parent.addChild(child)
+        parent.setExpanded(True)
+        self.scan_tree.blockSignals(False)
+
+    @staticmethod
+    def _scan_kind(item):
+        kind=str(item.get('kind','video') if isinstance(item,dict) else 'video').casefold()
+        if kind in {'image','images','photo','photos'}:return 'images'
+        if kind in {'video','videos','clip','clips'}:return 'videos'
+        return kind
+
+    def _scan_visible_indexes(self,items):
+        """Return filtered/sorted source indices; selection always uses original indices."""
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
+        try:
+            metadata_filter=parse_scan_metadata_filters(
+                after=self.scan_after.text(),before=self.scan_before.text(),
+                duration_min=self.scan_duration_min.text(),
+                duration_max=self.scan_duration_max.text(),
+                max_height=self.scan_height_max.text(),
+                include_missing=self.scan_include_missing.isChecked())
+        except ValueError as exc:
+            self.scan_filter_error=str(exc)
+            return []
+        self.scan_filter_error=None
+        query=self.scan_search.text().strip().casefold()
+        kind_filter=self.scan_kind_filter.currentData()
+        sort_mode=self.scan_sort.currentData()
+        visible=[]
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            if not scan_matches_metadata(item,metadata_filter):continue
+            title=str(item.get('title') or '')
+            stable_id=str(item.get('id') or '')
+            if query and query not in title.casefold() and query not in stable_id.casefold():
+                continue
+            kind=self._scan_kind(item)
+            safe=selectable_scan_url(item.get('url'))
+            duplicate=bool(safe) and first_by_url.get(safe)!=index
+            selectable=bool(safe) and item.get('selectable') is not False and not duplicate
+            if kind_filter in {'images','videos'} and kind!=kind_filter:
+                continue
+            if kind_filter=='selectable' and not selectable:
+                continue
+            if kind_filter=='unselectable' and selectable:
+                continue
+            visible.append((index,title.casefold(),kind,
+                            normalize_scan_metadata(item).get('upload_date')))
+        if sort_mode=='title':
+            visible.sort(key=lambda value:(value[1],value[0]))
+        elif sort_mode=='kind':
+            visible.sort(key=lambda value:(value[2],value[1],value[0]))
+        elif sort_mode=='date_asc':
+            # Unknown or invalid dates always sort after known dates.
+            visible.sort(key=lambda value:(value[3] is None,value[3] or '',value[0]))
+        elif sort_mode=='date_desc':
+            visible.sort(key=lambda value:(value[3] is None,
+                                           -int(value[3]) if value[3] else 0,
+                                           value[0]))
+        else:
+            visible.sort(key=lambda value:value[0])
+        return [value[0] for value in visible]
+
+    def reset_scan_filter_page(self):
+        self.scan_page=0
+        self.load_scan()
+
+    def remember_scan_choice(self,item,column):
+        index=item.data(0,Qt.ItemDataRole.UserRole)
+        job_id=self.scans.currentData()
+        if type(index) is not int or not job_id:return
+        chosen=self.scan_selected.setdefault(job_id,set())
+        if item.checkState(0)==Qt.CheckState.Checked:
+            if index not in chosen and len(chosen)>=MAX_SCAN_SELECTION:
+                self.scan_tree.blockSignals(True)
+                item.setCheckState(0,Qt.CheckState.Unchecked)
+                self.scan_tree.blockSignals(False)
+                self.host.message(f'Tối đa {MAX_SCAN_SELECTION} mục được chọn trong một lần quét; thu hẹp bộ lọc trước khi chọn thêm.')
+                return
+            chosen.add(index)
+        else:
+            chosen.discard(index)
+        job=self.host.store.job(job_id)
+        data=job.get('result') or {}
+        count=len(data.get('items') or [])
+        visible_count=len(self._scan_visible_indexes(data.get('items') or []))
+        total=max(1,(visible_count-1)//self.scan_page_size+1)
+        completeness='quét một phần' if data.get('complete') is False else 'chưa rõ đã quét hết' if data.get('complete') is None else 'đã xác nhận đủ'
+        self.scan_note.setText(f"{data.get('platform','Nguồn')} • {count} mục gốc • hiển thị {visible_count} • {completeness} • trang {self.scan_page+1}/{total} • đã chọn {len(chosen)}")
+
+    def change_scan_page(self,delta):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        visible_count=len(self._scan_visible_indexes(items))
+        maximum=max(0,(visible_count-1)//self.scan_page_size)
+        target=max(0,min(maximum,self.scan_page+delta))
+        if target!=self.scan_page:
+            self.scan_page=target
+            self.load_scan()
+
+    def select_all_filtered(self):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        visible=self._scan_visible_indexes(items)
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
+        selectable=[]
+        for index in visible:
+            item=items[index]
+            safe=selectable_scan_url(item.get('url')) if isinstance(item,dict) else None
+            if (safe and item.get('selectable') is not False
+                    and first_by_url.get(safe)==index):
+                selectable.append(index)
+        chosen=self.scan_selected.setdefault(job_id,set())
+        combined=chosen|set(selectable)
+        if len(combined)>MAX_SCAN_SELECTION:
+            self.host.message(
+                f'Kết quả lọc có thể chọn {len(combined)} mục, vượt giới hạn an toàn {MAX_SCAN_SELECTION}. '
+                'Thu hẹp bộ lọc; chưa thay đổi lựa chọn hiện tại.'
+            )
+            return
+        added=len(set(selectable)-chosen)
+        chosen.update(selectable)
+        self.load_scan()
+        self.host.message(f'Đã chọn {added} mục trong kết quả lọc; tổng {len(chosen)}/{MAX_SCAN_SELECTION}.')
+
+    def clear_all_filtered(self):
+        job_id=self.scans.currentData()
+        if not job_id:return
+        job=self.host.store.job(job_id)
+        items=(job.get('result') or {}).get('items') or []
+        visible=set(self._scan_visible_indexes(items))
+        chosen=self.scan_selected.setdefault(job_id,set())
+        removed=len(chosen&visible)
+        chosen.difference_update(visible)
+        self.load_scan()
+        self.host.message(f'Đã bỏ chọn {removed} mục đang khớp bộ lọc; giữ nguyên các mục ẩn.')
+
+    def check_scan_items(self,checked):
+        root=self.scan_tree.topLevelItem(0)
+        if root is None:return
+        for index in range(root.childCount()):
+            item=root.child(index)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                item.setCheckState(0,Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+
+    def continue_scan(self):
+        job_id=self.scans.currentData()
+        if not job_id:
+            raise ValueError('Chưa chọn lần quét để quét tiếp')
+        previous=self.host.store.job(job_id)
+        payload=continuation_scan_payload(previous)
+        next_id=submit_once(self.host.store,'scan',payload,
+                            f'scan-next:{job_id}:{payload["scan_start"]}')
+        self.last_scan=next_id
+        self.refresh_scans(preferred=next_id)
+        self.load_scan()
+        self.host.message(
+            f'Đã xếp scan tiếp từ vị trí {payload["scan_start"]}; '
+            'đây là khoảng yt-dlp, không phải checkpoint hoặc xác nhận đủ kênh.')
+        self.host.activate_queue()
+
+    def sync_new_filtered(self):
+        """Sync the safe filtered rows, across pages, without changing checkbox state."""
+        scan_id=self.scans.currentData()
+        if not scan_id:
+            raise ValueError('Chưa chọn một lần quét để đồng bộ')
+        scan=self.host.store.job(scan_id)
+        if scan['state']!='succeeded':
+            raise ValueError('Chỉ đồng bộ từ lần quét đã hoàn tất')
+        items=(scan.get('result') or {}).get('items') or []
+        visible=self._scan_visible_indexes(items)
+        if self.scan_filter_error:
+            raise ValueError('Bộ lọc scan không hợp lệ: '+self.scan_filter_error)
+        first_by_url={}
+        for index,item in enumerate(items):
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and safe not in first_by_url):
+                first_by_url[safe]=index
+        indexes=[]
+        for index in visible:
+            item=items[index]
+            if not isinstance(item,dict):continue
+            safe=selectable_scan_url(item.get('url'))
+            if (safe and item.get('selectable') is not False
+                    and first_by_url.get(safe)==index):
+                indexes.append(index)
+        if len(indexes)>MAX_SCAN_SELECTION:
+            raise ValueError(
+                f'Tối đa {MAX_SCAN_SELECTION} mục mỗi lần đồng bộ; hãy thu hẹp bộ lọc')
+        if not indexes:
+            self.host.message('Không có mục media tải được trong kết quả lọc hiện tại.')
+            return {'payloads':[],'already_valid':0,'already_queued':0,'total':0}
+        requests=selected_download_payloads(scan,indexes)
+        account=scan['payload'].get('account_ref')
+        if account:
+            current=next((item for item in bindings(self.host.store)
+                          if item['id']==account),None)
+            if not current or current['platform']!=platform_for(scan['payload']['url']):
+                raise PermissionError(
+                    'Tài khoản scan đã đổi/mất; không đồng bộ bằng phiên công khai')
+        history=self.host.store.download_jobs_for_urls([request['url'] for request in requests])
+        plan=plan_new_only_sync(scan,indexes,history)
+        batch=[]
+        for payload in plan['payloads']:
+            # Stable across scans. One transaction, not one INSERT per item.
+            identity=sync_media_identity(payload)
+            batch.append((payload,identity))
+        submitted=submit_many_once(self.host.store,'download',batch)
+        report={**plan,'newly_enqueued':submitted['created'],
+                'already_queued':plan['already_queued']+submitted['existing']}
+        self.host.message(
+            f"Đồng bộ {plan['total']} mục đã quét: "
+            f"{report['newly_enqueued']} job mới, {report['already_valid']} tệp hợp lệ, "
+            f"{report['already_queued']} job đã có/đang chờ. "
+            'Chưa xác nhận đã quét hết kênh.')
+        if report['newly_enqueued']:
+            self.host.activate_queue()
+        return report
+
+    def download_subtitles_selected(self):
+        return self.download_selected(subtitles_only=True)
+
+    def download_quality_upgrade_selected(self):
+        return self.download_selected(quality_upgrade=True)
+
+    def download_selected(self, *, subtitles_only=False, quality_upgrade=False):
+        job_id=self.scans.currentData()
+        if not job_id:raise ValueError('Chưa chọn một lần quét')
+        job=self.host.store.job(job_id)
+        if self.scan_tree.topLevelItem(0) is None:
+            raise ValueError('Hãy xem kết quả quét trước khi chọn')
+        indexes=sorted(self.scan_selected.get(job_id,set()))
+        if len(indexes)>MAX_SCAN_SELECTION:
+            raise ValueError(f'Tối đa {MAX_SCAN_SELECTION} mục được tải từ một lần quét; hãy thu hẹp lựa chọn.')
+        if subtitles_only and quality_upgrade:
+            raise ValueError('Không kết hợp tải phụ đề riêng với nâng chất lượng video')
+        requests=(selected_quality_upgrade_payloads(
+            job,indexes,self.host.store.jobs(limit=2000),self.height.value())
+            if quality_upgrade else selected_download_payloads(
+                job,indexes,subtitles_only=subtitles_only))
+        account=job['payload'].get('account_ref')
+        if account:
+            binding=next((item for item in bindings(self.host.store)
+                          if item['id']==account),None)
+            if not binding or binding['platform']!=platform_for(job['payload']['url']):
+                raise PermissionError('Tài khoản quét không tồn tại hoặc khác nền tảng; không chuyển sang công khai')
+        for payload in requests:
+            # Distinct job identities for the media and subtitle-only modes.
+            # Repeated clicks in one mode never duplicate an existing job.
+            if quality_upgrade:
+                identity=(f"scan-quality:{job_id}:{payload['url']}:"
+                          f"{payload['upgrade_from_job_id']}:{payload['height']}")
+            else:
+                key_prefix='scan-subtitle:' if subtitles_only else 'scan-item:'
+                identity=key_prefix+job_id+':'+payload['url']
+            submit_once(self.host.store,'download',payload,identity)
+        kind=('nâng chất lượng video' if quality_upgrade else
+              'bổ sung phụ đề' if subtitles_only else 'tải media')
+        self.host.message(f"Đã xếp {len(requests)} mục {kind} từ scan {job_id[:8]}; nhấn lại không tạo trùng (dùng Retry nếu cần)")
+        self.host.activate_queue()
 
     def schedule(self):
         payloads=list(self.payloads());minutes,ok=QInputDialog.getInt(self,'Lịch tải','Mỗi bao nhiêu phút?',60,1,100000)
@@ -109,14 +525,65 @@ class DownloadsPage(QWidget):
         with self.host.store.connect() as conn:
             for p in payloads:
                 key=hashlib.sha256(canonical(p).encode()).hexdigest()[:32]
-                conn.execute('INSERT OR REPLACE INTO schedules(id,data,next_run) VALUES(?,?,?)',(key,canonical({'payload':p,'interval':minutes*60}),time.time()))
-        self.host.message('Đã đặt lịch. App cần đang chạy hoặc được bật chế độ nền.')
+                conn.execute('INSERT OR REPLACE INTO schedules(id,data,next_run) VALUES(?,?,?)',(key,canonical({'mode':'scan_new_only','payload':p,'interval':minutes*60}),time.time()))
+        self.host.message('Đã đặt lịch quét rồi chỉ đồng bộ mục mới; tối đa 200 mục nguồn mỗi lần quét, không khẳng định đủ kênh. App cần đang chạy hoặc bật chế độ nền.')
+
+
+class CueEditHistory:
+    """Bounded, in-session history of raw subtitle-table snapshots.
+
+    Raw cell strings are essential: a half-typed timestamp must still be
+    undoable, even when converting that text to a validated Caption fails.
+    """
+    def __init__(self, limit=100):
+        self.limit=limit
+        self.reset(())
+
+    def reset(self, rows):
+        self.current=rows
+        self.past=[]
+        self.future=[]
+
+    def record(self, rows):
+        if rows==self.current:
+            return False
+        self.past.append(self.current)
+        if len(self.past)>self.limit:
+            self.past.pop(0)
+        self.current=rows
+        self.future.clear()
+        return True
+
+    def undo(self):
+        if not self.past:
+            return None
+        self.future.append(self.current)
+        self.current=self.past.pop()
+        return self.current
+
+    def redo(self):
+        if not self.future:
+            return None
+        self.past.append(self.current)
+        if len(self.past)>self.limit:
+            self.past.pop(0)
+        self.current=self.future.pop()
+        return self.current
 
 
 class SubtitlesPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.captions=[];self.last_job=None;layout=QVBoxLayout(self)
-        buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),('Thêm câu',self.add),('Tách câu',self.split),('Gộp câu chọn',self.merge),('Tìm/thay',self.find_replace),('Dịch thời gian',self.shift),('Gắn vào clip',self.attach)])
+        super().__init__();self.host=host;self.captions=[];self.last_job=None
+        self.import_warnings=[]
+        self.cue_history=CueEditHistory()
+        layout=QVBoxLayout(self)
+        toolbar=buttons(layout,host,[('Mở SRT/VTT/ASS',self.open),('Lưu sub',self.save),
+            ('Hoàn tác câu',self.undo_cues),('Làm lại câu',self.redo_cues),
+            ('Thêm câu',self.add),('Tách câu',self.split),
+            ('Gộp câu chọn',self.merge),('Tìm/thay',self.find_replace),
+            ('Dịch thời gian',self.shift),('Gắn vào clip',self.attach)])
+        self.undo_cue_action=next(a for a in toolbar.actions() if a.text()=='Hoàn tác câu')
+        self.redo_cue_action=next(a for a in toolbar.actions() if a.text()=='Làm lại câu')
         row=QHBoxLayout();layout.addLayout(row);self.source=QComboBox();self.source.setEditable(True);self.source.addItems(['auto','zh','en','vi','ja','ko']);row.addWidget(self.source)
         self.target=QComboBox();self.target.setEditable(True);self.target.addItems(['vi','en','zh','ja','ko','fr','de','es']);row.addWidget(self.target)
         self.bilingual=QCheckBox('Song ngữ gốc + dịch');row.addWidget(self.bilingual)
@@ -125,17 +592,135 @@ class SubtitlesPage(QWidget):
         b=QPushButton('Nạp kết quả dịch');b.clicked.connect(host.guard(self.load_translation));row.addWidget(b)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(['Bắt đầu s','Kết thúc s','Bản gốc','Bản dịch / nội dung','Khóa'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch);self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows);layout.addWidget(self.table,1)
+        self.cue_timeline=CueTimingView(self)
+        layout.addWidget(self.cue_timeline)
+        self.cue_timeline.timingChanged.connect(self._apply_cue_timing)
+        self.table.currentCellChanged.connect(lambda *_:self._sync_cue_timeline())
         self.warning=QLabel();self.warning.setWordWrap(True);layout.addWidget(self.warning)
         self.draft=QTimer(self);self.draft.setSingleShot(True);self.draft.setInterval(500);self.draft.timeout.connect(host.guard(self.persist))
-        self.table.itemChanged.connect(lambda item:self.draft.start())
+        self.table.itemChanged.connect(self._changed_cell)
         draft=host.store.setting('subtitle_draft')
         if draft:
+            self.import_warnings=[warning for warning in draft.get('import_warnings',[])
+                                  if isinstance(warning,str) and warning in KNOWN_IMPORT_WARNINGS]
             self.table.blockSignals(True);self.captions=[];self.table.setRowCount(len(draft['rows']))
             for row,values in enumerate(draft['rows']):
                 self.captions.append(Caption(0,1,values[3],values[2],values[4],values[5]))
                 for col in range(4):self.table.setItem(row,col,QTableWidgetItem(values[col]))
                 check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if values[4] else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
             self.table.blockSignals(False);self.source.setCurrentText(draft['source']);self.target.setCurrentText(draft['target']);self.bilingual.setChecked(draft.get('bilingual',False))
+        self.cue_history.reset(self._raw_cue_rows())
+        self._update_history_buttons()
+        self._update_cue_warnings()
+        self._sync_cue_timeline()
+
+    def _sync_cue_timeline(self):
+        row=self.table.currentRow()
+        if row<0 or row>=self.table.rowCount():
+            self.cue_timeline.show_cue(None)
+            return
+        try:
+            start=round(float(self.table.item(row,0).text())*1000)
+            end=round(float(self.table.item(row,1).text())*1000)
+            if not 0<=start<end or end*self.cue_timeline.pixels_per_ms>2_000_000:
+                raise ValueError('Cue nằm ngoài phạm vi timeline')
+        except (ValueError,OverflowError,TypeError,AttributeError):
+            self.cue_timeline.show_cue(None)
+            return
+        self.cue_timeline.show_cue((start,end))
+
+    def _apply_cue_timing(self,start_ms,end_ms):
+        row=self.table.currentRow()
+        if row<0 or row>=len(self.captions) or type(start_ms) is not int or type(end_ms) is not int:
+            return
+        if not 0<=start_ms<end_ms:
+            raise ValueError('Khoảng thời gian cue kéo không hợp lệ')
+        first=self.table.item(row,0);last=self.table.item(row,1)
+        if first is None or last is None:
+            return
+        before=(first.text(),last.text())
+        after=(f'{start_ms/1000:.3f}',f'{end_ms/1000:.3f}')
+        if before==after:
+            return
+        # Two visible timestamp cells are one atomic Undo command.
+        was_blocked=self.table.blockSignals(True)
+        try:
+            first.setText(after[0]);last.setText(after[1])
+        finally:
+            self.table.blockSignals(was_blocked)
+        self._record_cue_edit()
+        self._update_cue_warnings()
+        self._sync_cue_timeline()
+
+    def _raw_cue_rows(self):
+        """Capture visible values, even an unfinished or invalid time field."""
+        rows=[]
+        for row,old in enumerate(self.captions):
+            if row>=self.table.rowCount():
+                break
+            text=[self.table.item(row,col).text() if self.table.item(row,col) else '' for col in range(4)]
+            check=self.table.item(row,4)
+            rows.append((*text,check is not None and check.checkState()==Qt.CheckState.Checked,old.id))
+        return tuple(rows)
+
+    def _update_history_buttons(self):
+        self.undo_cue_action.setEnabled(bool(self.cue_history.past))
+        self.redo_cue_action.setEnabled(bool(self.cue_history.future))
+
+    def _update_cue_warnings(self):
+        warnings=list(self.import_warnings)
+        try:
+            warnings.extend(caption_warnings(self.collect())[:10])
+        except (TypeError,ValueError,OverflowError,AttributeError):
+            warnings.append('Mốc phụ đề đang nhập chưa hợp lệ; chỉnh trước khi lưu hoặc xuất.')
+        self.warning.setText('\n'.join(warnings[:10]))
+
+    def _record_cue_edit(self):
+        if self.cue_history.record(self._raw_cue_rows()):
+            self._update_history_buttons()
+        self.draft.start()
+
+    def _changed_cell(self, _item):
+        self._record_cue_edit()
+        self._update_cue_warnings()
+        self._sync_cue_timeline()
+
+    def _restore_cue_rows(self,rows):
+        """Restore a historical state without emitting new user edit commands."""
+        previous=self.table.blockSignals(True)
+        self.table.setUpdatesEnabled(False)
+        selected=self.table.currentRow()
+        try:
+            self.table.setRowCount(len(rows))
+            self.captions=[]
+            for row,values in enumerate(rows):
+                self.captions.append(Caption(0,1,values[3],values[2],values[4],values[5]))
+                for col in range(4):
+                    self.table.setItem(row,col,QTableWidgetItem(values[col]))
+                checked=QTableWidgetItem()
+                checked.setCheckState(Qt.CheckState.Checked if values[4] else Qt.CheckState.Unchecked)
+                self.table.setItem(row,4,checked)
+            if rows:
+                self.table.setCurrentCell(min(max(0,selected),len(rows)-1),0)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.table.blockSignals(previous)
+        self._update_history_buttons()
+        self._update_cue_warnings()
+        self._sync_cue_timeline()
+        self.draft.start()
+
+    def undo_cues(self):
+        rows=self.cue_history.undo()
+        if rows is None:return False
+        self._restore_cue_rows(rows)
+        return True
+
+    def redo_cues(self):
+        rows=self.cue_history.redo()
+        if rows is None:return False
+        self._restore_cue_rows(rows)
+        return True
 
     def refresh(self):
         self.table.blockSignals(True);self.table.setUpdatesEnabled(False)
@@ -144,13 +729,18 @@ class SubtitlesPage(QWidget):
             for col,value in enumerate((f'{c.start_ms/1000:.3f}',f'{c.end_ms/1000:.3f}',c.source_text or c.text,c.text)):
                 self.table.setItem(row,col,QTableWidgetItem(value))
             check=QTableWidgetItem();check.setCheckState(Qt.CheckState.Checked if c.locked else Qt.CheckState.Unchecked);self.table.setItem(row,4,check)
-        self.warning.setText('\n'.join(caption_warnings(self.captions)[:10]))
-        self.table.setUpdatesEnabled(True);self.table.blockSignals(False);self.draft.start()
+        self.table.setUpdatesEnabled(True);self.table.blockSignals(False)
+        self._update_cue_warnings()
+        self._record_cue_edit()
+        self._sync_cue_timeline()
 
     def persist(self):
-        rows=[]
-        for row,cue in enumerate(self.captions):rows.append([*[self.table.item(row,col).text() if self.table.item(row,col) else '' for col in range(4)],self.table.item(row,4).checkState()==Qt.CheckState.Checked,cue.id])
-        self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),'target':self.target.currentText(),'bilingual':self.bilingual.isChecked()})
+        # Persist the raw view, not collect(): intermediate invalid timing still
+        # belongs to the user's unfinished draft, even after Undo or Redo.
+        rows=[list(row) for row in self._raw_cue_rows()]
+        self.host.store.set_setting('subtitle_draft',{'rows':rows,'source':self.source.currentText(),
+            'target':self.target.currentText(),'bilingual':self.bilingual.isChecked(),
+            'import_warnings':list(self.import_warnings)})
 
     def collect(self):
         result=[]
@@ -160,8 +750,18 @@ class SubtitlesPage(QWidget):
 
     def open(self):
         path,_=QFileDialog.getOpenFileName(self,'Mở phụ đề',filter='Sub (*.srt *.vtt *.ass)')
-        if path:self.host.background(lambda p,c:read_captions(Path(path)),self.loaded)
-    def loaded(self,captions):self.captions=captions;self.refresh()
+        if path:self.host.background(lambda p,c:read_captions_with_warnings(Path(path)),self.loaded_report)
+    def loaded_report(self,report):
+        captions,warnings=report
+        self.loaded(captions,warnings)
+    def loaded(self,captions,format_warnings=()):
+        self.import_warnings=[warning for warning in format_warnings
+                              if isinstance(warning,str) and warning in KNOWN_IMPORT_WARNINGS]
+        self.captions=captions
+        self.refresh()
+        # Opening a different subtitle document must not Undo into old content.
+        self.cue_history.reset(self._raw_cue_rows())
+        self._update_history_buttons()
 
     def save(self):
         self.captions=self.collect();path,_=QFileDialog.getSaveFileName(self,'Xuất sub',filter='SRT (*.srt);;ASS (*.ass);;VTT (*.vtt)')
@@ -174,15 +774,16 @@ class SubtitlesPage(QWidget):
     def split(self):
         self.captions=self.collect();index=self.table.currentRow()
         if index<0:return
-        cue=self.captions[index];half=(cue.start_ms+cue.end_ms)//2;words=cue.text.split();cut=max(1,len(words)//2)
-        self.captions[index:index+1]=[Caption(cue.start_ms,half,' '.join(words[:cut]),locked=cue.locked),Caption(half,cue.end_ms,' '.join(words[cut:]) or '…',locked=cue.locked)];self.refresh()
+        children=split_caption(self.captions[index])
+        self.captions[index:index+1]=children;self.refresh()
 
     def merge(self):
         self.captions=self.collect();rows=sorted({i.row() for i in self.table.selectedIndexes()})
         if len(rows)<2:return
         if rows!=list(range(rows[0],rows[-1]+1)):raise ValueError('Chọn các cue liền nhau')
         cues=self.captions[rows[0]:rows[-1]+1]
-        self.captions[rows[0]:rows[-1]+1]=[Caption(cues[0].start_ms,cues[-1].end_ms,'\n'.join(c.text for c in cues),locked=any(c.locked for c in cues))];self.refresh()
+        merged=merge_captions(cues)
+        self.captions[rows[0]:rows[-1]+1]=[merged];self.refresh()
 
     def attach(self):
         captions=self.collect();editor=self.host.editor
@@ -191,9 +792,24 @@ class SubtitlesPage(QWidget):
         bilingual=self.bilingual.isChecked()
         if bilingual and not any(c.source_text and c.source_text!=c.text for c in captions):raise ValueError('Chưa có bản gốc khác bản dịch; dịch/nhập bản gốc trước khi bật song ngữ')
         key=hashlib.sha256(canonical([asdict(c) for c in captions]).encode()).hexdigest()[:20];path=self.host.data/'subtitles'/(key+'.srt')
-        if not path.exists():write_captions(path,captions)
+        def verify_or_create_sidecar(destination,expected):
+            # A hash-derived name is not proof the file still has those bytes.
+            # Never attach externally edited/corrupt output as a different cue.
+            if destination.is_symlink():
+                raise ValueError('Tệp phụ đề liên kết ngoài không được dùng tự động: '+destination.name)
+            if destination.exists():
+                actual=[(c.start_ms,c.end_ms,c.text) for c in read_captions(destination)]
+                requested=[(c.start_ms,c.end_ms,c.text) for c in expected]
+                if actual!=requested:
+                    raise FileExistsError('Tệp phụ đề đã có nội dung khác; không thay thế: '+destination.name)
+            else:
+                write_captions(destination,expected)
+        verify_or_create_sidecar(path,captions)
         original_path=path.with_name(key+'.source.srt')
-        if bilingual and not original_path.exists():write_captions(original_path,[Caption(c.start_ms,c.end_ms,c.source_text or c.text) for c in captions])
+        if bilingual:
+            originals=[Caption(c.start_ms,c.end_ms,c.source_text or c.text) for c in captions]
+            verify_or_create_sidecar(original_path,originals)
+        # Do not change the editor until all requested sidecars are validated.
         index=max(0,editor.clips.currentRow());clip=editor.composition.clips[index];editor.begin();clip.subtitles=None
         for role,sub_path,language in [('target',path,self.target.currentText()),*([('source',original_path,self.source.currentText())] if bilingual else [])]:
             existing=next((layer for layer in editor.composition.layers if layer.kind=='subtitle' and clip.id in layer.clip_ids and layer.style.get('subtitle_role','target')==role),None)
@@ -246,24 +862,287 @@ class SubtitlesPage(QWidget):
 
 class BatchPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.groups={};self.plans=[];layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
-        self.folder=file_row(form,'Thư mục cha',host,True);self.audio=file_row(form,'Âm thanh chính (tùy chọn)',host)
+        super().__init__();self.host=host;self.groups={};self.plans=[];self.plan_failures=[];self._plan_revision=0;self._scan_revision=0;self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False;layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        self.folder=file_row(form,'Thư mục gốc (tùy chọn nếu có nhiều folder)',host,True)
+        self.extra_roots=QPlainTextEdit();self.extra_roots.setPlaceholderText('Các folder nguồn bổ sung, mỗi dòng một đường dẫn');self.extra_roots.setMaximumHeight(90);form.addRow('Folder nguồn bổ sung',self.extra_roots)
+        self.audio=file_row(form,'Âm thanh chính chung (tùy chọn)',host)
+        self.audio_folder=file_row(form,'Thư mục nhiều audio (khi ghép riêng)',host,True)
+        self.audio_mode=QComboBox()
+        for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random'),('Playlist thủ công (nhiều thư mục)','playlist')]:
+            self.audio_mode.addItem(label,mode)
+        form.addRow('Ghép âm thanh chính',self.audio_mode)
+        self.audio_playlist_label=QLabel('Playlist audio thủ công')
+        self.audio_playlist=QPlainTextEdit()
+        self.audio_playlist.setPlaceholderText('Mỗi dòng một đường dẫn tuyệt đối. Thứ tự dòng ánh xạ theo thứ tự video đã chọn; có thể trộn nhiều thư mục.')
+        self.audio_playlist.setMaximumHeight(100)
+        form.addRow(self.audio_playlist_label,self.audio_playlist)
+        playlist_actions=QHBoxLayout()
+        self.audio_playlist_pick=QPushButton('Chọn nhiều file audio…')
+        self.audio_playlist_clear=QPushButton('Xóa playlist')
+        playlist_actions.addWidget(self.audio_playlist_pick);playlist_actions.addWidget(self.audio_playlist_clear)
+        form.addRow(QLabel(''),playlist_actions)
+        self.audio_playlist_hint=QLabel('Dòng 1 → video đầu tiên (kênh/video sắp tự nhiên); sửa thứ tự dòng để đổi ánh xạ. Không tự fallback khi thiếu file.')
+        self.audio_playlist_hint.setWordWrap(True)
+        form.addRow(QLabel(''),self.audio_playlist_hint)
         self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);form.addRow('Cách khớp thời lượng',self.policy)
         self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min',self.minimum)
         self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max',self.maximum)
         self.mute=QCheckBox('Tắt tiếng gốc');form.addRow(self.mute)
-        buttons(layout,host,[('Quét folder',self.scan),('Lập kế hoạch / dry-run',self.plan),('Preview đầu ra đầu tiên',self.preview),('Chạy toàn bộ',self.enqueue),('Theo dõi folder tự động',self.watch)])
+        buttons(layout,host,[('Thêm folder nguồn',self.add_scan_root),('Quét folder',self.scan),('Lập kế hoạch / dry-run',self.plan),('Preview đầu ra đầu tiên',self.preview),('Chạy toàn bộ',self.enqueue),('Theo dõi folder tự động',self.watch)])
+        filter_row=QHBoxLayout();layout.addLayout(filter_row)
+        self.search=QLineEdit();self.search.setPlaceholderText('Tìm video hoặc kênh, không thay checkbox')
+        filter_row.addWidget(self.search,1)
+        self.format_filter=QComboBox();self.format_filter.addItem('Tất cả định dạng','')
+        for extension in sorted(VIDEO_EXTENSIONS):self.format_filter.addItem(extension,extension)
+        filter_row.addWidget(self.format_filter)
+        metadata_row=QHBoxLayout();layout.addLayout(metadata_row)
+        self.duration_min=QDoubleSpinBox();self.duration_min.setRange(0,604800);self.duration_min.setDecimals(2);self.duration_min.setSpecialValueText('Không giới hạn')
+        self.duration_max=QDoubleSpinBox();self.duration_max.setRange(0,604800);self.duration_max.setDecimals(2);self.duration_max.setSpecialValueText('Không giới hạn')
+        metadata_row.addWidget(QLabel('Từ (giây)'));metadata_row.addWidget(self.duration_min)
+        metadata_row.addWidget(QLabel('Đến (giây)'));metadata_row.addWidget(self.duration_max)
+        self.short_edge=QComboBox()
+        for label,pixels in [('Mọi độ phân giải',0),('Cạnh ngắn ≥ 720px',720),('Cạnh ngắn ≥ 1080px',1080),('Cạnh ngắn ≥ 2160px',2160)]:
+            self.short_edge.addItem(label,pixels)
+        metadata_row.addWidget(self.short_edge)
+        advanced_row=QHBoxLayout();layout.addLayout(advanced_row)
+        self.codec_filter=QComboBox()
+        for name,codec in [('Mọi codec',''),('H.264','h264'),('H.265 / HEVC','hevc'),
+                           ('VP9','vp9'),('AV1','av1'),('MPEG-4','mpeg4')]:
+            self.codec_filter.addItem(name,codec)
+        advanced_row.addWidget(QLabel('Codec'));advanced_row.addWidget(self.codec_filter)
+        self.fps_min=QDoubleSpinBox();self.fps_max=QDoubleSpinBox()
+        for spin in (self.fps_min,self.fps_max):
+            spin.setRange(0,240);spin.setDecimals(2);spin.setSpecialValueText('Bất kỳ')
+        advanced_row.addWidget(QLabel('FPS từ'));advanced_row.addWidget(self.fps_min)
+        advanced_row.addWidget(QLabel('FPS đến'));advanced_row.addWidget(self.fps_max)
+        self.bitrate_min=QSpinBox();self.bitrate_max=QSpinBox()
+        for spin in (self.bitrate_min,self.bitrate_max):
+            spin.setRange(0,1000000);spin.setSpecialValueText('Bất kỳ')
+        advanced_row.addWidget(QLabel('Video kb/s từ'));advanced_row.addWidget(self.bitrate_min)
+        advanced_row.addWidget(QLabel('Đến'));advanced_row.addWidget(self.bitrate_max)
+        buttons(layout,host,[('Chọn mục đang hiện',lambda:self.check_visible('all')),('Bỏ chọn đang hiện',lambda:self.check_visible('none')),('Đảo chọn đang hiện',lambda:self.check_visible('invert'))])
         self.tree=QTreeWidget();self.tree.setHeaderLabels(['Kênh / video','Số tệp']);layout.addWidget(self.tree,1)
-        self.summary=QLabel('Preset lấy từ editor hiện tại; loại folder khỏi danh sách không xóa dữ liệu.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        self.search.textChanged.connect(lambda _:self.filter_batch())
+        self.format_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
+        for spin in (self.duration_min,self.duration_max):
+            spin.valueChanged.connect(lambda _:self.filter_batch())
+        self.short_edge.currentIndexChanged.connect(lambda _:self.filter_batch())
+        self.codec_filter.currentIndexChanged.connect(lambda _:self.filter_batch())
+        for spin in (self.fps_min,self.fps_max,self.bitrate_min,self.bitrate_max):
+            spin.valueChanged.connect(lambda _:self.filter_batch())
+        self.tree.itemChanged.connect(self.selection_changed)
+        self.summary=QLabel('Preset lấy từ editor hiện tại; lọc không xóa nguồn hoặc bỏ chọn tệp ẩn.');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        self.folder.textChanged.connect(lambda _:self.source_changed())
+        self.extra_roots.textChanged.connect(self.source_changed)
+        for field in (self.audio,self.audio_folder):
+            field.textChanged.connect(lambda _:self.invalidate_plan())
+        self.audio_playlist.textChanged.connect(self.invalidate_plan)
+        self.audio_playlist_pick.clicked.connect(lambda _checked=False:self.select_audio_playlist())
+        self.audio_playlist_clear.clicked.connect(lambda _checked=False:self.clear_audio_playlist())
+        self.audio_mode.currentIndexChanged.connect(self.audio_mode_changed)
+        self.policy.currentIndexChanged.connect(lambda _:self.invalidate_plan())
+        self.update_playlist_controls()
+        for spin in (self.minimum,self.maximum):
+            spin.valueChanged.connect(lambda _:self.invalidate_plan())
+        self.mute.toggled.connect(lambda _:self.invalidate_plan())
+        host.editor.changed.connect(self.invalidate_plan)
+
+    def update_playlist_controls(self):
+        active=self.audio_mode.currentData()=='playlist'
+        for widget in (self.audio_playlist_label,self.audio_playlist,
+                       self.audio_playlist_pick,self.audio_playlist_clear,
+                       self.audio_playlist_hint):
+            widget.setVisible(active)
+            widget.setEnabled(active)
+
+    def audio_mode_changed(self,*_ignored):
+        self.invalidate_plan()
+        self.update_playlist_controls()
+
+    def select_audio_playlist(self):
+        patterns=' '.join('*'+extension for extension in sorted(AUDIO_EXTENSIONS))
+        selected,_=QFileDialog.getOpenFileNames(
+            self,'Chọn audio cho playlist','',
+            'Audio files ('+patterns+');;All files (*)')
+        if not selected:
+            return
+        existing=self.audio_playlist.toPlainText()
+        entries=existing.splitlines() if existing else []
+        entries.extend(os.path.abspath(path) for path in selected)
+        self.audio_playlist.setPlainText('\n'.join(entries))
+
+    def clear_audio_playlist(self):
+        self.audio_playlist.clear()
+
+    def invalidate_plan(self):
+        self._plan_revision+=1
+        self.plan_failures=[]
+        if self.plans:
+            self.plans=[]
+            self.summary.setText('Đã thay đổi nguồn hoặc preset: bản dry-run cũ bị hủy. Hãy lập kế hoạch lại trước khi preview/render.')
+
+    def add_scan_root(self):
+        path=QFileDialog.getExistingDirectory(self,'Thêm thư mục nguồn')
+        if not path:return
+        existing=[line.strip() for line in self.extra_roots.toPlainText().splitlines() if line.strip()]
+        if path not in existing:
+            self.extra_roots.setPlainText('\n'.join([*existing,path]))
+
+    def source_changed(self):
+        # Source edits invalidate both pending scans and selections. Editing
+        # audio only invalidates a dry-run, not the separate source scan.
+        self._scan_revision+=1
+        self.invalidate_plan()
+        self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False
+        self.groups={}
+        self.tree.blockSignals(True);self.tree.clear();self.tree.blockSignals(False)
+        self.summary.setText('Danh sách folder đã đổi: cần quét lại nguồn.')
 
     def scan(self):
-        self.host.background(lambda p,c:scan_folders(Path(self.folder.text())),self.scanned)
+        roots=[value for value in [self.folder.text().strip(),
+             *[line.strip() for line in self.extra_roots.toPlainText().splitlines()]]
+             if value]
+        if not roots:raise ValueError('Chọn ít nhất một thư mục nguồn để quét')
+        self.source_changed()
+        revision=self._scan_revision
+        self.summary.setText('Đang quét các thư mục nguồn mới; danh sách cũ đã hủy.')
+        self.host.background(lambda p,c:scan_multiple_folders(roots),
+            lambda groups:self.scanned(groups) if revision==self._scan_revision
+            else self.host.message('Bỏ kết quả quét cũ vì danh sách folder đã thay đổi'))
     def scanned(self,groups):
-        self.groups=groups;self.tree.clear()
+        # A new accepted scan must also invalidate any older FFprobe callback.
+        self._scan_revision+=1
+        self.invalidate_plan()
+        self.media_metadata=None;self.media_metadata_errors={};self._metadata_loading=False
+        self.groups=groups
+        self.tree.blockSignals(True)
+        self.tree.clear()
         for channel,files in groups.items():
             parent=QTreeWidgetItem([channel,str(len(files))]);parent.setFlags(parent.flags()|Qt.ItemFlag.ItemIsUserCheckable|Qt.ItemFlag.ItemIsAutoTristate);parent.setCheckState(0,Qt.CheckState.Checked);self.tree.addTopLevelItem(parent)
             for file in files:
                 child=QTreeWidgetItem([file,'']);child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable);child.setCheckState(0,Qt.CheckState.Checked);parent.addChild(child)
+        self.tree.blockSignals(False)
+        self.filter_batch()
+
+    def metadata_filter_active(self):
+        return bool(self.duration_min.value() or self.duration_max.value()
+                    or self.short_edge.currentData() or self.codec_filter.currentData()
+                    or self.fps_min.value() or self.fps_max.value()
+                    or self.bitrate_min.value() or self.bitrate_max.value())
+
+    def metadata_range_error(self):
+        if self.duration_max.value() and self.duration_max.value()<self.duration_min.value():
+            return 'Khoảng thời lượng không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        if self.fps_max.value() and self.fps_max.value()<self.fps_min.value():
+            return 'Khoảng FPS không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        if self.bitrate_max.value() and self.bitrate_max.value()<self.bitrate_min.value():
+            return 'Khoảng bitrate không hợp lệ: giới hạn đến phải ≥ giới hạn từ'
+        return ''
+
+    def request_metadata(self):
+        if self.media_metadata is not None or self._metadata_loading or not self.groups:
+            return
+        revision=self._scan_revision
+        groups={channel:list(paths) for channel,paths in self.groups.items()}
+        self._metadata_loading=True
+        self.host.background(lambda progress,cancel:probe_batch_metadata(groups,progress,cancel),
+            lambda result:self.metadata_scanned(result) if revision==self._scan_revision
+            else self.host.message('Bỏ kết quả FFprobe cũ vì nguồn video đã thay đổi'))
+
+    def metadata_scanned(self,result):
+        self._metadata_loading=False
+        if result.get('cancelled'):
+            self.summary.setText('Quét FFprobe bị hủy; bộ lọc metadata chưa được áp dụng.')
+            return
+        self.media_metadata=result['media']
+        self.media_metadata_errors=result['errors']
+        self.filter_batch()
+
+    def filter_batch(self):
+        needle=self.search.text().strip().casefold()
+        extension=self.format_filter.currentData() or ''
+        minimum_duration=self.duration_min.value()
+        maximum_duration=self.duration_max.value()
+        minimum_side=self.short_edge.currentData() or 0
+        codec=self.codec_filter.currentData() or ''
+        minimum_fps=self.fps_min.value()
+        maximum_fps=self.fps_max.value()
+        minimum_bitrate=self.bitrate_min.value()
+        maximum_bitrate=self.bitrate_max.value()
+        invalid_error=self.metadata_range_error()
+        metadata_active=self.metadata_filter_active()
+        if metadata_active and not invalid_error:
+            self.request_metadata()
+        for i in range(self.tree.topLevelItemCount()):
+            parent=self.tree.topLevelItem(i)
+            channel_match=bool(needle) and needle in parent.text(0).casefold()
+            visible=0
+            for j in range(parent.childCount()):
+                child=parent.child(j)
+                matches_text=not needle or channel_match or needle in child.text(0).casefold()
+                matches_type=not extension or Path(child.text(0)).suffix.casefold()==extension
+                matches_metadata=True
+                if metadata_active and not invalid_error and self.media_metadata is not None:
+                    info=self.media_metadata.get(str(Path(child.text(0)).resolve()))
+                    if info is None:
+                        matches_metadata=False
+                    else:
+                        fps=info.get('fps')
+                        bitrate=info.get('video_bitrate_kbps')
+                        matches_metadata=(
+                            (not minimum_duration or info['duration']>=minimum_duration)
+                            and (not maximum_duration or info['duration']<=maximum_duration)
+                            and (not minimum_side or min(info['width'],info['height'])>=minimum_side)
+                            and (not codec or info.get('codec')==codec)
+                            and (not minimum_fps or fps is not None and fps>=minimum_fps)
+                            and (not maximum_fps or fps is not None and fps<=maximum_fps)
+                            and (not minimum_bitrate or bitrate is not None and bitrate>=minimum_bitrate)
+                            and (not maximum_bitrate or bitrate is not None and bitrate<=maximum_bitrate)
+                        )
+                child.setHidden(not (matches_text and matches_type and matches_metadata))
+                visible+=not child.isHidden()
+            parent.setHidden(not bool(visible))
+        self.update_selection_summary()
+        if invalid_error:
+            self.summary.setText(invalid_error+'; chưa áp dụng lọc metadata.')
+
+    def update_selection_summary(self):
+        chosen=sum(len(paths) for paths in self.selected().values())
+        total=sum(parent.childCount() for parent in (
+            self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())))
+        visible=sum(1 for i in range(self.tree.topLevelItemCount())
+            for parent in [self.tree.topLevelItem(i)] if not parent.isHidden()
+            for j in range(parent.childCount()) if not parent.child(j).isHidden())
+        note=''
+        if self.metadata_filter_active():
+            if self._metadata_loading:
+                note=' • Đang đọc FFprobe; lọc metadata CHƯA áp dụng.'
+            elif self.media_metadata is None:
+                note=' • Chưa có metadata; bộ lọc chưa áp dụng.'
+            elif self.media_metadata_errors:
+                note=f' • {len(self.media_metadata_errors)} video không đọc được metadata (ẩn khi lọc).'
+        self.summary.setText(f'{chosen}/{total} video đã chọn • {visible} mục đang hiển thị. Lọc chỉ ẩn, không bỏ chọn tệp. Đổi checkbox thì cần lập kế hoạch lại.{note}')
+
+    def selection_changed(self,item,column):
+        if column!=0:return
+        self.invalidate_plan()
+        self.update_selection_summary()
+
+    def check_visible(self,mode):
+        if mode not in {'all','none','invert'}:raise ValueError('Unsupported batch selection')
+        self.tree.blockSignals(True)
+        for i in range(self.tree.topLevelItemCount()):
+            parent=self.tree.topLevelItem(i)
+            if parent.isHidden():continue
+            for j in range(parent.childCount()):
+                child=parent.child(j)
+                if child.isHidden():continue
+                current=child.checkState(0)==Qt.CheckState.Checked
+                checked=True if mode=='all' else False if mode=='none' else not current
+                child.setCheckState(0,Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+        self.tree.blockSignals(False)
+        self.selection_changed(None,0)
+
     def selected(self):
         result={}
         for index in range(self.tree.topLevelItemCount()):
@@ -271,12 +1150,50 @@ class BatchPage(QWidget):
             if files:result[parent.text(0)]=files
         return result
     def plan(self):
+        error=self.metadata_range_error()
+        if error:
+            raise ValueError(error)
+        if self.metadata_filter_active() and self.media_metadata is None:
+            self.request_metadata()
+            raise ValueError('Đang chờ đọc metadata FFprobe trước khi lập kế hoạch; bộ lọc chưa áp dụng')
         groups=self.selected()
         if not groups:raise ValueError('Quét/chọn folder trước')
+        self.invalidate_plan()
+        revision=self._plan_revision
+        self.summary.setText('Đang lập kế hoạch mới; không chạy lại snapshot cũ.')
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
-        self.host.background(lambda p,c:batch_plan(groups,preset,audio,policy,minimum,maximum),self.planned)
-    def planned(self,plans):self.plans=plans;self.summary.setText(f'{len(plans)} đầu ra. '+ '\n'.join(p['output'] for p in plans[:4]))
+        audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
+        playlist_paths=(self.audio_playlist.toPlainText().splitlines()
+                        if audio_mode=='playlist' else None)
+        self.host.background(lambda p,c:batch_plan_report(groups,preset,audio,policy,minimum,maximum,
+                            audio_mode=audio_mode,audio_folder=audio_folder,
+                            playlist_paths=playlist_paths,progress=p,cancel=c),
+                            lambda report:self.planned(report) if revision==self._plan_revision
+                            else self.host.message('Đã bỏ bản dry-run cũ do cấu hình thay đổi trong lúc tính'))
+    def planned(self,report):
+        if isinstance(report,dict) and report.get('cancelled'):
+            # A canceled worker must never offer the subset it prepared for
+            # Preview/Enqueue; normal revision guards also reject stale workers.
+            self.plans=[];self.plan_failures=[]
+            self.summary.setText('Đã hủy lập kế hoạch Batch; không có bản kế hoạch được phép chạy.')
+            return
+        # Legacy list results are accepted for caller compatibility; the Batch
+        # worker now returns both valid plans and explicit per-video failures.
+        plans=report['plans'] if isinstance(report,dict) else report
+        self.plan_failures=report.get('failures',[]) if isinstance(report,dict) else []
+        self.plans=plans
+        preview='\n'.join(p['output']+(' • audio: '+p['audio_source'] if p.get('audio_source') else ' • audio: preset/gốc') for p in plans[:4])
+        skipped=''
+        if self.plan_failures:
+            detail=', '.join(Path(f['source']).name+' ('+f['reason']+')'
+                             for f in self.plan_failures[:3])
+            skipped=f' • Bỏ qua {len(self.plan_failures)} video lỗi: {detail}'
+            if len(self.plan_failures)>3:skipped+=' ...'
+        if not plans:
+            self.summary.setText('Không có video hợp lệ để lập kế hoạch.'+skipped)
+        else:
+            self.summary.setText(f'{len(plans)} đầu ra.'+skipped+'\n'+preview)
     def preview(self):
         if not self.plans:raise ValueError('Lập kế hoạch trước')
         self.host.preview_composition(Composition.from_dict(self.plans[0]['composition']))
@@ -308,69 +1225,575 @@ class MatrixModel(QAbstractTableModel):
         if 0<index.column()<=len(self.scenes) and (index.row(),index.column()) not in self.locked:flags|=Qt.ItemFlag.ItemIsEditable
         return flags
     def setData(self,index,value,role=Qt.ItemDataRole.EditRole):
-        if role!=Qt.ItemDataRole.EditRole:return False
+        if (role!=Qt.ItemDataRole.EditRole or not index.isValid()
+                or not (0<=index.row()<len(self.rows))
+                or not (1<=index.column()<=len(self.scenes))
+                or (index.row(),index.column()) in self.locked):
+            return False
         try:
-            number=int(str(value).upper().removeprefix('G'));angle=next(a for a in self.scenes[index.column()-1] if a.index==number)
-            old=self.rows[index.row()][index.column()-1];self.rows[index.row()][index.column()-1]=angle
-            if not self.page.valid_rows():self.rows[index.row()][index.column()-1]=old;raise ValueError('Thay góc vi phạm unique/W/K/history')
-            self.dataChanged.emit(index,index);return True
-        except (ValueError,StopIteration) as exc:self.page.host.message(str(exc));return False
+            number=int(str(value).upper().removeprefix('G'))
+            angle=next(a for a in self.scenes[index.column()-1] if a.index==number)
+            old=self.rows[index.row()][index.column()-1]
+            self.rows[index.row()][index.column()-1]=angle
+            if not self.page.valid_rows():
+                self.rows[index.row()][index.column()-1]=old
+                raise ValueError('Thay góc vi phạm unique/W/K/history')
+            # Formula column depends on every scene cell: refresh together.
+            self.page.matrix_options_changed()
+            self.dataChanged.emit(index,self.index(index.row(),len(self.scenes)+1))
+            return True
+        except (ValueError,StopIteration) as exc:
+            self.page.host.message(str(exc))
+            return False
     def replace(self,scenes,rows):
         self.beginResetModel();self.scenes=scenes;self.rows=rows;self.locked=set();self.endResetModel()
 
 
 class MatrixPage(QWidget):
     def __init__(self,host):
-        super().__init__();self.host=host;self.scenes=[];self.old_history=[];layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
+        super().__init__();self.host=host;self.scenes=[];self.old_history=[];self._matrix_revision=0;self._enqueue_task=None;self._scene_list_updating=False;self._history_reordered=False;self._available_scenes=[];self._scene_filter_updating=False;self._pin_by_folder={};self._pinned_columns=set();layout=QVBoxLayout(self);form=QFormLayout();layout.addLayout(form)
         self.folder=file_row(form,'Folder chứa C1…Cn',host,True);self.audio=file_row(form,'Âm thanh chính',host);self.output=file_row(form,'Thư mục xuất',host,True)
         self.count=QSpinBox();self.count.setRange(1,100000);self.count.setValue(10);form.addRow('Số đầu ra',self.count)
         self.window=QSpinBox();self.window.setRange(0,10000);form.addRow('W — không lặp góc trong số video trước',self.window)
         self.different=QSpinBox();self.different.setRange(0,1000);form.addRow('K — số cảnh khác tối thiểu',self.different)
         self.compare=QCheckBox('K so với mọi hàng trong W (mặc định: hàng trước)');form.addRow(self.compare)
         self.seed=QSpinBox();self.seed.setRange(0,2147483647);form.addRow('Seed',self.seed)
-        self.allocation=QComboBox();self.allocation.addItems(['proportional','equal']);form.addRow('Chia thời lượng',self.allocation)
-        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Preview hàng',self.preview),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        self.allocation=QComboBox();self.allocation.addItems(['proportional','equal','weights','manual']);form.addRow('Chia thời lượng',self.allocation)
+        self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min (ma trận)',self.minimum)
+        self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max (ma trận)',self.maximum)
+        self.scene_weights=QLineEdit();self.scene_weights.setPlaceholderText('Trọng số từng cảnh, ví dụ: 1,2,1');form.addRow('Trọng số cảnh (nếu chọn weights)',self.scene_weights)
+        self.scene_durations=QLineEdit();self.scene_durations.setPlaceholderText('Thời lượng mỗi cảnh (s), ví dụ: 2.5,4,3');form.addRow('Giây/cảnh (nếu chọn manual)',self.scene_durations)
+        buttons(layout,host,[('Quét / sinh ma trận',self.generate),('Khóa / mở ô',self.lock),('Tạo lại hàng chọn',self.regenerate),('Preview hàng',self.preview),('Thống kê góc',self.statistics),('Xuất CSV',self.csv),('Render ma trận',self.enqueue),('Preview đổi tên C/G',self.rename_preview),('Hoàn tác / phục hồi đổi tên',self.undo_rename)])
+        layout.addWidget(QLabel('Chọn cảnh/góc (quét trước, bỏ chọn cảnh để loại khỏi *lần sinh mới*; không xóa media). Khóa một góc áp dụng cho mọi hàng mới.'))
+        buttons(layout,host,[('Quét cảnh/góc để chọn',self.scan_scene_choices),
+                             ('Khóa góc đã chọn',self.pin_selected_angle),
+                             ('Mở khóa góc cảnh',self.unpin_selected_scene)])
+        self.scene_filter=QTreeWidget();self.scene_filter.setHeaderLabels(['Cảnh / góc nguồn','Khóa toàn cảnh'])
+        self.scene_filter.setMaximumHeight(195);layout.addWidget(self.scene_filter)
+        layout.addWidget(QLabel('Thứ tự cảnh (kéo để đổi, hoặc chọn cảnh rồi dùng Lên/Xuống). C là vị trí logic; tên folder và tệp gốc không đổi.'))
+        self.scene_list=QListWidget();self.scene_list.setMaximumHeight(140)
+        self.scene_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.scene_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.scene_list.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.scene_list.setDropIndicatorShown(True)
+        layout.addWidget(self.scene_list)
+        buttons(layout,host,[('Cảnh lên',lambda:self.move_scene(-1)),('Cảnh xuống',lambda:self.move_scene(1))])
         self.table=QTableView();self.model=MatrixModel(self);self.table.setModel(self.model);self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);layout.addWidget(self.table,1)
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
+        self.scene_list.model().rowsMoved.connect(lambda *_:self.scene_list_reordered())
+        self.scene_filter.itemChanged.connect(lambda *_:self.scene_filters_changed())
+        self.folder.textChanged.connect(lambda _:self.source_folder_changed())
+        for widget in (self.audio,self.output,self.scene_weights,self.scene_durations):
+            widget.textChanged.connect(lambda _text:self.matrix_options_changed())
+        for widget in (self.count,self.window,self.different,self.seed,
+                       self.minimum,self.maximum):
+            widget.valueChanged.connect(lambda _value:self.matrix_options_changed())
+        self.compare.toggled.connect(lambda _checked:self.matrix_options_changed())
+        self.allocation.currentIndexChanged.connect(lambda _index:self.matrix_options_changed())
+        self.host.editor.changed.connect(self.matrix_options_changed)
+
+    def revoke_pending_enqueue(self):
+        # Cancellation is cooperative: if SQLite has already committed, the
+        # resulting job IDs remain valid and the callback must report that.
+        task=self._enqueue_task
+        if task is not None and task in self.host.tasks:
+            task.cancel.set()
+
+    def matrix_options_changed(self):
+        # Revision changes revoke stale previews, regenerations AND queue
+        # preparation; immutable jobs committed earlier are never deleted.
+        self._matrix_revision+=1
+        self.revoke_pending_enqueue()
+
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
+
+    def scene_order_key(self):
+        root=str(Path(self.folder.text()).expanduser().resolve())
+        return 'matrix_scene_order_v1:'+hashlib.sha256(root.encode()).hexdigest()
+
+
+    def scene_filter_key(self):
+        root=str(Path(self.folder.text()).expanduser().resolve())
+        return 'matrix_scene_filter_v1:'+hashlib.sha256(root.encode()).hexdigest()
+
+    def _scene_choice_snapshot(self):
+        if not self._available_scenes:
+            return None
+        choices={}
+        for index in range(self.scene_filter.topLevelItemCount()):
+            parent=self.scene_filter.topLevelItem(index)
+            folder=parent.data(0,Qt.ItemDataRole.UserRole)
+            if type(folder) is not str or folder in choices:
+                raise ValueError('Danh sách cảnh được chọn không hợp lệ')
+            angles=[parent.child(j).data(0,Qt.ItemDataRole.UserRole)
+                    for j in range(parent.childCount())
+                    if parent.child(j).checkState(0)==Qt.CheckState.Checked]
+            choices[folder]={'enabled':parent.checkState(0)==Qt.CheckState.Checked,
+                             'angles':angles,'pin':self._pin_by_folder.get(folder)}
+        # Validate before publishing/saving any source selection. Explicitly
+        # exclude unchecked scenes; an active scene with zero angles is an error.
+        select_matrix_scenes(self._available_scenes,choices)
+        return choices
+
+    def refresh_pin_indicators(self):
+        self._scene_filter_updating=True
+        try:
+            for index in range(self.scene_filter.topLevelItemCount()):
+                parent=self.scene_filter.topLevelItem(index)
+                folder=parent.data(0,Qt.ItemDataRole.UserRole)
+                pin=self._pin_by_folder.get(folder)
+                for j in range(parent.childCount()):
+                    child=parent.child(j)
+                    is_pin=child.data(0,Qt.ItemDataRole.UserRole)==pin
+                    child.setText(1,('📌 Khóa toàn cảnh' if child.checkState(0)==Qt.CheckState.Checked
+                                     else '📌 Chưa được chọn') if is_pin else '')
+        finally:
+            self._scene_filter_updating=False
+
+    def fill_scene_choices(self,scenes,restore=True):
+        manifest=scene_manifest(scenes)
+        folders=scene_directories(scenes)
+        defaults={folder:{'enabled':True,'angles':[angle.hash for angle in scene],'pin':None}
+                  for folder,scene in zip(folders,scenes)}
+        values=defaults
+        if restore:
+            saved=self.host.store.setting(self.scene_filter_key(),None)
+            if type(saved) is dict and saved.get('version')==1:
+                if saved.get('manifest')==manifest:
+                    try:
+                        select_matrix_scenes(scenes,saved.get('choices'))
+                    except (TypeError,ValueError):
+                        self.host.message('Bỏ lựa chọn cảnh/góc lưu lỗi; tất cả được chọn mặc định')
+                    else:
+                        values=saved['choices']
+                else:
+                    self.host.message('Nguồn cảnh/góc đã thay đổi; không áp dụng lựa chọn cũ')
+        self._scene_filter_updating=True
+        try:
+            self._available_scenes=[list(scene) for scene in scenes]
+            self._pin_by_folder={folder:entry['pin'] for folder,entry in values.items()
+                                 if entry['pin'] is not None}
+            self.scene_filter.clear()
+            for folder,scene in zip(folders,scenes):
+                parent=QTreeWidgetItem([Path(folder).name+' • '+str(len(scene))+' góc',''])
+                parent.setData(0,Qt.ItemDataRole.UserRole,folder)
+                parent.setToolTip(0,folder)
+                parent.setFlags(parent.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                parent.setCheckState(0,Qt.CheckState.Checked if values[folder]['enabled']
+                                     else Qt.CheckState.Unchecked)
+                self.scene_filter.addTopLevelItem(parent)
+                for angle in scene:
+                    child=QTreeWidgetItem([f'G{angle.index} • {Path(angle.path).name}',''])
+                    child.setData(0,Qt.ItemDataRole.UserRole,angle.hash)
+                    child.setToolTip(0,angle.path)
+                    child.setFlags(child.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                    child.setCheckState(0,Qt.CheckState.Checked if angle.hash in values[folder]['angles']
+                                        else Qt.CheckState.Unchecked)
+                    parent.addChild(child)
+                parent.setExpanded(True)
+        finally:
+            self._scene_filter_updating=False
+        self.refresh_pin_indicators()
+
+    def scene_filters_changed(self):
+        if self._scene_filter_updating:return
+        # Never let a prior row snapshot render after source/angle selection
+        # changes. The queued jobs are independent and remain unchanged.
+        self.matrix_options_changed()
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set()
+        self.model.replace([],[]);self.refresh_scene_list()
+        self.refresh_pin_indicators()
+        self.summary.setText('Lựa chọn cảnh/góc đã đổi; sinh lại ma trận để dùng cấu hình mới (không xóa file nguồn).')
+
+    def scan_scene_choices(self):
+        if not self.folder.text().strip():
+            raise ValueError('Chọn thư mục chứa cảnh trước')
+        self.matrix_options_changed()
+        revision=self._matrix_revision;folder=Path(self.folder.text())
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
+        self._scene_filter_updating=True
+        try:self.scene_filter.clear()
+        finally:self._scene_filter_updating=False
+        self.model.replace([],[]);self.refresh_scene_list()
+        self.summary.setText('Đang đọc tên/ID/hash của các cảnh để chọn góc...')
+        def done(scenes):
+            if (revision!=self._matrix_revision or
+                    str(Path(self.folder.text()).resolve())!=str(folder.resolve())):
+                self.host.message('Bỏ kết quả quét cảnh cũ do nguồn/cấu hình thay đổi')
+                return
+            self.fill_scene_choices(scenes)
+            self.summary.setText('Chọn/bỏ cảnh hoặc góc, có thể khóa một G cho mọi hàng mới. Sau đó bấm Quét / sinh ma trận.')
+        self.host.background(lambda progress,cancel:scan_scenes(folder),done)
+
+    def pin_selected_angle(self):
+        item=self.scene_filter.currentItem()
+        if item is None or item.parent() is None:
+            raise ValueError('Chọn một góc G thuộc cảnh đã quét để khóa')
+        parent=item.parent()
+        if (parent.checkState(0)!=Qt.CheckState.Checked
+                or item.checkState(0)!=Qt.CheckState.Checked):
+            raise ValueError('Chỉ khóa được góc đang chọn trong cảnh đã bật')
+        folder=parent.data(0,Qt.ItemDataRole.UserRole)
+        digest=item.data(0,Qt.ItemDataRole.UserRole)
+        self._pin_by_folder[folder]=digest
+        self.scene_filters_changed()
+
+    def unpin_selected_scene(self):
+        item=self.scene_filter.currentItem()
+        if item is None:
+            raise ValueError('Chọn cảnh hoặc một góc trong cảnh để mở khóa')
+        parent=item.parent() or item
+        folder=parent.data(0,Qt.ItemDataRole.UserRole)
+        if folder in self._pin_by_folder:
+            del self._pin_by_folder[folder]
+            self.scene_filters_changed()
+
+    def source_folder_changed(self):
+        # A newly typed source must never retain rows, locks or async results
+        # from a different root; no media or matrix history is deleted.
+        self.matrix_options_changed()
+        self.scenes=[];self.old_history=[];self._history_reordered=False
+        self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={}
+        self._scene_filter_updating=True
+        try:self.scene_filter.clear()
+        finally:self._scene_filter_updating=False
+        self.model.replace([],[])
+        self.refresh_scene_list()
+        self.summary.setText('Đã đổi nguồn cảnh; quét/sinh lại trước khi preview hoặc render.')
+
+    def refresh_scene_list(self,selected=None):
+        self._scene_list_updating=True
+        try:
+            self.scene_list.clear()
+            for index,(folder,scene) in enumerate(zip(scene_directories(self.scenes),self.scenes)):
+                item=QListWidgetItem(f'C{index+1} ← {Path(folder).name} • {len(scene)} góc')
+                item.setData(Qt.ItemDataRole.UserRole,folder)
+                item.setToolTip(folder)
+                self.scene_list.addItem(item)
+                if selected==folder:self.scene_list.setCurrentItem(item)
+        finally:
+            self._scene_list_updating=False
+
+    def _reordered_vector(self,field,order,description):
+        value=field.text().strip()
+        if not value:return ''
+        parts=[piece.strip() for piece in value.split(',')]
+        if (len(parts)!=len(order) or any(not piece for piece in parts)):
+            raise ValueError(description+' cần đúng một số cho mỗi cảnh trước khi đổi thứ tự')
+        try:
+            numbers=[float(piece) for piece in parts]
+        except ValueError:
+            raise ValueError(description+' chứa số không hợp lệ') from None
+        if any(not math.isfinite(number) or number<=0 for number in numbers):
+            raise ValueError(description+' chỉ chấp nhận số dương hữu hạn')
+        return ','.join(parts[index] for index in order)
+
+    def apply_scene_order(self,order,selected=None):
+        if not self.scenes:raise ValueError('Quét và sinh ma trận trước khi đổi cảnh')
+        before=scene_directories(self.scenes)
+        if list(order)==list(range(len(before))):
+            self.refresh_scene_list(selected)
+            return False
+        weights=self._reordered_vector(self.scene_weights,order,'Trọng số cảnh')
+        durations=self._reordered_vector(self.scene_durations,order,'Thời lượng cảnh')
+        transformed=reorder_matrix_scenes(
+            self.scenes,self.model.rows,self.model.locked,self.old_history,order,
+            self.window.value(),self.different.value(),self.compare.isChecked(),
+            all_scenes=self._available_scenes if self._history_reordered and self._available_scenes else None)
+        current=normalize_matrix_history(
+            self.scenes,history(self.host.store,self.scope()),
+            all_scenes=self._available_scenes if self._history_reordered and self._available_scenes else None)
+        if current!=self.old_history:
+            raise ValueError('Lịch sử ma trận đã thay đổi hoặc không cùng thứ tự; sinh lại trước')
+        ordered=[before[index] for index in order]
+        selected_row=self.table.currentIndex().row()
+        # A failed settings write must not publish partially moved rows/locks.
+        self.host.store.set_setting(self.scene_order_key(),ordered)
+        self.matrix_options_changed()
+        self.scenes=transformed['scenes'];self.old_history=transformed['history']
+        self._history_reordered=True
+        self.model.replace(self.scenes,transformed['rows'])
+        self.model.locked=transformed['locked']
+        self._pinned_columns={order.index(column-1)+1 for column in self._pinned_columns}
+        if 0<=selected_row<len(self.model.rows):
+            self.table.selectRow(selected_row)
+        self.table.viewport().update()
+        self.scene_weights.setText(weights)
+        self.scene_durations.setText(durations)
+        self.refresh_scene_list(selected)
+        self.summary.setText('Đã đổi thứ tự cảnh logic; mỗi góc/ô khóa/giây cảnh giữ đúng nguồn. Job cũ không đổi; Preview/Render mới sẽ dùng thứ tự này.')
+        return True
+
+    def move_scene(self,direction):
+        index=self.scene_list.currentRow()
+        target=index+direction
+        if index<0 or not 0<=target<len(self.scenes):
+            raise ValueError('Chọn cảnh có thể chuyển lên hoặc xuống')
+        current=scene_directories(self.scenes)
+        order=list(range(len(current)))
+        order[index],order[target]=order[target],order[index]
+        return self.apply_scene_order(order,selected=current[index])
+
+    def scene_list_reordered(self):
+        if self._scene_list_updating or not self.scenes:return
+        before=scene_directories(self.scenes)
+        selected=self.scene_list.currentItem()
+        selected_key=selected.data(Qt.ItemDataRole.UserRole) if selected is not None else None
+        try:
+            requested=[self.scene_list.item(i).data(Qt.ItemDataRole.UserRole)
+                       for i in range(self.scene_list.count())]
+            order=[before.index(key) for key in requested]
+            self.apply_scene_order(order,selected_key)
+        except (ValueError,OSError) as exc:
+            self.refresh_scene_list(selected_key)
+            self.host.message('Không đổi thứ tự cảnh: '+str(exc))
+
     def generate(self):
-        folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value();w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
-        self.old_history=history(self.host.store,self.scope())
-        locks={}
+        if not self.folder.text().strip():
+            raise ValueError('Chọn thư mục chứa cảnh trước khi sinh ma trận')
+        # Qt tree is read on the UI thread. The worker only receives immutable
+        # value snapshots and rescans the actual files before using them.
+        choices=self._scene_choice_snapshot() if self._available_scenes else None
+        manifest=scene_manifest(self._available_scenes) if choices is not None else None
+        self.matrix_options_changed()
+        folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value()
+        w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
+        scope=self.scope();revision=self._matrix_revision
+        saved=self.host.store.setting(self.scene_order_key(),[])
+        cell_locks={}
         for row,col in self.model.locked:
-            if col>0 and col<=len(self.model.scenes):locks.setdefault(row,{})[col-1]=self.model.rows[row][col-1].hash
-        old=self.old_history
+            if col>0 and col<=len(self.model.scenes):
+                cell_locks.setdefault(row,{})[col-1]=self.model.rows[row][col-1].hash
+        if choices is not None:
+            # Save only valid user intent together with its exact scanned
+            # fingerprint; never restore stale angle hashes after media changes.
+            self.host.store.set_setting(self.scene_filter_key(),
+                                        {'version':1,'manifest':manifest,'choices':choices})
         def work(progress,cancel):
-            scenes=scan_scenes(folder);result=generate(scenes,n,seed,w,k,compare,old,seconds=10,locks=locks,cancel=cancel);return scenes,result
+            full=scan_scenes(folder)
+            if manifest is not None and scene_manifest(full)!=manifest:
+                raise ValueError('Danh sách cảnh/góc đã đổi trên ổ đĩa; hãy quét lại trước khi sinh')
+            if choices is not None:
+                chosen=select_matrix_scenes(full,choices)
+                scenes=chosen['scenes']
+                pinned_by_folder={chosen['folders'][index]:digest
+                                  for index,digest in chosen['pins'].items()}
+            else:
+                scenes=full;pinned_by_folder={}
+            natural=scene_directories(scenes)
+            reordered=(isinstance(saved,list) and len(saved)==len(natural)
+                       and all(type(path) is str for path in saved)
+                       and len(set(saved))==len(natural) and set(saved)==set(natural))
+            if reordered:
+                order=[natural.index(value) for value in saved]
+                scenes=reorder_matrix_scenes(scenes,[],set(),[],order)['scenes']
+            pinned={index:pinned_by_folder[folder]
+                    for index,folder in enumerate(scene_directories(scenes))
+                    if folder in pinned_by_folder}
+            # All new matrices are reconciled against the complete current
+            # source manifest, even when the user has not opened the filter
+            # panel. A prior explicitly shorter matrix in the same project
+            # is structurally incomparable; unknown hashes still fail closed.
+            previous=normalize_matrix_history(
+                scenes,history(self.host.store,scope),all_scenes=full)
+            locks=scene_generation_locks(scenes,pinned,n,w,cell_locks)
+            result=generate(scenes,n,seed,w,k,compare,previous,
+                            seconds=10,locks=locks,cancel=cancel)
+            return full,scenes,previous,True,result,pinned
         def done(data):
-            self.scenes,result=data;self.model.replace(self.scenes,result['rows']);self.summary.setText(f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}. "+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
+            if (revision!=self._matrix_revision or self.scope()!=scope
+                    or str(Path(self.folder.text()).expanduser().resolve())!=str(folder.expanduser().resolve())
+                    or (self.count.value(),self.seed.value(),self.window.value(),
+                        self.different.value(),self.compare.isChecked())!=(n,seed,w,k,compare)):
+                self.host.message('Đã bỏ ma trận sinh nền vì nguồn/cấu hình/thứ tự cảnh thay đổi')
+                return
+            full,self.scenes,self.old_history,self._history_reordered,result,pinned=data
+            if not self._available_scenes:
+                self.fill_scene_choices(full,restore=False)
+            self.model.replace(self.scenes,result['rows'])
+            self._pinned_columns={index+1 for index in pinned}
+            for row in range(len(self.model.rows)):
+                for column in self._pinned_columns:
+                    self.model.locked.add((row,column))
+            self.refresh_scene_list()
+            pinned_note=(f' • {len(pinned)} cảnh khóa góc mọi hàng.' if pinned else '')
+            self.summary.setText(
+                f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}."
+                +pinned_note+' '+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
             if not self.output.text():self.output.setText(str(folder.parent/(folder.name+' edit')))
         self.host.background(work,done)
+
     def valid_rows(self):
-        previous=list(self.old_history);used={canonical(row) for row in previous}
-        for row in self.model.rows:
-            key=combination(row)
-            if key in used or not valid_against(row,previous,self.window.value(),self.different.value(),self.compare.isChecked()):return False
-            previous.append([a.hash for a in row]);used.add(key)
-        return True
+        return matrix_rows_valid(self.model.rows,self.old_history,
+            self.window.value(),self.different.value(),self.compare.isChecked())
+
+    def regenerate(self):
+        selected=self.table.currentIndex()
+        row=selected.row() if selected.isValid() else -1
+        if row<0 or row>=len(self.model.rows):
+            raise ValueError('Chọn một hàng của ma trận để tạo lại')
+        if not self.valid_rows():
+            raise ValueError('Ma trận hiện tại vi phạm history/W/K; sinh lại trước')
+        scenes=[list(scene) for scene in self.model.scenes]
+        current=[list(item) for item in self.model.rows]
+        baseline=[combination(item) for item in current]
+        previous=[list(entry) for entry in self.old_history]
+        scope=self.scope()
+        w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
+        seed=self.seed.value();revision=self._matrix_revision;reordered=self._history_reordered
+        complete=[list(scene) for scene in self._available_scenes] if reordered and self._available_scenes else None
+        locked={column-1:current[row][column-1].hash
+                for r,column in self.model.locked
+                if r==row and 1<=column<=len(scenes)}
+        def work(progress,cancel):
+            latest=history(self.host.store,scope)
+            if reordered:latest=normalize_matrix_history(scenes,latest,all_scenes=complete)
+            if latest!=previous:
+                raise ValueError('Lịch sử đặt chỗ đã thay đổi; hãy sinh lại ma trận')
+            return regenerate_row(scenes,current,row,seed,w,k,compare,
+                                  latest,locked,seconds=5,cancel=cancel)
+        def done(result):
+            # Async worker must never overwrite edits, locks or constraints
+            # the user changed while regeneration was running.
+            if (revision!=self._matrix_revision
+                    or [combination(item) for item in self.model.rows]!=baseline
+                    or [[angle.hash for angle in scene] for scene in self.model.scenes]
+                       !=[[angle.hash for angle in scene] for scene in scenes]
+                    or self.scope()!=scope
+                    or self.old_history!=previous
+                    or (normalize_matrix_history(scenes,history(self.host.store,scope),all_scenes=complete)
+                        if reordered else history(self.host.store,scope))!=previous
+                    or (self.window.value(),self.different.value(),
+                        self.compare.isChecked(),self.seed.value())!=(w,k,compare,seed)
+                    or {column-1:self.model.rows[row][column-1].hash
+                        for r,column in self.model.locked
+                        if r==row and 1<=column<=len(scenes)}!=locked):
+                self.host.message('Ma trận/khóa đã đổi khi đang tạo lại; kết quả cũ bị bỏ')
+                return
+            self.model.rows[row]=result['row']
+            self.model.dataChanged.emit(self.model.index(row,0),
+                self.model.index(row,len(scenes)+1))
+            self.table.selectRow(row)
+            self.summary.setText(f"Đã tạo lại hàng V{row+1:04}; thử {result['attempts']} tổ hợp. Các hàng khác và ô khóa giữ nguyên; W/K đã kiểm tra toàn ma trận.")
+        self.host.background(work,done)
+
     def lock(self):
+        changed=False
         for index in self.table.selectedIndexes():
+            if not index.isValid() or not (1<=index.column()<=len(self.model.scenes)):
+                continue
             key=index.row(),index.column()
+            if index.column() in self._pinned_columns:
+                self.host.message('Góc đã khóa cho toàn cảnh: hãy mở khóa từ danh sách cảnh/góc rồi sinh lại')
+                continue
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
+            changed=True
+        if changed:self.matrix_options_changed()
         self.table.viewport().update()
+    def statistics(self):
+        if not self.model.rows:raise ValueError('Chưa có ma trận để thống kê')
+        groups=angle_usage(self.model.scenes,self.model.rows)
+        lines=['Thống kê góc trong ma trận đã lập (không phải số video đã render thành công):']
+        for group in groups:
+            lines.append(f"C{group[0]['scene']}: "+
+                '  '.join(f"G{item['angle']}={item['uses']}" for item in group))
+        self.summary.setText('\n'.join(lines))
+        return groups
+
+    def duration_weights(self):
+        if self.allocation.currentText()!='weights':
+            return None
+        values=[part.strip() for part in self.scene_weights.text().split(',')]
+        if not values or any(not part for part in values):
+            raise ValueError('Nhập trọng số cho từng cảnh, phân cách bằng dấu phẩy')
+        try:
+            weights=[float(part) for part in values]
+        except ValueError:
+            raise ValueError('Trọng số cảnh phải là số dương, dùng dấu chấm thập phân') from None
+        if len(weights)!=len(self.model.scenes):
+            raise ValueError('Số trọng số phải bằng số cảnh trong ma trận')
+        if any(not math.isfinite(value) or value<=0 for value in weights):
+            raise ValueError('Mọi trọng số cảnh phải dương và hữu hạn')
+        return weights
+
+    def duration_scene_lengths(self):
+        if self.allocation.currentText()!='manual':
+            return None
+        values=[part.strip() for part in self.scene_durations.text().split(',')]
+        if not values or any(not part for part in values):
+            raise ValueError('Nhập thời lượng giây cho mỗi cảnh, phân cách bằng dấu phẩy')
+        try:
+            lengths=[float(part) for part in values]
+        except ValueError:
+            raise ValueError('Thời lượng cảnh phải là số, dùng dấu chấm thập phân') from None
+        if len(lengths)!=len(self.model.scenes):
+            raise ValueError('Số thời lượng phải bằng số cảnh trong ma trận')
+        if any(not math.isfinite(value) or value<=0 for value in lengths):
+            raise ValueError('Mỗi thời lượng cảnh phải dương và hữu hạn')
+        return lengths
+
     def preview(self):
         row=self.table.currentIndex().row()
         if row<0:raise ValueError('Chọn một hàng')
         preset=deepcopy(self.host.editor.composition);angles=self.model.rows[row];audio=self.audio.text() or None;allocation=self.allocation.currentText()
-        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation),self.host.preview_composition)
+        weights=self.duration_weights();durations=self.duration_scene_lengths()
+        minimum,maximum=self.minimum.value(),self.maximum.value()
+        revision=self._matrix_revision
+        self.host.background(lambda p,c:row_composition(angles,preset,audio,allocation,
+            minimum=minimum,maximum=maximum,weights=weights,manual_durations=durations),
+            lambda result:self.host.preview_composition(result) if revision==self._matrix_revision
+            else self.host.message('Đã bỏ preview vì thứ tự cảnh/cấu hình thay đổi'))
     def enqueue(self):
-        if not self.model.rows or not self.valid_rows():raise ValueError('Ma trận chưa hợp lệ')
-        if not self.output.text():raise ValueError('Chọn thư mục xuất')
-        rows=deepcopy(self.model.rows);preset=deepcopy(self.host.editor.composition);scope=self.scope();root=Path(self.output.text());audio=self.audio.text() or None;allocation=self.allocation.currentText()
+        if self._enqueue_task is not None and self._enqueue_task in self.host.tasks:
+            raise ValueError('Đang chuẩn bị hàng đợi ma trận; không enqueue hai lần')
+        if not self.model.rows or not self.valid_rows():
+            raise ValueError('Ma trận chưa hợp lệ')
+        if not self.output.text():
+            raise ValueError('Chọn thư mục xuất')
+        # Take an immutable snapshot for the worker. Changes made after this
+        # point revoke its Task.cancel Event rather than mutating in-flight rows.
+        rows=deepcopy(self.model.rows)
+        preset=deepcopy(self.host.editor.composition)
+        scope=self.scope();revision=self._matrix_revision
+        root=Path(self.output.text());audio=self.audio.text() or None
+        allocation=self.allocation.currentText()
+        weights=self.duration_weights();durations=self.duration_scene_lengths()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
-        self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,window=w,different=k,compare_window=compare),lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
+        minimum,maximum=self.minimum.value(),self.maximum.value()
+        scene_order=deepcopy(self.scenes) if self._history_reordered else None
+        all_scenes=deepcopy(self._available_scenes) if scene_order is not None and self._available_scenes else None
+        def work(progress,cancel):
+            try:
+                ids=enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
+                    minimum=minimum,maximum=maximum,window=w,different=k,
+                    compare_window=compare,weights=weights,manual_durations=durations,
+                    scene_order=scene_order,all_scenes=all_scenes,
+                    progress=progress,cancel=cancel)
+                return {'ids':ids,'cancelled':False}
+            except MatrixEnqueueCancelled:
+                return {'ids':[],'cancelled':True}
+        def done(result):
+            if result['cancelled']:
+                self.host.message('Đã hủy chuẩn bị ma trận; không ghi thêm job hoặc lịch sử đặt chỗ')
+                return
+            ids=result['ids']
+            if revision!=self._matrix_revision or self.scope()!=scope:
+                self.host.message(f'Đã enqueue {len(ids)} job theo snapshot cũ; thay đổi sau commit không hủy job đã lưu')
+            else:
+                self.host.message(f'Đã enqueue {len(ids)} hàng ma trận')
+            self.host.activate_queue()
+        task=self.host.background(work,done)
+        self._enqueue_task=task
+        task.finished.connect(
+            lambda: setattr(self,'_enqueue_task',None)
+            if self._enqueue_task is task else None)
+
     def csv(self):
+        if not self.model.rows or not self.valid_rows():
+            raise ValueError('Chưa có ma trận hợp lệ để xuất CSV; hãy sinh lại sau khi chọn cảnh/góc')
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
         if path:
             with Path(path).open('w',encoding='utf-8-sig',newline='') as stream:
@@ -379,6 +1802,14 @@ class MatrixPage(QWidget):
 
     def rename_preview(self):
         if not self.scenes:raise ValueError('Quét cảnh trước')
+        if self._available_scenes:
+            active={folder:{angle.path for angle in scene}
+                    for folder,scene in zip(scene_directories(self.scenes),self.scenes)}
+            original={folder:{angle.path for angle in scene}
+                      for folder,scene in zip(scene_directories(self._available_scenes),
+                                             self._available_scenes)}
+            if active!=original:
+                raise ValueError('Đổi tên file thật yêu cầu đủ mọi cảnh/góc; hãy bật lại nguồn đã loại')
         from ..renaming import scene_rename_plan,apply_rename
         operations=scene_rename_plan(self.scenes)
         if not operations:raise ValueError('Tên C/G đã đúng')
@@ -396,7 +1827,7 @@ class MatrixPage(QWidget):
             if job['state'] in {'pending','running','blocked'} and any(clip.get('path') in paths for clip in job['payload'].get('composition',{}).get('clips',[])):raise ValueError('Nguồn còn được queue dùng; hủy/hoàn tất các job đó trước khi đổi tên')
         paused=self.host.scheduler.paused;self.host.scheduler.paused=True
         def done(result):
-            self.host.relink_renamed(result['mapping']);self.scenes=[];self.model.replace([],[]);self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
+            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self.matrix_options_changed();self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={};self._scene_filter_updating=True;self.scene_filter.clear();self._scene_filter_updating=False;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
         task=self.host.background(lambda progress,cancel:function(cancel),done)
         task.finished.connect(lambda:setattr(self.host.scheduler,'paused',paused))
 
@@ -449,9 +1880,13 @@ class QueuePage(QWidget):
 class SettingsPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;layout=QVBoxLayout(self);tabs=QTabWidget();layout.addWidget(tabs)
-        tools=QWidget();box=QVBoxLayout(tools);buttons(box,host,[('Quét lại',self.scan),('Chọn đường dẫn',self.path),('Tải / cài công cụ chọn',self.install),('Cài phần bắt buộc thiếu',self.install_missing),('Rollback',self.rollback)])
+        tools=QWidget();box=QVBoxLayout(tools);self._tool_busy={};tool_toolbar=buttons(box,host,[('Quét lại',self.scan),('Chọn đường dẫn',self.path),('Tải / cài công cụ chọn',self.install),('Cài phần bắt buộc thiếu',self.install_missing),('Rollback',self.rollback)]);self.tool_actions={action.text():action for action in tool_toolbar.actions()};self.tool_busy_label=QLabel('');self.tool_busy_label.setWordWrap(True);box.addWidget(self.tool_busy_label)
         self.tools=QTableWidget(0,4);self.tools.setHorizontalHeaderLabels(['Công cụ','Trạng thái','Phiên bản','Đường dẫn / lý do']);self.tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);box.addWidget(self.tools,1)
-        note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note);tabs.addTab(tools,'Công cụ')
+        note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note)
+        managed_note=QLabel('Phiên bản do Fonesi quản lý — chỉ gỡ được bản không active và không còn job sử dụng');managed_note.setWordWrap(True);box.addWidget(managed_note)
+        managed_toolbar=buttons(box,host,[('Làm mới phiên bản đã cài',self.refresh_managed_tools),('Gỡ bản đã chọn',self.remove_managed_tool)]);self.managed_actions={action.text():action for action in managed_toolbar.actions()}
+        self.managed_tools=QTableWidget(0,5);self.managed_tools.setHorizontalHeaderLabels(['Công cụ','Phiên bản','Active','Trạng thái sử dụng','Thư mục']);self.managed_tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.managed_tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);self.managed_tools.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows);self.managed_tools.currentCellChanged.connect(lambda *_:self._refresh_tool_action_states());box.addWidget(self.managed_tools,1);self.tools.currentCellChanged.connect(lambda *_:self._refresh_tool_action_states())
+        tabs.addTab(tools,'Công cụ')
         chrome=QWidget();box=QVBoxLayout(chrome);form=QFormLayout();box.addLayout(form)
         self.profile=QComboBox();form.addRow('Hồ sơ Chrome',self.profile);self.platform=QComboBox();self.platform.addItems(PLATFORMS);form.addRow('Nền tảng',self.platform)
         buttons(box,host,[('Tạo hồ sơ',self.create_profile),('Đổi tên hồ sơ',self.rename_profile),('Mở đăng nhập thật',self.login),('Tạo / copy mã ghép',self.pair),('Thu hồi ghép extension',self.revoke_pairing),('Làm mới trạng thái',self.refresh_profiles),('Đăng ký native host',self.register),('Mở thư mục extension',self.extension),('Tài khoản mặc định',self.default),('Quên phiên trong app',self.forget_session)])
@@ -464,6 +1899,11 @@ class SettingsPage(QWidget):
         save=QPushButton('Lưu cấu hình dịch');save.clicked.connect(host.guard(self.save_provider));form.addRow(save);tabs.addTab(provider,'Dịch / chi phí')
         resources=QWidget();form=QFormLayout(resources);self.resource_profile=QComboBox();self.resource_profile.addItems(['quiet','balanced','max']);self.resource_profile.setCurrentText(host.store.setting('resource_profile','balanced'));form.addRow('Profile tài nguyên',self.resource_profile)
         self.parallel=QSpinBox();self.parallel.setRange(1,16);self.parallel.setValue(host.store.setting('parallel',2));form.addRow('Tối đa worker',self.parallel)
+        self.cache_budget_mb=QSpinBox();self.cache_budget_mb.setRange(128,65536)
+        self.cache_budget_mb.setValue(host.store.setting('proxy_cache_limit_mb',4096))
+        self.cache_budget_mb.setSuffix(' MiB');form.addRow('Giới hạn cache proxy',self.cache_budget_mb)
+        clean=QPushButton('Dọn cache proxy an toàn');clean.clicked.connect(host.guard(lambda:host.cleanup_cache(force=True)))
+        form.addRow(clean)
         self.job_limits={};limits=host.store.setting('job_limits',{'scan':2,'download':2,'render':1,'translate':1})
         for key,label in [('scan','Quét song song'),('download','Tải song song'),('render','Edit/render song song'),('translate','Dịch song song')]:
             field=QSpinBox();field.setRange(1,16);field.setValue(limits.get(key,1));self.job_limits[key]=field;form.addRow(label,field)
@@ -472,40 +1912,181 @@ class SettingsPage(QWidget):
         self.background=QCheckBox('Đóng cửa sổ thì tiếp tục chạy nền (nếu có system tray)');self.background.setChecked(host.store.setting('background',False));form.addRow(self.background)
         save=QPushButton('Lưu tài nguyên');save.clicked.connect(host.guard(self.save_resources));form.addRow(save)
         disable=QPushButton('Tắt tất cả watcher/lịch');disable.clicked.connect(host.guard(self.clear_auto));form.addRow(disable);tabs.addTab(resources,'Tự động / máy')
-        self.refresh_profiles();self.scan();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
+        self.refresh_profiles();self.scan();self.refresh_managed_tools();self._refresh_tool_action_states();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
+
+    @staticmethod
+    def _tool_busy_key(name):
+        return 'ffmpeg' if name=='ffprobe' else name
+
+    def _tool_is_busy(self,name):
+        return self._tool_busy_key(name) in self._tool_busy
+
+    def _refresh_tool_action_states(self):
+        busy_names=sorted(self._tool_busy)
+        if busy_names:
+            self.tool_busy_label.setText(
+                'Đang tải/cài/cập nhật: '+', '.join(busy_names)+
+                '. Các thao tác chọn đường dẫn, cài lại, rollback và gỡ phiên bản cùng công cụ đang bị khóa.')
+        else:
+            self.tool_busy_label.clear()
+        try:
+            selected=self.selected_tool()
+        except (ValueError,AttributeError):
+            selected=None
+        selected_busy=bool(selected and self._tool_is_busy(selected))
+        for label in ('Chọn đường dẫn','Tải / cài công cụ chọn','Rollback'):
+            action=self.tool_actions.get(label)
+            if action is not None:
+                action.setEnabled(bool(selected) and not selected_busy)
+        missing={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
+        installable={self._tool_busy_key(name) for name in missing
+                     if name in {'ffmpeg','ffprobe','Google Chrome','node'}}
+        installable={name for name in installable if name not in self._tool_busy}
+        action=self.tool_actions.get('Cài phần bắt buộc thiếu')
+        if action is not None:
+            action.setEnabled(bool(installable))
+        row=self.managed_tools.currentRow()
+        can_remove=False
+        if row>=0 and self.managed_tools.item(row,0) is not None:
+            identity=self.managed_tools.item(row,0).data(Qt.ItemDataRole.UserRole)
+            if identity:
+                name,_version=identity
+                state=self.managed_tools.item(row,3)
+                can_remove=bool(state and state.text()=='Có thể gỡ'
+                                and not self._tool_is_busy(name))
+        action=self.managed_actions.get('Gỡ bản đã chọn')
+        if action is not None:
+            action.setEnabled(can_remove)
+
+    def _release_tool_operation(self,key,task):
+        if self._tool_busy.get(key) is task:
+            self._tool_busy.pop(key,None)
+            self._refresh_tool_action_states()
+
+    def _schedule_tool_operation(self,name,function,done):
+        key=self._tool_busy_key(name)
+        if key in self._tool_busy:
+            raise ValueError(f'{key} đang được tải/cài/cập nhật; không thể xếp thêm thao tác')
+        self._tool_busy[key]=None
+        self._refresh_tool_action_states()
+        try:
+            task=self.host.background(function,done)
+            self._tool_busy[key]=task
+            task.finished.connect(
+                lambda key=key,task=task:self._release_tool_operation(key,task),
+                Qt.ConnectionType.QueuedConnection)
+            if task.isFinished():
+                self._release_tool_operation(key,task)
+            return task
+        except Exception:
+            if self._tool_busy.get(key) is None:
+                self._tool_busy.pop(key,None)
+                self._refresh_tool_action_states()
+            raise
 
     def scan(self):self.host.background(lambda p,c:statuses(self.host.store),self.scanned)
     def scanned(self,tools):
         self.statuses=tools;self.tools.setRowCount(len(tools))
         for row,item in enumerate(tools):
             for col,text in enumerate((item.name,item.status,item.version,item.path or item.detail)):self.tools.setItem(row,col,QTableWidgetItem(text))
+        self.refresh_managed_tools()
+
+    def refresh_managed_tools(self):
+        versions=managed_tool_versions(self.host.store)
+        self.managed_tools.setRowCount(len(versions))
+        for row,item in enumerate(versions):
+            active='Có' if item['active'] else 'Không'
+            state='Đang được giữ' if item['in_use'] else 'Có thể gỡ'
+            values=(item['name'],item['version'],active,state,item['folder'] or item['path'])
+            for col,value in enumerate(values):
+                cell=QTableWidgetItem(str(value))
+                if col==0:
+                    cell.setData(Qt.ItemDataRole.UserRole,(item['name'],item['version']))
+                if col==3:
+                    cell.setToolTip(item['reason'])
+                self.managed_tools.setItem(row,col,cell)
+        self._refresh_tool_action_states()
+
+    def remove_managed_tool(self):
+        row=self.managed_tools.currentRow()
+        if row<0:
+            raise ValueError('Chọn một phiên bản do app quản lý')
+        identity=self.managed_tools.item(row,0).data(Qt.ItemDataRole.UserRole)
+        if not identity:
+            raise ValueError('Không đọc được danh tính phiên bản')
+        name,version=identity
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể gỡ phiên bản')
+        item=next((entry for entry in managed_tool_versions(self.host.store)
+                   if entry['name']==name and entry['version']==version),None)
+        if not item:
+            self.refresh_managed_tools()
+            raise ValueError('Phiên bản đã thay đổi; hãy làm mới danh sách')
+        if item['in_use']:
+            raise ValueError(item['reason'])
+        answer=QMessageBox.question(
+            self.host,'Gỡ phiên bản công cụ',
+            f'Gỡ {name} {version}? Chỉ thư mục do Fonesi quản lý sẽ bị xóa.',
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer!=QMessageBox.StandardButton.Yes:
+            return
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} vừa bắt đầu cập nhật; hãy thử gỡ lại sau')
+        remove_tool_version(self.host.store,name,version)
+        self.host.message(f'Đã gỡ phiên bản {name} {version}; không thay đổi tool hệ thống hoặc dữ liệu Chrome.')
+        self.refresh_managed_tools()
+        self.scan()
+
     def selected_tool(self):
         row=self.tools.currentRow()
         if row<0:raise ValueError('Chọn một công cụ')
         return self.tools.item(row,0).text()
     def path(self):
         name=self.selected_tool()
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể đổi đường dẫn')
         if name not in {'ffmpeg','ffprobe','Google Chrome','node'}:raise ValueError('Bộ tải dùng module gói kèm. Binary ngoài được chẩn đoán riêng; không tự đổi backend chưa kiểm chứng.')
         path,_=QFileDialog.getOpenFileName(self.host,'Chọn executable')
         if path:
             overrides=self.host.store.setting('tool_paths',{});overrides[name]=path;self.host.store.set_setting('tool_paths',overrides);configure_tools(overrides);self.scan()
     def install(self):self.install_name(self.selected_tool())
     def install_name(self,name):
-        if name=='Google Chrome':self.host.background(lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
-        elif name=='ffprobe':self.install_name('ffmpeg')
-        elif name in {'gallery-dl','yt-dlp'}:raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
-        else:self.host.background(lambda p,c:install(self.host.store,resolve_manifest(name),p,c),lambda _:self.scan())
+        if name=='ffprobe':
+            name='ffmpeg'
+        if name in {'gallery-dl','yt-dlp'}:
+            raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
+        if name=='Google Chrome':
+            return self._schedule_tool_operation(
+                name,lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
+        return self._schedule_tool_operation(
+            name,lambda p,c:install(self.host.store,resolve_manifest(name),p,c),
+            lambda _:(self.refresh_managed_tools(),self.scan()))
     def install_missing(self):
         names={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
-        if {'ffmpeg','ffprobe'}&names:self.install_name('ffmpeg')
-        if 'Google Chrome' in names:self.install_name('Google Chrome')
-        if 'node' in names:self.install_name('node')
+        requested=[]
+        if {'ffmpeg','ffprobe'}&names:
+            requested.append('ffmpeg')
+        if 'Google Chrome' in names:
+            requested.append('Google Chrome')
+        if 'node' in names:
+            requested.append('node')
+        skipped=[]
+        for name in requested:
+            if self._tool_is_busy(name):
+                skipped.append(name)
+                continue
+            self.install_name(name)
+        if skipped:
+            self.host.message('Bỏ qua công cụ đang bận (không báo cài thành công): '+', '.join(skipped))
     def rollback(self):
         name=self.selected_tool()
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể rollback')
         with self.host.store.connect() as c:versions=[r[0] for r in c.execute('SELECT version FROM tool_versions WHERE name=?',(name,))]
         if not versions:raise ValueError('Chưa có bản do app quản lý')
         version,ok=QInputDialog.getItem(self,'Rollback','Phiên bản',versions,0,False)
-        if ok:rollback(self.host.store,name,version);self.scan()
+        if ok:rollback(self.host.store,name,version);self.refresh_managed_tools();self.scan()
     def refresh_profiles(self):
         selected=self.profile.currentData()
         self.profile.clear()
@@ -566,7 +2147,13 @@ class SettingsPage(QWidget):
                 with self.host.store.connect() as c:c.execute('INSERT OR REPLACE INTO secrets VALUES(?,?)',('api:'+variable,protect(os.environ[variable].encode())))
         self.host.message('Đã lưu cấu hình; API key chỉ ở bộ nhớ phiên này trên Linux, dùng DPAPI khi lưu trên Windows')
     def save_resources(self):
-        self.host.store.set_setting('resource_profile',self.resource_profile.currentText());self.host.store.set_setting('parallel',self.parallel.value());self.host.store.set_setting('background',self.background.isChecked());self.host.store.set_setting('job_limits',{key:field.value() for key,field in self.job_limits.items()});self.host.scheduler.parallel=self.parallel.value();self.host.message('Đã lưu giới hạn tài nguyên')
+        self.host.store.set_setting('resource_profile',self.resource_profile.currentText())
+        self.host.store.set_setting('parallel',self.parallel.value())
+        self.host.store.set_setting('background',self.background.isChecked())
+        self.host.store.set_setting('job_limits',{key:field.value() for key,field in self.job_limits.items()})
+        self.host.store.set_setting('proxy_cache_limit_mb',self.cache_budget_mb.value())
+        self.host.scheduler.parallel=self.parallel.value()
+        self.host.message('Đã lưu giới hạn tài nguyên và quota cache proxy')
     def suggest_resources(self):
         data=metrics(self.host.data);recommended=recommended_parallel(data,self.resource_profile.currentText());self.parallel.setValue(max(1,recommended))
         for key,field in self.job_limits.items():field.setValue(1 if key in {'render','translate'} else max(1,min(3,recommended)))

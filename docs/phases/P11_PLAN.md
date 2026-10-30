@@ -19,3 +19,20 @@
 - P12-01/P12-03: chạy batch + matrix thật qua worker binary; CI build production trên Linux/Windows và giữ evidence cụ thể. Cập nhật README/hướng dẫn/trạng thái theo kết quả thực.
 
 Vòng công cụ phụ: import/export preset schema có kiểm tra, thu hồi pairing extension theo profile không xóa Chrome, giữ undo riêng của ô nhập khi phím tắt ứng dụng có focus. Đối chiếu OPS-07/AUTH-11/ED-19 trước đóng gói lại.
+
+
+## Vòng P11 — Khóa tính toàn vẹn master và traceability (28/10/2026)
+
+**Nhánh:** `develop/fonesi-full`. Đã đọc lại IMPLEMENTATION_PLAN, REQUIREMENTS_TRACEABILITY, IMPLEMENTATION_COVERAGE, CURRENT_STATUS và checklist các phase. Tổng thể có 12 phase, 94 task và 95 nhóm yêu cầu gốc.
+
+**Lý do cần bổ sung:** `scripts/check_plan.py` hiện kiểm tra phase/order, duplicate ID và liên kết. Tuy nhiên, mất một yêu cầu khỏi traceability hoặc một hàng thiếu mapping/acceptance vẫn có thể không bị phát hiện nếu ID còn lại không trùng.
+
+**Lát cắt P11-05/P11-07:**
+
+1. Yêu cầu tất cả 95 nhóm có ID duy nhất và mapping ít nhất một task `Pxx-yy` có trong master.
+2. Kiểm tra từng hàng có đầy đủ tên yêu cầu, nguồn, task và bằng chứng nghiệm thu; không chấp nhận ô rỗng hoặc placeholder.
+3. Không ép `[x]` trên master; validator chỉ kiểm tra cấu trúc/yêu cầu, không tuyên bố 95 nhóm đã chạy pass.
+4. Test kiểm tra đúng bộ tài liệu gốc và trường hợp thiếu một hàng/mapping/acceptance bằng fixture tạm.
+5. Chạy source + packaged proof Linux/Windows; ghi P11_RESULTS kết quả thật và blocker ngoài fixture.
+
+**Cổng mở:** nghiệm thu 95 nhóm theo UI/chức năng thực, Windows user/GPU/HiDPI/audio, Chrome login, live provider/nguồn, crash soak và benchmark corpus lớn vẫn chưa được xác nhận. Script validation không thay thế chúng.

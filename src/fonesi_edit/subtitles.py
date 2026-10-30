@@ -5,6 +5,7 @@ import html
 import json
 import os
 import re
+import tempfile
 import time
 from urllib.request import Request,urlopen
 from urllib.parse import urlsplit
@@ -28,9 +29,36 @@ class Caption:
         if self.start_ms<0 or self.end_ms<=self.start_ms:raise ValueError('Invalid caption interval')
 
 
-def read_captions(path:Path):
+ASS_PRESENTATION_WARNING=(
+    'ASS/SSA: bảng cue không giữ style, vị trí, hiệu ứng hoặc karaoke; '
+    'xuất lại có thể mất định dạng, tệp gốc không đổi.'
+)
+INLINE_FORMAT_WARNING=(
+    'Phụ đề chứa thẻ định dạng nội dòng; bảng cue chỉ giữ văn bản thuần, '
+    'cần kiểm tra lại trước khi xuất.'
+)
+KNOWN_IMPORT_WARNINGS=frozenset({ASS_PRESENTATION_WARNING,INLINE_FORMAT_WARNING})
+
+
+def read_captions_with_warnings(path:Path):
+    """Read editable plain cues and report formatting that cannot round-trip."""
+    path=Path(path)
     data=pysubs2.load(str(path),encoding='utf-8-sig')
-    return [Caption(event.start,event.end,event.plaintext) for event in data if not event.is_comment and event.plaintext.strip()]
+    events=[event for event in data if not event.is_comment and event.plaintext.strip()]
+    captions=[Caption(event.start,event.end,event.plaintext) for event in events]
+    warnings=[]
+    if events and path.suffix.lower() in {'.ass','.ssa'}:
+        # ASS styles, override tags and positional effects do not belong to
+        # our Caption model, even when the default style was customized.
+        warnings.append(ASS_PRESENTATION_WARNING)
+    elif any(re.search(r'\{\\[^}]*\}',event.text) for event in events):
+        warnings.append(INLINE_FORMAT_WARNING)
+    return captions,warnings
+
+
+def read_captions(path:Path):
+    # Existing worker/render callers deliberately receive only plain cues.
+    return read_captions_with_warnings(path)[0]
 
 
 def write_captions(path:Path,captions,overwrite=False):
@@ -40,9 +68,84 @@ def write_captions(path:Path,captions,overwrite=False):
         if cue.end_ms<=cue.start_ms:raise ValueError('Invalid caption interval')
         data.events.append(pysubs2.SSAEvent(start=cue.start_ms,end=cue.end_ms,text=cue.text.replace('\n',r'\N')))
     path.parent.mkdir(parents=True,exist_ok=True)
-    # Exclusive publication when creating; explicit save may replace a subtitle document.
+    # Serialize before touching an existing user-edited subtitle document.
     encoded=data.to_string(format_=path.suffix.lstrip('.')).encode('utf-8')
-    with path.open('wb' if overwrite else 'xb') as stream:stream.write(encoded)
+    # Both creation and replacement stage complete bytes before publication.
+    # Writing straight to path.open('xb') could expose a truncated caption if
+    # the writer/fsync failed, which a subsequent recovery might see as output.
+    descriptor, temporary = tempfile.mkstemp(
+        prefix='.fonesi-caption-', suffix='.tmp', dir=path.parent)
+    try:
+        with os.fdopen(descriptor,'wb') as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if overwrite:
+            # Atomic swap preserves manual edits if writing the temp file fails.
+            os.replace(temporary,path)
+        else:
+            try:
+                # The destination is absent until the fully synced inode is
+                # linked. A concurrent publisher fails with FileExistsError.
+                os.link(temporary,path)
+            except FileExistsError:
+                raise
+            except OSError as exc:
+                raise RuntimeError(
+                    'Atomic subtitle creation requires hard-link support; '
+                    'the destination was not published') from exc
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def _split_caption_text(value):
+    """Split without dropping whitespace or inventing new source/target text."""
+    import unicodedata
+    if not isinstance(value,str) or len(value)<2:
+        raise ValueError('Câu quá ngắn để tách mà không mất nội dung')
+    middle=len(value)//2
+    candidates=[]
+    for point in range(1,len(value)):
+        # Avoid splitting combining marks or a zero-width-joiner sequence.
+        if (unicodedata.combining(value[point]) or value[point] in '\ufe0e\ufe0f\u200d'
+                or value[point-1]=='\u200d'):
+            continue
+        if value[:point].strip() and value[point:].strip():
+            candidates.append(point)
+    if not candidates:
+        raise ValueError('Câu không có vị trí tách giữ nguyên cả hai phần')
+    boundary=[point for point in candidates
+              if value[point-1].isspace() or value[point].isspace()]
+    point=min(boundary or candidates,key=lambda item:(abs(item-middle),item))
+    return value[:point],value[point:]
+
+
+def split_caption(cue):
+    """Split a bilingual cue into two positive intervals while preserving text."""
+    if cue.end_ms-cue.start_ms<2:
+        raise ValueError('Cue quá ngắn để tách thành hai khoảng dương')
+    first,second=_split_caption_text(cue.text)
+    if cue.source_text:
+        original_first,original_second=_split_caption_text(cue.source_text)
+    else:
+        original_first=original_second=''
+    middle=(cue.start_ms+cue.end_ms)//2
+    return (Caption(cue.start_ms,middle,first,original_first,cue.locked),
+            Caption(middle,cue.end_ms,second,original_second,cue.locked))
+
+
+def merge_captions(cues):
+    """Merge selected rows without silently discarding bilingual source text."""
+    cues=list(cues)
+    if len(cues)<2:
+        raise ValueError('Cần ít nhất hai cue để gộp')
+    original=('\n'.join(c.source_text or c.text for c in cues)
+              if any(c.source_text for c in cues) else '')
+    return Caption(min(c.start_ms for c in cues),
+                   max(c.end_ms for c in cues),
+                   '\n'.join(c.text for c in cues),
+                   original,
+                   any(c.locked for c in cues))
 
 
 def caption_warnings(captions,duration_ms=None):
@@ -91,10 +194,19 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
     config=config or {};transport=transport or _request_translation
     result=[replace(c) for c in captions];missing=[]
     glossary=config.get('glossary',{})
+    if not isinstance(glossary,dict) or any(
+            not isinstance(term,str) or not isinstance(value,str)
+            for term,value in glossary.items()):
+        raise ValueError('Glossary terms and replacements must be strings')
     for index,cue in enumerate(result):
         if cue.locked:continue
         original=cue.source_text or cue.text
-        key='translation:'+hashlib.sha256(canonical([original,source,target,config]).encode()).hexdigest()
+        # Daily quota changes must not invalidate an otherwise identical translation.
+        # Provider, glossary, endpoint and translation-affecting options stay in
+        # the fingerprint so cache entries never cross incompatible settings.
+        translation_config={k:v for k,v in config.items() if k not in {'daily_limit'}}
+        key='translation:'+hashlib.sha256(
+            canonical([original,source,target,translation_config]).encode()).hexdigest()
         cached=store.cached(key)
         if cached:cue.source_text=original;cue.text=cached['text']
         else:missing.append((index,key,original))
@@ -102,11 +214,39 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
         if cancel and cancel.is_set():raise RuntimeError('Canceled')
         batch=missing[start:start+32];texts=[];protected=[]
         for _,_,original in batch:
-            terms={}
-            for number,(term,value) in enumerate(glossary.items()):
-                if term and term in original:
-                    marker=f'FONESIPROTECTEDTERM{number}END';original=original.replace(term,marker);terms[marker]=value
-            texts.append(original);protected.append(terms)
+            terms=[]
+            # Match against the ORIGINAL cue in one pass. Sequential .replace
+            # can corrupt a marker if a different glossary key matches part of
+            # its generated token.
+            sorted_terms=sorted(
+                [(term,value) for term,value in glossary.items() if term],
+                key=lambda item:-len(item[0]))
+            markers={}
+            for number,(term,value) in enumerate(sorted_terms):
+                salt=0
+                while True:
+                    digest=hashlib.sha256(
+                        canonical([original,number,salt]).encode()).hexdigest()[:24]
+                    marker=f'FONESIPROTECTED{digest}END'
+                    if (marker not in original and marker not in markers.values()
+                            and all(marker not in key and marker not in replacement
+                                    for key,replacement in glossary.items())):
+                        break
+                    salt+=1
+                markers[term]=marker
+                terms.append([marker,value,0])
+            counters={term:index for index,(term,_) in enumerate(sorted_terms)}
+            if sorted_terms:
+                pattern=re.compile('|'.join(re.escape(term) for term,_ in sorted_terms))
+                def protect(match):
+                    term=match.group()
+                    terms[counters[term]][2]+=1
+                    return markers[term]
+                protected_text=pattern.sub(protect,original)
+            else:
+                protected_text=original
+            texts.append(protected_text)
+            protected.append([item for item in terms if item[2]])
         chars=sum(len(text) for text in texts)
         quota=int(config.get('daily_limit',100000))
         usage_key='translation_usage:'+config.get('provider','google')+':'+time.strftime('%Y-%m-%d',time.gmtime())
@@ -118,8 +258,10 @@ def translate_captions(store,captions,source='auto',target='vi',config=None,prog
         translated=transport(texts,source,target,config)
         if len(translated)!=len(batch):raise RuntimeError('Translation result count mismatch')
         for (index,key,original),text,terms in zip(batch,translated,protected,strict=True):
-            for marker,value in terms.items():
-                if marker not in text:raise RuntimeError('Provider altered a protected glossary marker; review translation')
+            for marker,value,count in terms:
+                if text.count(marker)!=count:
+                    raise RuntimeError(
+                        'Provider altered a protected glossary marker; review translation')
                 text=text.replace(marker,value)
             result[index].source_text=original;result[index].text=text;store.cache(key,{'text':text})
         progress(min(.99,(start+len(batch))/max(1,len(missing))))

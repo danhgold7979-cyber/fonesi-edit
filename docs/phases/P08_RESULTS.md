@@ -3,3 +3,124 @@
 Đã có scan folder loại output/cache/symlink, batch dry-run/snapshot/output theo kênh và duration water-filling với bounds, equal/proportional/weights, trim/loop/freeze rõ lựa chọn. Audio main/music/SFX qua compositor có volume/fade/delay/loop và giới hạn thời lượng. Test mới đối chiếu số cảnh, tốc độ, bất khả thi, folder exclusions và render loop/freeze thực; kết quả được cập nhật ở báo cáo tích hợp cuối.
 
 Vòng tích hợp thêm video defaults riêng cho lô/ma trận (trim/speed/flip/rotation/gain/random), bind sub mới cho từng video/loop, IDs/tên kế hoạch deterministic, hai track song ngữ và output hợp lệ thật. Xem [báo cáo local cuối](../LOCAL_VERIFICATION.md).
+
+## P08-04 — Ghép âm thanh chính có chính sách (28/10/2026)
+
+Đã triển khai trong **cùng mã nguồn/binary** Fonesi Edit:
+
+- `batch_audio_assignments` chuẩn hóa 4 chế độ: `shared` (mặc định hiện tại), `by_name` (stem media trùng tên, mỗi video đúng 1 audio), `ordered` (video giữ thứ tự đã chọn, audio sort tự nhiên, kiểm tra đủ số tệp), và `random` (hash từ seed dự án + đường dẫn nguồn, chọn ổn định khi dry-run lại). Không tự đổi chế độ hoặc bỏ qua audio thiếu/mơ hồ.
+- Chỉ nhận tệp có extension audio/media hỗ trợ, **loại symlink**, dùng FFprobe xác minh audio track + duration thực trước khi tạo toàn bộ batch plan; file không có audio/độ dài hợp lệ báo lỗi. Kết quả trả `audio_source` để UI cho xem trước mapping; thông tin main audio đóng gói trong Composition snapshot riêng từng video. Preset gốc và những track music/SFX không được sửa.
+- BatchPage có dropdown chế độ và thư mục nhiều audio riêng bên cạnh audio chung. Dry-run liệt kê tên audio được gán; render vẫn qua compositor P07 và duration solver P08.
+- Regression tests: tên trùng + 2 video/2 audio thực, phát hiện thiếu/trùng tên/sai số lượng/file không có track, mapping ordered/random tái lập với seed, sample FFmpeg render video có audio và UI radio/combo modes.
+
+**Bằng chứng:** [GitHub Actions run 40642781347](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40642781347) PASS: **Linux 166 tests**, **Windows 165 tests + 1 skip** (fixture POSIX-only), packaged application/native-host/frozen proof Linux và Windows đều PASS. Đây là test offline có tạo media synthetic và chạy FFmpeg thật; không phải nghiệm thu loa/audio realtime trên máy sử dụng.
+
+**Còn mở P08:** ghép audio theo playlist nhập tay nhiều nguồn hơn một folder, SFX placement theo cảnh/% thời lượng, meter/clipping realtime, music loop crossfade, nghe solo độc lập, ước lượng dung lượng/ETA với corpus lớn, benchmark và trải nghiệm Windows máy người dùng. Không đánh dấu toàn bộ P08 hoàn tất.
+
+## P08/P09 — duration solver: số giây cảnh nhập tay
+
+Bổ sung `allocation='manual'` và `manual_durations` vào `fit_duration` dùng chung: số giây từng cảnh dương/hữu hạn, tổng sau transition đúng target, giới hạn speed/trim được kiểm trước render; lệnh thiếu hoặc không khả thi báo lỗi, không rơi vào proportional. Vừa có option `weights` vừa có `manual` ở Matrix UI, không thay Batch mặc định. [CI 40645339209](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40645339209) PASS Linux/Windows và frozen proof. SFX theo cảnh/audio timeline nâng cao vẫn mở.
+
+## P08-01/P08-04 — SFX mốc tương đối và Batch search/filter (28/10/2026)
+
+Triển khai vào **cùng mã nguồn/compositor** Fonesi Edit:
+
+- **Sound effect placement:** `Composition.audio` SFX nhận các mốc `absolute`, `percent` (0–100% thời lượng video đã render), `video_end` (số giây trước cuối video), `scene_start` và `scene_end` (scene index 1-based, sau đầu/trước cuối cảnh). `offset` theo nghĩa sau/trước mốc đã ghi trong AudioDialog. Mọi mode không áp dụng cho main/music; domain validate index/type/finite và compiler chặn SFX bắt đầu trước 0 hoặc tại/sau cuối video. FFmpeg đặt đúng `adelay` sau trim/speed/transition, duy trì fade/gain/mute/solo/limiter.
+- **AudioDialog** có UI mốc SFX, % và cảnh, round-trip từ preset hiện có. Cấu hình sai được báo lỗi; track không có `placement` tiếp tục có offset tuyệt đối như trước. Test PCM xuất thật xác minh đầu video im lặng, SFX phát ở nửa sau, cùng test scene/transition, domain invalid input, Qt UI.
+- **BatchPage** có tìm video/kênh, lọc đuôi video; chọn/bỏ/đảo **mục đang hiển thị**, các tệp bị ẩn giữ checkbox. Mọi thay đổi checkbox/folder/audio/mode/speed/preset đều làm vô hiệu hóa dry-run cũ. Worker lập kế hoạch có revision token, không áp kết quả async cũ sau khi người dùng sửa nguồn/preset. Preview/Chạy cần lập kế hoạch lại.
+- **Kiểm thử hồi quy:** synthetic Qt, FFmpeg audio/video thật và multi-video SFX % source-dependent. Ban đầu CI bắt một assertion sai do MP4 fixture dài 0,52 giây theo FFprobe thay vì hint 0,50 giây; test đã sửa đối chiếu chính xác duration probe, **không hạ ngưỡng hoặc bỏ assertion**.
+
+**Bằng chứng:** [CI 40655116611](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40655116611) PASS **219 test Linux / 218 test Windows + 1 skipped POSIX-only**, build app/native host và frozen packaged proof trên hai hệ. Artifact `FonesiEdit-Windows-development` là binary nội bộ, không phải installer đã ký/Release.
+
+**Còn mở:** music loop crossfade, sound effect nhiều mốc một lần trong UI, meter/clipping nghe realtime, duration/resolution filter từ metadata và corpus lớn, ước tính dung lượng/ETA, áp dụng toàn diện trên Windows máy người dùng. P08 chưa đủ cổng nghiệm thu cuối.
+
+## P08-01 — Quét nhiều folder gốc, loại trùng và hủy kết quả quét cũ (28/10/2026)
+
+Đã code `scan_multiple_folders` hợp nhất các root được chọn bằng path đã resolve, giữ nhóm channel đúng thư mục, tự bỏ file trùng khi root trùng hoặc chồng cha/con; vẫn bỏ thư mục ` edit`, cache, symlink và file không phải video theo `scan_folders`. BatchPage có ô thư mục gốc + danh sách folder bổ sung mỗi dòng, nút chọn folder, chạy cùng worker. Khi sửa danh sách folder, các checkbox/nhóm cũ bị xóa và phải quét lại; khi quét mới bắt đầu, xóa lựa chọn cũ trước khi chạy; kết quả callback từ lần quét cũ bị bỏ theo scan revision, không ghi đè danh sách mới. Các thay đổi này không chạm/xóa media gốc.
+
+**Kiểm thử:** multi-root + nested overlap/duplicate + bỏ output/cache + Qt GUI quét 2 nguồn + invalidation và callback đến sai thứ tự. [CI 40656796768](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40656796768) **PASS 222 tests Linux, 221 tests Windows +1 skip POSIX-only**, packaged/native-host/frozen proof hai hệ PASS. Đây là quét thư mục **local**, không chứng minh kết nối mạng xã hội đã scan đủ kênh. P08-01 vẫn mở filter duration/resolution, hàng trăm nghìn file và sức chịu tải thực.
+
+## P08-01 — Metadata duration/resolution có kiểm soát (28/10/2026)
+
+`probe_batch_metadata` đọc FFprobe bằng worker nền sau khi quét nhiều folder; mỗi video resolve chỉ đọc một lần. Kết quả có duration/width/height, tệp lỗi được báo riêng và không tự coi là khớp bộ lọc. Trong BatchPage có thời lượng tối thiểu/tối đa (0 = không giới hạn), độ phân giải theo **cạnh ngắn** ≥720/1080/2160 px phù hợp ảnh/video ngang và dọc. Kết quả quét cũ bị loại bởi revision; bộ lọc chỉ ẩn mục, không sửa checkbox của video ẩn. Không cho tạo dry-run khi đang đợi FFprobe hoặc khoảng thời lượng đảo ngược. Không sửa file nguồn.
+
+**Bằng chứng:** [CI 40658101720](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658101720) PASS: **225 tests Linux**, **224 tests Windows +1 skip** (fixture POSIX). Build app/native-host và kiểm chứng frozen binary trên cả hai hệ PASS. Test FFprobe nguồn thật/file hỏng, khử trùng, cancel và Qt offscreen (vị trí ngang/dọc, chọn ẩn, callback stale, khoảng không hợp lệ). Chưa có kiểm chứng corpus rất lớn/metadata codec/FPS/bitrate.
+
+## P08-04 — Crossfade nhạc lặp, đã sửa tương thích Windows (28/10/2026)
+
+Track `mode=music, loop=true` hỗ trợ thêm `loop_crossfade` (giây); 0 mặc định giữ behavior cũ. Domain yêu cầu số hữu hạn từ 0 đến 10 và chỉ cho nhạc lặp, graph chặn thời gian crossfade từ nửa mẫu nguồn trở lên và giới hạn tối đa 128 vòng để giữ tài nguyên. FFmpeg tạo các đầu vào âm nhạc độc lập cho từng vòng và nối `acrossfade` giữa các đoạn; volume/fade/delay chỉ áp sau khi nối. AudioDialog có ô Crossfade lặp, lưu/khôi phục đúng, không cho main/SFX dùng crossfade.
+
+**Quá trình kiểm lỗi thực:** Bản đầu [CI 40658721822](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658721822) FAILED Windows 1 test export: FFmpeg 7.1.1 báo assertion `best_input >= 0` với nhánh `asplit`. Đã sửa nguyên nhân bằng input riêng, không skip/bỏ test. **[CI 40659216526](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40659216526) PASS:** **233 tests Linux**, **232 tests Windows +1 skip**; source regressions và frozen app/native-host proof cả hai hệ PASS, có FFmpeg render audio/video thật.
+
+**Còn mở P08:** chất lượng âm khi nghe trên thiết bị Windows thực, meter/clipping realtime, SFX nhiều mốc lặp, import playlist, stress/soak batch lớn, ước tính dung lượng/ETA, installer/ký số/release và provider live. P08 chưa được đánh dấu nghiệm thu toàn diện.
+
+## P08-04 — SFX repeat theo khoảng cách trên timeline render (28/10/2026)
+
+SFX `repeat_count` (mặc định 1, tối đa 32) và `repeat_interval` (giây) cho phép một track phát nhiều lần với khoảng cách đều từ mốc `absolute/percent/video_end/scene_start/scene_end` đã resolve theo video đầu ra. Domain chặn kiểu/giới hạn không hợp lệ, role khác SFX, hoặc kết hợp loop; compositor chặn trigger cuối tại/sau cuối video. Mỗi sự kiện dùng FFmpeg audio input riêng, trim/gain/fade/delay, mix thành một track trước limiter; track cũ phát một lần vẫn giữ pipeline. AudioDialog bổ sung hai cột số lần và giây/khoảng cách, sửa/round-trip.
+
+**Bằng chứng:** [CI 40660385646](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40660385646) PASS **246 tests Linux**, **245 tests Windows +1 skip POSIX-only**; packaged app/native host/localhost frozen verification PASS cả hai hệ. Test kiểm domain invalid, FFmpeg graph hai adelay 200/600ms, video có hai khoảng SFX nghe được và khoảng im lặng ở giữa bằng PCM, GUI lưu giá trị và báo lỗi. Chưa có arbitrary trigger list, nhiều trigger không theo chu kỳ, live loudness meter/loa thực hoặc benchmark corpus lớn.
+
+## P08-01 — Codec/FPS/video-stream bitrate Batch filtering (29/10/2026)
+
+[P08 plan](https://github.com/danhgold7979-cyber/fonesi-edit/blob/develop/fonesi-full/docs/phases/P08_ADVANCED_METADATA_FILTER_PLAN.md) → [code 6307042](https://github.com/danhgold7979-cyber/fonesi-edit/commit/630704259e38e3ed829817230344ce7a14c993bd) → [tests 81952fd / a0d9e74](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a0d9e74e4fd356568ecaf60c49a5edc0a2bc9d6f). FFprobe's validated media metadata now retains exact video codec, numeric FPS from rational frame rate, and optional *video-stream* kb/s. `format.bit_rate` is intentionally not used because audio/container overhead would overstate video-only bitrate. Unknown/malformed video stream bitrate is kept missing. Batch UI now offers codec (H.264/HEVC/VP9/AV1/MPEG-4), FPS min/max and video kb/s min/max, with guarded range validation. Filters only affect visibility, not checkbox selection or existing dry-run, and reuse the previous asynchronous deduped/stale-safe FFprobe worker.
+
+[CI 40908188050](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40908188050) **SUCCESS on exact source/test SHA a0d9e74**: Linux **618 passed**, Windows **617 passed + 1 intentional POSIX skip**; `check_plan`, desktop/native host builds and frozen packaged synthetic/localhost render, batch, matrix, download and UI proofs PASS on both. Windows development/evidence artifact uploaded.
+
+**Still open:** full P08 acceptance for very large batch corpus, benchmark/ETA, playlists and multiple arbitrary SFX triggers, realtime audio meter/clipping, user-device Windows audio/installer/permissions, real provider/Chrome/GPU, HiDPI and end-to-end customer workflows. Unknown bitrate remains unknown; filtering it out is *not* proof of media corruption.
+
+## P08-07 — Per-video batch plan failure isolation (29/10/2026)
+
+[P08 plan](https://github.com/danhgold7979-cyber/fonesi-edit/blob/develop/fonesi-full/docs/phases/P08_PARTIAL_BATCH_PLAN.md) → [code 0e9cb5c](https://github.com/danhgold7979-cyber/fonesi-edit/commit/0e9cb5cbc8f345dcd8e152912effe0b849380e8a) → [tests d0753e3](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d0753e3586266fda33ae8e4f8367a124d718ac37). Optional report mode isolates malformed media or per-source invalid duration while leaving valid plan outputs deterministic; legacy `batch_plan` without a failure collector remains fail-fast and global audio assignment errors continue to raise. The Qt BatchPage displays up to three skipped filenames and bounded safe reason categories, never silently calls a skipped video successful, blocks empty preview/enqueue, preserves selected sources and drops callbacks invalidated by later changes. Real FFmpeg fixtures and Qt regression verify these boundaries and unchanged source media.
+
+[CI 40910523178](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40910523178) **SUCCESS on exact SHA d0753e3**: Linux **621 PASS**, Windows **620 PASS + 1 intentional POSIX skip**, plan validation, production desktop/native host and frozen packaged synthetic/localhost proof PASS both runners, Windows artifact uploaded. **Still OPEN:** large batch benchmark/ETA, physical Windows machine/ACL/NTFS/AV, long soak, playlist/meters, Chrome/live providers, GPU and full P08 acceptance.
+
+## P08-07 / P11-03 — Cancellable planning and 128-file benchmark (29/10/2026)
+
+[Plan](P08_BATCH_PROGRESS_BENCHMARK_PLAN.md) → [code/test 6534c41](https://github.com/danhgold7979-cyber/fonesi-edit/commit/6534c41ed457f4380b319b9cd83a7409cba8cd10). Batch planning now reports finite monotonic progress and cooperatively handles global preparation cancellation before/during audio/video probes. A cancellation returns no usable plans or error-list partial receipt, and the Qt UI refuses Preview/Enqueue; obsolete callback guards remain intact. An independent synthetic FFmpeg/FFprobe CLI benchmark creates temporary media, records machine-labeled metrics and discards the corpus; a 512-logical-file regression verifies count/order/progress without false timing thresholds.
+
+[CI 40914027736](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40914027736) **SUCCESS exact SHA 6534c41**: 627 Linux passed / 626 Windows passed + 1 intentional POSIX-only skip; source, 128-file FFprobe benchmark, desktop/native-host and frozen packaged synthetic/localhost proofs passed on both runners. Windows development artifact uploaded. 128 real FFprobe fixture copies: **Linux 5.938 s / 21.556 files/s**, **Windows 10.462 s / 12.235 files/s**; Python traced peak 840520/848744 bytes, with process RSS snapshots available in CI JSON artifacts. Results vary by runner: follow-up [CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) recorded 6.336 s / 20.202 files/s Linux and 8.413 s / 15.214 files/s Windows. These are **preparation metrics only**, not FFmpeg render time, output byte estimates, subprocess peak memory, real 1080p/4K GPU load, or Windows end-user acceptance.
+
+## P08-07 / P11-02 — Atomic all-or-none Batch enqueue (29/10/2026)
+
+[Plan](P08_ATOMIC_ENQUEUE_PLAN.md) → [source 5c35b2f](https://github.com/danhgold7979-cyber/fonesi-edit/commit/5c35b2f8ab989c05346c01adefe77e27f6e8a0dc) → [code/test d6b218a](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d6b218af9a7bd6cc0ac2a9789c3d9fec224da664). `enqueue_batch` now validates output/composition and rejects duplicate target paths before calling `Store.submit_many`; payload/tool-path snapshots are validated up front, then jobs commit together inside one SQLite transaction. Fault injection on the second INSERT rolls back all new jobs while keeping unrelated rows. Qt maintains the dry-run after failure and only navigates to Queue after a successful retry; sources and output files are unchanged.
+
+[CI 40916078055](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40916078055) **SUCCESS exact SHA d6b218a**: 631 Linux passed / 630 Windows passed + 1 intentional POSIX-only skip; source, 128-file FFprobe benchmark, desktop/native-host and frozen packaged synthetic/localhost proofs passed on both runners. Windows development artifact uploaded. P08 **remains IN PROGRESS** for actual large-user-corpus throughput and render ETA/size estimates, advanced music/SFX playlist/level meters, physical Windows/NTFS/AV/ACL/HiDPI/GPU/installer, Chrome/live platforms and long soak.
+
+## P08-07 — Existing-output preflight before atomic Batch enqueue (29–30/10/2026)
+
+[plan](https://github.com/danhgold7979-cyber/fonesi-edit/blob/develop/fonesi-full/docs/phases/P08_EXISTING_OUTPUT_PREFLIGHT_PLAN.md) → [code/test b845a4c](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b845a4c38c9514794dce82eada8e867f8e9b4c9e). When any planned Batch destination already exists as a file, directory or symlink, `enqueue_batch` raises `FileExistsError` before the whole-group SQLite insertion. This prevents a deterministic no-overwrite failure from occupying queue capacity but does not replace the renderer's atomic final publication race guard. Regression checks existing file bytes/mtime, dangling symlink, unchanged pre-existing jobs, zero partially inserted jobs, and Qt dry-run retained for explicit corrected retry.
+
+[CI 40919530634](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40919530634) **SUCCESS exact SHA b845a4c**: 635 Linux passed / 634 Windows passed + 1 intentional POSIX skip; plan-check, 128-file FFprobe benchmark, production desktop/native-host and frozen packaged synthetic/localhost proof PASS both CI runners, Windows development artifact uploaded. Full P08 remains OPEN for render ETA and size forecasting, large real corpora, audio playlist/meters, Windows user hardware/installer/AV/NTFS/GPU/Chrome/live providers and long soak.
+
+
+## P08-04 / P11-04 — SFX nhiều mốc không đều trên timeline xuất (30/10/2026)
+
+[Plan](P08_SFX_TRIGGER_LIST_PLAN.md) → [code/test f6d90e4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/f6d90e4470cdca3e98f23e48f4f0983521540a80) → [CI 40988695667 attempt 2](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40988695667) **SUCCESS exact SHA f6d90e4**.
+
+- Một track SFX hỗ trợ 2–32 timestamp không đều tính từ đầu timeline đầu ra sau trim/speed/transition. Domain chặn sai kiểu (kể cả bool), NaN/Inf, âm, quá 86.400 giây, trùng/không tăng, sai role và xung đột anchor/offset/repeat/loop. Trigger bằng/vượt cuối output làm hủy toàn render.
+- Renderer dùng FFmpeg input riêng từng sự kiện, áp trim/gain/fade/adelay, mix N input; project cũ giữ nguyên hành vi và không đổi schema. AudioDialog thêm cột thứ 18, parse comma/semicolon và giữ composition khi nhập sai.
+- Test serialization/domain/Qt và FFmpeg synthetic PCM xác nhận ba event không đều phát đúng cửa sổ, khoảng im lặng xen giữa không có tín hiệu.
+- CI: **656 Linux PASS**, **655 Windows PASS + 1 intentional POSIX skip**; check_plan, benchmark 128 file, desktop/native-host và frozen packaged proof PASS hai OS. Windows artifact development được upload; lần provisioning đầu lỗi Chocolatey 503, retry thành công.
+
+**Còn mở:** playlist nhiều file/track, meter/clipping/solo realtime, thiết bị Windows thật, corpus lớn/ETA/output size, Windows installer/ACL/AV/HiDPI/GPU, Chrome/live provider, long soak và SQLite #6. Không đóng toàn P08/P11 hoặc nghiệm thu sản phẩm.
+
+
+## P08-03 / P11-04 — Playback PCM peak/RMS meter (30/10/2026)
+
+[Plan](P08_AUDIO_PLAYBACK_METER_PLAN.md) → [source/tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c706930e2c5e8a5026e37fb5fd856901585330b5) → [Python 3.12 fix](https://github.com/danhgold7979-cyber/fonesi-edit/commit/743e68b3e4c262fa4bc824f9ccca4f1ec67361c2) → [CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) **SUCCESS exact SHA 743e68b**, **676 Linux PASS / 675 Windows PASS + 1 intentional POSIX-only skip**. Check_plan, benchmark 128 synthetic FFprobe, production desktop/native-host and frozen packaged synthetic/localhost proof PASS both runners. Windows development artifact uploaded.
+
+The new pure PCM helper validates complete frames/finite samples and handles native-order UInt8, Int16, Int32 and Float PCM (including >0 dBFS float), measures peak/RMS and counts samples >=0.99 full scale. The Editor shares one QMediaPlayer/QAudioBufferOutput between raw source/proxy playback and rendered composition preview; only the latter shows the rendered mix. The UI keeps invalid/unavailable PCM separate from digital silence and resets on source/session/EOS; project schema, source bytes and FFmpeg limiter/loudnorm remain unchanged. A separate follow-up test exercises absent Qt audio tap, subject to its own CI.
+
+**OPEN:** per-track meters/solo, true peak, real hardware audio, audio playlists, large corpus render ETA/output size, Windows installer/ACL/AV/HiDPI/GPU, live Chrome/providers and SQLite #6. P08/P11 still in progress.
+
+
+## 7. Implementation and verified evidence (30/10/2026)
+
+- [Plan-before-code commit c6be8df](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c6be8df0bed5fda527a03568b602c8b95a3343f4) → [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a4ea6a851ac912503ce4db6fb08841b9dae8257a) → [backend tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d4fd7e5a3b559fb415c00e54fcc711cdb9f754a6) → [Qt tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/3acf0b56a2b5f96c450d15076984d4e037c47282) → [final fixes](https://github.com/danhgold7979-cyber/fonesi-edit/commit/cfd2c4cf6a7c7a96e5619631d83c13ff2e2039c0).
+- Batch adds `playlist`: editable one-absolute-path-per-line list, multi-file picker append, manual reorder and Clear. Line order maps one-to-one to selected videos in natural-sorted channel order and selected tree order. Files may span parent folders and share basenames; duplicate resolved paths are allowed. Full source path is visible in each dry-run preview.
+- Backend preflights exact count, type/absolute path, missing/directory/symlink/extension, real audio stream and finite positive duration before any video plan. It probes each distinct path once, checks cooperative cancellation, preserves playlist order, preset and non-main music/SFX tracks, and records `audio_source` in every snapshot. Existing four modes and project schema remain unchanged.
+- Regression covers cross-folder order reversed from natural sort with same basenames, duplicate probe caching, invalid/missing/symlink/unsupported/no-audio inputs, cancellation, snapshot preservation, Qt picker/reorder/clear/stale callback and real FFmpeg/PCM output proving the 660 Hz manually assigned track.
+- [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) **SUCCESS exact final SHA cfd2c4c**: Linux **682 passed**; Windows **681 passed + 1 intentional POSIX-only skip**. Plan checker, 128-file synthetic FFprobe benchmark, desktop/native-host build and frozen packaged render/Batch/Matrix/download/UI proof all PASS on both operating systems. Windows development artifact is 197,289,387 bytes and expires 06/11/2026.
+- CI found and final fixes corrected a missing playlist combo entry and an incorrect one-argument connection to Qt's zero-argument `QPlainTextEdit.textChanged`; no assertions were disabled.
+
+**Remaining P08/P11 gates:** real large-corpus throughput, render ETA/output byte estimation, per-track pre-mix meter/solo, true-peak/EBU loudness, physical Windows audio/driver/installer/ACL/AV/HiDPI/GPU/user-device acceptance, live Chrome/providers, long soak and SQLite #6. Do not mark P08/P11 or product release complete.

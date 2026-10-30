@@ -1,20 +1,37 @@
 from copy import deepcopy
+import math
 from dataclasses import asdict,replace
 from pathlib import Path
 from uuid import uuid4
 import tempfile
 
 from PySide6.QtCore import Qt,QUrl,Signal
-from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QFont
+from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QActionGroup,QFont
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
+try:
+    from PySide6.QtMultimedia import QAudioBufferOutput
+except ImportError:  # Older Qt or a backend without the decoded-stream tap.
+    QAudioBufferOutput=None
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
-    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox)
+    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QProgressBar,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox,QInputDialog)
 
-from ..domain import Composition,Clip,Layer,identifier
+from ..domain import Composition,Clip,Layer,identifier,canonical
+from ..audio_meter import measure_pcm,meter_bar
 from ..prototypes.media import probe,extract_frame
-from .canvas import Canvas
+from ..thumbnails import thumbnail_identity,thumbnail_strip
+from ..proxy import proxy_identity,playback_proxy
+from .canvas import Canvas, anchor_group_delta
 from .timeline import Timeline,clip_positions
+
+def loop_seek_target(milliseconds, start, end, *, enabled, verified):
+    """Seek only in a matching rendered composition preview, never raw source time."""
+    if not enabled or not verified or start is None or end is None:
+        return None
+    if (not all(math.isfinite(value) for value in (start, end))
+            or start < 0 or end <= start or end-start < .04):
+        return None
+    return round(start*1000) if milliseconds >= round(end*1000) else None
 
 
 class Snapshot(QUndoCommand):
@@ -30,8 +47,12 @@ class Editor(QWidget):
 
     def __init__(self,host):
         super().__init__();self.host=host
-        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
-        self.waveforms={};self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
+        self.composition=Composition();self.selected_id=None;self.selected_ids=set();self._layer_clipboard=[];self.frame=None;self._before=None;self._loading=False;self.in_point=None;self.out_point=None
+        self.preview_fingerprint=None;self._loop_seeking=False
+        self.composition_fingerprint=canonical(self.composition.to_dict())
+        self.waveforms={};self.thumbnails={};self._thumbnail_pending=set();self._thumbnail_failed=set()
+        self.proxy_cache={};self._proxy_pending=set();self._proxy_failed=set()
+        self.undo=QUndoStack(self);self.undo.setUndoLimit(100)
         layout=QVBoxLayout(self);toolbar=QToolBar();layout.addWidget(toolbar)
         actions=[('Thêm video',self.add_video),('Chữ',lambda:self.add_layer('text')),('Logo',lambda:self.add_layer('image')),
                  ('Vùng che',lambda:self.add_layer('mask')),('Nhân bản',self.duplicate),('Xóa layer',self.delete_layer),
@@ -42,12 +63,57 @@ class Editor(QWidget):
         extra=QPushButton('Thao tác thêm ▾');menu=QMenu(extra)
         for name,callback in [('Sửa clip',self.clip_dialog),('Đặt In',self.mark_in),('Đặt Out',self.mark_out),('Áp dụng In/Out',self.trim_in_out),('Xóa clip và dồn sau',self.ripple_delete),('Nhóm layer',self.group),('Bỏ nhóm',self.ungroup),('Căn giữa ngang',lambda:self.align('x')),('Căn giữa dọc',lambda:self.align('y')),('Phân bố ngang',lambda:self.distribute('x')),('Phân bố dọc',lambda:self.distribute('y')),('Copy kiểu',self.copy_style),('Dán kiểu',self.paste_style),('Khóa / mở chọn',self.lock_selected),('Ẩn / hiện chọn',self.hide_selected),('Preview có âm thanh',lambda:self.host.playback_preview(self.composition))]:
             action=menu.addAction(name);action.triggered.connect(lambda checked=False,callback=callback:callback())
+        anchor_menu=menu.addMenu('Đặt neo 9 vị trí')
+        for label,horizontal,vertical in [
+            ('Trên trái','left','top'),('Trên giữa','center','top'),('Trên phải','right','top'),
+            ('Giữa trái','left','center'),('Giữa khung','center','center'),('Giữa phải','right','center'),
+            ('Dưới trái','left','bottom'),('Dưới giữa','center','bottom'),('Dưới phải','right','bottom'),
+        ]:
+            action=anchor_menu.addAction(label)
+            action.triggered.connect(
+                lambda checked=False,h=horizontal,v=vertical:self.anchor_selected(h,v))
+        self.grid_action=menu.addAction('Lưới căn chỉnh')
+        self.grid_action.setCheckable(True)
+        self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
+        self.grid_action.triggered.connect(self.set_canvas_grid)
+        grid_spacing_menu=menu.addMenu('Bước lưới')
+        self.grid_spacing_group=QActionGroup(self)
+        self.grid_spacing_group.setExclusive(True)
+        self.grid_spacing_actions={}
+        for label,value in [('5% (mịn)','0.05'),('10% (vừa)','0.1'),('20% (thưa)','0.2')]:
+            action=grid_spacing_menu.addAction(label)
+            action.setCheckable(True);action.setData(float(value))
+            action.setChecked(float(value)==self.composition.adjustments.get('canvas_grid_spacing',.05))
+            self.grid_spacing_group.addAction(action)
+            self.grid_spacing_actions[float(value)]=action
+        self.grid_spacing_group.triggered.connect(lambda action:self.set_canvas_grid_spacing(action.data()))
+        self.grid_spacing_custom_action=grid_spacing_menu.addAction('Tùy chỉnh…')
+        self.grid_spacing_custom_action.triggered.connect(self.choose_canvas_grid_spacing)
+        self.loop_action=menu.addAction('Lặp đoạn In–Out (preview đã render)')
+        self.loop_action.setCheckable(True)
+        self.loop_action.setChecked(False)
+        self.loop_action.toggled.connect(self.toggle_loop)
+        self.thumbnail_action=menu.addAction('Thumbnail video trên timeline (tạo nền)')
+        self.thumbnail_action.setCheckable(True)
+        self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
+        self.thumbnail_action.toggled.connect(self.set_timeline_thumbnails)
+        self.proxy_group=QActionGroup(self)
+        self.proxy_group.setExclusive(True)
+        self.proxy_actions={}
+        for label,value in [('Không dùng proxy','off'),('Proxy nhanh (640px)','fast'),
+                            ('Proxy cân bằng (1280px)','balanced'),('Proxy cao (1920px)','high')]:
+            action=menu.addAction(label)
+            action.setData(value);action.setCheckable(True)
+            action.setChecked(value==self.composition.adjustments.get('playback_proxy_quality','off'))
+            self.proxy_group.addAction(action);self.proxy_actions[value]=action
+        self.proxy_group.triggered.connect(lambda action:self.set_proxy_quality(action.data()))
         extra.setMenu(menu);toolbar.addWidget(extra)
         self.scope=QComboBox();self.scope.addItems(['Clip hiện tại','Các clip đã chọn','Preset cả lô']);toolbar.addWidget(self.scope)
         self.scope.currentIndexChanged.connect(self.change_scope)
-        split=QSplitter();layout.addWidget(split,1)
+        self.splitter=QSplitter();split=self.splitter;layout.addWidget(split,1)
         assets=QWidget();left=QVBoxLayout(assets);self.clips=QListWidget();self.layers=QListWidget()
         self.clips.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.clips.currentRowChanged.connect(lambda _:self.load_proxy())
         self.layers.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         left.addWidget(QLabel('Media'));left.addWidget(self.clips);left.addWidget(QLabel('Layers'));left.addWidget(self.layers)
         self.layers.itemSelectionChanged.connect(self.list_selection)
@@ -64,11 +130,46 @@ class Editor(QWidget):
         controls=QHBoxLayout();middle.addLayout(controls)
         play=QPushButton('Phát / dừng');play.clicked.connect(self.toggle_play);controls.addWidget(play)
         ref=QPushButton('Preview chất lượng xuất');ref.clicked.connect(self.reference);controls.addWidget(ref)
+
         self.frame_label=QLabel('');controls.addWidget(self.frame_label)
+        self.meter_output=None
+        self.meter_clipped_samples=0
+        meter=QHBoxLayout();controls.addLayout(meter)
+        self.meter_peak_bar=QProgressBar()
+        self.meter_rms_bar=QProgressBar()
+        for bar in (self.meter_peak_bar,self.meter_rms_bar):
+            bar.setRange(0,600);bar.setValue(0);bar.setTextVisible(False);bar.setFixedWidth(72)
+        self.meter_peak_label=QLabel('Peak — dBFS')
+        self.meter_rms_label=QLabel('RMS — dBFS')
+        self.meter_clip_label=QLabel('Clip mẫu: 0')
+        meter.addWidget(self.meter_peak_bar);meter.addWidget(self.meter_peak_label)
+        meter.addWidget(self.meter_rms_bar);meter.addWidget(self.meter_rms_label)
+        meter.addWidget(self.meter_clip_label)
+        self.meter_status=QLabel('PCM đã giải mã / trước thiết bị')
+        self.meter_status.setToolTip('Đo tín hiệu số trước QAudioOutput/loa. Preview đã render đo bản mix; phát nguồn chỉ đo nguồn. Không phải true-peak hay âm lượng thực của loa.')
+        meter.addWidget(self.meter_status)
+        self.player.sourceChanged.connect(self.reset_audio_meter)
+        self.setup_audio_meter()
         self.timeline=Timeline(self);self.timeline.seek.connect(lambda t:self.player.setPosition(round(t*1000)));middle.addWidget(self.timeline)
-        self.player.positionChanged.connect(lambda milliseconds:self.timeline.position(milliseconds/1000))
+        self.player.positionChanged.connect(self.player_position_changed)
         split.addWidget(center)
-        self.inspector=QTabWidget();split.addWidget(self.inspector);self.fields={}
+        self.inspector=QTabWidget()
+        self.fields={};self.field_forms={};self.field_labels={}
+        self.inspector_panel=QWidget()
+        inspector_layout=QVBoxLayout(self.inspector_panel)
+        inspector_layout.setContentsMargins(4,4,4,4)
+        search_row=QHBoxLayout()
+        self.property_search=QLineEdit()
+        self.property_search.setPlaceholderText('Tìm thuộc tính…')
+        self.property_search.setClearButtonEnabled(True)
+        self.property_search.textChanged.connect(self.filter_properties)
+        search_row.addWidget(self.property_search,1)
+        self.reset_properties_button=QPushButton('Đặt lại thuộc tính')
+        self.reset_properties_button.clicked.connect(self.reset_layer_properties)
+        search_row.addWidget(self.reset_properties_button)
+        inspector_layout.addLayout(search_row)
+        inspector_layout.addWidget(self.inspector,1)
+        split.addWidget(self.inspector_panel)
         self.build_inspector();split.setSizes([170,740,300])
         self.refresh()
 
@@ -114,7 +215,48 @@ class Editor(QWidget):
         elif kind=='bool':widget=QCheckBox();widget.toggled.connect(lambda _:self.field_changed(key))
         elif kind=='choice':widget=QComboBox();widget.addItems(options);widget.currentTextChanged.connect(lambda _:self.field_changed(key))
         else:widget=QLineEdit();widget.editingFinished.connect(lambda:self.field_changed(key))
-        self.fields[key]=(widget,kind);form.addRow(label,widget)
+        self.fields[key]=(widget,kind)
+        self.field_forms[key]=form
+        self.field_labels[key]=label
+        form.addRow(label,widget)
+
+    def filter_properties(self, query):
+        """Filter inspector rows by property label/key without mutating the project."""
+        needle=str(query or '').strip().casefold()
+        for key,(widget,kind) in self.fields.items():
+            form=self.field_forms.get(key)
+            if form is None:
+                continue
+            row,_role=form.getWidgetPosition(widget)
+            if row < 0:
+                continue
+            label=form.labelForField(widget)
+            label_text=label.text() if label is not None else ''
+            matches=(not needle or needle in key.casefold()
+                     or needle in label_text.casefold())
+            form.setRowVisible(row,matches)
+
+    def reset_layer_properties(self):
+        """Reset editable properties as one undoable edit, preserving layer identity/content."""
+        layer=self.layer()
+        if layer is None:
+            self.host.message('Chọn một layer trước khi đặt lại thuộc tính.')
+            return
+        if layer.locked:
+            self.host.message('Layer đang khóa; hãy mở khóa trước khi đặt lại thuộc tính.')
+            return
+        defaults=Layer(kind=layer.kind)
+        if layer.kind=='mask':
+            defaults.x=.05;defaults.y=.75;defaults.width=.8;defaults.height=.12
+            defaults.style={'mode':'blur','radius':10}
+        self.begin()
+        for key in ('x','y','width','height','rotation','opacity','start','end','visible','locked'):
+            setattr(layer,key,deepcopy(getattr(defaults,key)))
+        layer.style=deepcopy(defaults.style)
+        layer.motion=deepcopy(defaults.motion)
+        layer.keyframes={}
+        self.commit('Đặt lại thuộc tính layer')
+        self.host.message('Đã đặt lại vị trí, kiểu, chuyển động và keyframe; nội dung, tệp nguồn và liên kết được giữ nguyên.')
 
     def layer(self):return next((x for x in self.composition.layers if x.id==self.selected_id),None)
     def begin(self):self._before=self.composition.to_dict()
@@ -128,8 +270,23 @@ class Editor(QWidget):
         if before and before!=after:self.undo.push(Snapshot(self,before,after,name))
         else:self.refresh()
 
+    def cancel_pending_edit(self):
+        if self._before is None:
+            return False
+        snapshot = self._before
+        self._before = None
+        self.composition = Composition.from_dict(snapshot)
+        self.composition_fingerprint = canonical(self.composition.to_dict())
+        # Refresh the model/view without invalidating a rendered preview that
+        # still matches the restored pre-gesture composition.
+        self.refresh()
+        return True
+
     def set_composition(self,composition):
-        self.composition=composition;self.refresh();self.changed.emit()
+        self.preview_fingerprint=None
+        self.composition=composition
+        self.composition_fingerprint=canonical(composition.to_dict())
+        self.refresh();self.changed.emit()
 
     def refresh(self):
         self._loading=True
@@ -137,15 +294,43 @@ class Editor(QWidget):
         self.clips.clear()
         for c in self.composition.clips:
             self.clips.addItem(Path(c.path).name);item=self.clips.item(self.clips.count()-1);item.setData(Qt.ItemDataRole.UserRole,c.id);item.setSelected(c.id in clip_ids)
-        if self.clips.count() and not self.clips.selectedItems():self.clips.setCurrentRow(0)
+        if self.clips.count() and self.clips.currentRow()<0:
+            self.clips.setCurrentRow(0)
         self.layers.clear()
         for layer in self.composition.layers:self.layers.addItem(('🔒 ' if layer.locked else '')+layer.name)
         selected=next((i for i,x in enumerate(self.composition.layers) if x.id==self.selected_id),-1)
         self.selected_ids.intersection_update(l.id for l in self.composition.layers)
         if self.selected_id:self.selected_ids.add(self.selected_id)
         for index,layer in enumerate(self.composition.layers):self.layers.item(index).setSelected(layer.id in self.selected_ids)
+        if hasattr(self, 'grid_action'):
+            self.grid_action.blockSignals(True)
+            self.grid_action.setChecked(bool(self.composition.adjustments.get('canvas_grid', False)))
+            self.grid_action.blockSignals(False)
+        if hasattr(self, 'grid_spacing_actions'):
+            spacing=self.composition.adjustments.get('canvas_grid_spacing',.05)
+            if (not isinstance(spacing,(int,float)) or isinstance(spacing,bool)
+                    or not math.isfinite(float(spacing)) or not .01 <= float(spacing) <= .5):
+                spacing=.05
+            spacing=float(spacing)
+            for value,action in self.grid_spacing_actions.items():
+                action.blockSignals(True);action.setChecked(value==spacing);action.blockSignals(False)
+            if hasattr(self,'grid_spacing_custom_action'):
+                self.grid_spacing_custom_action.setText(
+                    'Tùy chỉnh…' if spacing in self.grid_spacing_actions
+                    else f'Tùy chỉnh ({spacing*100:g}%)'
+                )
+        if hasattr(self, 'thumbnail_action'):
+            self.thumbnail_action.blockSignals(True)
+            self.thumbnail_action.setChecked(bool(self.composition.adjustments.get('timeline_thumbnails',False)))
+            self.thumbnail_action.blockSignals(False)
+        if hasattr(self,'proxy_actions'):
+            quality=self.composition.adjustments.get('playback_proxy_quality','off')
+            action=self.proxy_actions.get(quality,self.proxy_actions['off'])
+            action.setChecked(True)
         self.canvas.rebuild();self.timeline.rebuild();self.load_fields();self._loading=False
         self.load_waveforms()
+        self.load_thumbnails()
+        self.load_proxy()
 
     def load_waveforms(self):
         if not hasattr(self.host,'background'):return
@@ -159,6 +344,127 @@ class Editor(QWidget):
                 except (ValueError,RuntimeError,OSError):return path,{}
             def done(data):self.waveforms[data[0]]=data[1];self.timeline.rebuild()
             self.host.background(work,done)
+
+    def set_timeline_thumbnails(self,enabled):
+        if bool(self.composition.adjustments.get('timeline_thumbnails',False))==bool(enabled):
+            return
+        self._thumbnail_failed.clear()
+        self.begin()
+        self.composition.adjustments['timeline_thumbnails']=bool(enabled)
+        self.commit('Bật/tắt thumbnail trên timeline')
+
+    def thumbnail_assets(self,clip):
+        if not self.composition.adjustments.get('timeline_thumbnails',False):
+            return []
+        entry=self.thumbnails.get(clip.id)
+        if not entry:return []
+        try:key=thumbnail_identity(clip)
+        except (OSError,ValueError):return []
+        return entry.get('frames',[]) if entry.get('key')==key else []
+
+    def load_thumbnails(self):
+        if (not self.composition.adjustments.get('timeline_thumbnails',False)
+                or not hasattr(self.host,'background')
+                or not hasattr(self.host,'workspace')):
+            return
+        for clip in self.timeline.visible_clips(limit=8):
+            if len(self._thumbnail_pending)>=8:break
+            try:key=thumbnail_identity(clip)
+            except (OSError,ValueError):
+                continue
+            entry=self.thumbnails.get(clip.id)
+            if (entry and entry.get('key')==key
+                    or key in self._thumbnail_pending
+                    or key in self._thumbnail_failed):
+                continue
+            self._thumbnail_pending.add(key)
+            snapshot=deepcopy(clip)
+            destination=Path(self.host.workspace.name)/'thumbnails'
+            def work(progress,cancel,clip=snapshot,key=key):
+                try:return clip.id,key,thumbnail_strip(clip,destination,cancel),None
+                except (RuntimeError,ValueError,TimeoutError,OSError) as exc:
+                    return clip.id,key,None,str(exc)[:200]
+            def done(outcome):
+                clip_id,identity,data,error=outcome
+                self._thumbnail_pending.discard(identity)
+                if error:self._thumbnail_failed.add(identity)
+                else:
+                    current=next((c for c in self.composition.clips if c.id==clip_id),None)
+                    if current:
+                        try:matches=thumbnail_identity(current)==identity
+                        except (OSError,ValueError):matches=False
+                        if matches:self.thumbnails[clip_id]=data
+                if self.composition.adjustments.get('timeline_thumbnails',False):
+                    self.timeline.rebuild()
+                    self.load_thumbnails()
+            self.host.background(work,done)
+
+    def set_proxy_quality(self,quality):
+        if quality not in {'off','fast','balanced','high'}:
+            raise ValueError('Chất lượng proxy không hỗ trợ')
+        if self.composition.adjustments.get('playback_proxy_quality','off')==quality:
+            return
+        self._proxy_failed.clear()
+        self.begin()
+        self.composition.adjustments['playback_proxy_quality']=quality
+        self.commit('Thay chất lượng proxy nguồn')
+
+    def load_proxy(self):
+        if self._loading or not hasattr(self,'player') or not hasattr(self,'clips'):
+            return
+        index=self.clips.currentRow()
+        if index<0 and self.composition.clips:index=0
+        if not 0<=index<len(self.composition.clips):
+            return
+        clip=self.composition.clips[index]
+        if not Path(clip.path).is_file() or self.preview_fingerprint is not None:
+            return
+        quality=self.composition.adjustments.get('playback_proxy_quality','off')
+        if quality not in {'off','fast','balanced','high'}:
+            return
+        if quality=='off':
+            original=QUrl.fromLocalFile(str(Path(clip.path).resolve()))
+            if self.player.source()!=original:self.player.setSource(original)
+            return
+        if not hasattr(self.host,'background') or not hasattr(self.host,'workspace'):
+            return
+        try:key=proxy_identity(clip.path,quality)
+        except (OSError,ValueError):return
+        entry=self.proxy_cache.get(key)
+        if entry and Path(entry['path']).is_file():
+            target=QUrl.fromLocalFile(entry['path'])
+            if self.player.source()!=target:self.player.setSource(target)
+            return
+        if key in self._proxy_pending or key in self._proxy_failed or self._proxy_pending:
+            return
+        self._proxy_pending.add(key)
+        source=clip.path
+        cache_root=Path(getattr(self.host,'data',self.host.workspace.name))/'cache'/'proxies'
+        def work(progress,cancel):
+            try:return key,playback_proxy(source,cache_root,quality,cancel),None
+            except (RuntimeError,TimeoutError,ValueError,OSError) as exc:
+                return key,None,str(exc)[:200]
+        def done(result):
+            identity,data,error=result
+            self._proxy_pending.discard(identity)
+            if error:self._proxy_failed.add(identity)
+            elif data:self.proxy_cache[identity]=data
+            index=self.clips.currentRow()
+            if index<0 and self.composition.clips:index=0
+            if (data and 0<=index<len(self.composition.clips)
+                    and self.composition.clips[index].path==source
+                    and self.composition.adjustments.get('playback_proxy_quality')==quality
+                    and self.preview_fingerprint is None):
+                try:matches=proxy_identity(source,quality)==identity
+                except (OSError,ValueError):matches=False
+                if matches and Path(data['path']).is_file():
+                    self.player.setSource(QUrl.fromLocalFile(data['path']))
+                    self.host.message('Đã nạp proxy nguồn local; bản xuất vẫn dùng tệp gốc.')
+            if error and self.composition.adjustments.get('playback_proxy_quality')==quality:
+                self.host.message('Không tạo được proxy nguồn: '+error)
+            if self.composition.adjustments.get('playback_proxy_quality','off')!='off':
+                self.load_proxy()  # Selected clip may have changed while encoding.
+        self.host.background(work,done)
 
     def select_row(self,index):
         if self._loading:return
@@ -210,6 +516,38 @@ class Editor(QWidget):
         else:setattr(layer,key,value)
         self.commit('Đổi '+key)
 
+    def set_canvas_grid(self, enabled):
+        enabled=bool(enabled)
+        if bool(self.composition.adjustments.get('canvas_grid', False))==enabled:
+            return
+        self.begin()
+        self.composition.adjustments['canvas_grid']=enabled
+        self.commit('Bật/tắt lưới căn chỉnh')
+
+    def choose_canvas_grid_spacing(self):
+        current=self.composition.adjustments.get('canvas_grid_spacing',.05)
+        if (not isinstance(current,(int,float)) or isinstance(current,bool)
+                or not math.isfinite(float(current)) or not .01 <= float(current) <= .5):
+            current=.05
+        percent,ok=QInputDialog.getDouble(
+            self,'Bước lưới tùy chỉnh','Khoảng cách lưới (%):',
+            float(current)*100,1.0,50.0,1
+        )
+        if ok:
+            self.set_canvas_grid_spacing(percent/100.0)
+
+    def set_canvas_grid_spacing(self, spacing):
+        if (not isinstance(spacing,(int,float)) or isinstance(spacing,bool)
+                or not math.isfinite(float(spacing)) or not .01 <= float(spacing) <= .5):
+            self.host.message('Bước lưới phải nằm trong khoảng 1–50%; giữ mức 5%.')
+            spacing=.05
+        spacing=float(spacing)
+        if self.composition.adjustments.get('canvas_grid_spacing', .05)==spacing:
+            return
+        self.begin()
+        self.composition.adjustments['canvas_grid_spacing']=spacing
+        self.commit(f'Đổi bước lưới {spacing*100:g}%')
+
     def add_video(self):
         paths,_=QFileDialog.getOpenFileNames(self,'Thêm media',filter='Video (*.mp4 *.mkv *.mov *.webm *.avi);;Tất cả (*)')
         for path in paths:self.open_media(Path(path))
@@ -239,6 +577,52 @@ class Editor(QWidget):
         if self.layer():
             self.begin();copy=deepcopy(self.layer());copy.id=identifier();copy.name+=' copy';copy.x=min(.95,copy.x+.02)
             self.composition.layers.append(copy);self.selected_id=copy.id;self.selected_ids={copy.id};self.commit('Nhân bản')
+
+    def select_all_layers(self):
+        self.select_ids([layer.id for layer in self.composition.layers])
+        self.canvas.rebuild()
+
+    def copy_layers(self):
+        layers = self.selected_layers()
+        if not layers:
+            return
+        self._layer_clipboard = deepcopy(layers)
+        self.host.message(f'Đã sao chép {len(layers)} layer')
+
+    def paste_layers(self):
+        if not self._layer_clipboard:
+            return
+        self.begin()
+        copies = deepcopy(self._layer_clipboard)
+        group_ids = {}
+        for layer in copies:
+            layer.id = identifier()
+            layer.name += ' copy'
+            if layer.group:
+                old_group = layer.group
+                if old_group not in group_ids:
+                    group_ids[old_group] = identifier()
+                layer.group = group_ids[old_group]
+            layer.x = max(0.0, min(max(0.0, 1.0 - layer.width), layer.x + .02))
+            layer.y = max(0.0, min(max(0.0, 1.0 - layer.height), layer.y + .02))
+        self.composition.layers.extend(copies)
+        self.selected_ids = {layer.id for layer in copies}
+        self.selected_id = copies[0].id
+        self.commit('Dán layer')
+        self.host.message(f'Đã dán {len(copies)} layer')
+
+    def cut_layers(self):
+        eligible = [layer for layer in self.selected_layers() if not layer.locked]
+        if not eligible:
+            return
+        self._layer_clipboard = deepcopy(eligible)
+        ids = {layer.id for layer in eligible}
+        self.begin()
+        self.composition.layers = [layer for layer in self.composition.layers if layer.id not in ids]
+        self.selected_id = None
+        self.selected_ids = set()
+        self.commit('Cắt layer')
+        self.host.message(f'Đã cắt {len(eligible)} layer khỏi project')
 
     def delete_layer(self):
         ids={l.id for l in self.selected_layers() if not l.locked}
@@ -272,6 +656,41 @@ class Editor(QWidget):
         for layer in self.selected_layers():
             if not layer.locked:layer.group=None
         self.commit('Bỏ nhóm')
+    def anchor_selected(self, horizontal, vertical):
+        selected = [layer for layer in self.selected_layers() if not layer.locked]
+        if not selected:
+            self.host.message('Chọn ít nhất một layer không khóa để đặt neo.')
+            return
+        selected_ids = {layer.id for layer in selected}
+        group_ids = {layer.group for layer in selected if layer.group}
+        movable = [
+            layer for layer in self.composition.layers
+            if not layer.locked and (
+                layer.id in selected_ids
+                or (layer.group is not None and layer.group in group_ids)
+            )
+        ]
+        delta = anchor_group_delta(
+            [(layer.x, layer.y, layer.width, layer.height) for layer in movable],
+            horizontal, vertical,
+        )
+        if delta is None:
+            self.host.message('Nhóm layer lớn hơn canvas; không thể đặt neo mà không làm đối tượng tràn khung.')
+            return
+        dx, dy = delta
+        if abs(dx) <= 1e-12 and abs(dy) <= 1e-12:
+            return
+        self.begin()
+        for layer in movable:
+            layer.x += dx
+            layer.y += dy
+        labels = {
+            ('left','top'):'trên trái', ('center','top'):'trên giữa', ('right','top'):'trên phải',
+            ('left','center'):'giữa trái', ('center','center'):'giữa khung', ('right','center'):'giữa phải',
+            ('left','bottom'):'dưới trái', ('center','bottom'):'dưới giữa', ('right','bottom'):'dưới phải',
+        }
+        self.commit('Đặt neo ' + labels[(horizontal, vertical)])
+
     def align(self,axis):
         self.begin()
         for layer in self.selected_layers():
@@ -344,8 +763,103 @@ class Editor(QWidget):
             points.append({'time':t,'value':getattr(layer,key)});layer.keyframes[key]=sorted(points,key=lambda p:p['time'])
         self.commit('Đặt keyframe')
 
+    def toggle_loop(self,enabled):
+        if not enabled:return
+        if (self.in_point is None or self.out_point is None
+                or not math.isfinite(self.in_point) or not math.isfinite(self.out_point)
+                or self.in_point<0 or self.out_point<=self.in_point
+                or self.out_point-self.in_point<.04):
+            self.loop_action.blockSignals(True)
+            self.loop_action.setChecked(False)
+            self.loop_action.blockSignals(False)
+            self.host.message('Đặt In và Out hợp lệ (Out sau In ít nhất 40 ms) để lặp preview')
+            return
+        positions=clip_positions(self.composition)
+        duration=max((offset+length for _,offset,length in positions),default=0)
+        if self.out_point>duration+.002:
+            self.loop_action.blockSignals(True)
+            self.loop_action.setChecked(False)
+            self.loop_action.blockSignals(False)
+            self.host.message('Điểm Out vượt thời lượng composition')
+            return
+        if self.preview_fingerprint!=self.composition_fingerprint:
+            self.host.message('Để lặp đúng thời gian, hãy dựng Preview có âm thanh từ compositor')
+            if hasattr(self.host,'playback_preview'):
+                self.host.playback_preview(self.composition)
+
+    def player_position_changed(self,milliseconds):
+        self.timeline.position(milliseconds/1000)
+        if self._loop_seeking:return
+        verified=(self._before is None and self.preview_fingerprint==self.composition_fingerprint)
+        if self.player.playbackState()!=QMediaPlayer.PlaybackState.PlayingState:return
+        target=loop_seek_target(milliseconds,self.in_point,self.out_point,
+            enabled=self.loop_action.isChecked(),verified=verified)
+        if target is not None and target!=milliseconds:
+            self._loop_seeking=True
+            try:self.player.setPosition(target)
+            finally:self._loop_seeking=False
+
+    def reset_audio_meter(self,*_ignored):
+        """New media or playback session: discard previous peak/clip history."""
+        self.meter_clipped_samples=0
+        self.meter_peak_bar.setValue(0);self.meter_rms_bar.setValue(0)
+        self.meter_peak_label.setText('Peak — dBFS')
+        self.meter_rms_label.setText('RMS — dBFS')
+        self.meter_clip_label.setText('Clip mẫu: 0')
+        if self.meter_output is None:
+            self.meter_status.setText('Meter không khả dụng (Qt/FFmpeg backend)')
+        else:
+            self.meter_status.setText('Chờ PCM (cần backend FFmpeg) • trước thiết bị')
+
+    def setup_audio_meter(self):
+        """Attach the optional decoded-stream tap without replacing audio output."""
+        if QAudioBufferOutput is not None and hasattr(self.player,'setAudioBufferOutput'):
+            try:
+                output=QAudioBufferOutput(self)
+                output.audioBufferReceived.connect(self.audio_buffer_received)
+                self.player.setAudioBufferOutput(output)
+                self.meter_output=output
+            except (TypeError,RuntimeError,AttributeError):
+                self.meter_output=None
+        self.reset_audio_meter()
+
+    def audio_buffer_received(self,buffer):
+        """Read-only decoded stream sample meter; never touch project or mix gain."""
+        if not buffer.isValid() or buffer.frameCount()<=0:
+            self.reset_audio_meter()
+            return
+        try:
+            fmt=buffer.format()
+            if not fmt.isValid():raise ValueError('Invalid audio format')
+            samples=bytes(buffer.constData())
+            if len(samples)!=buffer.byteCount():
+                raise ValueError('Truncated Qt audio data')
+            measured=measure_pcm(samples,fmt.sampleFormat().name,fmt.channelCount())
+        except (ValueError,TypeError,RuntimeError,BufferError,AttributeError):
+            self.meter_peak_bar.setValue(0);self.meter_rms_bar.setValue(0)
+            self.meter_peak_label.setText('Peak — dBFS')
+            self.meter_rms_label.setText('RMS — dBFS')
+            self.meter_status.setText('PCM không hỗ trợ/không hợp lệ')
+            return
+        def display(level):
+            return '−∞' if level==-math.inf else f'{level:+.1f}'
+        self.meter_peak_bar.setValue(meter_bar(measured.peak_dbfs))
+        self.meter_rms_bar.setValue(meter_bar(measured.rms_dbfs))
+        self.meter_peak_label.setText(f'Peak {display(measured.peak_dbfs)} dBFS')
+        self.meter_rms_label.setText(f'RMS {display(measured.rms_dbfs)} dBFS')
+        self.meter_clipped_samples+=measured.clipped_samples
+        self.meter_clip_label.setText(f'Clip mẫu: {self.meter_clipped_samples}')
+        self.meter_status.setText('PCM đã giải mã • trước thiết bị')
+
     def toggle_play(self):
         self.views.setCurrentIndex(1)
+        if (self.loop_action.isChecked()
+                and self.preview_fingerprint!=self.composition_fingerprint):
+            if hasattr(self.host,'playback_preview'):self.host.playback_preview(self.composition)
+            else:self.host.message('Lặp đoạn cần render preview composition trước')
+            return
+        if self.player.playbackState()==QMediaPlayer.PlaybackState.StoppedState:
+            self.reset_audio_meter()
         self.player.pause() if self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState else self.player.play()
 
     def request_render(self):self.render_requested.emit(self.composition.to_dict())

@@ -120,6 +120,96 @@ def _ass_text(stage,layer,composition,duration,index):
     name=f'layer-{index}.ass';doc.save(str(stage/name),encoding='utf-8');return name
 
 
+
+def audio_timeline_offset(track, total, clips, clip_ranges):
+    """Resolve an optional SFX trigger against the exported timeline.
+
+    Offset measures seconds after absolute/percent/scene-start positions or
+    seconds before video-end/scene-end. Scene numbers are 1-based and use
+    the actual post-speed/transition clip ranges.
+    """
+    delay=float(track.get('offset',0))
+    placement=track.get('placement','absolute')
+    if placement=='absolute':
+        resolved=delay
+    elif placement=='percent':
+        resolved=total*float(track['position_pct'])/100+delay
+    elif placement=='video_end':
+        resolved=total-delay
+    elif placement in {'scene_start','scene_end'}:
+        scene=clips[track['scene_index']-1]
+        start,length=clip_ranges[scene.id]
+        resolved=start+delay if placement=='scene_start' else start+length-delay
+    else:
+        raise ValueError('Unsupported SFX placement')
+    if track.get('mode','music')=='sfx' and (not math.isfinite(resolved)
+            or resolved<0 or resolved>=total-1e-8):
+        raise ValueError('SFX starts outside the output timeline; adjust anchor or offset')
+    return resolved
+
+
+def crop_rect_pixels(clip, source_width: int, source_height: int):
+    """Return an even-pixel FFmpeg crop as (width, height, x, y).
+
+    Coordinates are normalized to the untransformed source frame. Even crop
+    geometry is required for reliable yuv420p output across FFmpeg builds.
+    """
+    if type(source_width) is not int or type(source_height) is not int:
+        raise ValueError("Source dimensions must be integers")
+    if source_width < 2 or source_height < 2:
+        raise ValueError("Source frame is too small to crop safely")
+    x, y, width, height = (
+        clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height
+    )
+    if (x, y, width, height) == (0.0, 0.0, 1.0, 1.0):
+        return None
+    values = (x, y, width, height)
+    if any(type(value) not in (int, float) or not math.isfinite(value) for value in values):
+        raise ValueError("Crop region values must be finite numbers")
+    if (x < 0 or y < 0 or width <= 0 or height <= 0
+            or x + width > 1 or y + height > 1):
+        raise ValueError("Crop region must stay within the source frame")
+
+    def axis(start, extent, dimension):
+        usable = dimension - dimension % 2
+        if usable < 2:
+            raise ValueError("Source frame is too small to crop safely")
+        raw_start = math.floor(start * dimension)
+        raw_end = math.ceil((start + extent) * dimension)
+        left = max(0, min(usable - 2, (raw_start // 2) * 2))
+        right = min(usable, max(left + 2, ((raw_end + 1) // 2) * 2))
+        return left, right - left
+
+    left, crop_width = axis(x, width, source_width)
+    top, crop_height = axis(y, height, source_height)
+    return crop_width, crop_height, left, top
+
+
+def crop_rect_after_autorotate(clip, info):
+    """Apply display-space crop coordinates to FFmpeg's autorotated frames.
+
+    CropDialog displays a frame decoded by FFmpeg with autorotation enabled;
+    its normalized crop rectangle therefore already refers to the oriented
+    display, not the unrotated encoded image. Only the width/height must
+    change for 90-degree metadata: do not rotate the rectangle a second time.
+    """
+    full_frame = (clip.crop_x, clip.crop_y, clip.crop_width, clip.crop_height) == (
+        0.0, 0.0, 1.0, 1.0)
+    angle = info.display_rotation
+    quarter_turns = round(angle / 90)
+    if not math.isclose(angle, quarter_turns * 90, abs_tol=1e-3):
+        if full_frame:
+            return None  # Uncropped FFmpeg autorotation remains supported.
+        raise ValueError(
+            'Metadata xoay không vuông góc; không thể crop chính xác nguồn'
+        )
+    if quarter_turns % 2:
+        display_width, display_height = info.height, info.width
+    else:
+        display_width, display_height = info.width, info.height
+    return crop_rect_pixels(clip, display_width, display_height)
+
+
 def compile_graph(c:Composition,stage:Path):
     c.validate()
     if not c.clips:raise ValueError('Chưa có clip')
@@ -137,6 +227,10 @@ def compile_graph(c:Composition,stage:Path):
             segments.append((label+'v',label+'a',gap))
         args+=['-i',str(Path(clip.path).resolve())];idx=inputs;inputs+=1
         vf=[f'trim=start={clip.start:.8f}:end={end:.8f}',f'setpts=(PTS-STARTPTS)/{clip.speed:.8f}',f'fps={c.fps}','settb=AVTB']
+        crop = crop_rect_after_autorotate(clip, info)
+        if crop:
+            crop_width, crop_height, crop_x, crop_y = crop
+            vf.append(f'crop={crop_width}:{crop_height}:{crop_x}:{crop_y}')
         if clip.flip:vf.append('hflip')
         if clip.freeze:vf.append(f'tpad=stop_mode=clone:stop_duration={clip.freeze}')
         if clip.rotation:vf.append(f'rotate={clip.rotation:.8f}*PI/180:fillcolor=black')
@@ -270,21 +364,119 @@ def compile_graph(c:Composition,stage:Path):
     for i,track in enumerate(c.audio):
         if track.get('mute') or solo and not track.get('solo'):continue
         path=Path(track['path']).resolve();source_duration=audio_duration(path)
-        if track.get('loop') and not track.get('trim_end'):args+=['-stream_loop','-1']
+        loop_crossfade=float(track.get('loop_crossfade',0))
+        if track.get('loop') and not track.get('trim_end') and not loop_crossfade:
+            args+=['-stream_loop','-1']
         args+=['-i',str(path)];idx=inputs;inputs+=1
-        start=max(0,float(track.get('trim_start',0)));offset=max(0,float(track.get('offset',0)));gain=float(track.get('volume',.2))
+        start=max(0,float(track.get('trim_start',0)))
+        offset=audio_timeline_offset(track,total,c.clips,clip_ranges)
+        gain=float(track.get('volume',.2))
         end=float(track.get('trim_end') or source_duration)
         if not 0<=start<end<=source_duration+.001:raise ValueError('Audio trim nằm ngoài nguồn')
         if not 0<=gain<=4:raise ValueError('Audio volume must be 0–4')
-        filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''), 'asetpts=PTS-STARTPTS',f'volume={gain}', 'aresample=48000','aformat=channel_layouts=stereo']
-        if track.get('loop') and track.get('trim_end'):
-            if end-start>600:raise ValueError('Đoạn âm thanh lặp sau trim giới hạn 10 phút để giữ RAM')
-            filters.append(f'aloop=loop=-1:size={round((end-start)*48000)}')
+        trigger_times=track.get('trigger_times')
+        if trigger_times is not None:
+            if any(timestamp>=total-1e-7 for timestamp in trigger_times):
+                raise ValueError('Custom SFX trigger outside the output timeline')
+            fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
+            triggered=[]
+            for number,onset in enumerate(trigger_times):
+                index=idx
+                if number:
+                    index=inputs
+                    args+=['-i',str(path)]
+                    inputs+=1
+                filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
+                         f'volume={gain}','aresample=48000','asetpts=N/SR/TB',
+                         'aformat=channel_layouts=stereo']
+                if fi>0:filters.append(f'afade=t=in:d={fi}')
+                if fo>0:
+                    filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
+                filters += [f'adelay={round(onset*1000)}|{round(onset*1000)}',
+                            'apad',f'atrim=duration={total}']
+                label=f'sfxtrigger{i}_{number}'
+                graph.append(f'[{index}:a]'+','.join(filters)+f'[{label}]')
+                triggered.append(label)
+            joined=f'sfxtriggered{i}'
+            graph.append(''.join(f'[{label}]' for label in triggered)
+                         +f'amix=inputs={len(triggered)}:normalize=0:duration=longest[{joined}]')
+            mix.append(joined);modes.append('sfx')
+            continue
+        sfx_repeats=int(track.get('repeat_count',1))
+        if sfx_repeats>1:
+            interval=float(track['repeat_interval'])
+            if offset+(sfx_repeats-1)*interval >= total-1e-7:
+                raise ValueError('SFX repeat onset outside the output timeline')
+            fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
+            repeated=[]
+            for number in range(sfx_repeats):
+                index=idx
+                if number:
+                    index=inputs
+                    args+=['-i',str(path)]
+                    inputs+=1
+                onset=offset+number*interval
+                filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
+                         f'volume={gain}','aresample=48000','asetpts=N/SR/TB',
+                         'aformat=channel_layouts=stereo']
+                if fi>0:filters.append(f'afade=t=in:d={fi}')
+                if fo>0:
+                    filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
+                filters += [f'adelay={round(onset*1000)}|{round(onset*1000)}',
+                            'apad',f'atrim=duration={total}']
+                label=f'sfxrepeat{i}_{number}'
+                graph.append(f'[{index}:a]'+','.join(filters)+f'[{label}]')
+                repeated.append(label)
+            joined=f'sfxrepeated{i}'
+            graph.append(''.join(f'[{label}]' for label in repeated)
+                         +f'amix=inputs={sfx_repeats}:normalize=0:duration=longest[{joined}]')
+            mix.append(joined);modes.append('sfx')
+            continue
+        input_audio=f'{idx}:a'
+        if loop_crossfade:
+            segment_duration=end-start
+            if loop_crossfade*2>=segment_duration:
+                raise ValueError('Nhạc crossfade cần đoạn nguồn dài hơn hai lần thời lượng chuyển tiếp')
+            remaining=max(0,total-offset)
+            repeat_count=max(1,1+math.ceil((remaining-segment_duration)/(segment_duration-loop_crossfade)))
+            if repeat_count>128:
+                raise ValueError('Nhạc lặp crossfade vượt 128 đoạn; chọn nguồn dài hơn hoặc giảm video')
+            labels=[f'loop{i}_{number}' for number in range(repeat_count)]
+            # Feed each repetition from its own FFmpeg input. Reusing a single
+            # stream through asplit plus chained acrossfade crashes FFmpeg
+            # 7.1.1 on Windows (ffmpeg_filter.c: best_input assertion).
+            for number,label in enumerate(labels):
+                stream_index=idx
+                if number:
+                    stream_index=inputs
+                    args+=['-i',str(path)]
+                    inputs+=1
+                graph.append(f'[{stream_index}:a]atrim=start={start}:end={end},'
+                             f'asetpts=PTS-STARTPTS,aresample=48000,'
+                             f'aformat=channel_layouts=stereo[{label}]')
+            input_audio=labels[0]
+            for number in range(1,repeat_count):
+                joined=f'loopjoin{i}_{number}'
+                graph.append(f'[{input_audio}][{labels[number]}]acrossfade='
+                             f'd={loop_crossfade}:c1=tri:c2=tri[{joined}]')
+                input_audio=joined
+            filters=[f'volume={gain}']
+        else:
+            filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
+                     'asetpts=PTS-STARTPTS',f'volume={gain}',
+                     'aresample=48000','aformat=channel_layouts=stereo']
+            if track.get('loop') and track.get('trim_end'):
+                if end-start>600:raise ValueError('Đoạn âm thanh lặp sau trim giới hạn 10 phút để giữ RAM')
+                filters.append(f'aloop=loop=-1:size={round((end-start)*48000)}')
         fi=float(track.get('fade_in',0));fo=float(track.get('fade_out',0))
         if fi>0:filters.append(f'afade=t=in:d={fi}')
         if fo>0:filters.append(f'afade=t=out:st={max(0,min(total-offset,total if track.get("loop") else end-start)-fo)}:d={fo}')
-        filters += [f'adelay={round(offset*1000)}:all=1','apad',f'atrim=duration={total}']
-        graph.append(f'[{idx}:a]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
+        delay=round(offset*1000)
+        if track.get('mode','music')=='sfx':
+            filters += [f'adelay={delay}|{delay}','apad',f'atrim=duration={total}']
+        else:
+            filters += [f'adelay={delay}:all=1','apad',f'atrim=duration={total}']
+        graph.append(f'[{input_audio}]'+','.join(filters)+f'[music{i}]');mix.append(f'music{i}');modes.append(track.get('mode','music'))
     music=[i for i,mode in enumerate(modes) if mode=='music']
     if c.adjustments.get('ducking') and music:
         voice=modes.index('main') if 'main' in modes else 0

@@ -60,12 +60,19 @@ def map_trimmed_cues(cues: list[Cue], start_ms: int, end_ms: int,
     if start_ms < 0 or end_ms <= start_ms or speed <= 0 or offset_ms < 0:
         raise ValueError("Invalid trim, speed or offset")
     result = []
-    for cue in cues:
+    for index, cue in enumerate(cues, 1):
         left, right = max(cue.start_ms, start_ms), min(cue.end_ms, end_ms)
         if left >= right:
-            continue
+            continue  # Intentionally excluded by the selected source trim.
         mapped_start = offset_ms + round(Fraction(left - start_ms) / speed)
         mapped_end = offset_ms + round(Fraction(right - start_ms) / speed)
-        if mapped_end > mapped_start:
-            result.append(replace(cue, start_ms=mapped_start, end_ms=mapped_end))
+        if mapped_end <= mapped_start:
+            # A positive source intersection collapsed under millisecond
+            # quantization. Never silently discard a cue while claiming the
+            # render preserved its subtitles.
+            raise ValueError(
+                f"Cue {index}: duration collapses below 1 ms after trim/speed; "
+                "adjust the cue timing or video speed"
+            )
+        result.append(replace(cue, start_ms=mapped_start, end_ms=mapped_end))
     return result

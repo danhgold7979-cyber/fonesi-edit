@@ -24,6 +24,11 @@ class Segment(QGraphicsRectItem):
         self.setPen(QPen(QColor('#8996b4')))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setToolTip(label)
+        self.thumbnail_pixmaps=[]
+        if is_clip:
+            for path in timeline.editor.thumbnail_assets(item):
+                pixmap=QPixmap(str(path))
+                if not pixmap.isNull():self.thumbnail_pixmaps.append(pixmap)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
@@ -62,13 +67,26 @@ class Segment(QGraphicsRectItem):
 
     def paint(self,painter,option,widget=None):
         super().paint(painter,option,widget)
+        if self.is_clip and self.thumbnail_pixmaps:
+            area=self.rect().adjusted(2,2,-2,-2)
+            count=len(self.thumbnail_pixmaps)
+            for index,pixmap in enumerate(self.thumbnail_pixmaps):
+                target=QRectF(area.left()+index*area.width()/count,area.top(),
+                              area.width()/count,area.height())
+                painter.drawPixmap(target,pixmap,QRectF(pixmap.rect()))
+            painter.setPen(QPen(QColor('#8996b4')))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(self.rect())
         path=self.item.get('path') if self.is_audio else self.item.path if self.is_clip else None
         wave=self.timeline.editor.waveforms.get(path)
         if wave and wave.get('path'):
             image=QPixmap(wave['path']);duration=wave['duration'];start=self.item.get('trim_start',0) if self.is_audio else self.item.start
             source_length=self.duration if self.is_audio else self.duration*self.item.speed
             if not image.isNull() and duration>0:
-                rect=self.rect().adjusted(1,2,-1,-2);painter.setOpacity(.7)
+                rect=self.rect().adjusted(1,2,-1,-2)
+                if self.is_clip and self.thumbnail_pixmaps:
+                    rect.setTop(rect.top()+rect.height()*.65)
+                painter.setOpacity(.7)
                 painter.drawPixmap(rect,image,QRectF(image.width()*start/duration,0,max(1,min(image.width()-image.width()*start/duration,image.width()*source_length/duration)),image.height()))
 
 
@@ -83,6 +101,16 @@ class Timeline(QGraphicsView):
         self.setScene(QGraphicsScene(self))
         self.setMinimumHeight(180)
         self.markers=[]
+
+    def visible_clips(self,limit=8):
+        if not self.editor.composition.clips:
+            return []
+        viewport=self.mapToScene(self.viewport().rect()).boundingRect()
+        low=max(0,(viewport.left()-70)/self.scale_x)
+        high=max(low,(viewport.right()-70)/self.scale_x)
+        visible=[clip for clip,offset,duration in clip_positions(self.editor.composition)
+                 if offset<high and offset+duration>low]
+        return visible[:limit]
 
     def rebuild(self):
         scene=self.scene()
@@ -139,4 +167,10 @@ class Timeline(QGraphicsView):
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             self.scale_x=max(10,min(500,self.scale_x*(1.2 if event.angleDelta().y()>0 else 1/1.2)))
             self.rebuild()
+            self.editor.load_thumbnails()
         else: super().wheelEvent(event)
+
+    def scrollContentsBy(self,dx,dy):
+        super().scrollContentsBy(dx,dy)
+        if hasattr(self.editor,'timeline') and self.editor.timeline is self:
+            self.editor.load_thumbnails()

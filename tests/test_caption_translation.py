@@ -1,7 +1,7 @@
 from dataclasses import replace
 import pytest
 from fonesi_edit.storage import Store
-from fonesi_edit.subtitles import Caption,read_captions,write_captions,translate_captions,caption_warnings
+from fonesi_edit.subtitles import Caption,read_captions,write_captions,translate_captions,caption_warnings,split_caption,merge_captions
 
 
 def test_vtt_ass_srt_unicode_roundtrip(tmp_path):
@@ -51,3 +51,231 @@ def test_completed_translation_file_is_reused_after_worker_recovery(tmp_path,mon
     assert module.execute_translation(store,payload,lambda _:None,None)['reused'] and len(calls)==1 and output.stat().st_mtime_ns==stamp
     output.write_text('1\n00:00:00,000 --> 00:00:00,500\nEdited by user\n')
     with pytest.raises(FileExistsError):module.execute_translation(store,payload,lambda _:None,None)
+
+
+def test_changing_only_daily_translation_quota_reuses_cached_cues(tmp_path):
+    store=Store(tmp_path/'state.db')
+    calls=[]
+    def fake(texts,*args):
+        calls.append(tuple(texts))
+        return ['Bản dịch '+text for text in texts]
+    cue=Caption(0,1200,'Original')
+    first=translate_captions(store,[cue],config={'provider':'test','daily_limit':100},transport=fake)
+    assert first[0].text=='Bản dịch Original'
+    second=translate_captions(store,[cue],config={'provider':'test','daily_limit':1},transport=fake)
+    assert second[0].text==first[0].text
+    assert len(calls)==1
+
+
+def test_overwriting_subtitle_is_atomic_and_failure_keeps_manual_edits(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    path=tmp_path/'manual.srt'
+    module.write_captions(path,[Caption(0,1000,'Sửa tay đã lưu')])
+    original=path.read_bytes()
+    bad=Caption(0,1000,'Invalid')
+    bad.end_ms=0
+    with pytest.raises(ValueError):
+        module.write_captions(path,[bad],overwrite=True)
+    assert path.read_bytes()==original
+    def fail_replace(*args):
+        raise OSError('synthetic rename failure')
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'replace',fail_replace)
+        with pytest.raises(OSError,match='rename failure'):
+            module.write_captions(path,[Caption(0,1000,'Ghi mới')],overwrite=True)
+    assert path.read_bytes()==original
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+    module.write_captions(path,[Caption(0,1000,'Ghi mới')],overwrite=True)
+    assert read_captions(path)[0].text=='Ghi mới'
+
+
+def test_new_subtitle_never_publishes_partial_file_when_fsync_fails(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'new'/'translated.srt'
+    def broken_sync(_descriptor):
+        raise OSError('simulated disk full before subtitle publication')
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'fsync',broken_sync)
+        with pytest.raises(OSError,match='simulated disk full'):
+            module.write_captions(destination,[Caption(0,1000,'Tiếng Việt 中文')])
+    assert not destination.exists()
+    assert not list(destination.parent.glob('.fonesi-caption-*'))
+    module.write_captions(destination,[Caption(0,1000,'Tiếng Việt 中文')])
+    assert read_captions(destination)[0].text=='Tiếng Việt 中文'
+
+
+def test_new_subtitle_racing_publisher_never_overwrites_existing_bytes(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'racing.srt'
+    preserved=b'User supplied subtitle; no overwrite'
+    actual_link=module.os.link
+    def publish_other_file_then_link(source,target):
+        destination.write_bytes(preserved)
+        return actual_link(source,target)
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',publish_other_file_then_link)
+        with pytest.raises(FileExistsError):
+            module.write_captions(destination,[Caption(0,1000,'Queued subtitle')])
+    assert destination.read_bytes()==preserved
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+
+
+def test_new_subtitle_unsupported_atomic_link_fails_closed(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    destination=tmp_path/'no-link.srt'
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',
+                      lambda *_args: (_ for _ in ()).throw(OSError('unsupported link')))
+        with pytest.raises(RuntimeError,match='hard-link support'):
+            module.write_captions(destination,[Caption(0,1000,'No partial output')])
+    assert not destination.exists()
+    assert not list(tmp_path.glob('.fonesi-caption-*'))
+
+
+def test_translation_recovery_after_failed_publish_uses_cache_not_partial_file(tmp_path,monkeypatch):
+    import fonesi_edit.subtitles as module
+    from dataclasses import asdict
+    store=Store(tmp_path/'state.db')
+    destination=tmp_path/'translated.srt'
+    calls=[]
+    def translate(texts,*_args):
+        calls.append(tuple(texts))
+        return ['Bản dịch '+text for text in texts]
+    monkeypatch.setattr(module,'_request_translation',translate)
+    payload={'captions':[asdict(Caption(0,1000,'Original'))],
+             'output':str(destination),'config':{'provider':'test'}}
+    with monkeypatch.context() as patch:
+        patch.setattr(module.os,'link',
+                      lambda *_args: (_ for _ in ()).throw(OSError('synthetic unsupported link')))
+        with pytest.raises(RuntimeError,match='hard-link support'):
+            module.execute_translation(store,payload,lambda _progress:None,None)
+    assert not destination.exists()
+    result=module.execute_translation(store,payload,lambda _progress:None,None)
+    assert not result['reused']
+    assert len(calls)==1
+    assert read_captions(destination)[0].text=='Bản dịch Original'
+
+
+def test_bilingual_split_preserves_every_character_timing_and_lock():
+    original=Caption(100,1000,'中文字幕沒有空格','Tiếng Việt có ngữ cảnh',locked=True)
+    first,second=split_caption(original)
+    assert first.end_ms==second.start_ms
+    assert first.start_ms==original.start_ms and second.end_ms==original.end_ms
+    assert first.text+second.text==original.text
+    assert first.source_text+second.source_text==original.source_text
+    assert all(c.locked for c in (first,second))
+    assert {first.id,second.id}.isdisjoint({original.id})
+    assert '…' not in first.text+second.text
+    merged=merge_captions([first,second])
+    assert merged.text.replace('\n','')==original.text
+    assert merged.source_text.replace('\n','')==original.source_text
+    assert merged.locked
+    assert (merged.start_ms,merged.end_ms)==(original.start_ms,original.end_ms)
+
+
+def test_short_or_unseparable_bilingual_cue_is_rejected_without_fabrication():
+    for cue in (Caption(0,1,'中文','Tiếng Việt'),
+                Caption(0,1000,'字','Text with spaces'),
+                Caption(0,1000,'Text with spaces','字'),
+                Caption(0,1000,'    ','Text')):
+        with pytest.raises(ValueError,match='(ngắn|vị trí)'):
+            split_caption(cue)
+
+
+def test_merge_maintains_all_source_text_and_cue_time_coverage():
+    first=Caption(500,1500,'Dịch một','Nguồn một',locked=True)
+    second=Caption(300,900,'Dịch hai','',locked=False)
+    merged=merge_captions([first,second])
+    assert merged.start_ms==300 and merged.end_ms==1500
+    assert merged.text=='Dịch một\nDịch hai'
+    assert merged.source_text=='Nguồn một\nDịch hai'
+    assert merged.locked
+    with pytest.raises(ValueError,match='ít nhất hai'):
+        merge_captions([first])
+
+
+def test_ass_import_reports_non_roundtrippable_style_without_mutating_source(tmp_path):
+    import pysubs2
+    from fonesi_edit.subtitles import (
+        ASS_PRESENTATION_WARNING,read_captions_with_warnings)
+    path=tmp_path/'source.ass'
+    document=pysubs2.SSAFile()
+    document.styles['Custom']=pysubs2.SSAStyle(
+        fontname='Arial',fontsize=34)
+    document.events.append(pysubs2.SSAEvent(
+        start=100,end=1200,style='Custom',
+        text=r'{\pos(100,120)}Tiếng Việt\N中文'))
+    document.save(str(path),encoding='utf-8')
+    initial_bytes=path.read_bytes()
+    captions,warnings=read_captions_with_warnings(path)
+    assert len(captions)==1
+    assert (captions[0].start_ms,captions[0].end_ms)==(100,1200)
+    assert 'Tiếng Việt' in captions[0].text and '中文' in captions[0].text
+    assert ASS_PRESENTATION_WARNING in warnings
+    assert read_captions(path)[0].text==captions[0].text
+    assert path.read_bytes()==initial_bytes  # Read-only import
+
+
+def test_plain_srt_import_does_not_invent_style_loss_warning(tmp_path):
+    from fonesi_edit.subtitles import read_captions_with_warnings
+    path=tmp_path/'plain.srt'
+    write_captions(path,[Caption(100,800,'Văn bản thường 中文')])
+    captions,warnings=read_captions_with_warnings(path)
+    assert not warnings
+    assert len(captions)==1
+    assert (captions[0].start_ms,captions[0].end_ms)==(100,800)
+    assert captions[0].text=='Văn bản thường 中文'
+
+
+def test_glossary_placeholder_literal_is_not_changed_and_longest_term_wins(tmp_path):
+    store=Store(tmp_path/'state.db')
+    calls=[]
+    def echo(texts,*_):
+        calls.append(tuple(texts))
+        return list(texts)
+    literal='FONESIPROTECTEDTERM0END'
+    cue=Caption(0,1000,literal+' 品牌品牌')
+    config={'provider':'test','glossary':{'品':'partial','品牌':'Thương hiệu'},'daily_limit':1000}
+    first=translate_captions(store,[cue],config=config,transport=echo)
+    assert first[0].text==literal+' Thương hiệuThương hiệu'
+    assert len(calls)==1 and literal in calls[0][0]
+    assert calls[0][0].count('FONESIPROTECTED')>=3
+    cached=translate_captions(store,[cue],config=config,transport=echo)
+    assert cached[0].text==first[0].text and len(calls)==1
+    assert cue.text==literal+' 品牌品牌'
+
+
+@pytest.mark.parametrize('corrupt',('duplicate','delete'))
+def test_provider_marker_count_mismatch_never_caches_corrupt_cue(tmp_path,corrupt):
+    store=Store(tmp_path/'state.db')
+    config={'provider':'test','glossary':{'品牌':'Thương hiệu'},'daily_limit':1000}
+    cue=Caption(0,1000,'品牌品牌')
+    called=[]
+    def invalid(texts,*_):
+        called.append(texts)
+        token=texts[0][:texts[0].index('END')+3]
+        return [texts[0]+token if corrupt=='duplicate' else texts[0].replace(token,'',1)]
+    with pytest.raises(RuntimeError,match='protected glossary marker'):
+        translate_captions(store,[cue],config=config,transport=invalid)
+    assert len(called)==1
+    def valid(texts,*_):
+        called.append(texts)
+        return list(texts)
+    translated=translate_captions(store,[cue],config=config,transport=valid)
+    assert translated[0].text=='Thương hiệuThương hiệu'
+    assert len(called)==2
+
+
+def test_glossary_key_matching_generated_token_prefix_does_not_mutate_marker(tmp_path):
+    store=Store(tmp_path/'state.db')
+    source='品牌'
+    glossary={'品牌':'Thương hiệu','FONESIPROTECTED':'Không bao giờ áp lên token'}
+    calls=[]
+    def echo(texts,*_):
+        calls.append(tuple(texts))
+        return list(texts)
+    result=translate_captions(store,[Caption(0,1000,source)],
+        config={'provider':'test','glossary':glossary,'daily_limit':1000},
+        transport=echo)
+    assert result[0].text=='Thương hiệu'
+    assert len(calls)==1 and 'FONESIPROTECTED' in calls[0][0]

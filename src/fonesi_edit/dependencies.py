@@ -11,8 +11,8 @@ import time
 from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
 import zipfile
 
-from .domain import fingerprint,atomic_json
-from .prototypes.tools import check_tool,scan_tools
+from .domain import fingerprint,atomic_json,canonical,checked_payload
+from .prototypes.tools import check_tool,scan_tools,configure_tools
 
 
 def statuses(store):
@@ -51,63 +51,462 @@ def download_verified(url,destination,sha256,progress=lambda p:None,cancel=None)
     if digest.hexdigest().lower()!=sha256.lower():raise ValueError('Artifact SHA256 mismatch; installation not activated')
 
 
+def _windows_reserved_component(component):
+    stem=component.split('.',1)[0].rstrip(' .').upper()
+    return (stem in {'CON','PRN','AUX','NUL','CONIN$','CONOUT$'}
+            or bool(re.fullmatch(r'(?:COM|LPT)(?:[1-9¹²³])',stem)))
+
+
 def extract_zip(archive,destination):
     with zipfile.ZipFile(archive) as package:
-        if sum(item.file_size for item in package.infolist())>4*1024**3:raise ValueError('Archive exceeds extraction budget')
-        for item in package.infolist():
-            path=PurePosixPath(item.filename.replace('\\','/'))
-            if path.is_absolute() or '..' in path.parts or ':' in path.parts[0] or (item.external_attr>>16)&0o170000==0o120000:raise ValueError('Unsafe archive path/link')
-        package.extractall(destination)
+        members=package.infolist()
+        if sum(item.file_size for item in members)>4*1024**3:
+            raise ValueError('Archive exceeds extraction budget')
+        seen={}
+        normalized_names=[]
+        # Validate every member before writing the first file. A later malicious
+        # entry must not leave a partially extracted archive behind.
+        for item in members:
+            raw_name=item.filename
+            normalized=raw_name.replace('\\','/')
+            normalized_parts=normalized.rstrip('/')
+            path=PurePosixPath(normalized_parts)
+            components=normalized_parts.split('/') if normalized_parts else []
+            mode=(item.external_attr>>16)&0o170000
+            is_directory=normalized.endswith('/')
+            if (not raw_name or not normalized_parts or '\x00' in raw_name
+                    or any(ord(char)<32 or ord(char)==127 for char in raw_name)
+                    or path.is_absolute() or not path.parts
+                    or any(part in {'', '.', '..'} for part in components)
+                    or ':' in normalized
+                    or any(any(char in '<>:"|?*' for char in part)
+                           or part[-1] in {' ', '.'}
+                           or _windows_reserved_component(part)
+                           for part in components)
+                    or mode not in {0,0o100000,0o040000}
+                    or (mode==0o040000 and not is_directory)
+                    or (mode==0o100000 and is_directory)
+                    or item.flag_bits & 0x1):
+                raise ValueError('Unsafe archive path/type/flags')
+            key='/'.join(part.casefold() for part in components)
+            if key in seen:
+                raise ValueError('Duplicate or case-colliding archive path')
+            for index in range(1,len(components)):
+                parent='/'.join(part.casefold() for part in components[:index])
+                if seen.get(parent)=='file':
+                    raise ValueError('Archive file/directory path collision')
+            if not is_directory and any(existing.startswith(key+'/') for existing in seen):
+                raise ValueError('Archive file/directory path collision')
+            seen[key]='directory' if is_directory else 'file'
+            normalized_names.append(normalized)
+        # ZipInfo filenames are normalized only after the entire archive passes
+        # preflight, so backslash-separated paths behave consistently on Linux
+        # and Windows without weakening the all-or-nothing validation boundary.
+        for item,normalized in zip(members,normalized_names):
+            item.filename=normalized
+        package.extractall(destination,members=members)
+
+
+def _check_cancel(cancel):
+    if cancel is not None and cancel.is_set():
+        raise RuntimeError('Canceled')
+
+
+def _verified_receipt(name, final, manifest):
+    """Return an intact receipt only when every path remains inside its version folder."""
+    try:
+        if final.is_symlink():
+            return None
+        receipt=json.loads((final/'receipt.json').read_text(encoding='utf-8'))
+        if not isinstance(receipt,dict):
+            return None
+        if (receipt.get('name')!=name or receipt.get('version')!=final.name
+                or receipt.get('upstream_version')!=manifest['version']
+                or str(receipt.get('artifact_sha256','')).lower()!=manifest['sha256'].lower()):
+            return None
+        expected_hash=receipt.get('hash')
+        if not isinstance(expected_hash,str) or not re.fullmatch('[a-fA-F0-9]{64}',expected_hash):
+            return None
+        root=final.resolve(strict=True)
+        path=Path(receipt['path']).resolve(strict=True)
+        if not path.is_file() or not path.is_relative_to(root):
+            return None
+        if fingerprint(path).lower()!=expected_hash.lower():
+            return None
+        if check_tool(name,str(path)).status!='ready':
+            return None
+        companion=receipt.get('ffprobe')
+        if companion:
+            companion_path=Path(companion).resolve(strict=True)
+            if not companion_path.is_file() or not companion_path.is_relative_to(root):
+                return None
+        return receipt
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        return None
+
+
+def _managed_version_file(store,name,version,path):
+    """Resolve one regular, non-symlink file inside an app-managed version folder."""
+    if not isinstance(path,str) or not path:
+        return None
+    folder=_version_directory(store,name,version,path)
+    if folder is None or folder.is_symlink() or not folder.is_dir():
+        return None
+    try:
+        candidate=Path(path)
+        if not candidate.is_absolute():
+            return None
+        relative=candidate.absolute().relative_to(folder.absolute())
+        if not relative.parts or any(part in {'','.','..'} for part in relative.parts):
+            return None
+        current=folder.absolute()
+        for part in relative.parts:
+            current=current/part
+            if current.is_symlink():
+                return None
+        resolved_folder=folder.resolve(strict=True)
+        resolved=current.resolve(strict=True)
+        if not resolved.is_file() or not resolved.is_relative_to(resolved_folder):
+            return None
+        return resolved
+    except (OSError,RuntimeError,ValueError,TypeError):
+        return None
+
+
+def _save_tool_activation(store,name,version,receipt):
+    """Validate receipt identity and managed files while holding the cleanup writer lock."""
+    if (not isinstance(receipt,dict) or receipt.get('name')!=name
+            or receipt.get('version')!=version):
+        raise ValueError('Tool receipt identity mismatch; activation refused')
+    executable_value=receipt.get('path')
+    expected_hash=receipt.get('hash')
+    if (not isinstance(executable_value,str) or not executable_value
+            or not isinstance(expected_hash,str)
+            or not re.fullmatch(r'[a-fA-F0-9]{64}',expected_hash)):
+        raise ValueError('Tool receipt executable/hash is invalid; activation refused')
+    with store.connect() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        folder=_version_directory(store,name,version,executable_value)
+        if folder is None or folder.is_symlink() or not folder.is_dir():
+            raise ValueError('Tool receipt version folder is unavailable; activation refused')
+        executable=_managed_version_file(store,name,version,executable_value)
+        if (executable is None or fingerprint(executable).lower()!=expected_hash.lower()
+                or check_tool(name,str(executable)).status!='ready'):
+            raise ValueError('Tool receipt executable is unavailable, changed or not ready; activation refused')
+        companion_value=receipt.get('ffprobe')
+        companion_path=None
+        if companion_value is not None:
+            if not isinstance(companion_value,str) or not companion_value:
+                raise ValueError('Tool receipt ffprobe path is invalid; activation refused')
+            companion_path=_managed_version_file(store,name,version,companion_value)
+            if companion_path is None:
+                raise ValueError('Tool receipt ffprobe companion is not a regular managed file; activation refused')
+        row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        try:
+            overrides=json.loads(row['value']) if row else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; activation refused') from exc
+        if not isinstance(overrides,dict):
+            raise ValueError('Tool path configuration is invalid; activation refused')
+        overrides[name]=str(executable)
+        if name=='ffmpeg':
+            if companion_path is not None:
+                overrides['ffprobe']=str(companion_path)
+            else:
+                overrides.pop('ffprobe',None)
+        encoded=canonical(checked_payload(overrides))
+        conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
+        conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',
+                     (name,version,str(executable),expected_hash.lower()))
+        conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
+    # Workers in this process must use the newly committed path immediately.
+    configure_tools(overrides)
+
+
+def _version_directory(store,name,version,row_path=None):
+    """Resolve a version folder only inside the app-managed tools root."""
+    if (not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_.-]+',name)
+            or not isinstance(version,str) or not re.fullmatch(r'[A-Za-z0-9_.-]+',version)
+            or version in {'.','..'}):
+        return None
+    tools_root=store.path.parent/'tools'
+    root=tools_root/name
+    if tools_root.is_symlink() or root.is_symlink():
+        return None
+    folder=root/version
+    if folder.is_symlink():
+        return None
+    try:
+        resolved_root=root.resolve(strict=False)
+        resolved_folder=folder.resolve(strict=False)
+        if resolved_folder.parent!=resolved_root:
+            return None
+        if row_path is not None:
+            executable=Path(row_path).resolve(strict=False)
+            if executable==resolved_folder or resolved_folder not in executable.parents:
+                return None
+    except (OSError,RuntimeError,ValueError):
+        return None
+    return folder
+
+
+def _path_is_within(path,folder):
+    try:
+        candidate=Path(path).resolve(strict=False)
+        boundary=Path(folder).resolve(strict=False)
+        return candidate==boundary or boundary in candidate.parents
+    except (OSError,RuntimeError,ValueError,TypeError):
+        return False
+
+
+def _job_tool_paths(payload):
+    if not isinstance(payload,dict):
+        raise ValueError('Job payload is not an object')
+    tools=payload.get('_tools',{})
+    if not isinstance(tools,dict):
+        raise ValueError('Job tool snapshot is not an object')
+    paths=[]
+    for value in tools.values():
+        if value is None:
+            continue
+        if not isinstance(value,str) or not value:
+            raise ValueError('Job tool path is invalid')
+        paths.append(value)
+    return paths
+
+
+def managed_tool_versions(store):
+    """List app-managed versions and explain why each one is or is not removable."""
+    with store.connect() as conn:
+        rows=[dict(row) for row in conn.execute(
+            'SELECT name,version,path,hash,active FROM tool_versions ORDER BY name,version')]
+        setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        jobs=[dict(row) for row in conn.execute(
+            "SELECT id,state,payload FROM jobs WHERE state!='succeeded'")]
+    try:
+        configured=json.loads(setting['value']) if setting else {}
+        invalid_configuration=not isinstance(configured,dict)
+    except (TypeError,ValueError,json.JSONDecodeError):
+        configured={}
+        invalid_configuration=True
+    if invalid_configuration:
+        configured={}
+    parsed_jobs=[]
+    unknown_jobs=[]
+    for job in jobs:
+        try:
+            parsed_jobs.append((job['id'],_job_tool_paths(json.loads(job['payload']))))
+        except (ValueError,TypeError,json.JSONDecodeError):
+            unknown_jobs.append(job['id'])
+    result=[]
+    for row in rows:
+        folder=_version_directory(store,row['name'],row['version'],row['path'])
+        reasons=[]
+        if folder is None:
+            reasons.append('Đường dẫn quản lý không hợp lệ; chặn gỡ an toàn')
+        if row['active']:
+            reasons.append('Phiên bản đang active')
+        if invalid_configuration:
+            reasons.append('Cấu hình tool_paths không đọc được')
+        configured_paths=[value for value in configured.values() if isinstance(value,str)]
+        if folder is not None and any(_path_is_within(path,folder) for path in configured_paths):
+            reasons.append('Đang được cấu hình làm tool hiện tại')
+        held=[]
+        if folder is not None:
+            for job_id,paths in parsed_jobs:
+                if any(_path_is_within(path,folder) for path in paths):
+                    held.append(job_id)
+        if unknown_jobs:
+            held.extend(unknown_jobs)
+            reasons.append('Có job snapshot lỗi; fail-closed')
+        if held:
+            reasons.append('Được giữ bởi job: '+', '.join(sorted(set(held))[:4]))
+        result.append({
+            **row,
+            'folder':str(folder) if folder is not None else None,
+            'job_ids':sorted(set(held)),
+            'in_use':bool(reasons),
+            'reason':'; '.join(reasons) if reasons else 'Có thể gỡ an toàn',
+        })
+    return result
+
+
+def remove_tool_version(store,name,version):
+    """Remove one inactive app-managed version only when no runnable/retryable job leases it."""
+    with store.connect() as conn:
+        # Store.submit/submit_many use the same writer lock while acquiring a
+        # snapshot. This closes the race between checking leases and new jobs.
+        conn.execute('BEGIN IMMEDIATE')
+        row=conn.execute(
+            'SELECT name,version,path,hash,active FROM tool_versions WHERE name=? AND version=?',
+            (name,version)).fetchone()
+        if not row:
+            raise ValueError('Managed tool version was not found')
+        folder=_version_directory(store,name,version,row['path'])
+        if folder is None:
+            raise ValueError('Refusing to remove a path outside the app-managed version root')
+        if row['active']:
+            raise ValueError('Cannot remove the active tool version')
+        setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        try:
+            configured=json.loads(setting['value']) if setting else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; refusing cleanup') from exc
+        if not isinstance(configured,dict):
+            raise ValueError('Tool path configuration is invalid; refusing cleanup')
+        if any(isinstance(path,str) and _path_is_within(path,folder)
+               for path in configured.values()):
+            raise ValueError('Tool version is still selected in current tool paths')
+        held=[]
+        for job in conn.execute("SELECT id,state,payload FROM jobs WHERE state!='succeeded'"):
+            try:
+                paths=_job_tool_paths(json.loads(job['payload']))
+            except (ValueError,TypeError,json.JSONDecodeError) as exc:
+                raise ValueError(
+                    f"Cannot verify tool leases because job {job['id']} has an invalid snapshot"
+                ) from exc
+            if any(_path_is_within(path,folder) for path in paths):
+                held.append(job['id'])
+        if held:
+            raise ValueError(
+                'Tool version is held by pending/running/retryable jobs: '+', '.join(held[:8])
+            )
+        if folder.exists():
+            if folder.is_symlink() or not folder.is_dir():
+                raise ValueError('Managed version folder is not a safe directory')
+            # Reject unexpected symlinks rather than risk deleting through a
+            # tampered folder tree. Installed ZIPs already reject such entries.
+            for root,dirs,files in os.walk(folder,followlinks=False):
+                if any((Path(root)/item).is_symlink() for item in [*dirs,*files]):
+                    raise ValueError('Managed version contains a symlink; refusing cleanup')
+            shutil.rmtree(folder)
+        deleted=conn.execute(
+            'DELETE FROM tool_versions WHERE name=? AND version=? AND active=0',
+            (name,version))
+        if deleted.rowcount!=1:
+            raise RuntimeError('Managed tool version changed during cleanup')
+    return {'name':name,'version':version,'folder':str(folder),'directory_removed':True}
 
 
 def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_verified):
-    name,version=manifest['name'],manifest['version']
-    if not re.fullmatch('[A-Za-z0-9_.-]+',name) or not re.fullmatch('[A-Za-z0-9_.-]+',version):raise ValueError('Invalid tool/version')
-    if not re.fullmatch('[A-Za-z0-9_.-]+',manifest['executable']) or manifest['executable'] in {'.','..'}:raise ValueError('Executable must be a simple filename')
-    root=store.path.parent/'tools'/name;root.mkdir(parents=True,exist_ok=True)
+    if not isinstance(manifest,dict):
+        raise ValueError('Tool manifest must be an object')
+    name,version=manifest.get('name'),manifest.get('version')
+    executable=manifest.get('executable')
+    url,sha256=manifest.get('url'),manifest.get('sha256')
+    if (not isinstance(name,str) or not re.fullmatch('[A-Za-z0-9_.-]+',name)
+            or not isinstance(version,str) or not re.fullmatch('[A-Za-z0-9_.-]+',version)):
+        raise ValueError('Invalid tool/version')
+    if (not isinstance(executable,str) or not re.fullmatch('[A-Za-z0-9_.-]+',executable)
+            or executable in {'.','..'}):
+        raise ValueError('Executable must be a simple filename')
+    if not isinstance(url,str) or not url.startswith('https://') or not isinstance(sha256,str) or not re.fullmatch('[a-fA-F0-9]{64}',sha256):
+        raise ValueError('HTTPS and SHA256 are required')
+    _check_cancel(cancel)
+    root=store.path.parent/'tools'/name
+    root.mkdir(parents=True,exist_ok=True)
     final=root/version
-    if final.exists():
-        try:
-            receipt=json.loads((final/'receipt.json').read_text());path=Path(receipt['path'])
-            intact=path.is_file() and fingerprint(path)==receipt['hash'] and check_tool(name,str(path)).status=='ready'
-        except (OSError,ValueError,KeyError):intact=False
-        if not intact:
-            # Preserve the old folder, including binaries referenced by immutable jobs.
-            version=version+'.repair.'+str(time.time_ns());final=root/version
-    if not final.exists():
-      with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
-        stage=Path(temp);archive=stage/'artifact'
-        fetch(manifest['url'],archive,manifest['sha256'],progress,cancel)
-        if fingerprint(archive).lower()!=manifest['sha256'].lower():raise ValueError('Artifact SHA256 mismatch')
-        unpack=stage/'unpacked';unpack.mkdir()
-        if manifest.get('archive')=='zip':extract_zip(archive,unpack)
-        else:shutil.copyfile(archive,unpack/manifest['executable'])
-        matches=list(unpack.rglob(manifest['executable']))
-        if len(matches)!=1:raise ValueError('Tool executable is missing or ambiguous')
-        executable=matches[0]
-        if os.name!='nt':executable.chmod(executable.stat().st_mode|0o100)
-        status=check_tool(name,str(executable))
-        if status.status!='ready':raise ValueError('Downloaded tool failed its startup/version check')
-        relative=executable.relative_to(unpack);os.rename(unpack,final);target=final/relative
-        receipt={'name':name,'version':version,'upstream_version':manifest['version'],'path':str(target),'hash':fingerprint(target),'artifact_sha256':manifest['sha256']}
-        if name=='ffmpeg':
-            companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
-            if companion.is_file():receipt['ffprobe']=str(companion)
-        atomic_json(final/'receipt.json',receipt)
-    with store.connect() as conn:
-        conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
-        conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',(name,version,receipt['path'],receipt['hash']))
-    overrides=store.setting('tool_paths',{});overrides[name]=receipt['path'];store.set_setting('tool_paths',overrides);progress(1)
-    if receipt.get('ffprobe'):overrides['ffprobe']=receipt['ffprobe'];store.set_setting('tool_paths',overrides)
+    receipt=None
+    if final.exists() or final.is_symlink():
+        receipt=_verified_receipt(name,final,manifest)
+        if receipt is None:
+            # Never overwrite a corrupt/old folder that immutable jobs may still reference.
+            version=version+'.repair.'+str(time.time_ns())
+            final=root/version
+    if receipt is None:
+        _check_cancel(cancel)
+        with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
+            stage=Path(temp)
+            archive=stage/'artifact'
+            fetch(url,archive,sha256,progress,cancel)
+            _check_cancel(cancel)
+            if fingerprint(archive).lower()!=sha256.lower():
+                raise ValueError('Artifact SHA256 mismatch')
+            unpack=stage/'unpacked'
+            unpack.mkdir()
+            if manifest.get('archive')=='zip':
+                extract_zip(archive,unpack)
+            else:
+                shutil.copyfile(archive,unpack/executable)
+            _check_cancel(cancel)
+            matches=list(unpack.rglob(executable))
+            if len(matches)!=1:
+                raise ValueError('Tool executable is missing or ambiguous')
+            target_stage=matches[0]
+            if os.name!='nt':
+                target_stage.chmod(target_stage.stat().st_mode|0o100)
+            status=check_tool(name,str(target_stage))
+            if status.status!='ready':
+                raise ValueError('Downloaded tool failed its startup/version check')
+            _check_cancel(cancel)
+            relative=target_stage.relative_to(unpack)
+            os.rename(unpack,final)
+            target=final/relative
+            receipt={
+                'name':name,
+                'version':version,
+                'upstream_version':manifest['version'],
+                'path':str(target),
+                'hash':fingerprint(target),
+                'artifact_sha256':sha256.lower(),
+            }
+            if name=='ffmpeg':
+                companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
+                if companion.is_file():
+                    receipt['ffprobe']=str(companion)
+            atomic_json(final/'receipt.json',receipt)
+    _check_cancel(cancel)
+    _save_tool_activation(store,name,version,receipt)
+    progress(1)
     return receipt
 
 
 def rollback(store,name,version):
-    with store.connect() as conn:row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
-    if not row or fingerprint(Path(row['path']))!=row['hash']:raise ValueError('Rollback version unavailable/modified')
     with store.connect() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
+        if not row:
+            raise ValueError('Rollback version unavailable/modified')
+        if row['name']!=name or row['version']!=version:
+            raise ValueError('Rollback version identity mismatch')
+        path=_managed_version_file(store,name,version,row['path'])
+        expected_hash=row['hash']
+        if (path is None or not isinstance(expected_hash,str)
+                or not re.fullmatch(r'[a-fA-F0-9]{64}',expected_hash)
+                or fingerprint(path).lower()!=expected_hash.lower()
+                or check_tool(name,str(path)).status!='ready'):
+            raise ValueError('Rollback version unavailable/modified')
+        selection_row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        try:
+            overrides=json.loads(selection_row['value']) if selection_row else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; rollback refused') from exc
+        if not isinstance(overrides,dict):
+            raise ValueError('Tool path configuration is invalid; rollback refused')
+        overrides[name]=str(path)
+        if name=='ffmpeg':
+            companion=path.with_name('ffprobe.exe' if os.name=='nt' else 'ffprobe')
+            if companion.is_symlink():
+                raise ValueError('Rollback ffprobe companion is a symlink; rollback refused')
+            if companion.exists():
+                companion_path=_managed_version_file(store,name,version,str(companion))
+                if (companion_path is None
+                        or check_tool('ffprobe',str(companion_path)).status!='ready'):
+                    raise ValueError('Rollback ffprobe companion is not a regular managed file; rollback refused')
+                overrides['ffprobe']=str(companion_path)
+            else:
+                managed_root=store.path.parent/'tools'/'ffmpeg'
+                existing_probe=overrides.get('ffprobe')
+                # Drop a stale app-managed companion only; preserve a user's
+                # separately selected system/external ffprobe.
+                if isinstance(existing_probe,str) and _path_is_within(existing_probe,managed_root):
+                    overrides.pop('ffprobe',None)
+        encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=(version=?) WHERE name=?',(version,name))
-    overrides=store.setting('tool_paths',{});overrides[name]=row['path'];store.set_setting('tool_paths',overrides)
+        conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
+    configure_tools(overrides)
 
 
 def resolve_manifest(name):
