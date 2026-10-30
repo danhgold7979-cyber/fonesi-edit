@@ -110,7 +110,8 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 
 - [x] Metadata FFprobe bất đồng bộ, duration min/max và cạnh ngắn 720/1080/2160 px, xử lý video lỗi và giữ lựa chọn ẩn. Cấu hình khoảng thời lượng sai hoặc chưa quét xong bị chặn trước dry-run. [CI 40658101720](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40658101720) PASS 225 Linux, 224 Windows + 1 skip, packaged proof hai hệ.
 - [x] Crossfade loop nhạc chỉ áp dụng music+loop, có validation/giới hạn, AudioDialog round-trip, FFmpeg render thật. Vòng đầu dùng `asplit` làm Windows FFmpeg 7.1.1 báo assertion `best_input >= 0`; thay bằng đầu vào độc lập ở commit `54ab4398`, giữ test render, không tắt assertion. [CI 40659216526](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40659216526) PASS 233 Linux, 232 Windows +1 skip, binary/native-host/frozen proof hai hệ.
-- [ ] Bộ lọc codec/FPS/bitrate, profile rất lớn, benchmark/ETA, SFX đa trigger, meters/solo realtime, playlist nâng cao và nghiệm thu loa/installer Windows máy thực còn mở. Không kết luận toàn phase P08 đạt nghiệm thu người dùng.
+- [x] Bộ lọc codec/FPS/bitrate; SFX đa trigger; decoded playback PCM Peak/RMS meter pre-device; Batch manual playlist absolute đa thư mục đã có code, regression, render FFmpeg/PCM và [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) PASS.
+- [ ] Profile/corpus rất lớn, render ETA/output size, per-track meter/solo/true-peak/EBU loudness, loa/driver/installer Windows máy thực vẫn mở. Không kết luận toàn phase P08 đạt nghiệm thu người dùng.
 
 ## P08-04 — SFX phát lặp theo số lần/khoảng cách, không vượt cuối video (28/10/2026)
 
@@ -127,7 +128,9 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 - [x] Count 1–32 và interval được validate; count >1 yêu cầu SFX không loop, không tự fallback; onset cuối không được nằm tại/sau cuối timeline render. Track cũ mặc định phát một lần.
 - [x] FFmpeg mỗi trigger là đầu vào riêng (không asplit), áp cùng trim/gain/fade và adelay theo timeline đã resolve, mix về track SFX. AudioDialog có count/interval và round-trip.
 - [x] Regression kiểm tra sai kiểu/giới hạn, kiểm vị trí và PCM hai trigger có vùng yên lặng tách biệt, Qt UI. [CI 40660385646](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40660385646) PASS **246 Linux /245 Windows +1 skip**, frozen app/native-host proof hai hệ PASS.
-- [ ] SFX trigger ở các mốc không đều/đặt playlist tùy ý, realtime meter/solo monitoring và nghiệm thu thiết bị Windows máy thực vẫn mở; không gắn P08 đạt toàn phase.
+- [x] SFX trigger không đều 2–32 mốc và Batch manual playlist cross-folder; [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) PASS (682 Linux / 681 Windows + 1 skip, packaged proof hai OS).
+- [x] Playback PCM Peak/RMS meter pre-device đã có regression và packaged proof.
+- [ ] Per-track meter/solo, true-peak/EBU loudness, real audio hardware/Windows device và release acceptance vẫn mở; không gắn P08 đạt toàn phase.
 
 
 ## P08-04 update — SFX trigger không đều (30/10/2026)
