@@ -1274,6 +1274,18 @@ class MatrixPage(QWidget):
         self.summary=QLabel('Tên C/G là tên logic, giữ nguyên tệp nguồn. Double-click ô góc để sửa G1/G2…');self.summary.setWordWrap(True);layout.addWidget(self.summary)
         self.scene_list.model().rowsMoved.connect(lambda *_:self.scene_list_reordered())
         self.folder.textChanged.connect(lambda _:self.source_folder_changed())
+        for widget in (self.audio,self.output,self.scene_weights,self.scene_durations):
+            widget.textChanged.connect(lambda _text:self.matrix_options_changed())
+        for widget in (self.count,self.window,self.different,self.seed,
+                       self.minimum,self.maximum):
+            widget.valueChanged.connect(lambda _value:self.matrix_options_changed())
+        self.compare.toggled.connect(lambda _checked:self.matrix_options_changed())
+        self.allocation.currentIndexChanged.connect(lambda _index:self.matrix_options_changed())
+
+    def matrix_options_changed(self):
+        # Pending composition previews and regenerations are only valid for
+        # the exact options from the moment they were requested.
+        self._matrix_revision+=1
 
     def scope(self):return self.host.project_id or hashlib.sha256(str(Path(self.folder.text()).resolve()).encode()).hexdigest()
 
@@ -1332,6 +1344,7 @@ class MatrixPage(QWidget):
         if current!=self.old_history:
             raise ValueError('Lịch sử ma trận đã thay đổi hoặc không cùng thứ tự; sinh lại trước')
         ordered=[before[index] for index in order]
+        selected_row=self.table.currentIndex().row()
         # A failed settings write must not publish partially moved rows/locks.
         self.host.store.set_setting(self.scene_order_key(),ordered)
         self._matrix_revision+=1
@@ -1339,6 +1352,9 @@ class MatrixPage(QWidget):
         self._history_reordered=True
         self.model.replace(self.scenes,transformed['rows'])
         self.model.locked=transformed['locked']
+        if 0<=selected_row<len(self.model.rows):
+            self.table.selectRow(selected_row)
+        self.table.viewport().update()
         self.scene_weights.setText(weights)
         self.scene_durations.setText(durations)
         self.refresh_scene_list(selected)
@@ -1397,7 +1413,7 @@ class MatrixPage(QWidget):
             return scenes,prior,reordered,result
         def done(data):
             if (revision!=self._matrix_revision or self.scope()!=scope
-                    or self.folder.text()!=str(folder)
+                    or str(Path(self.folder.text()).expanduser().resolve())!=str(folder.expanduser().resolve())
                     or (self.count.value(),self.seed.value(),self.window.value(),
                         self.different.value(),self.compare.isChecked())!=(n,seed,w,k,compare)):
                 self.host.message('Đã bỏ ma trận sinh nền vì nguồn/cấu hình/thứ tự cảnh thay đổi')
