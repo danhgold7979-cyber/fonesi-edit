@@ -308,3 +308,81 @@ def test_extract_zip_keeps_safe_nested_files_and_directory_entries(tmp_path):
     destination.mkdir()
     dependencies.extract_zip(archive, destination)
     assert (destination / "bin" / "tool.exe").read_bytes() == b"binary"
+
+
+
+@pytest.mark.parametrize(
+    "unsafe_name",
+    [
+        "CON", "nul.txt", "COM1.log", "LPT9", "CONIN$",
+        "folder/name.", "folder/name ", "folder/bad<name>.txt",
+        "folder/bad|name.txt", "folder\\..\\escape.txt",
+    ],
+)
+def test_extract_zip_rejects_windows_reserved_and_nonportable_components(tmp_path, unsafe_name):
+    archive = _zip_with_members([
+        ("safe/first.txt", b"safe", None),
+        (unsafe_name, b"unsafe", None),
+    ])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        dependencies.extract_zip(archive, destination)
+    assert list(destination.rglob("*")) == []
+
+
+@pytest.mark.parametrize(
+    "members",
+    [
+        [("Bin/tool.exe", b"one", None), ("bin/TOOL.EXE", b"two", None)],
+        [("folder", b"file", None), ("folder/child.txt", b"child", None)],
+        [("folder/child.txt", b"child", None), ("folder", b"file", None)],
+    ],
+)
+def test_extract_zip_rejects_casefold_and_file_directory_collisions(tmp_path, members):
+    archive = _zip_with_members(members)
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Duplicate|collision"):
+        dependencies.extract_zip(archive, destination)
+    assert list(destination.rglob("*")) == []
+
+
+@pytest.mark.parametrize("mode", [0o010644, 0o020600, 0o140600])
+def test_extract_zip_rejects_special_unix_file_types_before_writing(tmp_path, mode):
+    archive = _zip_with_members([
+        ("safe/first.txt", b"safe", None),
+        ("special-entry", b"device", mode),
+    ])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        dependencies.extract_zip(archive, destination)
+    assert list(destination.rglob("*")) == []
+
+
+def test_extract_zip_rejects_encrypted_member_before_writing_any_member(tmp_path):
+    archive = bytearray(_zip_with_members([
+        ("safe/first.txt", b"safe", None),
+        ("secret.bin", b"encrypted", None),
+    ]).getvalue())
+    local = archive.find(b"PK\x03\x04")
+    central = archive.find(b"PK\x01\x02")
+    assert local >= 0 and central >= 0
+    local_flags = int.from_bytes(archive[local + 6:local + 8], "little") | 1
+    central_flags = int.from_bytes(archive[central + 8:central + 10], "little") | 1
+    archive[local + 6:local + 8] = local_flags.to_bytes(2, "little")
+    archive[central + 8:central + 10] = central_flags.to_bytes(2, "little")
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        dependencies.extract_zip(io.BytesIO(archive), destination)
+    assert list(destination.rglob("*")) == []
+
+
+def test_extract_zip_normalizes_safe_backslash_paths(tmp_path):
+    archive = _zip_with_members([("bin\\tools\\ffmpeg.exe", b"binary", None)])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    dependencies.extract_zip(archive, destination)
+    assert (destination / "bin" / "tools" / "ffmpeg.exe").read_bytes() == b"binary"

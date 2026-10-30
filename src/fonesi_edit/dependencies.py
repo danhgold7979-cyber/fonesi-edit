@@ -51,11 +51,18 @@ def download_verified(url,destination,sha256,progress=lambda p:None,cancel=None)
     if digest.hexdigest().lower()!=sha256.lower():raise ValueError('Artifact SHA256 mismatch; installation not activated')
 
 
+def _windows_reserved_component(component):
+    stem=component.split('.',1)[0].upper()
+    return (stem in {'CON','PRN','AUX','NUL','CONIN$','CONOUT$'}
+            or bool(re.fullmatch(r'(?:COM|LPT)(?:[1-9¹²³])',stem)))
+
+
 def extract_zip(archive,destination):
     with zipfile.ZipFile(archive) as package:
         members=package.infolist()
         if sum(item.file_size for item in members)>4*1024**3:
             raise ValueError('Archive exceeds extraction budget')
+        seen={}
         # Validate every member before writing the first file. A later malicious
         # entry must not leave a partially extracted archive behind.
         for item in members:
@@ -63,13 +70,33 @@ def extract_zip(archive,destination):
             normalized=raw_name.replace('\\','/')
             normalized_parts=normalized.rstrip('/')
             path=PurePosixPath(normalized_parts)
+            components=normalized_parts.split('/') if normalized_parts else []
             mode=(item.external_attr>>16)&0o170000
+            is_directory=item.is_dir()
             if (not raw_name or not normalized_parts or '\x00' in raw_name
                     or any(ord(char)<32 or ord(char)==127 for char in raw_name)
                     or path.is_absolute() or not path.parts
-                    or any(part in {'', '.', '..'} for part in normalized_parts.split('/'))
-                    or ':' in normalized or mode==0o120000):
-                raise ValueError('Unsafe archive path/link')
+                    or any(part in {'', '.', '..'} for part in components)
+                    or ':' in normalized
+                    or any(any(char in '<>:"|?*' for char in part)
+                           or part[-1] in {' ', '.'}
+                           or _windows_reserved_component(part)
+                           for part in components)
+                    or mode not in {0,0o100000,0o040000}
+                    or (mode==0o040000 and not is_directory)
+                    or (mode==0o100000 and is_directory)
+                    or item.flag_bits & 0x1):
+                raise ValueError('Unsafe archive path/type/flags')
+            key='/'.join(part.casefold() for part in components)
+            if key in seen:
+                raise ValueError('Duplicate or case-colliding archive path')
+            for index in range(1,len(components)):
+                parent='/'.join(part.casefold() for part in components[:index])
+                if seen.get(parent)=='file':
+                    raise ValueError('Archive file/directory path collision')
+            if not is_directory and any(existing.startswith(key+'/') for existing in seen):
+                raise ValueError('Archive file/directory path collision')
+            seen[key]='directory' if is_directory else 'file'
         package.extractall(destination)
 
 
