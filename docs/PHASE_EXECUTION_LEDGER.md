@@ -316,7 +316,7 @@ This is synthetic Qt/SQLite/filesystem evidence, not physical Windows user-machi
 
 ## P11-08 / TOL-06 — Receipt identity and rollback path ownership (30/10/2026)
 
-[Plan](P11_TOOL_ROLLBACK_IDENTITY_PLAN.md) → [implementation/tests 13a044e](https://github.com/danhgold7979-cyber/fonesi-edit/commit/13a044e51f96498d7b3ee0728e7892fffd8c4194) → [CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) **SUCCESS exact HEAD**.
+[Plan](phases/P11_TOOL_ROLLBACK_IDENTITY_PLAN.md) → [implementation/tests 13a044e](https://github.com/danhgold7979-cyber/fonesi-edit/commit/13a044e51f96498d7b3ee0728e7892fffd8c4194) → [CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) **SUCCESS exact HEAD**.
 
 The installer activation path now validates receipt object/name/version identity, SHA-256 format, and requires the executable and optional ffprobe companion to be regular non-symlink files within the exact app-managed version folder before updating active metadata. Rollback now validates registry identity, managed-root ownership, executable hash/startup readiness, and any existing ffprobe companion under the same SQLite writer transaction. It rejects a registry path pointing outside the managed folder even when the external binary has identical bytes/hash, and rejects symlinked companions without changing active paths. If the selected FFmpeg version has no companion, only a stale app-managed ffprobe override is removed; a separate user/system override is preserved.
 
