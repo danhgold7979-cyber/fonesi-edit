@@ -154,3 +154,15 @@ class BatchUiTests(unittest.TestCase):
             proceed.set()
             self.wait_worker()
         self.assertEqual(received, [(item,)])
+
+    def test_escape_reject_cancels_and_waits(self):
+        def operation(cancel):
+            cancel.wait(5)
+            raise ValueError("CANCELED")
+
+        self.window.start(operation, lambda result: None)
+        self.window.reject()
+        self.assertTrue(self.window.closing)
+        self.assertIsNotNone(self.window.worker)
+        self.wait_worker()
+        self.assertFalse(self.window.isVisible())

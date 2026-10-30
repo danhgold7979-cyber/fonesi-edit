@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 101/101 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; native batch UI increment chưa có CI.
+- Kiểm tra local: 102/102 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; native batch UI increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -69,3 +69,5 @@ Opening a ledger now refuses nonempty unversioned databases and exact-schema dri
 ## Native batch UI slice
 
 New batch_editor.py + shared worker.py, main-app launcher and child-worker close guard. One folder/output pair, asynchronous scan and per-file CPU render, checkbox/output-name review, invalidation on folder change, partial scans blocked from export, immutable selected tuple, cancel/close waits. Full batch presets/multifolder/filter tree/durable recovery are still open. Synthetic actual UI scan/export/collision preserves source; parent close and selection capture regressions included. 101 local tests PASS. Native dialog screenshot inspected with explicitly synthetic rows; runtime acceptance Windows remains separate.
+
+Escape/reject batch interruption now follows window Close cancellation/wait; 102 local tests PASS.

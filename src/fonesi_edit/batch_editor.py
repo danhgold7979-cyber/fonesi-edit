@@ -217,6 +217,10 @@ class BatchEditor(QDialog):
             + "; ".join(f"{i + 1}: {code}" for i, code in result.failures[:10])
         )
 
+    def reject(self):
+        # Escape follows the same cancellation-and-wait path as window Close.
+        self.close()
+
     def closeEvent(self, event):
         if self.worker:
             self.closing = True
