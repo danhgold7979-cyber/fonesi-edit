@@ -81,20 +81,20 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
     _mark_worker_orphaned(store,job_id)
     store.cancel(job_id)
     with store.connect() as conn:
-        assert conn.execute(
+        assert tuple(conn.execute(
             "SELECT cancel_requested,state FROM jobs WHERE id=?",
-            (job_id,)).fetchone()==(1,"running")
-        assert conn.execute(
+            (job_id,)).fetchone())==(1,"running")
+        assert tuple(conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
-            ("cancel-retry-scope",)).fetchone()==("reserved",job_id)
+            ("cancel-retry-scope",)).fetchone())==("reserved",job_id)
         conn.execute("UPDATE jobs SET heartbeat=0 WHERE id=?",(job_id,))
     assert store.recover(stale_seconds=1)==1
     canceled=store.job(job_id)
     assert canceled["state"]=="canceled" and canceled["cancel_requested"]==1
     with store.connect() as conn:
-        assert conn.execute(
+        assert tuple(conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
-            ("cancel-retry-scope",)).fetchone()==("failed",job_id)
+            ("cancel-retry-scope",)).fetchone())==("failed",job_id)
     assert history(store,"cancel-retry-scope")==[]
 
     store.retry(job_id)
@@ -102,9 +102,9 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
     assert retried["id"]==job_id and retried["state"]=="pending"
     assert retried["cancel_requested"]==0 and retried["attempts"]==1
     with store.connect() as conn:
-        assert conn.execute(
+        assert tuple(conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
-            ("cancel-retry-scope",)).fetchone()==("reserved",job_id)
+            ("cancel-retry-scope",)).fetchone())==("reserved",job_id)
         assert conn.execute(
             "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
             ("cancel-retry-scope",)).fetchone()[0]==1
@@ -113,9 +113,9 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
     assert history(store,"cancel-retry-scope")==[["scene-a","scene-b"]]
     _run_to_success(store,job_id)
     with store.connect() as conn:
-        assert conn.execute(
+        assert tuple(conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
-            ("cancel-retry-scope",)).fetchone()==("succeeded",job_id)
+            ("cancel-retry-scope",)).fetchone())==("succeeded",job_id)
         assert conn.execute(
             "SELECT attempts FROM jobs WHERE id=?",(job_id,)).fetchone()[0]==2
     assert history(store,"cancel-retry-scope")==[["scene-a","scene-b"]]
