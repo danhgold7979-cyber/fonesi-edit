@@ -1583,14 +1583,16 @@ class MatrixPage(QWidget):
             pinned={index:pinned_by_folder[folder]
                     for index,folder in enumerate(scene_directories(scenes))
                     if folder in pinned_by_folder}
-            previous=history(self.host.store,scope)
-            if reordered or choices is not None:
-                previous=normalize_matrix_history(
-                    scenes,previous,all_scenes=full if choices is not None else None)
+            # All new matrices are reconciled against the complete current
+            # source manifest, even when the user has not opened the filter
+            # panel. A prior explicitly shorter matrix in the same project
+            # is structurally incomparable; unknown hashes still fail closed.
+            previous=normalize_matrix_history(
+                scenes,history(self.host.store,scope),all_scenes=full)
             locks=scene_generation_locks(scenes,pinned,n,w,cell_locks)
             result=generate(scenes,n,seed,w,k,compare,previous,
                             seconds=10,locks=locks,cancel=cancel)
-            return full,scenes,previous,bool(reordered or choices is not None),result,pinned
+            return full,scenes,previous,True,result,pinned
         def done(data):
             if (revision!=self._matrix_revision or self.scope()!=scope
                     or str(Path(self.folder.text()).expanduser().resolve())!=str(folder.expanduser().resolve())
