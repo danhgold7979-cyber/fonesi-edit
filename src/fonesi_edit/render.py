@@ -387,8 +387,8 @@ def compile_graph(c:Composition,stage:Path):
                     args+=['-i',str(path)]
                     inputs+=1
                 filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
-                         'asetpts=PTS-STARTPTS',f'volume={gain}',
-                         'aresample=48000','aformat=channel_layouts=stereo']
+                         f'volume={gain}','aresample=48000','asetpts=N/SR/TB',
+                         'aformat=channel_layouts=stereo']
                 if fi>0:filters.append(f'afade=t=in:d={fi}')
                 if fo>0:
                     filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
@@ -417,8 +417,8 @@ def compile_graph(c:Composition,stage:Path):
                     inputs+=1
                 onset=offset+number*interval
                 filters=[f'atrim=start={start}'+(f':end={end}' if track.get('trim_end') else ''),
-                         'asetpts=PTS-STARTPTS',f'volume={gain}',
-                         'aresample=48000','aformat=channel_layouts=stereo']
+                         f'volume={gain}','aresample=48000','asetpts=N/SR/TB',
+                         'aformat=channel_layouts=stereo']
                 if fi>0:filters.append(f'afade=t=in:d={fi}')
                 if fo>0:
                     filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')

@@ -644,6 +644,7 @@ def test_custom_sfx_trigger_times_render_non_uniform_audible_events(tmp_path):
     args,graph,total=compile_graph(composition,tmp_path/'graph')
     assert abs(total-1)<.01
     assert all(f'adelay={value}:all=1' in graph for value in (100,400,750))
+    assert graph.count('aresample=48000,asetpts=N/SR/TB,aformat=channel_layouts=stereo,adelay=')==3
     assert 'amix=inputs=3:normalize=0:duration=longest[sfxtriggered0]' in graph
     assert args.count(source)==4  # Video input plus three independent SFX inputs.
     output=tmp_path/'custom-sfx.mp4'
@@ -677,6 +678,7 @@ def test_sfx_repeat_anchors_render_two_audible_events_without_leaking_outside(tm
     args,graph,total=compile_graph(composition,tmp_path/'graph')
     assert abs(total-1)<.01
     assert 'adelay=200:all=1' in graph and 'adelay=600:all=1' in graph
+    assert graph.count('aresample=48000,asetpts=N/SR/TB,aformat=channel_layouts=stereo,adelay=')==2
     assert 'amix=inputs=2:normalize=0:duration=longest[sfxrepeated0]' in graph
     assert args.count(source)==3  # Video input plus two independent SFX inputs.
     result=render_composition(composition,tmp_path/'two-sfx.mp4')
