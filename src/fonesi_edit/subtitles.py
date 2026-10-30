@@ -149,3 +149,50 @@ def export_srt(document: SubtitleDocument):
     if len(data) > 4194304:
         raise ValueError("SUBTITLE_TOO_LARGE")
     return data
+
+
+@dataclass(frozen=True)
+class TextReplacement:
+    document: SubtitleDocument
+    changed_cues: int
+    occurrences: int
+    skipped_locked: int
+
+
+def replace_text(document, search, replacement):
+    """Atomic literal edit; locked cues are never implicitly changed."""
+    if not isinstance(search, str) or not 1 <= len(search) <= 256 or "\x00" in search:
+        raise ValueError("INVALID_SEARCH_TEXT")
+    if (
+        not isinstance(replacement, str)
+        or len(replacement) > 1024
+        or "\x00" in replacement
+    ):
+        raise ValueError("INVALID_REPLACEMENT_TEXT")
+    if not isinstance(document, SubtitleDocument):
+        raise ValueError("INVALID_SUBTITLE_DOCUMENT")  # noqa: TRY004 - schema error contract.
+    changed = occurrences = skipped = total_bytes = 0
+    cues = []
+    for cue in document.cues:
+        count = cue.text.count(search)
+        if count and cue.locked:
+            skipped += 1
+        text = cue.text
+        if count and not cue.locked and search != replacement:
+            if len(text) + count * (len(replacement) - len(search)) > 100000:
+                raise ValueError("REPLACEMENT_TOO_LARGE")
+            text = text.replace(search, replacement)
+            changed += 1
+            occurrences += count
+        total_bytes += len(text.encode("utf-8"))
+        if total_bytes > 4194304:
+            raise ValueError("SUBTITLE_TOO_LARGE")
+        cues.append(
+            cue if text == cue.text else Cue(cue.id, cue.interval, text, cue.locked)
+        )
+    candidate = SubtitleDocument(tuple(cues)) if changed else document
+    if changed:
+        export_srt(
+            candidate
+        )  # Validate full output bounds/representability before mutation.
+    return TextReplacement(candidate, changed, occurrences, skipped)

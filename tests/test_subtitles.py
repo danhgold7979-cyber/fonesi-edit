@@ -113,3 +113,66 @@ class SubtitleTests(unittest.TestCase):
                 if code == "OVERLAP"
             }
             self.assertEqual(actual, expected)
+
+
+class ReplacementTests(unittest.TestCase):
+    def test_literal_unicode_and_locked_cues(self):
+        from fonesi_edit.subtitles import replace_text
+
+        doc = SubtitleDocument(
+            (
+                Cue("a", Interval(F(0), F(1)), "a.b 中文 a.b"),
+                Cue("b", Interval(F(1), F(2)), "a.b", True),
+            )
+        )
+        result = replace_text(doc, "a.b", "Xin")
+        self.assertEqual(result.document.cues[0].text, "Xin 中文 Xin")
+        self.assertEqual(result.document.cues[1], doc.cues[1])
+        self.assertEqual(
+            (result.changed_cues, result.occurrences, result.skipped_locked), (1, 2, 1)
+        )
+        self.assertEqual(doc.cues[0].text, "a.b 中文 a.b")
+
+    def test_no_match_or_identical_replacement_retains_document(self):
+        from fonesi_edit.subtitles import replace_text
+
+        doc = SubtitleDocument((Cue("a", Interval(F(0), F(1)), "Abc"),))
+        self.assertIs(replace_text(doc, "abc", "x").document, doc)
+        self.assertIs(replace_text(doc, "Abc", "Abc").document, doc)
+
+    def test_invalid_empty_and_expansion_are_atomic(self):
+        from fonesi_edit.subtitles import replace_text
+
+        doc = SubtitleDocument((Cue("a", Interval(F(0), F(1)), "x" * 100000),))
+        for search, replacement in [
+            ("", "x"),
+            ("x" * 257, "a"),
+            ("x", "y" * 1025),
+            ("x", "yy"),
+            ("x", ""),
+            ("x", "\x00"),
+        ]:
+            with (
+                self.subTest(search=search[:10], size=len(replacement)),
+                self.assertRaises(ValueError),
+            ):
+                replace_text(doc, search, replacement)
+        self.assertEqual(doc.cues[0].text, "x" * 100000)
+
+    def test_unrepresentable_line_break_rejects(self):
+        from fonesi_edit.subtitles import replace_text
+
+        doc = SubtitleDocument((Cue("a", Interval(F(0), F(1)), "before x after"),))
+        with self.assertRaises(ValueError):
+            replace_text(doc, "x", "\n\n")
+        self.assertEqual(doc.cues[0].text, "before x after")
+
+    def test_total_utf8_expansion_bound(self):
+        from fonesi_edit.subtitles import replace_text
+
+        doc = SubtitleDocument(
+            tuple(Cue(str(i), Interval(F(i), F(i + 1)), "x" * 80000) for i in range(14))
+        )
+        with self.assertRaisesRegex(ValueError, "SUBTITLE_TOO_LARGE"):
+            replace_text(doc, "x", "🎬")
+        self.assertTrue(all(c.text == "x" * 80000 for c in doc.cues))

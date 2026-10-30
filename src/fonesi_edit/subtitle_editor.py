@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTableView,
     QVBoxLayout,
@@ -23,6 +24,7 @@ from fonesi_edit.subtitles import (
     export_srt,
     parse_srt,
     parse_time,
+    replace_text,
     rounded_millis,
     timestamp,
 )
@@ -195,6 +197,25 @@ class SubtitleEditor(QDialog):
             buttons.addWidget(button)
         buttons.addStretch()
         layout.addLayout(buttons)
+        search_row = QHBoxLayout()
+        self.search_text = QLineEdit()
+        self.search_text.setMaxLength(256)
+        self.search_text.setPlaceholderText("Tìm literal · phân biệt hoa/thường")
+        self.replacement_text = QLineEdit()
+        self.replacement_text.setMaxLength(1024)
+        self.replacement_text.setPlaceholderText("Thay bằng…")
+        self.find_button = QPushButton("Tìm tiếp")
+        self.replace_button = QPushButton("Thay tất cả · bỏ qua câu khóa")
+        for widget in (
+            self.search_text,
+            self.replacement_text,
+            self.find_button,
+            self.replace_button,
+        ):
+            search_row.addWidget(widget)
+        layout.addLayout(search_row)
+        self.find_button.clicked.connect(self.find_next)
+        self.replace_button.clicked.connect(self.replace_all)
         self.table = QTableView()
         self.table.setModel(self.model)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
@@ -218,6 +239,13 @@ class SubtitleEditor(QDialog):
     def refresh(self):
         busy = self.worker is not None
         self.table.setEnabled(not busy)
+        for widget in (
+            self.search_text,
+            self.replacement_text,
+            self.find_button,
+            self.replace_button,
+        ):
+            widget.setEnabled(not busy)
         self.open_button.setEnabled(not busy)
         self.save_button.setEnabled(not busy and bool(self.model.document.cues))
         self.undo_button.setEnabled(not busy and bool(self.model.undo_stack))
@@ -245,6 +273,47 @@ class SubtitleEditor(QDialog):
         self.refresh()
         if self.closing:
             self.close()
+
+    def find_next(self):
+        if self.worker:
+            return False
+        query = self.search_text.text()
+        cues = self.model.document.cues
+        if not query or not cues:
+            self.status.setText("Nhập nội dung tìm và mở tài liệu trước.")
+            return False
+        start = self.table.currentIndex().row()
+        for offset in range(1, len(cues) + 1):
+            row = (start + offset) % len(cues)
+            if query in cues[row].text:
+                self.table.selectRow(row)
+                self.table.setCurrentIndex(self.model.index(row, 3))
+                self.table.scrollTo(self.model.index(row, 3))
+                self.status.setText(f"Tìm thấy ở câu {row + 1}; tìm tiếp quay vòng.")
+                return True
+        self.status.setText("Không tìm thấy; phân biệt hoa/thường, không dùng regex.")
+        return False
+
+    def replace_all(self):
+        if self.worker:
+            return False
+        try:
+            result = replace_text(
+                self.model.document,
+                self.search_text.text(),
+                self.replacement_text.text(),
+            )
+        except ValueError:
+            self.status.setText(
+                "Không thể thay: nội dung/timing hoặc kích thước kết quả không hợp lệ. Chưa đổi tài liệu."
+            )
+            return False
+        if result.changed_cues:
+            self.model.replace(result.document)
+        self.status.setText(
+            f"Đã thay {result.occurrences} vị trí trong {result.changed_cues} câu; bỏ qua {result.skipped_locked} câu khóa. Có thể hoàn tác."
+        )
+        return bool(result.changed_cues)
 
     def choose_open(self):
         path, _ = QFileDialog.getOpenFileName(self, "Mở phụ đề", "", "SRT (*.srt)")
@@ -281,10 +350,14 @@ class SubtitleEditor(QDialog):
             ),
         )
 
+    def reject(self):
+        self.close()
+
     def closeEvent(self, event):
         if self.worker:
             self.closing = True
             self.status.setText("Chờ hoàn tất thao tác tệp an toàn trước khi đóng…")
             event.ignore()
         else:
+            self.closing = False
             event.accept()

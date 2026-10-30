@@ -21,7 +21,7 @@ uv sync --locked
 uv run fonesi-edit
 ```
 
-Đây là đường chạy cho nhà phát triển, chưa phải installer người dùng cuối. UI mới có import/probe/khung nguồn, CPU MP4 trim/speed, project save-as/open công cụ SRT riêng và hộp thoại batch CPU cục bộ. Batch hiện chỉ một cặp thư mục, cho chọn ứng viên/xem tên đầu ra; không áp preset của Editor và chưa có hàng đợi phục hồi. Save-as không ghi đè tệp; project cũ không được migrate bằng suy đoán. Preview nguồn chưa phản ánh hiệu ứng xuất. Preview/export Editor dùng bản sao input riêng; nguồn đổi sau kiểm tra sẽ chặn xuất và cần kiểm tra lại. Batch chốt bytes khi bắt đầu từng mục, không phải lúc quét; việc copy thêm cần dung lượng tạm và có giới hạn thời gian hợp tác. Download/auth/dịch/ma trận/editor layer đầy đủ còn chưa nối.
+Đây là đường chạy cho nhà phát triển, chưa phải installer người dùng cuối. UI mới có import/probe/khung nguồn, CPU MP4 trim/speed, project save-as/open công cụ SRT riêng (sửa/tìm/thay literal, bỏ qua câu khóa, undo) và hộp thoại batch CPU cục bộ. Batch hiện chỉ một cặp thư mục, cho chọn ứng viên/xem tên đầu ra; không áp preset của Editor và chưa có hàng đợi phục hồi. Save-as không ghi đè tệp; project cũ không được migrate bằng suy đoán. Preview nguồn chưa phản ánh hiệu ứng xuất. Preview/export Editor dùng bản sao input riêng; nguồn đổi sau kiểm tra sẽ chặn xuất và cần kiểm tra lại. Batch chốt bytes khi bắt đầu từng mục, không phải lúc quét; việc copy thêm cần dung lượng tạm và có giới hạn thời gian hợp tác. Download/auth/dịch/ma trận/editor layer đầy đủ còn chưa nối.
 
 ```bash
 QT_QPA_PLATFORM=offscreen uv run python -m unittest discover -s tests -v

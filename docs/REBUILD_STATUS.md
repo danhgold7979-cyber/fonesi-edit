@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 133/133 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
+- Kiểm tra local: 140/140 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -105,3 +105,6 @@ Windows diagnostic run41118374312 at41bf4d8 confirms INPUT_CHANGED_PREOPEN_CTIME
 
 
 Windows correction checkpoint4a39486 CI41118883108 SUCCESS: both Windows jobs ran129 tests with final OK (no skips reported); Windows3.12 frozen startup also PASS. Source-consistent UI/batch increment is newer and has133 local tests PASS, CI pending: initial inspection creates an owned capture/digest, probe/thumbnail read those exact bytes; Editor export requires that digest and fails if source changed until explicit reinspection. Batch captures each item at dispatch, not at scan time. Required-digest stage API still rejects None; separate capture_source establishes initial identity only. No durable queue or tool-trust assertion introduced.
+
+
+Source-consistent UI checkpointab97ffe CI41120953524 SUCCESS: all4 jobs; actual Windows3.12 log133testsOK and frozenstartupPASS. New P06 literal find/replace slice: case-sensitive wrapped find, atomic replace-all skipping manual locks, one undo entry, no-op stays no-op, per-cue/totalUTF8/export-size guards. Escape now waits for subtitle file worker and resets closing state on completion; reopen regression passes. 140 local tests PASS, native synthetic screenshot inspected; new Windows CI pending. No VTT/ASS/translation/burn-in or fullP06 acceptance implied.

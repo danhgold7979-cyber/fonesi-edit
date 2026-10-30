@@ -93,3 +93,64 @@ class SubtitleUiTests(unittest.TestCase):
         )
         self.assertFalse(model.setData(model.index(0, 4), 99, Qt.CheckStateRole))
         self.assertTrue(model.document.cues[0].locked)
+
+    def test_find_wrap_replace_lock_and_single_undo(self):
+        window = SubtitleEditor()
+        doc = SubtitleDocument(
+            (
+                Cue("a", Interval(F(0), F(1)), "Xin chào"),
+                Cue("b", Interval(F(1), F(2)), "Khác"),
+                Cue("c", Interval(F(2), F(3)), "Xin chào", True),
+            )
+        )
+        try:
+            window.model.replace(doc, remember=False)
+            window.search_text.setText("Xin")
+            for expected in (0, 2, 0):
+                self.assertTrue(window.find_next())
+                self.assertEqual(window.table.currentIndex().row(), expected)
+            window.replacement_text.setText("Chào")
+            self.assertTrue(window.replace_all())
+            self.assertEqual(window.model.document.cues[0].text, "Chào chào")
+            self.assertEqual(window.model.document.cues[2].text, "Xin chào")
+            self.assertEqual(len(window.model.undo_stack), 1)
+            window.model.undo()
+            self.assertEqual(window.model.document, doc)
+            window.search_text.setText("not present")
+            self.assertFalse(window.replace_all())
+            self.assertFalse(window.model.undo_stack)
+        finally:
+            window.close()
+
+    def test_escape_waits_and_reopen_does_not_autoclose(self):
+        import threading
+
+        window = SubtitleEditor()
+        release = threading.Event()
+
+        def wait():
+            deadline = time.monotonic() + 5
+            while window.worker is not None and time.monotonic() < deadline:
+                self.app.processEvents()
+                time.sleep(0.01)
+            self.assertIsNone(window.worker)
+
+        try:
+            window.show()
+            self.assertTrue(window.start(lambda: release.wait(3), lambda result: None))
+            window.reject()
+            self.assertTrue(window.closing)
+            self.assertTrue(window.isVisible())
+            release.set()
+            wait()
+            self.assertFalse(window.isVisible())
+            self.assertFalse(window.closing)
+            window.show()
+            self.assertTrue(window.start(lambda: True, lambda result: None))
+            wait()
+            self.assertTrue(window.isVisible())
+        finally:
+            release.set()
+            if window.worker:
+                wait()
+            window.close()
