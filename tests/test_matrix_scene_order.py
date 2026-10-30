@@ -347,3 +347,11 @@ def test_full_subset_full_project_matrix_history_does_not_lock_selected_scene_se
     assert len(store.jobs())==3
     assert all(video.is_file() for video in (source_a,source_a2,b,c))
     assert not (tmp_path/"out").exists()
+
+
+def test_no_scene_solver_and_scene_wide_pin_helper_refuse_empty_compositions():
+    from fonesi_edit.matrix import generate,scene_generation_locks
+    with pytest.raises(ValueError,match="Empty"):
+        generate([],1)
+    with pytest.raises(ValueError,match="Empty"):
+        scene_generation_locks([],{ },1)
