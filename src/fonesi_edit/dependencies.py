@@ -11,8 +11,8 @@ import time
 from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
 import zipfile
 
-from .domain import fingerprint,atomic_json
-from .prototypes.tools import check_tool,scan_tools
+from .domain import fingerprint,atomic_json,canonical,checked_payload
+from .prototypes.tools import check_tool,scan_tools,configure_tools
 
 
 def statuses(store):
@@ -60,55 +60,166 @@ def extract_zip(archive,destination):
         package.extractall(destination)
 
 
-def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_verified):
-    name,version=manifest['name'],manifest['version']
-    if not re.fullmatch('[A-Za-z0-9_.-]+',name) or not re.fullmatch('[A-Za-z0-9_.-]+',version):raise ValueError('Invalid tool/version')
-    if not re.fullmatch('[A-Za-z0-9_.-]+',manifest['executable']) or manifest['executable'] in {'.','..'}:raise ValueError('Executable must be a simple filename')
-    root=store.path.parent/'tools'/name;root.mkdir(parents=True,exist_ok=True)
-    final=root/version
-    if final.exists():
-        try:
-            receipt=json.loads((final/'receipt.json').read_text());path=Path(receipt['path'])
-            intact=path.is_file() and fingerprint(path)==receipt['hash'] and check_tool(name,str(path)).status=='ready'
-        except (OSError,ValueError,KeyError):intact=False
-        if not intact:
-            # Preserve the old folder, including binaries referenced by immutable jobs.
-            version=version+'.repair.'+str(time.time_ns());final=root/version
-    if not final.exists():
-      with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
-        stage=Path(temp);archive=stage/'artifact'
-        fetch(manifest['url'],archive,manifest['sha256'],progress,cancel)
-        if fingerprint(archive).lower()!=manifest['sha256'].lower():raise ValueError('Artifact SHA256 mismatch')
-        unpack=stage/'unpacked';unpack.mkdir()
-        if manifest.get('archive')=='zip':extract_zip(archive,unpack)
-        else:shutil.copyfile(archive,unpack/manifest['executable'])
-        matches=list(unpack.rglob(manifest['executable']))
-        if len(matches)!=1:raise ValueError('Tool executable is missing or ambiguous')
-        executable=matches[0]
-        if os.name!='nt':executable.chmod(executable.stat().st_mode|0o100)
-        status=check_tool(name,str(executable))
-        if status.status!='ready':raise ValueError('Downloaded tool failed its startup/version check')
-        relative=executable.relative_to(unpack);os.rename(unpack,final);target=final/relative
-        receipt={'name':name,'version':version,'upstream_version':manifest['version'],'path':str(target),'hash':fingerprint(target),'artifact_sha256':manifest['sha256']}
-        if name=='ffmpeg':
-            companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
-            if companion.is_file():receipt['ffprobe']=str(companion)
-        atomic_json(final/'receipt.json',receipt)
+def _check_cancel(cancel):
+    if cancel is not None and cancel.is_set():
+        raise RuntimeError('Canceled')
+
+
+def _verified_receipt(name, final, manifest):
+    """Return an intact receipt only when every path remains inside its version folder."""
+    try:
+        if final.is_symlink():
+            return None
+        receipt=json.loads((final/'receipt.json').read_text(encoding='utf-8'))
+        if not isinstance(receipt,dict):
+            return None
+        if (receipt.get('name')!=name or receipt.get('version')!=final.name
+                or receipt.get('upstream_version')!=manifest['version']
+                or str(receipt.get('artifact_sha256','')).lower()!=manifest['sha256'].lower()):
+            return None
+        expected_hash=receipt.get('hash')
+        if not isinstance(expected_hash,str) or not re.fullmatch('[a-fA-F0-9]{64}',expected_hash):
+            return None
+        root=final.resolve(strict=True)
+        path=Path(receipt['path']).resolve(strict=True)
+        if not path.is_file() or not path.is_relative_to(root):
+            return None
+        if fingerprint(path).lower()!=expected_hash.lower():
+            return None
+        if check_tool(name,str(path)).status!='ready':
+            return None
+        companion=receipt.get('ffprobe')
+        if companion:
+            companion_path=Path(companion).resolve(strict=True)
+            if not companion_path.is_file() or not companion_path.is_relative_to(root):
+                return None
+        return receipt
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        return None
+
+
+def _save_tool_activation(store,name,version,receipt):
+    """Commit active-version metadata and runtime path selection as one transaction."""
     with store.connect() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        overrides=json.loads(row['value']) if row else {}
+        overrides[name]=receipt['path']
+        if name=='ffmpeg':
+            if receipt.get('ffprobe'):
+                overrides['ffprobe']=receipt['ffprobe']
+            else:
+                overrides.pop('ffprobe',None)
+        encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
-        conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',(name,version,receipt['path'],receipt['hash']))
-    overrides=store.setting('tool_paths',{});overrides[name]=receipt['path'];store.set_setting('tool_paths',overrides);progress(1)
-    if receipt.get('ffprobe'):overrides['ffprobe']=receipt['ffprobe'];store.set_setting('tool_paths',overrides)
+        conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',
+                     (name,version,receipt['path'],receipt['hash']))
+        conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
+    # Workers in this process must use the newly committed path immediately.
+    configure_tools(overrides)
+
+
+def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_verified):
+    if not isinstance(manifest,dict):
+        raise ValueError('Tool manifest must be an object')
+    name,version=manifest.get('name'),manifest.get('version')
+    executable=manifest.get('executable')
+    url,sha256=manifest.get('url'),manifest.get('sha256')
+    if (not isinstance(name,str) or not re.fullmatch('[A-Za-z0-9_.-]+',name)
+            or not isinstance(version,str) or not re.fullmatch('[A-Za-z0-9_.-]+',version)):
+        raise ValueError('Invalid tool/version')
+    if (not isinstance(executable,str) or not re.fullmatch('[A-Za-z0-9_.-]+',executable)
+            or executable in {'.','..'}):
+        raise ValueError('Executable must be a simple filename')
+    if not isinstance(url,str) or not url.startswith('https://') or not isinstance(sha256,str) or not re.fullmatch('[a-fA-F0-9]{64}',sha256):
+        raise ValueError('HTTPS and SHA256 are required')
+    _check_cancel(cancel)
+    root=store.path.parent/'tools'/name
+    root.mkdir(parents=True,exist_ok=True)
+    final=root/version
+    receipt=None
+    if final.exists() or final.is_symlink():
+        receipt=_verified_receipt(name,final,manifest)
+        if receipt is None:
+            # Never overwrite a corrupt/old folder that immutable jobs may still reference.
+            version=version+'.repair.'+str(time.time_ns())
+            final=root/version
+    if receipt is None:
+        _check_cancel(cancel)
+        with tempfile.TemporaryDirectory(prefix='.staging-',dir=root) as temp:
+            stage=Path(temp)
+            archive=stage/'artifact'
+            fetch(url,archive,sha256,progress,cancel)
+            _check_cancel(cancel)
+            if fingerprint(archive).lower()!=sha256.lower():
+                raise ValueError('Artifact SHA256 mismatch')
+            unpack=stage/'unpacked'
+            unpack.mkdir()
+            if manifest.get('archive')=='zip':
+                extract_zip(archive,unpack)
+            else:
+                shutil.copyfile(archive,unpack/executable)
+            _check_cancel(cancel)
+            matches=list(unpack.rglob(executable))
+            if len(matches)!=1:
+                raise ValueError('Tool executable is missing or ambiguous')
+            target_stage=matches[0]
+            if os.name!='nt':
+                target_stage.chmod(target_stage.stat().st_mode|0o100)
+            status=check_tool(name,str(target_stage))
+            if status.status!='ready':
+                raise ValueError('Downloaded tool failed its startup/version check')
+            _check_cancel(cancel)
+            relative=target_stage.relative_to(unpack)
+            os.rename(unpack,final)
+            target=final/relative
+            receipt={
+                'name':name,
+                'version':version,
+                'upstream_version':manifest['version'],
+                'path':str(target),
+                'hash':fingerprint(target),
+                'artifact_sha256':sha256.lower(),
+            }
+            if name=='ffmpeg':
+                companion=target.parent/('ffprobe.exe' if os.name=='nt' else 'ffprobe')
+                if companion.is_file():
+                    receipt['ffprobe']=str(companion)
+            atomic_json(final/'receipt.json',receipt)
+    _check_cancel(cancel)
+    _save_tool_activation(store,name,version,receipt)
+    progress(1)
     return receipt
 
 
 def rollback(store,name,version):
-    with store.connect() as conn:row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
-    if not row or fingerprint(Path(row['path']))!=row['hash']:raise ValueError('Rollback version unavailable/modified')
     with store.connect() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row=conn.execute('SELECT * FROM tool_versions WHERE name=? AND version=?',(name,version)).fetchone()
+        if not row:
+            raise ValueError('Rollback version unavailable/modified')
+        path=Path(row['path'])
+        try:
+            intact=path.is_file() and fingerprint(path).lower()==str(row['hash']).lower()
+        except OSError:
+            intact=False
+        if not intact:
+            raise ValueError('Rollback version unavailable/modified')
+        selection_row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        overrides=json.loads(selection_row['value']) if selection_row else {}
+        overrides[name]=str(path.resolve())
+        if name=='ffmpeg':
+            companion=path.with_name('ffprobe.exe' if os.name=='nt' else 'ffprobe')
+            if companion.is_file():
+                overrides['ffprobe']=str(companion.resolve())
+            else:
+                overrides.pop('ffprobe',None)
+        encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=(version=?) WHERE name=?',(version,name))
-    overrides=store.setting('tool_paths',{});overrides[name]=row['path'];store.set_setting('tool_paths',overrides)
-
+        conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
+    configure_tools(overrides)
 
 def resolve_manifest(name):
     if name=='node' and os.name=='nt':
