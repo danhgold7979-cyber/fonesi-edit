@@ -20,6 +20,97 @@ class Angle:
     hash:str
 
 
+
+def scene_directories(scenes):
+    """Identify each logical scene by its original source directory, not C index."""
+    result=[]
+    for scene in scenes:
+        if not scene:
+            raise ValueError('Matrix scene must contain at least one angle')
+        directories={str(Path(angle.path).resolve().parent) for angle in scene}
+        if len(directories)!=1:
+            raise ValueError('Matrix scene mixes different source directories')
+        result.append(next(iter(directories)))
+    if len(set(result))!=len(result):
+        raise ValueError('Duplicate matrix scene source directory')
+    return result
+
+
+def normalize_matrix_history(scenes, previous):
+    """Place stored ordered hashes into their current source-scene columns.
+
+    SQLite's legacy history rows store only hashes, not a folder-order
+    manifest. Map a hash only when its scene membership is unambiguous.
+    Ambiguous or removed assets must be reconciled by the user; guessing
+    would weaken W/K and allow unexpected reuse of reserved combinations.
+    No stored history row is modified.
+    """
+    allowed=[{angle.hash for angle in scene} for scene in scenes]
+    aligned=[]
+    for entry in previous:
+        if not isinstance(entry,(list,tuple)) or len(entry)!=len(scenes):
+            raise ValueError('Matrix history has incompatible scene count')
+        mapped=[None]*len(scenes)
+        for digest in entry:
+            candidates=[i for i,choices in enumerate(allowed) if digest in choices]
+            if len(candidates)!=1:
+                raise ValueError('Matrix history cannot identify a unique source scene for an angle')
+            index=candidates[0]
+            if mapped[index] is not None:
+                raise ValueError('Matrix history contains more than one angle from the same scene')
+            mapped[index]=digest
+        if any(value is None for value in mapped):
+            raise ValueError('Matrix history is missing a source scene')
+        aligned.append(mapped)
+    return aligned
+
+
+def reorder_matrix_scenes(scenes,rows,locked,previous,order,window=0,different=0,
+                          compare_window=False):
+    """Atomically calculate a new logical scene order without changing files/DB.
+
+    The permutation contains zero-based *old* scene positions in new order.
+    Every row, cell lock and existing in-memory history entry is transposed
+    in lockstep. Angle.scene is a logical C position; path/hash/index are
+    immutable source identities. Validate first, publish only on success.
+    """
+    count=len(scenes)
+    if (not count or not isinstance(order,(list,tuple)) or len(order)!=count
+            or any(type(index) is not int for index in order)
+            or set(order)!=set(range(count))):
+        raise ValueError('Invalid scene order permutation')
+    scene_directories(scenes)
+    allowed=[{angle.hash for angle in scene} for scene in scenes]
+    if any(len(row)!=count or any(angle.hash not in allowed[i]
+            for i,angle in enumerate(row)) for row in rows):
+        raise ValueError('Matrix row does not match its source scenes')
+    if any((type(row) is not int or type(col) is not int
+            or not 0<=row<len(rows) or not 1<=col<=count)
+           for row,col in locked):
+        raise ValueError('Matrix has an invalid locked cell')
+    if any(not isinstance(row,(list,tuple)) or len(row)!=count or
+           any(value not in allowed[i] for i,value in enumerate(row))
+           for row in previous):
+        raise ValueError('Matrix history is not aligned with current source scenes')
+
+    new_scenes=[
+        [Angle(position+1,angle.index,angle.path,angle.hash)
+         for angle in scenes[old_index]]
+        for position,old_index in enumerate(order)
+    ]
+    lookup=[{angle.hash:angle for angle in scene} for scene in new_scenes]
+    new_rows=[
+        [lookup[position][row[old_index].hash]
+         for position,old_index in enumerate(order)]
+        for row in rows
+    ]
+    new_history=[[row[old_index] for old_index in order] for row in previous]
+    new_locked={(row,order.index(col-1)+1) for row,col in locked}
+    if not matrix_rows_valid(new_rows,new_history,window,different,compare_window):
+        raise ValueError('Scene order conflicts with matrix history/W/K')
+    return {'scenes':new_scenes,'rows':new_rows,'locked':new_locked,'history':new_history}
+
+
 def scan_scenes(root:Path,selected=None):
     directories=sorted([p for p in root.iterdir() if p.is_dir() and not p.is_symlink() and not p.is_junction() and not p.name.startswith('.') and not p.name.casefold().endswith(' edit')],key=lambda p:natural_key(p.name))
     scenes=[]
@@ -258,7 +349,7 @@ def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,m
     return c
 
 
-def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None):
+def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None,scene_order=None):
     jobs=[];plans=[]
     for row in rows:
         comp=row_composition(row,preset,audio,allocation,minimum,maximum,weights=weights,manual_durations=manual_durations)
@@ -270,13 +361,18 @@ def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='prop
         conn.execute('BEGIN IMMEDIATE')
         import json
         previous=[json.loads(r[0]) for r in conn.execute("SELECT combination FROM matrix_history WHERE scope=? AND state IN ('reserved','succeeded') ORDER BY created",(scope,))]
+        if scene_order is not None:
+            previous=normalize_matrix_history(scene_order,previous)
+        used={canonical(values) for values in previous}
         sequence=conn.execute('SELECT COUNT(*) FROM matrix_history WHERE scope=?',(scope,)).fetchone()[0]
         for job_id,key,data in plans:
             existing=conn.execute('SELECT state FROM matrix_history WHERE scope=? AND combination=?',(scope,key)).fetchone()
             if existing and existing[0] in {'reserved','succeeded'}:raise ValueError('Tổ hợp đã được dùng/đặt chỗ; hãy sinh lại')
             values=json.loads(key)
+            if key in used:
+                raise ValueError('Tổ hợp đã được dùng trong lịch sử cảnh; hãy sinh lại')
             if not valid_against(values,previous,window,different,compare_window):raise ValueError('Lịch sử vừa thay đổi hoặc hàng vi phạm W/K; hãy sinh lại ma trận')
-            previous.append(values);sequence+=1
+            previous.append(values);used.add(key);sequence+=1
             output=Path(data['output']);data['output']=str(output.with_name(f'video_{sequence:06d}_'+output.name.removeprefix('video_')))
             now=time.time()
             conn.execute("INSERT INTO jobs(id,kind,state,payload,created,updated) VALUES(?,'render','pending',?,?,?)",(job_id,canonical(checked_payload(data)),now,now))
