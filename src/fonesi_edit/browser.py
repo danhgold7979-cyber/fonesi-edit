@@ -132,16 +132,6 @@ def cookie_identity(platform,cookies):
 def receive_session(store,token,platform,cookies):
     if not isinstance(token,str) or not token or platform not in DOMAINS:
         raise PermissionError('Bridge is not paired')
-    if not isinstance(cookies,list) or len(cookies)>1000 or any(not isinstance(item,dict) for item in cookies):
-        raise ValueError('Invalid cookie snapshot')
-    allowed=[]
-    for cookie in cookies:
-        domain=cookie.get('domain','').lstrip('.').lower()
-        if not any(domain==d or domain.endswith('.'+d) for d in DOMAINS[platform]):continue
-        if cookie.get('partitionKey'):continue  # Do not pretend CHIPS context transfers to arbitrary HTTP requests.
-        allowed.append({k:cookie[k] for k in ('name','value','domain','path','secure','expirationDate') if k in cookie})
-    if not allowed:raise PermissionError('No transferable session cookies for this platform')
-    identity=cookie_identity(platform,allowed)
     bridge_key='bridge:'+hashlib.sha256(token.encode()).hexdigest()
     with store.connect() as c:
         # Pairing revocation uses this same writer lock. Whichever operation
@@ -154,6 +144,16 @@ def receive_session(store,token,platform,cookies):
             pairing=None
         if not isinstance(pairing,dict) or not isinstance(pairing.get('profile_id'),str):
             raise PermissionError('Bridge is not paired')
+        if not isinstance(cookies,list) or len(cookies)>1000 or any(not isinstance(item,dict) for item in cookies):
+            raise ValueError('Invalid cookie snapshot')
+        allowed=[]
+        for cookie in cookies:
+            domain=cookie.get('domain','').lstrip('.').lower()
+            if not any(domain==d or domain.endswith('.'+d) for d in DOMAINS[platform]):continue
+            if cookie.get('partitionKey'):continue  # Do not pretend CHIPS context transfers to arbitrary HTTP requests.
+            allowed.append({k:cookie[k] for k in ('name','value','domain','path','secure','expirationDate') if k in cookie})
+        if not allowed:raise PermissionError('No transferable session cookies for this platform')
+        identity=cookie_identity(platform,allowed)
         profile_id=pairing['profile_id']
         if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():
             raise PermissionError('Bridge profile is unavailable')
