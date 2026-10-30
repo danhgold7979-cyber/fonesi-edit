@@ -1,5 +1,6 @@
 """P11 Matrix worker recovery: preserve atomic reservation across interruption/retry."""
 from pathlib import Path
+import hashlib
 import time
 
 import pytest
@@ -9,6 +10,7 @@ from fonesi_edit.jobs import Scheduler
 from fonesi_edit.matrix import Angle, enqueue_rows, history
 from fonesi_edit.prototypes.media import create_fixture, probe
 from fonesi_edit.storage import Store
+from fonesi_edit.worker import execute
 
 
 def _prepared(tmp_path, scope):
@@ -246,3 +248,104 @@ def test_retry_refuses_incomplete_matrix_reservation_identity(tmp_path,payload):
     with pytest.raises(ValueError,match="missing its reservation identity"):
         store.retry(job_id)
     assert store.job(job_id)["state"]=="failed"
+
+def _run_to_failure(store,job_id):
+    scheduler=Scheduler(store)
+    deadline=time.monotonic()+25
+    try:
+        while time.monotonic()<deadline:
+            scheduler.tick()
+            job=store.job(job_id)
+            if job["state"] in {"failed","blocked","canceled"} and not scheduler.active:
+                break
+            time.sleep(.04)
+        job=store.job(job_id)
+        assert job["state"] in {"failed","blocked"},job["error"]
+        assert not scheduler.active
+    finally:
+        scheduler.shutdown()
+
+
+def test_recovered_matrix_job_reuses_published_artifact_before_finish(tmp_path):
+    store,job_id,_=_prepared(tmp_path,"published-before-finish-scope")
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==job_id
+    rendered=execute(store,claimed)
+    assert rendered["validated"] is True
+    output=Path(rendered["output"])
+    sidecar=output.with_suffix(output.suffix+".fonesi.json")
+    assert output.is_file() and sidecar.is_file()
+    original_sha=hashlib.sha256(output.read_bytes()).hexdigest()
+    assert rendered["sha256"]==original_sha
+    with store.connect() as conn:
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("published-before-finish-scope",canonical(["scene-a","scene-b"]))).fetchone())==("reserved",job_id)
+        assert conn.execute(
+            "SELECT state FROM jobs WHERE id=?",(job_id,)).fetchone()[0]=="running"
+        conn.execute("UPDATE jobs SET heartbeat=0 WHERE id=?",(job_id,))
+    assert store.recover(stale_seconds=1)==1
+    assert store.job(job_id)["state"]=="pending"
+    _run_to_success(store,job_id)
+    completed=store.job(job_id)
+    assert completed["attempts"]==2
+    assert completed["result"]["reused"] is True
+    assert completed["result"]["sha256"]==original_sha
+    assert hashlib.sha256(output.read_bytes()).hexdigest()==original_sha
+    with store.connect() as conn:
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("published-before-finish-scope",canonical(["scene-a","scene-b"]))).fetchone())==("succeeded",job_id)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
+            ("published-before-finish-scope",)).fetchone()[0]==1
+
+
+def test_recovered_matrix_job_does_not_adopt_or_overwrite_output_without_sidecar(tmp_path):
+    store,job_id,_=_prepared(tmp_path,"orphan-output-no-sidecar-scope")
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==job_id
+    output=Path(claimed["payload"]["output"])
+    output.parent.mkdir(parents=True,exist_ok=True)
+    sentinel=b"pre-existing unverified output"
+    output.write_bytes(sentinel)
+    sidecar=output.with_suffix(output.suffix+".fonesi.json")
+    with store.connect() as conn:
+        conn.execute("UPDATE jobs SET heartbeat=0 WHERE id=?",(job_id,))
+    assert store.recover(stale_seconds=1)==1
+    _run_to_failure(store,job_id)
+    failed=store.job(job_id)
+    assert failed["state"]=="failed" and failed["result"] is None
+    assert output.read_bytes()==sentinel
+    assert not sidecar.exists()
+    with store.connect() as conn:
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("orphan-output-no-sidecar-scope",canonical(["scene-a","scene-b"]))).fetchone())==("failed",job_id)
+    assert history(store,"orphan-output-no-sidecar-scope")==[]
+
+
+def test_recovered_matrix_job_rejects_output_with_stale_sidecar_hash(tmp_path):
+    store,job_id,_=_prepared(tmp_path,"tampered-output-sidecar-scope")
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==job_id
+    rendered=execute(store,claimed)
+    output=Path(rendered["output"])
+    sidecar=output.with_suffix(output.suffix+".fonesi.json")
+    assert sidecar.is_file()
+    tampered=output.read_bytes()+b"tampered-after-publish"
+    output.write_bytes(tampered)
+    with store.connect() as conn:
+        conn.execute("UPDATE jobs SET heartbeat=0 WHERE id=?",(job_id,))
+    assert store.recover(stale_seconds=1)==1
+    _run_to_failure(store,job_id)
+    failed=store.job(job_id)
+    assert failed["state"]=="failed" and failed["result"] is None
+    assert output.read_bytes()==tampered
+    assert sidecar.is_file()
+    with store.connect() as conn:
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("tampered-output-sidecar-scope",canonical(["scene-a","scene-b"]))).fetchone())==("failed",job_id)
+    assert history(store,"tampered-output-sidecar-scope")==[]
+
