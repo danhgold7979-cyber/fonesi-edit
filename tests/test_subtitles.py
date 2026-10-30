@@ -45,3 +45,14 @@ class SubtitleTests(unittest.TestCase):
     def test_out_of_order_disjoint_not_overlap(self):
         doc=SubtitleDocument((Cue('a',Interval(F(5),F(6)),'a'),Cue('b',Interval(F(1),F(2)),'b')))
         self.assertEqual(doc.diagnostics(),(('OUT_OF_ORDER','b'),))
+
+    def test_overlap_sweep_matches_pairwise_oracle(self):
+        import random
+        rng=random.Random(81)
+        for _ in range(100):
+            cues=[]
+            for i in range(8):
+                start=rng.randrange(10);end=start+rng.randrange(1,5);cues.append(Cue(str(i),Interval(F(start),F(end)),'x'))
+            expected={c.id for i,c in enumerate(cues) if any(c.interval.intersect(other.interval) is not None for j,other in enumerate(cues) if i!=j)}
+            actual={identity for code,identity in SubtitleDocument(tuple(cues)).diagnostics() if code=='OVERLAP'}
+            self.assertEqual(actual,expected)

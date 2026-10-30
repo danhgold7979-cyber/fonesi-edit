@@ -6,6 +6,7 @@ from PySide6.QtCore import QAbstractTableModel,QModelIndex,Qt,Signal,QThread
 from PySide6.QtWidgets import QDialog,QVBoxLayout,QHBoxLayout,QPushButton,QTableView,QLabel,QFileDialog,QHeaderView
 from fonesi_edit.subtitles import Cue,SubtitleDocument,parse_srt,export_srt,parse_time,timestamp,rounded_millis
 from fonesi_edit.timing import Interval
+from fonesi_edit.style import STYLE
 
 
 class SubtitleModel(QAbstractTableModel):
@@ -39,7 +40,9 @@ class SubtitleModel(QAbstractTableModel):
             if index.column()==1 and role==Qt.EditRole:start=parse_time(str(value))
             elif index.column()==2 and role==Qt.EditRole:end=parse_time(str(value))
             elif index.column()==3 and role==Qt.EditRole:text=str(value)
-            elif index.column()==4 and role==Qt.CheckStateRole:locked=value in (Qt.Checked,Qt.Checked.value)
+            elif index.column()==4 and role==Qt.CheckStateRole:
+                if value not in (Qt.Checked,Qt.Unchecked,Qt.Checked.value,Qt.Unchecked.value):raise ValueError('INVALID_CHECK_STATE')
+                locked=value in (Qt.Checked,Qt.Checked.value)
             else:return False
             cue=Cue(old.id,Interval(start,end),text,locked)
             if cue==old:return True
@@ -73,7 +76,7 @@ class FileWorker(QThread):
 
 class SubtitleEditor(QDialog):
     def __init__(self,parent=None):
-        super().__init__(parent);self.worker=None;self.closing=False;self.setWindowTitle('Fonesi Edit · Phụ đề SRT cục bộ');self.resize(1050,650)
+        super().__init__(parent);self.worker=None;self.closing=False;self.setWindowTitle('Fonesi Edit · Phụ đề SRT cục bộ');self.resize(1050,650);self.setStyleSheet(STYLE)
         self.model=SubtitleModel();layout=QVBoxLayout(self);buttons=QHBoxLayout()
         self.open_button=QPushButton('Mở SRT…');self.save_button=QPushButton('Lưu thành SRT mới…');self.undo_button=QPushButton('Hoàn tác');self.redo_button=QPushButton('Làm lại')
         for button in (self.open_button,self.save_button,self.undo_button,self.redo_button):buttons.addWidget(button)

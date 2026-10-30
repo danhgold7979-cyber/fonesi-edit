@@ -55,3 +55,7 @@ New pure mixed-radix planner, unique combinations/history scope, W/K, seeded cop
 ## Local batch slice
 
 Bounded/no-follow folder scan, output subtree exclusion/dedup, real per-file CPU render preserving source; failures/collisions isolated and never called verified reuse. Real two-video+corrupt fixture and collision rerun pass. Local90 tests PASS. Batch UI, immutable source snapshots and durable queue recovery remain open; not a hostile-filesystem isolation guarantee.
+
+## Regression and UI consistency checkpoint
+
+Scan-limit now retains already visited candidates before returning PARTIAL; invalid checkbox state cannot unlock a cue; randomized interval sweep matches a pairwise oracle. Shared native theme keeps subtitle table/header contrast consistent with the main app. Local92 tests PASS; fresh screenshots inspected with synthetic data only. Full design/interaction acceptance remains open.

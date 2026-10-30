@@ -44,11 +44,11 @@ def scan(roots: tuple[Path,...],output_root: Path,*,max_items=1000,max_visited=1
             directory,depth=stack.pop()
             if directory==output_root or directory.is_relative_to(output_root):continue
             if depth>max_depth:warnings.append('DEPTH_LIMIT');status='PARTIAL';continue
-            entries=[]
+            entries=[];visit_limit=False
             try:
                 with os.scandir(directory) as iterator:
                     for entry in iterator:
-                        if visited>=max_visited:return ScanResult(tuple(items),'PARTIAL',tuple(warnings+['VISIT_LIMIT']),visited)
+                        if visited>=max_visited:visit_limit=True;break
                         visited+=1;entries.append(entry)
             except OSError:warnings.append('SCAN_ERROR');status='PARTIAL';continue
             for entry in sorted(entries,key=lambda e:e.name.casefold()):
@@ -63,6 +63,7 @@ def scan(roots: tuple[Path,...],output_root: Path,*,max_items=1000,max_visited=1
                     if len(items)>=max_items:return ScanResult(tuple(items),'PARTIAL',tuple(warnings+['ITEM_LIMIT']),visited)
                     seen.add(identity);items.append(BatchInput(path,path.relative_to(root),root_id))
                 except OSError:warnings.append('ENTRY_ERROR');status='PARTIAL'
+            if visit_limit:return ScanResult(tuple(items),'PARTIAL',tuple(warnings+['VISIT_LIMIT']),visited)
     return ScanResult(tuple(items),status,tuple(warnings),visited)
 
 

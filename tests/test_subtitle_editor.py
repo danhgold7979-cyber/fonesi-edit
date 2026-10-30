@@ -53,3 +53,7 @@ class SubtitleUiTests(unittest.TestCase):
         finally:
             if window.worker:wait()
             window.close();self.app.processEvents()
+
+    def test_invalid_check_state_does_not_unlock(self):
+        model=SubtitleModel(SubtitleDocument((Cue('c',Interval(F(0),F(2)),'x',True),)))
+        self.assertFalse(model.setData(model.index(0,4),99,Qt.CheckStateRole));self.assertTrue(model.document.cues[0].locked)

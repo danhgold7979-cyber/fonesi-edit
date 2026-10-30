@@ -16,7 +16,8 @@ class BatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'a.mp4').touch();(root/'b.mp4').touch()
             self.assertEqual(scan((root,),root/'output',max_items=1).status,'PARTIAL')
-            self.assertEqual(scan((root,),root/'output',max_visited=1).status,'PARTIAL')
+            limited=scan((root,),root/'output',max_visited=1)
+            self.assertEqual(limited.status,'PARTIAL');self.assertEqual(len(limited.items),1)
     def test_cancel_scan(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);self.assertEqual(scan((root,),root/'out',cancel=lambda:True).status,'CANCELED')

@@ -14,6 +14,7 @@ from fonesi_edit.process import run_bounded
 from fonesi_edit.render import render_cpu
 from fonesi_edit.timing import ClipMap, Interval
 from fonesi_edit.project import Project,ProjectMedia,save_new,load_project
+from fonesi_edit.style import STYLE
 
 
 class Worker(QThread):
@@ -65,9 +66,7 @@ class MainWindow(QMainWindow):
         self.progress=QProgressBar();self.progress.setTextVisible(False);layout.addWidget(self.progress)
         self.status=QLabel('Sẵn sàng · Chọn media cục bộ.');self.status.setTextFormat(Qt.PlainText);self.status.setWordWrap(True);layout.addWidget(self.status)
         self.list.currentRowChanged.connect(self.select_row)
-        self.setStyleSheet('''QWidget{background:#111827;color:#f1f5f9;font-size:13px;} QLabel#brand{font-size:24px;color:#c4b5fd;font-weight:600;}
-QPushButton{background:#28364d;border:1px solid #52617c;padding:9px 14px;border-radius:5px;} QPushButton:hover{background:#3c4764;} QPushButton:focus{border:2px solid #c4b5fd;} QPushButton:disabled{color:#8b97aa;background:#1f2937;}
-QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWidget::item{padding:10px;} QListWidget::item:selected{background:#554582;} QTabBar::tab{padding:10px 14px;background:#1f2937;} QTabBar::tab:selected{background:#554582;} QTabBar::tab:disabled{color:#8b97aa;} QProgressBar{background:#1f2937;border:0;height:5px;} QProgressBar::chunk{background:#a78bfa;}''')
+        self.setStyleSheet(STYLE)
         self.refresh()
         if not self.ffmpeg or not self.ffprobe:self.status.setText('Thiếu FFmpeg/ffprobe. Cài công cụ đáng tin cậy rồi mở lại; không tự cài hoặc đổi PATH.')
 
