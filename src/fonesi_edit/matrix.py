@@ -36,32 +36,125 @@ def scene_directories(scenes):
     return result
 
 
-def normalize_matrix_history(scenes, previous):
-    """Place stored ordered hashes into their current source-scene columns.
+def scene_manifest(scenes):
+    """An exact order-independent media identity snapshot for settings/preflight."""
+    return [
+        {'folder':folder,'angles':[
+            {'index':angle.index,'path':str(Path(angle.path).resolve()),
+             'hash':angle.hash} for angle in scene]}
+        for folder,scene in zip(scene_directories(scenes),scenes)
+    ]
 
-    SQLite's legacy history rows store only hashes, not a folder-order
-    manifest. Map a hash only when its scene membership is unambiguous.
-    Ambiguous or removed assets must be reconciled by the user; guessing
-    would weaken W/K and allow unexpected reuse of reserved combinations.
-    No stored history row is modified.
+
+def select_matrix_scenes(all_scenes,choices):
+    """Apply explicit scene/angle selection without modifying the scanned inputs.
+
+    `choices` must cover the *complete* scanned folder set; every selected
+    angle must belong to its folder. An inactive folder is intentionally
+    excluded, not silently ignored after an error. `pin` fixes one eligible
+    angle for that scene in every generated output.
     """
+    folders=scene_directories(all_scenes)
+    if type(choices) is not dict or set(choices)!=set(folders):
+        raise ValueError('Scene selection must match all scanned source folders')
+    selected=[];pins={};included=[]
+    for old_index,folder in enumerate(folders):
+        option=choices[folder]
+        if type(option) is not dict or set(option)!={'enabled','angles','pin'}:
+            raise ValueError('Invalid scene selection fields')
+        enabled,chosen,pin=option['enabled'],option['angles'],option['pin']
+        if type(enabled) is not bool or type(chosen) is not list:
+            raise ValueError('Invalid scene or angle selection type')
+        if any(type(digest) is not str for digest in chosen) or len(chosen)!=len(set(chosen)):
+            raise ValueError('Selected angles must be unique content hashes')
+        valid={angle.hash for angle in all_scenes[old_index]}
+        if not set(chosen).issubset(valid):
+            raise ValueError('Selected angle no longer exists in its source scene')
+        if pin is not None and (type(pin) is not str or pin not in chosen):
+            raise ValueError('Pinned angle must remain selected in its scene')
+        if not enabled:
+            continue
+        if not chosen:
+            raise ValueError('Enabled scene must contain at least one selected angle')
+        active=[angle for angle in all_scenes[old_index] if angle.hash in chosen]
+        position=len(selected)+1
+        selected.append([Angle(position,angle.index,angle.path,angle.hash) for angle in active])
+        included.append(folder)
+        if pin is not None:pins[position-1]=pin
+    if not selected:
+        raise ValueError('At least one source scene must be enabled')
+    return {'scenes':selected,'pins':pins,'folders':included}
+
+
+def scene_generation_locks(scenes,pins,count,window=0,locks=None):
+    """Merge per-cell locks with scene-wide angle pins, never relaxing W/K."""
+    if type(count) is not int or count<1:
+        raise ValueError('Invalid matrix output count')
+    if type(window) is not int or window<0:
+        raise ValueError('Invalid W')
+    if type(pins) is not dict:
+        raise ValueError('Invalid scene-wide angle pins')
     allowed=[{angle.hash for angle in scene} for scene in scenes]
+    for position,digest in pins.items():
+        if (type(position) is not int or not 0<=position<len(scenes)
+                or type(digest) is not str or digest not in allowed[position]):
+            raise ValueError('Pinned angle does not belong to an enabled source scene')
+    if pins and window>0 and count>1:
+        raise ValueError('Khóa góc toàn cảnh xung đột với W>0 khi tạo nhiều hàng')
+    effective=math.prod(1 if position in pins else len(scene)
+                        for position,scene in enumerate(scenes))
+    if count>effective:
+        raise ValueError('Số tổ hợp khả thi không đủ với khóa góc toàn cảnh')
+    merged={int(row):dict(columns) for row,columns in (locks or {}).items()}
+    for row in range(count):
+        slots=merged.setdefault(row,{})
+        for scene_index,digest in pins.items():
+            if scene_index in slots and slots[scene_index]!=digest:
+                raise ValueError('Khóa ô xung đột với góc đã khóa toàn cảnh')
+            slots[scene_index]=digest
+    return merged
+
+
+def normalize_matrix_history(scenes, previous, all_scenes=None):
+    """Align legacy ordered hash rows to source-scene identities conservatively.
+
+    In the default case require the original exact scene count. When an
+    explicitly filtered matrix supplies its complete scanned universe, older
+    rows may include extra hashes from intentionally excluded scenes; they
+    are projected away only if every hash is uniquely attributable and every
+    enabled scene appears exactly once. A missing/ambiguous hash fails closed.
+    Nothing is ever written back to SQLite history.
+    """
+    selected_folders=scene_directories(scenes)
+    universe=scenes if all_scenes is None else all_scenes
+    universe_folders=scene_directories(universe)
+    if not set(selected_folders).issubset(set(universe_folders)):
+        raise ValueError('Selected scenes are absent from the complete source manifest')
+    universe_allowed=[{angle.hash for angle in scene} for scene in universe]
+    for folder,scene in zip(selected_folders,scenes):
+        index=universe_folders.index(folder)
+        if not {angle.hash for angle in scene}.issubset(universe_allowed[index]):
+            raise ValueError('Selected angle is absent from the complete source manifest')
     aligned=[]
     for entry in previous:
-        if not isinstance(entry,(list,tuple)) or len(entry)!=len(scenes):
+        if (not isinstance(entry,(list,tuple))
+                or (all_scenes is None and len(entry)!=len(scenes))
+                or (all_scenes is not None and not 1<=len(entry)<=len(universe))):
             raise ValueError('Matrix history has incompatible scene count')
-        mapped=[None]*len(scenes)
+        mapped={}
         for digest in entry:
-            candidates=[i for i,choices in enumerate(allowed) if digest in choices]
+            if type(digest) is not str:
+                raise ValueError('Matrix history has an invalid angle hash')
+            candidates=[i for i,choices in enumerate(universe_allowed) if digest in choices]
             if len(candidates)!=1:
                 raise ValueError('Matrix history cannot identify a unique source scene for an angle')
-            index=candidates[0]
-            if mapped[index] is not None:
+            folder=universe_folders[candidates[0]]
+            if folder in mapped:
                 raise ValueError('Matrix history contains more than one angle from the same scene')
-            mapped[index]=digest
-        if any(value is None for value in mapped):
+            mapped[folder]=digest
+        if any(folder not in mapped for folder in selected_folders):
             raise ValueError('Matrix history is missing a source scene')
-        aligned.append(mapped)
+        aligned.append([mapped[folder] for folder in selected_folders])
     return aligned
 
 
@@ -349,7 +442,7 @@ def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,m
     return c
 
 
-def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None,scene_order=None):
+def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None,scene_order=None,all_scenes=None):
     jobs=[];plans=[]
     for row in rows:
         comp=row_composition(row,preset,audio,allocation,minimum,maximum,weights=weights,manual_durations=manual_durations)
@@ -362,7 +455,7 @@ def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='prop
         import json
         previous=[json.loads(r[0]) for r in conn.execute("SELECT combination FROM matrix_history WHERE scope=? AND state IN ('reserved','succeeded') ORDER BY created",(scope,))]
         if scene_order is not None:
-            previous=normalize_matrix_history(scene_order,previous)
+            previous=normalize_matrix_history(scene_order,previous,all_scenes=all_scenes)
         used={canonical(values) for values in previous}
         sequence=conn.execute('SELECT COUNT(*) FROM matrix_history WHERE scope=?',(scope,)).fetchone()[0]
         for job_id,key,data in plans:
