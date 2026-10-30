@@ -310,9 +310,12 @@ def test_source_filtered_matrix_renders_without_modifying_original_files(tmp_pat
 def test_full_subset_full_project_matrix_history_does_not_lock_selected_scene_sets(tmp_path):
     from fonesi_edit.matrix import select_matrix_scenes
     root=tmp_path/"source"
+    from shutil import copyfile
     source_a=create_fixture(root/"C1",duration=.5)["source"]
-    source_a2=create_fixture(root/"C1-alt",duration=.75)["source"]
-    # Reuse a root collection of three explicit scene folders below.
+    alternative=create_fixture(root/"alternate-media",duration=.75)["source"]
+    source_a2=source_a.with_name("G2-variant.mp4")
+    copyfile(alternative,source_a2)
+    # The two C1 candidates must belong to one real scene directory.
     b=create_fixture(root/"C2",duration=.5)["source"]
     c=create_fixture(root/"C3",duration=.5)["source"]
     full=[
