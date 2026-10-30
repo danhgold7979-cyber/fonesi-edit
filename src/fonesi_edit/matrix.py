@@ -369,7 +369,9 @@ def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,
     for scene_index,scene in enumerate(scenes):
         counts=[frequency.get((scene_index,angle.hash),0) for angle in scene]
         usage.append({'scene':scene_index+1,'minimum':min(counts),
-                      'maximum':max(counts),'spread':max(counts)-min(counts)})
+                      'maximum':max(counts),'spread':max(counts)-min(counts),
+                      'angles':[{'hash':angle.hash,'uses':count}
+                                for angle,count in zip(scene,counts)]})
     return {'rows':rows,'capacity':capacity,'complete':len(rows)==count,
             'requested':count,'seed':seed,'attempts':attempts,
             'balance_candidates':balance_candidates,'usage':usage,
