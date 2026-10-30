@@ -10,7 +10,7 @@ from threading import Event, Thread
 import pytest
 
 from fonesi_edit import dependencies
-from fonesi_edit.dependencies import install, rollback
+from fonesi_edit.dependencies import install, rollback, managed_tool_versions, remove_tool_version
 from fonesi_edit.prototypes.tools import ToolStatus, check_tool, scan_tools
 from fonesi_edit.prototypes.translation import TranslationNotConfigured, translate
 from fonesi_edit.prototypes.subtitles import Cue
@@ -555,3 +555,135 @@ def test_store_submit_holds_writer_lock_until_tool_snapshot_is_inserted(tmp_path
     assert payload["_tools"]["ffmpeg"] == first["path"]
     with pytest.raises(ValueError, match="held by"):
         remove_tool_version(store, "ffmpeg", "1.0.0")
+
+
+def _install_next_ffmpeg_version(store, monkeypatch, version="2.0.0"):
+    payload = _artifact(b"replacement-ffmpeg", b"replacement-ffprobe")
+    manifest = _manifest(version, payload)
+    return install(store, manifest, fetch=_fake_fetch({manifest["url"]: payload}, []))
+
+
+def test_active_tool_version_is_protected_and_old_version_can_be_removed(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="active"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    inventory = managed_tool_versions(store)
+    old = next(item for item in inventory if item["version"] == "1.0.0")
+    new = next(item for item in inventory if item["version"] == "2.0.0")
+    assert not old["in_use"] and old["reason"] == "Có thể gỡ"
+    assert new["in_use"] and new["active"]
+    removed = remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert removed["directory_removed"]
+    assert not Path(first["path"]).parent.parent.exists()
+    assert Path(second["path"]).is_file()
+    with store.connect() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM tool_versions WHERE name='ffmpeg' AND version='1.0.0'"
+        ).fetchone() is None
+
+
+@pytest.mark.parametrize("state", ["pending", "running", "blocked", "failed", "canceled"])
+def test_tool_version_lease_is_held_by_runnable_or_retryable_jobs(tmp_path, monkeypatch, state):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    job_id = store.submit("render", {"output": str(tmp_path / "job.mp4")})
+    if state != "pending":
+        with store.connect() as conn:
+            conn.execute("UPDATE jobs SET state=? WHERE id=?", (state, job_id))
+    _install_next_ffmpeg_version(store, monkeypatch)
+
+    inventory = managed_tool_versions(store)
+    old = next(item for item in inventory if item["version"] == "1.0.0")
+    assert old["in_use"] and job_id in old["job_ids"]
+    with pytest.raises(ValueError, match="held by"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert Path(first["path"]).is_file()
+
+
+def test_ffprobe_companion_path_also_leases_its_ffmpeg_version_folder(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    store.set_setting("tool_paths", {"ffprobe": first["ffprobe"]})
+    job_id = store.submit("scan", {"source": "synthetic"})
+    _install_next_ffmpeg_version(store, monkeypatch)
+
+    old = next(item for item in managed_tool_versions(store) if item["version"] == "1.0.0")
+    assert job_id in old["job_ids"]
+    with pytest.raises(ValueError, match="held by"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+
+
+def test_succeeded_job_releases_its_old_tool_version_lease(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    job_id = store.submit("render", {"output": str(tmp_path / "done.mp4")})
+    _install_next_ffmpeg_version(store, monkeypatch)
+    store.finish(job_id, {"output": str(tmp_path / "done.mp4"), "validated": True})
+
+    old = next(item for item in managed_tool_versions(store) if item["version"] == "1.0.0")
+    assert not old["in_use"]
+    remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert not Path(first["path"]).parent.parent.exists()
+
+
+def test_submit_many_captures_one_tool_snapshot_and_holds_old_version(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    jobs = store.submit_many("render", [
+        {"output": str(tmp_path / "one.mp4")},
+        {"output": str(tmp_path / "two.mp4")},
+    ])
+    _install_next_ffmpeg_version(store, monkeypatch)
+    for job_id in jobs:
+        payload = store.job(job_id)["payload"]
+        assert payload["_tools"]["ffmpeg"] == first["path"]
+        assert payload["_tools"]["ffprobe"] == first["ffprobe"]
+    with pytest.raises(ValueError, match="held by"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+
+
+def test_tool_cleanup_refuses_database_path_outside_managed_root(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    _install_next_ffmpeg_version(store, monkeypatch)
+    external = tmp_path / "external-system-tool"
+    external.write_bytes(b"must not be deleted")
+    with store.connect() as conn:
+        conn.execute(
+            "UPDATE tool_versions SET path=? WHERE name='ffmpeg' AND version='1.0.0'",
+            (str(external),),
+        )
+    with pytest.raises(ValueError, match="outside"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert external.read_bytes() == b"must not be deleted"
+    assert Path(first["path"]).is_file()
+
+
+def test_tool_cleanup_permission_failure_keeps_metadata_and_active_paths(tmp_path, monkeypatch):
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    second = _install_next_ffmpeg_version(store, monkeypatch)
+    old_folder = Path(first["path"]).parent.parent
+    original_rmtree = dependencies.shutil.rmtree
+
+    def denied(path, *args, **kwargs):
+        if Path(path) == old_folder:
+            raise PermissionError("synthetic access denied")
+        return original_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(dependencies.shutil, "rmtree", denied)
+    with pytest.raises(PermissionError, match="access denied"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert old_folder.is_dir()
+    assert Path(second["path"]).is_file()
+    assert store.setting("tool_paths")["ffmpeg"] == second["path"]
+    with store.connect() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM tool_versions WHERE name='ffmpeg' AND version='1.0.0'"
+        ).fetchone() is not None
+
+
+def test_submit_many_validates_all_payloads_before_inserting_any_job(tmp_path):
+    store = Store(tmp_path / "state" / "fonesi.db")
+    with pytest.raises(ValueError, match="Secret values"):
+        store.submit_many("render", [
+            {"output": str(tmp_path / "good.mp4")},
+            {"output": str(tmp_path / "bad.mp4"), "token": "must-not-store"},
+        ])
+    assert store.jobs() == []
