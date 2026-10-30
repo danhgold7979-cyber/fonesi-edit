@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
         self.edits = {}
         self._loading_controls = False
         self.media_ids = []
+        self.relink_history = []
         self.source_refs = {}
         self.source_hashes = {}
         self.exact_edits = {}
@@ -128,6 +129,12 @@ class MainWindow(QMainWindow):
         ll.addWidget(QLabel("MEDIA CỤC BỘ"))
         self.list = QListWidget()
         ll.addWidget(self.list)
+        self.relink_button = QPushButton("Nối lại media chọn…")
+        self.undo_relink_button = QPushButton("Hoàn tác nối lại")
+        self.relink_button.clicked.connect(self.choose_relink)
+        self.undo_relink_button.clicked.connect(self.undo_relink)
+        ll.addWidget(self.relink_button)
+        ll.addWidget(self.undo_relink_button)
         panes.addWidget(left)
         center = QWidget()
         cl = QVBoxLayout(center)
@@ -205,6 +212,8 @@ class MainWindow(QMainWindow):
         self.open_button.setEnabled(not busy)
         self.save_button.setEnabled(not busy and bool(self.media))
         row = self.list.currentRow()
+        self.relink_button.setEnabled(not busy and 0 <= row < len(self.media))
+        self.undo_relink_button.setEnabled(not busy and bool(self.relink_history))
         self.inspect_button.setEnabled(
             not busy
             and 0 <= row < len(self.media)
@@ -471,6 +480,83 @@ class MainWindow(QMainWindow):
         )
         self.refresh()
 
+    def choose_relink(self):
+        row = self.list.currentRow()
+        if self.worker or self.closing or not 0 <= row < len(self.media):
+            return False
+        media_id, old_reference = self.media_ids[row], self.source_refs[row]
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Chọn nguồn thay thế; giữ trim, cần kiểm tra lại",
+            "",
+            "Media (*.mp4 *.mkv *.mov *.avi *.webm *.wav *.mp3);;Tất cả (*)",
+        )
+        if not path:
+            return False
+        return self.relink_media(
+            row, path, expected_id=media_id, expected_reference=old_reference
+        )
+
+    def relink_media(self, row, reference, *, expected_id, expected_reference):
+        if (
+            self.worker
+            or self.closing
+            or type(row) is not int
+            or not 0 <= row < len(self.media)
+        ):
+            return False
+        if (
+            self.media_ids[row] != expected_id
+            or self.source_refs[row] != expected_reference
+        ):
+            self.status.setText("Tham chiếu đã thay đổi; chọn lại media cần nối.")
+            return False
+        if (
+            not isinstance(reference, str)
+            or not 1 <= len(reference) <= 4096
+            or "\x00" in reference
+            or "://" in reference
+            or not Path(reference).is_absolute()
+        ):
+            self.status.setText(
+                "Cần đường dẫn tuyệt đối thuộc máy đang dùng; không đoán ổ đĩa."
+            )
+            return False
+        if reference == expected_reference:
+            return False
+        self.relink_history.append((expected_id, expected_reference, reference))
+        self.relink_history = self.relink_history[-100:]
+        self.replace_reference(row, reference)
+        self.status.setText(
+            "Đã nối tham chiếu mới, giữ trim/tốc độ. Cần kiểm tra media trước khi xuất; không khẳng định hai tệp cùng nội dung."
+        )
+        return True
+
+    def replace_reference(self, row, reference):
+        self.source_refs[row] = reference
+        self.source_hashes.pop(row, None)
+        self.media[row] = (Path(reference), None, b"")
+        self.list.item(row).setText(Path(reference).name)
+        self.list.setCurrentRow(row)
+        self.select_row(row)
+
+    def undo_relink(self):
+        if self.worker or self.closing or not self.relink_history:
+            return False
+        media_id, old_reference, new_reference = self.relink_history[-1]
+        if media_id not in self.media_ids:
+            return False
+        row = self.media_ids.index(media_id)
+        if self.source_refs[row] != new_reference:
+            self.status.setText("Tham chiếu đã đổi; không hoàn tác lên media khác.")
+            return False
+        self.relink_history.pop()
+        self.replace_reference(row, old_reference)
+        self.status.setText(
+            "Đã hoàn tác đường dẫn; giữ thiết lập edit hiện tại. Cần kiểm tra nguồn lại trước khi xuất."
+        )
+        return True
+
     def inspect_selected(self):
         row = self.list.currentRow()
         if 0 <= row < len(self.media):
@@ -556,6 +642,7 @@ class MainWindow(QMainWindow):
         self.selected = None
         self.media = []
         self.media_ids = []
+        self.relink_history = []
         self.source_refs = {}
         self.source_hashes = {}
         self.edits = {}

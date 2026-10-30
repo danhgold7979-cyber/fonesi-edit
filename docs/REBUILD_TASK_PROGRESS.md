@@ -18,7 +18,7 @@ Mỗi dòng dưới là IN_PROGRESS/PARTIAL, không phải DONE. Test tương �
 | P03-04 | Qt worker, bounded direct child, SQLite lease primitive | Durable scheduler/descendant containment/pause/crash recovery integration |
 | P03-05 | Immutable intent/seed/hash, lỗi UI được lọc | Queue UI, typed error taxonomy và worker snapshot integration |
 | P03-06 | Staging/decode/probe/hash/atomic no-overwrite; scan exclude output | Artifact/job provenance transaction và toàn ma trận filesystem |
-| P03-07 | Project save-as/open, exact edits, ledger backup | Autosave/relink/cache recovery và abrupt-close fault corpus |
+| P03-07 | Project save-as/open, exact edits, manual relink/undo, ledger backup | Autosave/cache recovery và abrupt-close fault corpus |
 | P03-08 | Session-only explicit paths, busy/generation guards | Persistent registry/ownership/version leases/installer lifecycle |
 | P04-01 | Native panel/theme/media/inspector/numeric controls | HiDPI/drag/drop/reset/full workspace interaction |
 | P04-05 | Trim/speed controls và mapping khi export | Timeline/playhead/split/gap/ripple/waveform/loop |

@@ -121,3 +121,7 @@ Explicit media demuxer boundary: common MOV/MP4-family, Matroska/WebM, AVI, WAV/
 ## P06-04 explicit split/merge checkpoint
 
 2026-10-30: native nonblocking SRT split/merge dialogs with exact Unicode text preview, explicit millisecond time/code-point boundary, gap warning, locked-cue rejection, fresh right ID, one undo command, stale-document/busy/closing guard and no source-file writes. 162 local tests PASS, Ruff/format/plan structure PASS. UI screenshot inspected on cloud Linux with synthetic text. Full Windows/Linux CI for this change pending; prior demuxer checkpoint remote636511f3dac65861906250ac3438ebeb450b964b/run41141038617 has four successful jobs (152 tests). No speech/grapheme alignment, bilingual/translation, persistent lock/history, or whole-P06 acceptance.
+
+## P03-07 manual relink checkpoint
+
+2026-10-30: selected-row explicit native-path relink preserves media/project IDs and exact edit, invalidates proof/thumbnail/hash, requires reinspection, guards stale chooser/busy/closing, and has bounded relink-only undo. No automatic filename matching or content-equivalence claim; source files unchanged, existing out-of-range trim blocks export. Native Linux UI inspected with synthetic missing reference. 168 local tests PASS plus Ruff/format/plan structure; new exact-head hosted CI pending. Prior split/merge remotebeeec88/run41141484074 SUCCESS on all4 jobs, actual Windows162tests and frozen6checkstartup PASS. No full autosave/recovery/general-undo/target-PC acceptance.
