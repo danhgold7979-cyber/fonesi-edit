@@ -70,11 +70,17 @@ def forget_session(store,binding_id):
 
 
 def revoke_pairing(store,profile_id):
+    """Revoke every pending or active bridge for one profile atomically."""
     with store.connect() as c:
+        c.execute('BEGIN IMMEDIATE')
         rows=c.execute("SELECT key,value FROM settings WHERE key LIKE 'bridge:%' OR key LIKE 'pair:%'").fetchall()
         for row in rows:
-            if json.loads(row['value']).get('profile_id')==profile_id:c.execute('DELETE FROM settings WHERE key=?',(row['key'],))
-
+            try:
+                data=json.loads(row['value'])
+            except (TypeError,ValueError,json.JSONDecodeError):
+                continue
+            if isinstance(data,dict) and data.get('profile_id')==profile_id:
+                c.execute('DELETE FROM settings WHERE key=?',(row['key'],))
 
 def bindings(store):
     with store.connect() as c:
@@ -124,9 +130,10 @@ def cookie_identity(platform,cookies):
 
 
 def receive_session(store,token,platform,cookies):
-    pairing=store.setting('bridge:'+hashlib.sha256(token.encode()).hexdigest())
-    if not pairing or platform not in DOMAINS:raise PermissionError('Bridge is not paired')
-    if not isinstance(cookies,list) or len(cookies)>1000:raise ValueError('Invalid cookie snapshot')
+    if not isinstance(token,str) or not token or platform not in DOMAINS:
+        raise PermissionError('Bridge is not paired')
+    if not isinstance(cookies,list) or len(cookies)>1000 or any(not isinstance(item,dict) for item in cookies):
+        raise ValueError('Invalid cookie snapshot')
     allowed=[]
     for cookie in cookies:
         domain=cookie.get('domain','').lstrip('.').lower()
@@ -134,13 +141,34 @@ def receive_session(store,token,platform,cookies):
         if cookie.get('partitionKey'):continue  # Do not pretend CHIPS context transfers to arbitrary HTTP requests.
         allowed.append({k:cookie[k] for k in ('name','value','domain','path','secure','expirationDate') if k in cookie})
     if not allowed:raise PermissionError('No transferable session cookies for this platform')
-    identity=cookie_identity(platform,allowed);binding_id=bind(store,pairing['profile_id'],platform)
+    identity=cookie_identity(platform,allowed)
+    bridge_key='bridge:'+hashlib.sha256(token.encode()).hexdigest()
     with store.connect() as c:
+        # Pairing revocation uses this same writer lock. Whichever operation
+        # acquires it first completes before the other can inspect or mutate state.
         c.execute('BEGIN IMMEDIATE')
-        row=c.execute('SELECT identity FROM bindings WHERE id=?',(binding_id,)).fetchone()
-        if not row:
-            raise PermissionError('Account binding disappeared; session handoff refused')
-        old=row['identity']
+        bridge_row=c.execute('SELECT value FROM settings WHERE key=?',(bridge_key,)).fetchone()
+        try:
+            pairing=json.loads(bridge_row['value']) if bridge_row else None
+        except (TypeError,ValueError,json.JSONDecodeError):
+            pairing=None
+        if not isinstance(pairing,dict) or not isinstance(pairing.get('profile_id'),str):
+            raise PermissionError('Bridge is not paired')
+        profile_id=pairing['profile_id']
+        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():
+            raise PermissionError('Bridge profile is unavailable')
+        binding=c.execute(
+            'SELECT id,identity FROM bindings WHERE profile_id=? AND platform=?',
+            (profile_id,platform)).fetchone()
+        if binding:
+            binding_id=binding['id']
+            old=binding['identity']
+        else:
+            binding_id=identifier()
+            c.execute(
+                'INSERT INTO bindings(id,profile_id,platform) VALUES(?,?,?)',
+                (binding_id,profile_id,platform))
+            old=None
         # Re-check under the writer lock so concurrent handoffs cannot silently
         # replace a different account after both read an empty identity.
         if old and identity and old!=identity:
@@ -155,7 +183,6 @@ def receive_session(store,token,platform,cookies):
         c.execute('UPDATE bindings SET identity=?,status=?,checked=? WHERE id=?',
                   (identity,'available' if identity else 'identity_unverified',time.time(),binding_id))
     return {'binding_id':binding_id,'status':'available' if identity else 'identity_unverified','connector_verified':False}
-
 
 def cookie_jar(store,binding_id,expected_identity=None):
     with store.connect() as c:

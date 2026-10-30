@@ -1,11 +1,13 @@
 from functools import partial
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
-from threading import Thread,Event,Barrier
+from threading import Thread,Event,Barrier,current_thread
 import os
 import sys
 import time
 import json
+import hashlib
 import pytest
 from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity,cookie_jar,revoke_pairing
 from fonesi_edit.downloads import platform_for,safe_name,execute_download_job
@@ -540,3 +542,141 @@ def test_concurrent_session_handoffs_cannot_switch_account_after_empty_identity(
     assert {cookie.name: cookie.value for cookie in cookie_jar(
         store, binding_id, accepted_identity
     )} == {"c_user": accepted_identity}
+
+
+
+def test_revocation_before_handoff_writer_lock_rejects_stale_bridge(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    reached_writer = Event()
+    release_writer = Event()
+    original_connect = store.connect
+
+    @contextmanager
+    def gated_connect():
+        with original_connect() as connection:
+            class Proxy:
+                def execute(self, statement, *args):
+                    if (
+                        current_thread().name == "stale-bridge-handoff"
+                        and statement.strip().upper() == "BEGIN IMMEDIATE"
+                    ):
+                        reached_writer.set()
+                        if not release_writer.wait(10):
+                            raise TimeoutError("handoff writer gate timed out")
+                    return connection.execute(statement, *args)
+
+                def __getattr__(self, name):
+                    return getattr(connection, name)
+
+            yield Proxy()
+
+    monkeypatch.setattr(store, "connect", gated_connect)
+    errors = []
+
+    def handoff():
+        try:
+            receive_session(
+                store, token, "Facebook", [_synthetic_facebook_cookie("account-A")]
+            )
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = Thread(target=handoff, name="stale-bridge-handoff")
+    thread.start()
+    assert reached_writer.wait(10)
+    revoke_pairing(store, profile)
+    release_writer.set()
+    thread.join(10)
+
+    assert not thread.is_alive()
+    assert len(errors) == 1 and isinstance(errors[0], PermissionError)
+    assert "Bridge is not paired" in str(errors[0])
+    with store.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM bindings").fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM secrets WHERE key LIKE 'session:%'"
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT 1 FROM settings WHERE key=?",
+            ("bridge:" + hashlib.sha256(token.encode()).hexdigest(),),
+        ).fetchone() is None
+
+
+def test_handoff_holding_writer_lock_finishes_before_pairing_revocation(tmp_path, monkeypatch):
+    from fonesi_edit import browser as browser_module
+
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    protecting = Event()
+    release_protect = Event()
+    revoke_attempting = Event()
+    original_connect = store.connect
+
+    @contextmanager
+    def signal_revoke_connect():
+        with original_connect() as connection:
+            class Proxy:
+                def execute(self, statement, *args):
+                    if (
+                        current_thread().name == "waiting-pairing-revocation"
+                        and statement.strip().upper() == "BEGIN IMMEDIATE"
+                    ):
+                        revoke_attempting.set()
+                    return connection.execute(statement, *args)
+
+                def __getattr__(self, name):
+                    return getattr(connection, name)
+
+            yield Proxy()
+
+    monkeypatch.setattr(store, "connect", signal_revoke_connect)
+
+    def blocking_protect(data, decrypt=False):
+        if not decrypt and not protecting.is_set():
+            protecting.set()
+            if not release_protect.wait(10):
+                raise TimeoutError("handoff protection gate timed out")
+        return data
+
+    monkeypatch.setattr(browser_module, "protect", blocking_protect)
+    results = []
+    errors = []
+
+    def handoff():
+        try:
+            results.append(receive_session(
+                store, token, "Facebook", [_synthetic_facebook_cookie("account-A")]
+            ))
+        except BaseException as exc:
+            errors.append(exc)
+
+    def revoke():
+        try:
+            revoke_pairing(store, profile)
+        except BaseException as exc:
+            errors.append(exc)
+
+    handoff_thread = Thread(target=handoff, name="writer-owning-handoff")
+    handoff_thread.start()
+    assert protecting.wait(10)
+    revoke_thread = Thread(target=revoke, name="waiting-pairing-revocation")
+    revoke_thread.start()
+    assert revoke_attempting.wait(10)
+    release_protect.set()
+    handoff_thread.join(10)
+    revoke_thread.join(10)
+
+    assert not handoff_thread.is_alive() and not revoke_thread.is_alive()
+    assert not errors
+    assert len(results) == 1 and results[0]["status"] == "available"
+    binding_id = results[0]["binding_id"]
+    bridge_key = "bridge:" + hashlib.sha256(token.encode()).hexdigest()
+    assert store.setting(bridge_key) is None
+    assert {cookie.name: cookie.value for cookie in cookie_jar(
+        store, binding_id, "account-A"
+    )} == {"c_user": "account-A"}
