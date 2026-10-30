@@ -31,13 +31,13 @@ Read AGENTS.md, README.md, docs/IMPLEMENTATION_PLAN.md, docs/PRODUCT_REQUIREMENT
 
 ## 4. Acceptance criteria
 
-- [ ] A valid exported preset round-trips through the parser and preserves supported composition settings and external asset references.
-- [ ] Source clips and per-layer clip IDs never enter an exported or imported preset.
-- [ ] Malformed, oversized, duplicate-key, unknown-field, unsupported-version, secret-bearing or invalid-composition files fail before persistence.
-- [ ] Invalid imports leave the preset table and active project/composition unchanged.
-- [ ] Missing external assets are reported clearly while the valid preset remains importable.
-- [ ] Existing profile pairing revocation and focused text Undo/Redo regressions remain unchanged and pass.
-- [ ] scripts/check_plan.py, the full source test suite, production build and frozen packaged proof pass on Linux and Windows for the exact implementation/test commit.
+- [x] A valid exported preset round-trips through the parser and preserves supported composition settings and external asset references.
+- [x] Source clips and per-layer clip IDs never enter an exported or imported preset.
+- [x] Malformed, oversized, duplicate-key, unknown-field, unsupported-version, secret-bearing or invalid-composition files fail before persistence.
+- [x] Invalid imports leave the preset table and active project/composition unchanged.
+- [x] Missing external assets are reported clearly while the valid preset remains importable.
+- [x] Existing profile pairing revocation and focused text Undo/Redo regressions remain unchanged and pass.
+- [x] scripts/check_plan.py, the full source test suite, production build and frozen packaged proof pass on Linux and Windows for the exact implementation/test commit.
 
 ## 5. Explicit limits
 
@@ -45,4 +45,17 @@ This slice does not claim real Windows user-machine, Chrome login, provider, GPU
 
 ## 6. Execution notes
 
-The connected GitHub API is available, but this cloud container cannot resolve github.com for a local clone. Local source execution is therefore unavailable in this turn; the exact implementation/test commit must be validated by GitHub Actions on both Linux and Windows before reporting PASS.
+The connected GitHub API was used for repository reads/writes. Local source execution was unavailable in this cloud turn; acceptance was gated on the exact GitHub Actions run below.
+
+## 7. Execution result — PASS on CI
+
+- Plan commit: [2774ef2](https://github.com/danhgold7979-cyber/fonesi-edit/commit/2774ef2955c44eee9a9bf61fcfec731231c4a5e4).
+- Implementation: [a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec).
+- Profile-scoped revocation regression: [e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb).
+- [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS on exact HEAD e3d3272: Linux 817 passed; Windows 816 passed + 1 intentional POSIX-only skip. Both runners passed Batch 128-source synthetic FFprobe benchmark, 10^10-capacity logical Matrix benchmark (2,000 complete outputs; max per-scene spread 5), production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost download/UI proof.
+- Batch dry-run: Linux 7.751278 s, Windows 10.102146 s; failed_count=0 on both.
+- Matrix logical benchmark: Linux 19.860847 s, Windows 17.556047 s; 2,000/2,000 generated, complete=true, max per-scene spread 5 on both. No real 10-billion-media or real-media corpus claim.
+- Artifacts: Linux evidence 391,472 bytes and Windows evidence 323,245 bytes (expire 2026-11-02); Windows development build 197,366,359 bytes (expires 2026-11-06).
+- Profile revocation regression confirms profile A's bridge and pending pairing code are removed while profile A/B folders and both bindings remain, and profile B's bridge is unaffected.
+
+The acceptance checks above close this preset/revocation regression slice only. They do not close all P11-05 requirements, P11-08, all 95 requirement groups, or any external Windows/Chrome/live-provider/GPU/power-loss gate.

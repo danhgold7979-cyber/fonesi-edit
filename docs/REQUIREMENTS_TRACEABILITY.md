@@ -232,3 +232,12 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - OPS-06: missing/mismatched artifact provenance cannot produce succeeded job/history; valid artifact reuse is committed only after renderer validation.
 - Evidence: [plan](phases/P11_MATRIX_OUTPUT_RECOVERY_PLAN.md), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1), [CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS: 791 Linux PASS; 790 Windows PASS + 1 intentional POSIX skip; both packaged proofs passed.
 - Limits: synthetic crash boundary only; physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real-media corpus, live Chrome/provider and GPU acceptance remain open.
+
+
+## P11-05 / OPS-07 + AUTH-11 — Preset schema and profile-scoped pairing evidence (30/10/2026)
+
+- OPS-07: a shared schema-v1 builder/parser validates preset name and envelope, UTF-8, duplicate JSON keys, non-finite numbers, schema version, 2 MiB size, composition model and secret-key guard. Source clips and clip IDs are stripped on export and rejected on import. Logo/font/audio paths remain references; missing local resources are reported without mutating them.
+- OPS-07: invalid Qt import is rejected before Store.save_named and leaves both preset table and active project unchanged. Valid import stores one preset while leaving the active composition unchanged. Round-trip tests preserve external resource paths.
+- AUTH-11: profile A revoke removes A bridge and pending pairing code but preserves both A/B Chrome profile directories, both account bindings and B's bridge.
+- Evidence: plan [2774ef2](https://github.com/danhgold7979-cyber/fonesi-edit/commit/2774ef2955c44eee9a9bf61fcfec731231c4a5e4), implementation [a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec), follow-up regression [e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb), [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip; desktop/native-host builds and packaged proof both OS.
+- Limits: CI synthetic/local-file tests do not prove Windows user-machine Chrome login, DPAPI/real cookie bridge, provider availability, GPU/HiDPI, installer/update, or full AUTH-11/P11 acceptance.

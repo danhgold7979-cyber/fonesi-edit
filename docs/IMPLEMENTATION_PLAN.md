@@ -212,6 +212,8 @@ Ba đợt kỹ thuật, không giảm phạm vi: A YouTube/Bilibili; B TikTok/Fa
 - [ ] P11-07: log/backup/cache/dependency, lỗi còn lại theo mức ảnh hưởng và cách khắc phục.
 - [ ] P11-08: missing/wrong tools, installer ngắt/verify lỗi/quyền ghi/update bận; Chrome A nhiều nền tảng, Chrome B nick khác, phiên hết hạn/challenge/mismatch/lock/bridge không dùng được, export không chứa session.
 
+**Tiến độ P11-05 / OPS-07 (30/10/2026):** Preset schema-v1 import/export đã được chuẩn hóa và có regression Qt/unit; import lỗi không ghi DB hoặc đổi composition đang mở, thiếu logo/font/audio được báo, source clips/clip IDs không xuất/nhập. Thêm test thu hồi pairing theo profile, xác nhận không xóa Chrome profile hoặc binding khác. [Implementation a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec) → [test e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb) → [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX skip; production/native-host/frozen proof both OS. Đây là một lát cắt, không đóng toàn bộ P11-05 hoặc P11.
+
 **Bàn giao:** báo cáo nghiệm thu nội bộ, benchmark có điều kiện, lỗi/giới hạn minh bạch.
 
 **Cổng hoàn tất:** không lỗi mất dữ liệu/sai tổ hợp-ngôn ngữ/thành công giả; mỗi yêu cầu có evidence hoặc blocker rõ. Blocker chức năng bắt buộc ngăn tuyên bố đã đủ toàn phạm vi.
