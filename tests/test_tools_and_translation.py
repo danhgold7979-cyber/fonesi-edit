@@ -712,3 +712,41 @@ def test_tool_cleanup_refuses_symlink_inside_managed_version_folder(tmp_path, mo
     assert outside.read_bytes() == b"must remain untouched"
     assert old_folder.is_dir()
     assert Path(first["path"]).is_file()
+
+
+
+def test_cleanup_winning_before_activation_cannot_republish_deleted_tool(tmp_path, monkeypatch):
+    store, old_receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    new_receipt = _install_next_ffmpeg_version(store, monkeypatch)
+    old_folder = Path(old_receipt["path"]).parent.parent
+    remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert not old_folder.exists()
+
+    with pytest.raises(ValueError, match="version folder is unavailable"):
+        dependencies._save_tool_activation(store, "ffmpeg", "1.0.0", old_receipt)
+
+    assert store.setting("tool_paths")["ffmpeg"] == new_receipt["path"]
+    assert Path(new_receipt["path"]).is_file()
+    with store.connect() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM tool_versions WHERE name='ffmpeg' AND version='1.0.0'"
+        ).fetchone() is None
+        active = conn.execute(
+            "SELECT version FROM tool_versions WHERE name='ffmpeg' AND active=1"
+        ).fetchone()
+        assert active["version"] == "2.0.0"
+
+
+def test_activation_winning_before_cleanup_protects_version_and_companion(tmp_path, monkeypatch):
+    store, old_receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    new_receipt = _install_next_ffmpeg_version(store, monkeypatch)
+
+    dependencies._save_tool_activation(store, "ffmpeg", "1.0.0", old_receipt)
+
+    with pytest.raises(ValueError, match="active"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
+    assert Path(old_receipt["path"]).is_file()
+    assert Path(old_receipt["ffprobe"]).is_file()
+    assert store.setting("tool_paths")["ffmpeg"] == old_receipt["path"]
+    assert store.setting("tool_paths")["ffprobe"] == old_receipt["ffprobe"]
+    assert Path(new_receipt["path"]).is_file()

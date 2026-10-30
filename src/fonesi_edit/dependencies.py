@@ -146,21 +146,43 @@ def _verified_receipt(name, final, manifest):
 
 
 def _save_tool_activation(store,name,version,receipt):
-    """Commit active-version metadata and runtime path selection as one transaction."""
+    """Validate and activate a managed tool while holding the cleanup writer lock."""
     with store.connect() as conn:
         conn.execute('BEGIN IMMEDIATE')
+        folder=_version_directory(store,name,version,receipt.get('path'))
+        if folder is None or folder.is_symlink() or not folder.is_dir():
+            raise ValueError('Tool receipt version folder is unavailable; activation refused')
+        try:
+            executable=Path(receipt['path']).resolve(strict=True)
+            if (not executable.is_file() or not executable.is_relative_to(folder.resolve(strict=True))
+                    or fingerprint(executable).lower()!=str(receipt.get('hash','')).lower()
+                    or check_tool(name,str(executable)).status!='ready'):
+                raise ValueError('Tool receipt executable is unavailable or changed; activation refused')
+            companion=receipt.get('ffprobe')
+            if companion:
+                companion_path=Path(companion).resolve(strict=True)
+                if (not companion_path.is_file()
+                        or not companion_path.is_relative_to(folder.resolve(strict=True))):
+                    raise ValueError('Tool receipt ffprobe companion is unavailable; activation refused')
+        except (OSError,RuntimeError) as exc:
+            raise ValueError('Tool receipt files are unavailable; activation refused') from exc
         row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
-        overrides=json.loads(row['value']) if row else {}
-        overrides[name]=receipt['path']
+        try:
+            overrides=json.loads(row['value']) if row else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; activation refused') from exc
+        if not isinstance(overrides,dict):
+            raise ValueError('Tool path configuration is invalid; activation refused')
+        overrides[name]=str(executable)
         if name=='ffmpeg':
-            if receipt.get('ffprobe'):
-                overrides['ffprobe']=receipt['ffprobe']
+            if companion:
+                overrides['ffprobe']=str(companion_path)
             else:
                 overrides.pop('ffprobe',None)
         encoded=canonical(checked_payload(overrides))
         conn.execute('UPDATE tool_versions SET active=0 WHERE name=?',(name,))
         conn.execute('INSERT OR REPLACE INTO tool_versions VALUES(?,?,?,?,1)',
-                     (name,version,receipt['path'],receipt['hash']))
+                     (name,version,str(executable),receipt['hash']))
         conn.execute("INSERT INTO settings(key,value) VALUES('tool_paths',?) "
                      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
     # Workers in this process must use the newly committed path immediately.
