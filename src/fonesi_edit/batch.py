@@ -243,8 +243,6 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         if not sound.is_file():
             raise FileNotFoundError('Âm thanh chung không tồn tại: '+sound.name)
         length=audio_duration(sound)
-        if not math.isfinite(length) or length<=0:
-            raise ValueError('Thời lượng audio không hợp lệ: '+sound.name)
         _check_batch_cancel(cancel)
         return {source:(str(sound),length) for source in sources}
     if mode=='playlist':
