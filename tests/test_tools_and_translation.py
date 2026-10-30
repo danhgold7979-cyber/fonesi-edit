@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 import sqlite3
 import zipfile
 from pathlib import Path
@@ -16,11 +17,15 @@ from fonesi_edit.prototypes.subtitles import Cue
 from fonesi_edit.storage import Store
 
 
+def _executable_name(name):
+    return name + ".exe" if os.name == "nt" else name
+
+
 def _artifact(ffmpeg=b"synthetic-ffmpeg", ffprobe=b"synthetic-ffprobe"):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
-        archive.writestr("bin/ffmpeg", ffmpeg)
-        archive.writestr("bin/ffprobe", ffprobe)
+        archive.writestr(f"bin/{_executable_name('ffmpeg')}", ffmpeg)
+        archive.writestr(f"bin/{_executable_name('ffprobe')}", ffprobe)
     return buffer.getvalue()
 
 
@@ -31,7 +36,7 @@ def _manifest(version, payload):
         "url": f"https://artifacts.invalid/ffmpeg-{version}.zip",
         "sha256": hashlib.sha256(payload).hexdigest(),
         "archive": "zip",
-        "executable": "ffmpeg",
+        "executable": _executable_name("ffmpeg"),
     }
 
 
