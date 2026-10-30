@@ -1,0 +1,64 @@
+"""P09 solver parameter validation and logical matrix stress evidence."""
+from threading import Event
+import math
+import pytest
+from fonesi_edit.matrix import Angle, generate, matrix_rows_valid
+from scripts.benchmark_matrix import benchmark
+
+
+def _scenes():
+    return [[Angle(i+1,j+1,f"virtual/C{i+1}/G{j+1}.mp4",f"{i}-{j}")
+             for j in range(3)] for i in range(2)]
+
+
+@pytest.mark.parametrize("options", [
+    {"count":True}, {"count":2.5}, {"count":0},
+    {"window":False}, {"window":-1}, {"different":True},
+    {"different":3}, {"seed":None}, {"seed":1.5},
+    {"compare_window":1}, {"seconds":0}, {"seconds":float("nan")},
+    {"seconds":float("inf")}, {"seconds":"2"}, {"seconds":True},
+])
+def test_matrix_rejects_malformed_parameters_before_search(options):
+    arguments={"count":2}
+    arguments.update(options)
+    with pytest.raises(ValueError):
+        generate(_scenes(),**arguments)
+
+
+def test_matrix_empty_universe_refused_and_pre_cancel_keeps_input():
+    with pytest.raises(ValueError,match="Empty matrix"):
+        generate([],1)
+    universe=_scenes()
+    old=[[a.hash for a in group] for group in universe]
+    cancel=Event();cancel.set()
+    with pytest.raises(RuntimeError,match="Canceled"):
+        generate(universe,2,cancel=cancel)
+    assert [[a.hash for a in group] for group in universe]==old
+
+
+def test_logical_stress_large_product_does_not_allocate_cartesian_media():
+    report=benchmark(scenes=14,angles=6,outputs=100,window=1,different=2,
+                     seed=123,budget_seconds=3)
+    assert report["theoretical_capacity"]==6**14
+    assert report["complete"] and report["generated"]==100
+    assert report["unique_and_wk_valid"] and report["source_unchanged"]
+    assert report["python_tracemalloc_peak_bytes"]>0
+    assert "no FFprobe" in report["limitations"]
+
+
+def test_matrix_seeded_logical_result_is_reproducible_without_clock_threshold():
+    first=benchmark(scenes=4,angles=3,outputs=8,window=1,different=2,
+                    seed=3,budget_seconds=3)
+    second=benchmark(scenes=4,angles=3,outputs=8,window=1,different=2,
+                     seed=3,budget_seconds=3)
+    for key in ("generated","complete","attempts","theoretical_capacity"):
+        assert first[key]==second[key]
+
+
+@pytest.mark.parametrize("kwargs",[
+    {"scenes":0},{"angles":0},{"outputs":False},{"window":-1},
+    {"different":100},{"budget_seconds":float("nan")},
+])
+def test_logical_benchmark_rejects_bad_configuration(kwargs):
+    with pytest.raises(ValueError,match="Invalid logical"):
+        benchmark(**kwargs)
