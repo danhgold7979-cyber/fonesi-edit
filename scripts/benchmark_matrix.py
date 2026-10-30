@@ -16,13 +16,14 @@ from fonesi_edit.matrix import Angle, combination, generate, matrix_rows_valid
 
 def benchmark(scenes: int = 12, angles: int = 5, outputs: int = 200,
               window: int = 1, different: int = 2, seed: int = 17,
-              budget_seconds: float = 4.0) -> dict:
+              budget_seconds: float = 4.0, balance_candidates: int = 8) -> dict:
     if (any(type(value) is not int for value in
             (scenes, angles, outputs, window, different, seed))
             or not 1 <= scenes <= 100 or not 1 <= angles <= 100
             or not 1 <= outputs <= 100000
             or not 0 <= window <= 1000 or not 0 <= different <= scenes
-            or not 0 < budget_seconds <= 60 or not math.isfinite(budget_seconds)):
+            or not 0 < budget_seconds <= 60 or not math.isfinite(budget_seconds)
+            or type(balance_candidates) is not int or not 1 <= balance_candidates <= 64):
         raise ValueError("Invalid logical Matrix benchmark configuration")
     # Logical immutable identities only: these paths are never opened.
     universe = [
@@ -38,7 +39,8 @@ def benchmark(scenes: int = 12, angles: int = 5, outputs: int = 200,
     try:
         report = generate(universe, outputs, seed=seed, window=window,
                           different=different, compare_window=True,
-                          seconds=budget_seconds)
+                          seconds=budget_seconds,
+                          balance_candidates=balance_candidates)
         elapsed = time.perf_counter() - started
         _, peak_bytes = tracemalloc.get_traced_memory()
     finally:
@@ -58,6 +60,9 @@ def benchmark(scenes: int = 12, angles: int = 5, outputs: int = 200,
         "requested": outputs, "generated": len(rows),
         "complete": report["complete"], "attempts": report["attempts"],
         "window": window, "different": different, "seed": seed,
+        "balance_candidates": balance_candidates,
+        "per_scene_usage": report["usage"],
+        "max_per_scene_spread": max((item["spread"] for item in report["usage"]),default=0),
         "elapsed_seconds": round(elapsed, 6),
         "python_tracemalloc_peak_bytes": peak_bytes,
         "source_unchanged": True, "unique_and_wk_valid": True,
@@ -77,10 +82,11 @@ def main(argv=None):
     parser.add_argument("--different", type=int, default=2)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--budget-seconds", type=float, default=4.0)
+    parser.add_argument("--balance-candidates", type=int, default=8)
     args = parser.parse_args(argv)
     print(json.dumps(benchmark(args.scenes, args.angles, args.outputs,
                                args.window, args.different, args.seed,
-                               args.budget_seconds),
+                               args.budget_seconds, args.balance_candidates),
                      indent=2, sort_keys=True))
     return 0
 
