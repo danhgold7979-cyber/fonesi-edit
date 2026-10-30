@@ -389,3 +389,105 @@ def test_extract_zip_normalizes_safe_backslash_paths(tmp_path):
     destination.mkdir()
     dependencies.extract_zip(archive, destination)
     assert (destination / "bin" / "tools" / "ffmpeg.exe").read_bytes() == b"binary"
+
+
+
+def _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch):
+    store = Store(tmp_path / "state" / "fonesi.db")
+    payload = _artifact(b"known-good-ffmpeg", b"known-good-ffprobe")
+    manifest = _manifest("1.0.0", payload)
+    monkeypatch.setattr(dependencies, "check_tool", _ready_tool)
+    monkeypatch.setattr(dependencies, "configure_tools", lambda _paths: None)
+    receipt = install(store, manifest, fetch=_fake_fetch({manifest["url"]: payload}, []))
+    return store, receipt
+
+
+def _assert_previous_tool_remains_active(store, receipt, new_version):
+    assert store.setting("tool_paths") == {
+        "ffmpeg": receipt["path"],
+        "ffprobe": receipt["ffprobe"],
+    }
+    assert _active_versions(store) == {"1.0.0": 1}
+    assert Path(receipt["path"]).read_bytes() == b"known-good-ffmpeg"
+    assert Path(receipt["ffprobe"]).read_bytes() == b"known-good-ffprobe"
+    root = store.path.parent / "tools" / "ffmpeg"
+    assert not (root / new_version).exists()
+    assert list(root.glob(".staging-*")) == []
+
+
+def test_interrupted_tool_download_preserves_active_version_and_cleans_staging(tmp_path, monkeypatch):
+    store, receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    replacement_payload = _artifact(b"replacement-ffmpeg", b"replacement-ffprobe")
+    manifest = _manifest("2.0.0", replacement_payload)
+    progress_values = []
+
+    def interrupted_fetch(_url, destination, _sha256, progress, _cancel):
+        destination.write_bytes(b"partial archive bytes")
+        progress(0.25)
+        raise ConnectionResetError("synthetic interrupted download")
+
+    with pytest.raises(ConnectionResetError, match="interrupted download"):
+        install(store, manifest, progress_values.append, fetch=interrupted_fetch)
+
+    assert 1 not in progress_values
+    _assert_previous_tool_remains_active(store, receipt, "2.0.0")
+
+
+def test_tool_checksum_mismatch_preserves_active_version_and_cleans_staging(tmp_path, monkeypatch):
+    store, receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    expected_payload = _artifact(b"replacement-ffmpeg", b"replacement-ffprobe")
+    manifest = _manifest("2.0.0", expected_payload)
+    progress_values = []
+
+    def tampered_fetch(_url, destination, _sha256, progress, _cancel):
+        destination.write_bytes(b"tampered artifact bytes")
+        progress(0.6)
+
+    with pytest.raises(ValueError, match="Artifact SHA256 mismatch"):
+        install(store, manifest, progress_values.append, fetch=tampered_fetch)
+
+    assert 1 not in progress_values
+    _assert_previous_tool_remains_active(store, receipt, "2.0.0")
+
+
+def test_tool_cancel_after_download_preserves_active_version_and_cleans_staging(tmp_path, monkeypatch):
+    store, receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    replacement_payload = _artifact(b"replacement-ffmpeg", b"replacement-ffprobe")
+    manifest = _manifest("2.0.0", replacement_payload)
+    cancel = Event()
+    progress_values = []
+
+    def finish_then_cancel(_url, destination, _sha256, progress, _cancel):
+        destination.write_bytes(replacement_payload)
+        progress(0.75)
+        cancel.set()
+
+    with pytest.raises(RuntimeError, match="Canceled"):
+        install(store, manifest, progress_values.append, cancel=cancel, fetch=finish_then_cancel)
+
+    assert 1 not in progress_values
+    _assert_previous_tool_remains_active(store, receipt, "2.0.0")
+
+
+def test_installer_archive_preflight_failure_preserves_active_tool_and_cleans_staging(tmp_path, monkeypatch):
+    store, receipt = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    malicious = _zip_with_members([
+        ("../escape.txt", b"must not escape", None),
+        (f"bin/{_executable_name('ffmpeg')}", b"replacement-ffmpeg", None),
+        (f"bin/{_executable_name('ffprobe')}", b"replacement-ffprobe", None),
+    ]).getvalue()
+    manifest = _manifest("2.0.0", malicious)
+    progress_values = []
+
+    def malicious_fetch(_url, destination, _sha256, progress, _cancel):
+        destination.write_bytes(malicious)
+        progress(0.8)
+
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        install(store, manifest, progress_values.append, fetch=malicious_fetch)
+
+    assert 1 not in progress_values
+    tool_root = store.path.parent / "tools" / "ffmpeg"
+    assert not (tool_root / "escape.txt").exists()
+    assert not (tmp_path / "escape.txt").exists()
+    _assert_previous_tool_remains_active(store, receipt, "2.0.0")
