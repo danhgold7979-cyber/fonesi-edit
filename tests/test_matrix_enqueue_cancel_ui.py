@@ -66,7 +66,7 @@ def test_qt_matrix_edit_revokes_prepublication_enqueue_without_queue_navigation(
     try:
         page.enqueue()
         _wait(started.is_set)
-        with pytest.raises(ValueError,match="đang chuẩn bị"):
+        with pytest.raises(ValueError,match="Đang chuẩn bị"):
             page.enqueue()
         if action=="seed":
             page.seed.setValue(13)
