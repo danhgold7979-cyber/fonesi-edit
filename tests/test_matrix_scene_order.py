@@ -141,3 +141,125 @@ def test_moved_rows_define_real_composition_clip_order_and_source_bytes(tmp_path
     assert abs(probe(tmp_path/"reordered.mp4").duration-1)<.15
     assert originals=={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
                       for path in (first,second)}
+
+
+def _choices_for(scenes):
+    from fonesi_edit.matrix import scene_directories
+    return {folder:{"enabled":True,"angles":[angle.hash for angle in scene],"pin":None}
+            for folder,scene in zip(scene_directories(scenes),scenes)}
+
+
+def test_explicit_scene_and_angle_selection_preserves_original_g_hash_and_files():
+    from fonesi_edit.matrix import select_matrix_scenes,scene_manifest
+    original=scenes()
+    untouched=deepcopy(original)
+    choices=_choices_for(original)
+    keys=list(choices)
+    choices[keys[0]]["angles"]=["a1"]
+    choices[keys[1]]["enabled"]=False
+    choices[keys[2]]["angles"]=["c0","c2"]
+    choices[keys[2]]["pin"]="c2"
+    result=select_matrix_scenes(original,choices)
+    assert len(result["scenes"])==2
+    assert [[(a.scene,a.index,a.hash) for a in group] for group in result["scenes"]]==[
+        [(1,2,"a1")],[(2,1,"c0"),(2,3,"c2")]
+    ]
+    assert result["pins"]=={1:"c2"}
+    assert result["folders"]==[keys[0],keys[2]]
+    assert original==untouched
+    assert scene_manifest(original)==scene_manifest(untouched)
+
+
+@pytest.mark.parametrize("mutation,match",[
+    (lambda c,k:c.pop(k[1]),"match all scanned"),
+    (lambda c,k:c[k[0]].update(enabled=1),"Invalid scene"),
+    (lambda c,k:c[k[0]].update(angles="a0"),"Invalid scene"),
+    (lambda c,k:c[k[0]].update(angles=["a0","a0"]),"unique"),
+    (lambda c,k:c[k[0]].update(angles=["missing"]),"no longer exists"),
+    (lambda c,k:c[k[0]].update(angles=[]),"at least one"),
+    (lambda c,k:c[k[0]].update(angles=["a0"],pin="a1"),"Pinned angle"),
+    (lambda c,k:[c[key].update(enabled=False) for key in k],"At least one"),
+])
+def test_explicit_selection_rejects_invalid_snapshots_without_mutation(mutation,match):
+    from fonesi_edit.matrix import select_matrix_scenes
+    original=scenes()
+    before=deepcopy(original)
+    choices=_choices_for(original)
+    mutation(choices,list(choices))
+    with pytest.raises(ValueError,match=match):
+        select_matrix_scenes(original,choices)
+    assert original==before
+
+
+def test_global_scene_pin_merges_locks_and_exposes_w_capacity_conflicts():
+    from fonesi_edit.matrix import scene_generation_locks,generate
+    original=scenes()
+    pins={1:"b1"}
+    locks=scene_generation_locks(original,pins,2,0,{0:{0:"a2"}})
+    assert locks=={0:{0:"a2",1:"b1"},1:{1:"b1"}}
+    rows=generate(original,2,seed=3,locks=locks)["rows"]
+    assert len(rows)==2 and all(row[1].hash=="b1" for row in rows)
+    assert rows[0][0].hash=="a2"
+    for kwargs,message in [
+        ({"window":1},"W>0"),
+        ({"locks":{0:{1:"b2"}}},"xung đột"),
+        ({"pins":{1:"missing"}},"does not belong"),
+    ]:
+        options={"scenes":original,"pins":pins,"count":2}
+        options.update(kwargs)
+        with pytest.raises(ValueError,match=message):
+            scene_generation_locks(**options)
+    with pytest.raises(ValueError,match="không đủ"):
+        scene_generation_locks(original,{0:"a0",1:"b0",2:"c0"},2)
+
+
+def test_project_full_legacy_history_safely_projects_only_known_excluded_scenes():
+    from fonesi_edit.matrix import select_matrix_scenes
+    full=scenes()
+    choices=_choices_for(full)
+    keys=list(choices)
+    choices[keys[1]]["enabled"]=False
+    selected=select_matrix_scenes(full,choices)["scenes"]
+    old=[["c1","a0","b2"],["a1","b0","c2"]]
+    assert normalize_matrix_history(selected,old,all_scenes=full)==[
+        ["a0","c1"],["a1","c2"]]
+    assert old==[["c1","a0","b2"],["a1","b0","c2"]]
+    for unsafe,message in [
+        ([["a1","b1","not-an-angle"]],"unique source scene"),
+        ([["a0","b0"]],"missing a source scene"),
+        ([["a1","b1","b0","c1"]],"incompatible scene count"),
+        ([["a1","b1","b2"]],"missing a source scene"),
+    ]:
+        with pytest.raises(ValueError,match=message):
+            normalize_matrix_history(selected,unsafe,all_scenes=full)
+    with pytest.raises(ValueError,match="incompatible scene count"):
+        normalize_matrix_history(selected,old)
+
+
+def test_subset_enqueue_does_not_reuse_project_reserved_full_scene_history(tmp_path):
+    from fonesi_edit.matrix import select_matrix_scenes
+    source=[
+        create_fixture(tmp_path/"C1",duration=.5)["source"],
+        create_fixture(tmp_path/"C2",duration=.5)["source"],
+        create_fixture(tmp_path/"C3",duration=.5)["source"],
+    ]
+    full=[[Angle(i+1,1,str(path),f"content-hash-{i}")]
+          for i,path in enumerate(source)]
+    store=Store(tmp_path/"state.db")
+    preset=Composition(width=320,height=180,fps=25,encoder="cpu")
+    whole=[[group[0] for group in full]]
+    original_jobs=enqueue_rows(store,"same-project",whole,preset,tmp_path/"out")
+    assert len(original_jobs)==1
+    persisted=history(store,"same-project")
+    choices=_choices_for(full)
+    keys=list(choices)
+    choices[keys[2]]["enabled"]=False
+    subset=select_matrix_scenes(full,choices)["scenes"]
+    assert [angle.hash for angle in subset[0]]==["content-hash-0"]
+    with pytest.raises(ValueError,match="Tổ hợp đã được dùng"):
+        enqueue_rows(store,"same-project",[[scene[0] for scene in subset]],preset,
+                     tmp_path/"out",scene_order=subset,all_scenes=full)
+    assert [job["id"] for job in store.jobs()]==original_jobs
+    assert history(store,"same-project")==persisted
+    assert all(path.is_file() for path in source)
+    assert not (tmp_path/"out").exists()
