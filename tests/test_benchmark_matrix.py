@@ -25,6 +25,7 @@ def _scenes():
     {"seconds":float("inf")}, {"seconds":"2"}, {"seconds":True},
     {"balance_candidates":0}, {"balance_candidates":65},
     {"balance_candidates":True}, {"balance_candidates":1.5},
+    {"budget_seconds":True}, {"budget_seconds":"1"},
 ])
 def test_matrix_rejects_malformed_parameters_before_search(options):
     arguments={"count":2}
@@ -42,6 +43,33 @@ def test_matrix_empty_universe_refused_and_pre_cancel_keeps_input():
     with pytest.raises(RuntimeError,match="Canceled"):
         generate(universe,2,cancel=cancel)
     assert [[a.hash for a in group] for group in universe]==old
+
+
+def test_large_space_candidate_loop_observes_cooperative_cancel():
+    class CancelAfterChecks:
+        def __init__(self):self.checks=0
+        def is_set(self):
+            self.checks+=1
+            return self.checks>=4
+    scenes=[[Angle(i+1,j+1,f"virtual/C{i+1}/G{j+1}.mp4",f"{i}-{j}")
+             for j in range(6)] for i in range(14)]
+    token=CancelAfterChecks()
+    with pytest.raises(RuntimeError,match="Canceled"):
+        generate(scenes,100,seed=7,window=1,different=2,
+                 seconds=5,balance_candidates=8,cancel=token)
+    assert token.checks==4
+
+
+def test_large_space_candidate_selection_preserves_per_row_locks_and_wk():
+    from fonesi_edit.matrix import matrix_rows_valid
+    scenes=[[Angle(i+1,j+1,f"virtual/C{i+1}/G{j+1}.mp4",f"{i}-{j}")
+             for j in range(4)] for i in range(8)]
+    pinned=scenes[0][2].hash
+    result=generate(scenes,80,seed=8,window=1,different=3,
+                    seconds=5,locks={0:{0:pinned}},balance_candidates=8)
+    assert result["complete"]
+    assert result["rows"][0][0].hash==pinned
+    assert matrix_rows_valid(result["rows"],[],1,3,False)
 
 
 def test_large_space_solver_does_not_start_candidates_after_budget_expires():
