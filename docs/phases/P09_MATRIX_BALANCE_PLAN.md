@@ -22,3 +22,6 @@ The large-space (>10,000 combinations) generator samples one candidate row at a 
 - [ ] Linux/Windows regression and frozen packaged proof pass on exact code/test SHA.
 
 External gates remain open: real 100k-media corpus and solver optimality, physical Windows/HiDPI/installer, NTFS/exFAT/power loss and SQLite issue #6, live Chrome/providers and GPU. Do not merge main.
+
+## CI budget calibration (30/10/2026)
+The first 10-scene × 10-angle × 2,000-output run on GitHub Linux reached the explicit 10-second search budget while tracemalloc was enabled: 779 tests passed and the one stress test correctly reported incomplete rather than fabricating completion. This is a valid bounded-search result, not a solver correctness failure. Keep the 10-billion theoretical space and 2,000 outputs, but raise this test/CI benchmark budget to 45 seconds (still bounded below the script's 60-second cap); do not weaken the completion, uniqueness, W/K or memory assertions. Re-run both OS and retain the JSON evidence artifact.
