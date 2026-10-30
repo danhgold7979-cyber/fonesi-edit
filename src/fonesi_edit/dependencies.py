@@ -52,7 +52,7 @@ def download_verified(url,destination,sha256,progress=lambda p:None,cancel=None)
 
 
 def _windows_reserved_component(component):
-    stem=component.split('.',1)[0].upper()
+    stem=component.split('.',1)[0].rstrip(' .').upper()
     return (stem in {'CON','PRN','AUX','NUL','CONIN$','CONOUT$'}
             or bool(re.fullmatch(r'(?:COM|LPT)(?:[1-9¹²³])',stem)))
 
@@ -63,6 +63,7 @@ def extract_zip(archive,destination):
         if sum(item.file_size for item in members)>4*1024**3:
             raise ValueError('Archive exceeds extraction budget')
         seen={}
+        normalized_names=[]
         # Validate every member before writing the first file. A later malicious
         # entry must not leave a partially extracted archive behind.
         for item in members:
@@ -97,6 +98,12 @@ def extract_zip(archive,destination):
             if not is_directory and any(existing.startswith(key+'/') for existing in seen):
                 raise ValueError('Archive file/directory path collision')
             seen[key]='directory' if is_directory else 'file'
+            normalized_names.append(normalized)
+        # ZipInfo filenames are normalized only after the entire archive passes
+        # preflight, so backslash-separated paths behave consistently on Linux
+        # and Windows without weakening the all-or-nothing validation boundary.
+        for item,normalized in zip(members,normalized_names):
+            item.filename=normalized
         package.extractall(destination)
 
 
