@@ -1,13 +1,13 @@
 # Trạng thái làm lại Fonesi Edit
 
-## Hiện tại — schema hardening increment
+## Hiện tại — native batch UI increment
 
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 96/96 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; schema hardening increment chưa có CI.
+- Kiểm tra local: 101/101 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; native batch UI increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
-- UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix/batch chưa tích hợp UI và durable queue; ledger chưa nối production worker.
+- UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
 - Backup toàn bộ lịch sử đã verify restore; implementation cũ được loại trong commit riêng có thể khôi phục. Các báo cáo cũ có nhãn lịch sử, không chứng nhận rebuild.
 - Tiếp tục phần độc lập theo plan trước code; không đoán cổng bên ngoài là PASS.
@@ -64,3 +64,8 @@ Ruff0.17.3 added as locked developer tool from PyPI; newly authored source/tests
 ## Ledger schema hardening
 
 Opening a ledger now refuses nonempty unversioned databases and exact-schema drift, including extra triggers/indexes, changed constraints/defaults and missing version1 table. Transactional initialization and rejection preserve existing schema/data/version; constructor failures close their connection. Original rebuild schema indentation remains compatible. 96 local tests PASS including rejection/no-mutation and all prior lease checks; no migrations or production queue acceptance implied.
+
+
+## Native batch UI slice
+
+New batch_editor.py + shared worker.py, main-app launcher and child-worker close guard. One folder/output pair, asynchronous scan and per-file CPU render, checkbox/output-name review, invalidation on folder change, partial scans blocked from export, immutable selected tuple, cancel/close waits. Full batch presets/multifolder/filter tree/durable recovery are still open. Synthetic actual UI scan/export/collision preserves source; parent close and selection capture regressions included. 101 local tests PASS. Native dialog screenshot inspected with explicitly synthetic rows; runtime acceptance Windows remains separate.

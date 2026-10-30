@@ -2,12 +2,11 @@
 
 import shutil
 import sys
-import threading
 from fractions import Fraction
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,28 +32,7 @@ from fonesi_edit.project import Project, ProjectMedia, load_project, save_new
 from fonesi_edit.render import render_cpu
 from fonesi_edit.style import STYLE
 from fonesi_edit.timing import ClipMap, Interval
-
-
-class Worker(QThread):
-    result = Signal(object)
-    failure = Signal(str)
-
-    def __init__(self, operation):
-        super().__init__()
-        self.operation = operation
-        self.cancel = threading.Event()
-
-    def run(self):
-        try:
-            self.result.emit(self.operation(self.cancel))
-        except Exception as exc:  # noqa: BLE001 - Qt worker boundary reports sanitized failure, never success.
-            # No raw exception/path/provider data in the diagnostic status.
-            code = (
-                str(exc)
-                if isinstance(exc, ValueError) and str(exc).replace("_", "").isalnum()
-                else type(exc).__name__
-            )
-            self.failure.emit(code[:100])
+from fonesi_edit.worker import Worker
 
 
 class MainWindow(QMainWindow):
@@ -116,6 +94,9 @@ class MainWindow(QMainWindow):
         self.subtitle_button = QPushButton("Sửa SRT…")
         self.subtitle_button.clicked.connect(self.open_subtitles)
         self.subtitle_window = None
+        self.batch_window = None
+        self.batch_button = QPushButton("Lô CPU cục bộ…")
+        self.batch_button.clicked.connect(self.open_batch)
         self.open_button = QPushButton("Mở project…")
         self.save_button = QPushButton("Lưu thành project mới…")
         self.inspect_button = QPushButton("Kiểm tra media chọn")
@@ -128,6 +109,7 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.inspect_button)
         controls.addWidget(self.export)
         controls.addWidget(self.subtitle_button)
+        controls.addWidget(self.batch_button)
         controls.addStretch()
         controls.addWidget(self.cancel_button)
         layout.addLayout(controls)
@@ -263,6 +245,15 @@ class MainWindow(QMainWindow):
         if self.worker:
             self.worker.cancel.set()
             self.status.setText("Đang yêu cầu hủy; chờ tiến trình dừng an toàn…")
+
+    def open_batch(self):
+        from fonesi_edit.batch_editor import BatchEditor
+
+        if self.batch_window is None:
+            self.batch_window = BatchEditor(self)
+        self.batch_window.show()
+        self.batch_window.raise_()
+        self.batch_window.activateWindow()
 
     def open_subtitles(self):
         from fonesi_edit.subtitle_editor import SubtitleEditor
@@ -557,6 +548,11 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
+        if self.batch_window is not None and self.batch_window.worker:
+            self.batch_window.cancel_work()
+            self.status.setText("Đợi lô CPU dừng an toàn trước khi đóng ứng dụng.")
+            event.ignore()
+            return
         if self.subtitle_window is not None and self.subtitle_window.worker:
             self.status.setText(
                 "Đợi thao tác tệp phụ đề hoàn tất trước khi đóng ứng dụng."
