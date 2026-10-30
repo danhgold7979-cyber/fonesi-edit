@@ -1,6 +1,6 @@
 # Fonesi Edit — Kế hoạch triển khai 12 phase
 
-Phiên bản: rebuild-2026-10-30. Trạng thái bản mới: P01 đang rà soát; tất cả checkbox đã reset, các dẫn chứng CI phía sau thuộc baseline edbb471 và không chứng nhận rebuild. Lịch sử v1.1 — 27/10/2026: Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
+Phiên bản: rebuild-2026-10-30. Trạng thái bản mới: P01 đang rà soát; các lát cắt độc lập đã triển khai theo REBUILD_STATUS.md, chưa nghiệm thu trọn task/phase; tất cả checkbox đã reset, các dẫn chứng CI phía sau thuộc baseline edbb471 và không chứng nhận rebuild. Lịch sử v1.1 — 27/10/2026: Trạng thái: đã triển khai code độc lập xuyên P03–P12; đang nghiệm thu local, cổng bên ngoài giữ mở. Xem CURRENT_STATUS.md. Bản 1.1 bổ sung quản lý công cụ và đăng nhập Chrome thật, giữ 12 phase.
 
 Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_SPEC.md](EDITOR_SPEC.md), [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Tài liệu kèm theo: [thiết kế kỹ thuật](TECHNICAL_DESIGN.md), [đối chiếu yêu cầu](REQUIREMENTS_TRACEABILITY.md), [ma trận nền tảng](PLATFORM_SUPPORT_MATRIX.md).
 
@@ -10,18 +10,18 @@ Nguồn yêu cầu: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [EDITOR_
 
 | Phase | Kết quả chính | Phụ thuộc để hoàn tất | Trạng thái |
 | --- | --- | --- | --- |
-| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
-| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | NOT_STARTED (rebuild); lịch sử trong Pxx_RESULTS |
+| P01 | Đặc tả triển khai, luồng màn hình, dữ liệu và tiêu chí | Các đặc tả hiện có | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P02 | Kiểm chứng tải, dịch, preview, render, GPU, đóng gói sớm | P01 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P03 | Nền ứng dụng, project, database, hàng đợi, worker, registry tool/profile | Quyết định lõi P02 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P04 | Workspace, preview, timeline, phím tắt, Cài đặt công cụ/tài khoản | P03, mẫu preview P02 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P05 | Tải kênh/ảnh/video/sub, thư mục, chống trùng, Chrome/auth thực tế | P03, kết quả nguồn P02 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P06 | Dịch, sửa, chèn phụ đề và song ngữ | P03–P05; làm sub cục bộ trước được | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P07 | Font/logo/chữ/che chữ, chuyển động, render thống nhất | P04, mô hình sub P06 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P08 | Edit hàng loạt, âm thanh, khớp thời lượng | P06–P07 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P09 | Cảnh/góc, ma trận, chống trùng, render tổ hợp | P08; thuật toán thuần làm sau P03 được | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P10 | Chuỗi auto, lịch chạy, watcher, tài nguyên thích ứng | P05–P09 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P11 | Tích hợp, phục hồi, hiệu năng, đối chiếu đủ tùy chọn | P04–P10 | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
+| P12 | Bản Windows, nghiệm thu máy thật, hướng dẫn | P11 và cổng phát hành | OPEN (rebuild); tiến độ lát cắt trong REBUILD_STATUS |
 
 Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 khi biết engine, mức hỗ trợ nguồn, máy mục tiêu và rủi ro đóng gói.
 
@@ -64,7 +64,7 @@ Số phase không phải số ngày. Chỉ ước lượng tiến độ sau P02 
 - [ ] P02-03: thử dịch Trung–Việt với thuật ngữ/tên riêng/câu dài; so chất lượng, tốc độ, chi phí, cache và quota.
 - [ ] P02-04: so engine preview cho Qt; mẫu alpha logo, chữ Việt/Trung, blur, seek, waveform, keyframe, audio; so mốc với FFmpeg export.
 - [ ] P02-05: thử CPU/encoder GPU thật, phân biệt encode GPU và filter CPU; đo RAM/VRAM và fallback.
-- [ ] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. CI frozen proof đạt; nghiệm thu máy Windows người dùng vẫn là cổng riêng.
+- [ ] P02-06: bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup. CI frozen proof của baseline là lịch sử, chưa chứng nhận rebuild; nghiệm thu máy Windows người dùng là cổng riêng.
 - [ ] P02-07: benchmark có máy/mẫu; chốt ngân sách UI/proxy/seek, sai số hình/thời gian và mức song song ban đầu trước P04/P07.
 - [ ] P02-08: ghi quyết định provider dịch, preview, FFmpeg build, packaging; blocker cho Windows/nguồn chưa truy cập được.
 - [ ] P02-09: thử discovery/tool manifest, nguồn Windows đáng tin, đường dẫn tùy chỉnh/version/capability, tải-cài-verify và rollback khi job đang dùng bản cũ.
