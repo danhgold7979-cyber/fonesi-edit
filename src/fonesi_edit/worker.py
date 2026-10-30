@@ -7,6 +7,7 @@ from PySide6.QtCore import QThread, Signal
 
 class Worker(QThread):
     result = Signal(object)
+    progress = Signal(object)
     failure = Signal(str)
 
     def __init__(self, operation):

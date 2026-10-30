@@ -30,6 +30,17 @@ class BatchResult:
     artifacts: tuple[Artifact, ...]
     failures: tuple[tuple[int, str], ...]
     status: str
+    progress_failed: bool = False
+
+
+@dataclass(frozen=True)
+class BatchProgress:
+    total: int
+    finished: int
+    validated: int
+    failed: int
+    active_index: int | None
+    state: str
 
 
 def scan(
@@ -146,6 +157,7 @@ def render_batch(
     *,
     duration_tolerance: Fraction,
     cancel=None,
+    progress=None,
 ):
     if (
         not isinstance(items, tuple)
@@ -158,9 +170,32 @@ def render_batch(
         raise ValueError("OUTPUT_DIRECTORY_REQUIRED")
     artifacts = []
     failures = []
+    progress_failed = False
+
+    def notify(state, active_index=None):
+        nonlocal progress, progress_failed
+        if progress is not None:
+            update = BatchProgress(
+                len(items),
+                len(artifacts) + len(failures),
+                len(artifacts),
+                len(failures),
+                active_index,
+                state,
+            )
+            try:
+                progress(update)
+            except Exception:  # noqa: BLE001 - advisory observer must not change published-output outcomes.
+                progress_failed = True
+                progress = None
+
+    def finish(status):
+        notify(status)
+        return BatchResult(tuple(artifacts), tuple(failures), status, progress_failed)
+
     for index, item in enumerate(items):
         if cancel is not None and cancel.is_set():
-            return BatchResult(tuple(artifacts), tuple(failures), "CANCELED")
+            return finish("CANCELED")
         if (
             not item.root_id
             or len(item.root_id) != 16
@@ -182,6 +217,7 @@ def render_batch(
         )
         if not destination.resolve().is_relative_to(output_root):
             raise ValueError("OUTPUT_ESCAPE")
+        notify("RUNNING", index)
         try:
             if item.source.is_symlink() or not item.source.is_file():
                 raise ValueError("SOURCE_NOT_REGULAR")
@@ -212,7 +248,6 @@ def render_batch(
             )
             failures.append((index, code[:100]))
             if cancel is not None and cancel.is_set():
-                return BatchResult(tuple(artifacts), tuple(failures), "CANCELED")
-    return BatchResult(
-        tuple(artifacts), tuple(failures), "PARTIAL" if failures else "COMPLETE"
-    )
+                return finish("CANCELED")
+        notify("RUNNING")
+    return finish("PARTIAL" if failures else "COMPLETE")

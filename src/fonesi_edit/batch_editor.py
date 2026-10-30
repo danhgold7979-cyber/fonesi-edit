@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from fonesi_edit.batch import render_batch, scan
+from fonesi_edit.batch import BatchProgress, render_batch, scan
 from fonesi_edit.style import STYLE
 from fonesi_edit.worker import Worker
 
@@ -30,6 +30,7 @@ class BatchEditor(QDialog):
         self.source = None
         self.output = None
         self.scan_result = None
+        self.batch_progress = None
         self.ffmpeg = parent.ffmpeg if parent is not None else shutil.which("ffmpeg")
         self.ffprobe = parent.ffprobe if parent is not None else shutil.which("ffprobe")
         self.setWindowTitle("Lô CPU cục bộ · Bản phát triển")
@@ -90,6 +91,7 @@ class BatchEditor(QDialog):
         else:
             self.source = path
         self.scan_result = None
+        self.batch_progress = None
         self.items.clear()
         self.paths.setText(
             f"Nguồn: {self.source or 'chưa chọn'}\nĐầu ra: {self.output or 'chưa chọn'}"
@@ -125,14 +127,29 @@ class BatchEditor(QDialog):
         )
         self.cancel_button.setEnabled(busy)
         self.items.setEnabled(not busy)
-        self.progress.setRange(0, 0 if busy else 1)
-        if not busy:
-            self.progress.setValue(0)
+        if self.batch_progress is not None:
+            self.progress.setTextVisible(True)
+            self.progress.setRange(0, max(1, self.batch_progress.total))
+            self.progress.setValue(self.batch_progress.finished)
+            self.progress.setFormat("%v/%m mục đã xử lý")
+        else:
+            self.progress.setTextVisible(False)
+            self.progress.setRange(0, 0 if busy else 1)
+            if not busy:
+                self.progress.setValue(0)
 
-    def start(self, operation, callback):
+    def start(self, operation, callback, *, report_progress=False):
         if self.worker is not None:
             return False
-        self.worker = Worker(operation)
+        worker = (
+            Worker(lambda cancel: operation(cancel, worker.progress.emit))
+            if report_progress
+            else Worker(operation)
+        )
+        self.worker = worker
+        worker.progress.connect(
+            lambda update: self.progress_changed(worker, update), Qt.QueuedConnection
+        )
         self.worker.result.connect(callback)
         self.worker.failure.connect(
             lambda code: self.status.setText("Không hoàn tất: " + code)
@@ -140,6 +157,23 @@ class BatchEditor(QDialog):
         self.worker.finished.connect(self.finished_work)
         self.refresh()
         self.worker.start()
+        return True
+
+    def progress_changed(self, worker, update):
+        if worker is not self.worker or not isinstance(update, BatchProgress):
+            return False
+        self.batch_progress = update
+        self.refresh()
+        suffix = (
+            f"Đang xử lý mục {update.active_index + 1}."
+            if update.active_index is not None
+            else ""
+        )
+        if worker.cancel.is_set():
+            suffix = "Đã yêu cầu hủy; chờ dừng an toàn."
+        self.status.setText(
+            f"{update.state}: đã xử lý {update.finished}/{update.total}; {update.validated} đầu ra đã kiểm tra, {update.failed} lỗi. {suffix}"
+        )
         return True
 
     def finished_work(self):
@@ -160,6 +194,7 @@ class BatchEditor(QDialog):
         if self.worker or self.source is None or self.output is None:
             return False
         self.scan_result = None
+        self.batch_progress = None
         self.items.clear()
         source, output = self.source, self.output
         self.status.setText("Đang quét; chưa xác nhận nội dung media.")
@@ -198,23 +233,41 @@ class BatchEditor(QDialog):
         self.status.setText(
             f"Đang xuất {len(selected)} mục; chỉ báo số hoàn tất sau validation. Dung sai thử 100ms."
         )
+        self.batch_progress = BatchProgress(len(selected), 0, 0, 0, None, "RUNNING")
         return self.start(
-            lambda cancel: render_batch(
+            lambda cancel, progress: render_batch(
                 selected,
                 output,
                 ffmpeg,
                 ffprobe,
                 duration_tolerance=Fraction(1, 10),
                 cancel=cancel,
+                progress=progress,
             ),
             self.rendered,
+            report_progress=True,
         )
 
     def rendered(self, result):
+        if self.batch_progress is not None:
+            self.batch_progress = BatchProgress(
+                self.batch_progress.total,
+                len(result.artifacts) + len(result.failures),
+                len(result.artifacts),
+                len(result.failures),
+                None,
+                result.status,
+            )
+            self.refresh()
         self.status.setText(
             f"Lô {result.status}: {len(result.artifacts)} đầu ra đã kiểm tra, "
             f"{len(result.failures)} lỗi. "
             + "; ".join(f"{i + 1}: {code}" for i, code in result.failures[:10])
+            + (
+                " · Mất cập nhật tiến độ; kết quả đầu ra vẫn được kiểm tra."
+                if result.progress_failed
+                else ""
+            )
         )
 
     def reject(self):
