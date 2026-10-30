@@ -128,3 +128,8 @@ Theo P09-05, thêm `allocation='manual'` và `manual_durations` tùy chọn vào
 - [x] FFmpeg mỗi trigger là đầu vào riêng (không asplit), áp cùng trim/gain/fade và adelay theo timeline đã resolve, mix về track SFX. AudioDialog có count/interval và round-trip.
 - [x] Regression kiểm tra sai kiểu/giới hạn, kiểm vị trí và PCM hai trigger có vùng yên lặng tách biệt, Qt UI. [CI 40660385646](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40660385646) PASS **246 Linux /245 Windows +1 skip**, frozen app/native-host proof hai hệ PASS.
 - [ ] SFX trigger ở các mốc không đều/đặt playlist tùy ý, realtime meter/solo monitoring và nghiệm thu thiết bị Windows máy thực vẫn mở; không gắn P08 đạt toàn phase.
+
+
+## P08-04 update — SFX trigger không đều (30/10/2026)
+
+Lát cắt đã lập kế hoạch tại [P08_SFX_TRIGGER_LIST_PLAN.md](P08_SFX_TRIGGER_LIST_PLAN.md), triển khai trong [commit f6d90e4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/f6d90e4470cdca3e98f23e48f4f0983521540a80), và xác minh bằng [CI 40988695667](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40988695667) attempt 2 SUCCESS. Danh sách 2–32 thời điểm không đều tính bằng giây từ timeline xuất; chi tiết test và cổng còn mở nằm trong P08_RESULTS. Đây không phải nghiệm thu toàn P08.

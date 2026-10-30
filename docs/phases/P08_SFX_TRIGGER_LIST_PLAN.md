@@ -39,3 +39,13 @@ Thêm trường tùy chọn `trigger_times` cho một track SFX. Đây là danh 
 ## 5. Giới hạn và cổng chưa đóng
 
 Lát cắt này chỉ đóng phần **trigger SFX không đều**. Playlist nhiều file nguồn, meter/clipping realtime, solo monitoring qua thiết bị thật, normalization loudness theo corpus, benchmark render ETA/kích thước, corpus lớn, Windows user hardware/driver/installer/ACL/AV, live providers/Chrome/GPU và SQLite issue #6 vẫn OPEN. CI synthetic/localhost không thay nghiệm thu trên máy Windows người dùng.
+
+
+## 6. Triển khai và bằng chứng (30/10/2026)
+
+- [Code/test f6d90e4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/f6d90e4470cdca3e98f23e48f4f0983521540a80) bổ sung `trigger_times` cho track SFX: 2–32 timestamp, số hữu hạn, tăng nghiêm ngặt, không trùng, trong 0–86.400 giây; từ chối sai role hoặc xung đột anchor/offset/repeat/loop.
+- FFmpeg dùng input độc lập mỗi trigger, không dùng `asplit`; áp trim/gain/fade/delay và mix. AudioDialog có cột 18, parse dấu phẩy/chấm phẩy, decimal dot. Project cũ và schema version không đổi.
+- [CI 40988695667 attempt 2](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40988695667) **SUCCESS exact SHA f6d90e4**: Linux **656 passed**; Windows **655 passed + 1 intentional POSIX skip**; check_plan, benchmark 128 file, desktop/native-host và frozen packaged proof PASS hai OS.
+- Lần đầu Windows provisioning gặp Chocolatey 503; retry job cài được FFmpeg và toàn bộ Windows checks PASS. Artifact `FonesiEdit-Windows-development` khoảng 197 MB, hết hạn 06/11/2026; không phải installer/release.
+
+**Còn mở:** playlist nhiều file nguồn/track, meter/clipping/solo realtime, corpus lớn/ETA/output size, Windows user hardware/installer/ACL/AV/HiDPI/GPU, Chrome/live providers và SQLite issue #6. Không đóng toàn P08/P11.

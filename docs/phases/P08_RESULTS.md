@@ -91,3 +91,15 @@ SFX `repeat_count` (mặc định 1, tối đa 32) và `repeat_interval` (giây)
 [plan](https://github.com/danhgold7979-cyber/fonesi-edit/blob/develop/fonesi-full/docs/phases/P08_EXISTING_OUTPUT_PREFLIGHT_PLAN.md) → [code/test b845a4c](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b845a4c38c9514794dce82eada8e867f8e9b4c9e). When any planned Batch destination already exists as a file, directory or symlink, `enqueue_batch` raises `FileExistsError` before the whole-group SQLite insertion. This prevents a deterministic no-overwrite failure from occupying queue capacity but does not replace the renderer's atomic final publication race guard. Regression checks existing file bytes/mtime, dangling symlink, unchanged pre-existing jobs, zero partially inserted jobs, and Qt dry-run retained for explicit corrected retry.
 
 [CI 40919530634](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40919530634) **SUCCESS exact SHA b845a4c**: 635 Linux passed / 634 Windows passed + 1 intentional POSIX skip; plan-check, 128-file FFprobe benchmark, production desktop/native-host and frozen packaged synthetic/localhost proof PASS both CI runners, Windows development artifact uploaded. Full P08 remains OPEN for render ETA and size forecasting, large real corpora, audio playlist/meters, Windows user hardware/installer/AV/NTFS/GPU/Chrome/live providers and long soak.
+
+
+## P08-04 / P11-04 — SFX nhiều mốc không đều trên timeline xuất (30/10/2026)
+
+[Plan](P08_SFX_TRIGGER_LIST_PLAN.md) → [code/test f6d90e4](https://github.com/danhgold7979-cyber/fonesi-edit/commit/f6d90e4470cdca3e98f23e48f4f0983521540a80) → [CI 40988695667 attempt 2](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40988695667) **SUCCESS exact SHA f6d90e4**.
+
+- Một track SFX hỗ trợ 2–32 timestamp không đều tính từ đầu timeline đầu ra sau trim/speed/transition. Domain chặn sai kiểu (kể cả bool), NaN/Inf, âm, quá 86.400 giây, trùng/không tăng, sai role và xung đột anchor/offset/repeat/loop. Trigger bằng/vượt cuối output làm hủy toàn render.
+- Renderer dùng FFmpeg input riêng từng sự kiện, áp trim/gain/fade/adelay, mix N input; project cũ giữ nguyên hành vi và không đổi schema. AudioDialog thêm cột thứ 18, parse comma/semicolon và giữ composition khi nhập sai.
+- Test serialization/domain/Qt và FFmpeg synthetic PCM xác nhận ba event không đều phát đúng cửa sổ, khoảng im lặng xen giữa không có tín hiệu.
+- CI: **656 Linux PASS**, **655 Windows PASS + 1 intentional POSIX skip**; check_plan, benchmark 128 file, desktop/native-host và frozen packaged proof PASS hai OS. Windows artifact development được upload; lần provisioning đầu lỗi Chocolatey 503, retry thành công.
+
+**Còn mở:** playlist nhiều file/track, meter/clipping/solo realtime, thiết bị Windows thật, corpus lớn/ETA/output size, Windows installer/ACL/AV/HiDPI/GPU, Chrome/live provider, long soak và SQLite #6. Không đóng toàn P08/P11 hoặc nghiệm thu sản phẩm.
