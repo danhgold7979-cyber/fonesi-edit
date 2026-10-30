@@ -7,7 +7,12 @@ name = "fonesi-edit"
 version = "0.1.0.dev1"
 requires-python = ">=3.12,<3.14"
 description = "Clean rebuild of Fonesi Edit; foundation under verification"
-dependencies = []
+dependencies = [
+    "pyside6==6.8.3",
+]
+
+[project.scripts]
+fonesi-edit = "fonesi_edit.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fonesi_edit"]

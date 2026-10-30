@@ -12,7 +12,7 @@ class ProcessResult:
     stdout: bytes
 
 
-def run_bounded(arguments: list[str], *, timeout: float=10, limit: int=65536) -> ProcessResult:
+def run_bounded(arguments: list[str], *, timeout: float=10, limit: int=65536, cancel: threading.Event | None=None) -> ProcessResult:
     if not arguments or not all(isinstance(a,str) and '\x00' not in a for a in arguments):
         raise ValueError('Invalid arguments')
     executable=Path(arguments[0])
@@ -40,6 +40,7 @@ def run_bounded(arguments: list[str], *, timeout: float=10, limit: int=65536) ->
     for reader in readers: reader.start()
     deadline=time.monotonic()+timeout;status='EXITED'
     while child.poll() is None:
+        if cancel is not None and cancel.is_set(): status='CANCELED';break
         if overflow.is_set() or failure.is_set(): status='OUTPUT_LIMIT' if overflow.is_set() else 'READ_FAILED';break
         if time.monotonic()>=deadline: status='TIMEOUT';break
         time.sleep(.005)

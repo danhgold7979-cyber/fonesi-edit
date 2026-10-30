@@ -19,3 +19,10 @@
 - Kết quả 92 tests của baseline là lịch sử, không phải pass của rebuild.
 - Tiếp theo: khóa hợp đồng triển khai chi tiết và sửa toàn bộ Pxx_PLAN trước khi code.
 - Blocker target: Windows/Chrome/GPU/live provider validation chưa được thực hiện cho rebuild; không chặn công việc độc lập.
+
+## UI increment and Windows failure correction
+
+- Added app.py, Qt UI tests, PRODUCT.md, DESIGN.md and UI slice plan. Real import/preview/export, busy/cancel/close protection; unimplemented workspaces visibly disabled.
+- Local 41 tests PASS under Python3.12.14, PySide6 6.8.3, FFmpeg7.1.5; two inspected synthetic screenshots1280/1600.
+- CI41099091424: Linux3.12/3.13 PASS38; Windows3.12/3.13 FAIL1/38 at fsync on read-only staged descriptor (Errno9). Fix opens ONLY owned staged output r+b before fsync; source remains read-only and no-overwrite unchanged. Windows rerun pending.
+- Source proof does not establish Windows user-machine acceptance, installer, complete timeline/editor, live download/auth or provider translation.

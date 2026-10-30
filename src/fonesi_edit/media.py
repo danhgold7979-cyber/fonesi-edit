@@ -30,10 +30,10 @@ def parse_probe(data: bytes) -> MediaInfo:
         raise ValueError('INVALID_PROBE') from None
 
 
-def probe(source: Path, executable: Path) -> MediaInfo:
+def probe(source: Path, executable: Path, *, cancel=None) -> MediaInfo:
     source=source.resolve(strict=True)
     if not source.is_file(): raise ValueError('REGULAR_SOURCE_REQUIRED')
     result=run_bounded([str(executable),'-v','error','-protocol_whitelist','file,pipe',
-        '-show_entries','format=duration:stream=codec_type','-of','json',str(source)])
+        '-show_entries','format=duration:stream=codec_type','-of','json',str(source)],cancel=cancel)
     if result.status!='OK': raise ValueError(result.status)
     return parse_probe(result.stdout)
