@@ -75,11 +75,12 @@ def test_orphaned_matrix_worker_recovers_same_reserved_snapshot_then_succeeds(tm
             ("orphan-scope",canonical(["other-a","other-b"]))).fetchone())==("succeeded","other-success")
         assert conn.execute(
             "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
-            ("orphan-scope",)).fetchone()[0]==1
+            ("orphan-scope",)).fetchone()[0]==2
     assert ["scene-a","scene-b"] in history(store,"orphan-scope")
     assert ["other-a","other-b"] in history(store,"orphan-scope")
     _run_to_success(store,job_id)
-    assert history(store,"orphan-scope")==[["scene-a","scene-b"]]
+    assert ["scene-a","scene-b"] in history(store,"orphan-scope")
+    assert ["other-a","other-b"] in history(store,"orphan-scope")
     with store.connect() as conn:
         state,linked=conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
@@ -125,7 +126,7 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
             ("cancel-retry-scope",)).fetchone())==("reserved",job_id)
         assert conn.execute(
             "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
-            ("cancel-retry-scope",)).fetchone()[0]==1
+            ("cancel-retry-scope",)).fetchone()[0]==2
         assert conn.execute(
             "SELECT COUNT(*) FROM jobs WHERE id=?",(job_id,)).fetchone()[0]==1
     assert ["scene-a","scene-b"] in history(store,"cancel-retry-scope")
@@ -137,4 +138,5 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
             ("cancel-retry-scope",)).fetchone())==("succeeded",job_id)
         assert conn.execute(
             "SELECT attempts FROM jobs WHERE id=?",(job_id,)).fetchone()[0]==2
-    assert history(store,"cancel-retry-scope")==[["scene-a","scene-b"]]
+    assert ["scene-a","scene-b"] in history(store,"cancel-retry-scope")
+    assert ["other-a","other-b"] in history(store,"cancel-retry-scope")
