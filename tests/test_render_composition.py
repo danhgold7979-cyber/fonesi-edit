@@ -469,7 +469,7 @@ def test_sfx_placement_anchors_follow_real_clip_timing(placement,extra,expected,
     stage=tmp_path/'graph';stage.mkdir()
     args,graph,total=compile_graph(c,stage)
     assert abs(total-1.1)<1e-6
-    assert f'adelay={round(expected*1000)}:all=1' in graph
+    assert f'adelay={round(expected*1000)}|{round(expected*1000)}' in graph
     ranges={c.clips[0].id:(0,.4),c.clips[1].id:(.3,.8)}
     assert abs(audio_timeline_offset(c.audio[0],total,c.clips,ranges)-expected)<1e-6
 

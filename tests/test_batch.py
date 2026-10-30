@@ -341,7 +341,7 @@ def test_batch_sfx_percent_anchor_retargets_each_source_duration(tmp_path):
         stage=tmp_path/f'graph-{i}';stage.mkdir()
         _,graph,duration=compile_graph(current,stage)
         expected_ms=round(duration*.5*1000)
-        assert f'adelay={expected_ms}:all=1' in graph
+        assert f'adelay={expected_ms}|{expected_ms}' in graph
         delays[round(duration,1)]=expected_ms
     # FFprobe's MP4 duration may be 0.52/1.52 due to frame rounding;
     # percentage placement must use *probed output time*, not a fixture hint.
