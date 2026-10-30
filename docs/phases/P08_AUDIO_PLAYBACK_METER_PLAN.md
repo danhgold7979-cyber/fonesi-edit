@@ -14,7 +14,7 @@ Current code already applies a final `alimiter=limit=0.95`, optional EBU-style `
 Add a **playback-stream meter** in the Editor's playback controls:
 
 - Use Qt Multimedia `QAudioBufferOutput` (already covered by the locked PySide6/Qt 6.8.3 dependency) connected to the existing `QMediaPlayer`. The Qt API is available from Qt 6.8 and emits decoded `QAudioBuffer` objects; Qt documents the buffer-output feature as FFmpeg-backend-only. See [PySide6 QAudioBufferOutput 6.8](https://doc.qt.io/qtforpython-6.8/PySide6/QtMultimedia/QAudioBufferOutput.html).
-- For each non-empty decoded buffer, calculate peak dBFS, RMS dBFS and the count of samples at/near full scale. Support `UInt8`, `Int16`, `Int32` and `Float`; reject unknown/invalid formats safely. Samples are interleaved across channels.
+- For each non-empty decoded buffer, calculate peak dBFS, RMS dBFS and the count of samples at/near full scale. Support `UInt8`, `Int16`, `Int32` and `Float`; reject unknown/invalid formats safely. Samples are interleaved across channels. Qt documents these buffers as decoded PCM emitted alongside audio output, not as a calibrated device measurement; the buffer data is not scaled by playback rate. The UI must say **decoded stream / pre-device level** and must not imply it includes `QAudioOutput` volume/mute, speaker/driver gain or room acoustics.
 - Display peak and RMS bars/labels and a clear sample-clip indicator. Identify the reading as decoded playback-stream level (pre-device/room acoustics), not a calibrated hardware meter.
 - The meter follows whichever source the existing player is playing: original/proxy playback or a rendered composition preview. A rendered preview therefore measures its composed output; raw-source playback measures the source stream. Do not imply the raw-source meter represents the composition mix.
 - Reset readings on source replacement and when starting a new playback session; handle empty end-of-stream buffers and unsupported backend gracefully.
@@ -22,7 +22,7 @@ Add a **playback-stream meter** in the Editor's playback controls:
 
 ## 3. Implementation design
 
-1. Add a small UI-independent `audio_meter.py` helper that converts supported PCM sample formats into normalized values and returns immutable metrics: peak, RMS, peak dBFS, RMS dBFS, and clipped-sample count. Validate buffer alignment, finite float samples and gain; ignore no malformed bytes silently.
+1. Add a small UI-independent `audio_meter.py` helper that converts supported PCM sample formats into normalized values and returns immutable metrics: peak, RMS, peak dBFS, RMS dBFS, and clipped-sample count. Validate channel/frame alignment and finite float samples; ignore no malformed bytes silently.
 2. Attach `QAudioBufferOutput` to the editor's existing `QMediaPlayer` when the API is present. Consume buffers in the editor's Qt object context and pass raw bytes/format into the helper. If the FFmpeg backend/API is unavailable, keep playback functional and show an explicit unavailable state rather than claiming zero audio.
 3. Add compact peak/RMS bars and sample-clipping count to the playback control row. Use a bounded dBFS display range (−60 to 0 dBFS); values above 0 remain visible in the numeric label and increment the clip counter rather than being silently clamped as safe.
 4. Clear the meter on `sourceChanged`, new play from stopped state and empty/invalid buffer boundaries; keep pause/resume state predictable. Do not reset on every buffer or timeline seek.
@@ -31,7 +31,7 @@ Add a **playback-stream meter** in the Editor's playback controls:
 
 ## 4. Required tests
 
-- Pure PCM unit tests for silence, signed 16-bit positive/negative peaks, 32-bit integers, float, unsigned 8-bit midpoint, little-endian host representation, clipping threshold, RMS, output gain/mute, empty input, partial sample, unknown format, NaN/Inf and extreme float values.
+- Pure PCM unit tests for silence, signed 16-bit positive/negative peaks, 32-bit integers, float, unsigned 8-bit midpoint, native byte order, clipping threshold, RMS, empty input, partial sample/frame, unknown format, NaN/Inf and extreme float values.
 - Qt regression constructs real `QAudioFormat`/`QAudioBuffer` fixtures and emits `QAudioBufferOutput.audioBufferReceived`; assert peak/RMS UI values, clipping counter, empty-buffer behavior, reset on source change and no change to composition payload.
 - Ensure `QAudioBufferOutput` is attached to the same player used by the editor and rendered preview; missing API/backend must not stop source playback.
 - Existing FFmpeg output tests continue to verify limiter/loudnorm and audio track preservation; no render graph assertion is weakened.
@@ -42,3 +42,8 @@ Add a **playback-stream meter** in the Editor's playback controls:
 This slice provides a **decoded digital playback-stream** peak/RMS meter and sample-peak warning only. It does not prove true-peak/inter-sample clipping, loudness compliance, hardware output level, speaker/driver calibration, per-track pre-mix levels, physical Windows audio quality or real-device playback. The Qt buffer API is documented as FFmpeg-backend-only; unsupported backends must report unavailable without affecting playback.
 
 Still OPEN after this slice: multi-file playlist workflows, track-specific pre-mix meters, true-peak/loudness analysis, Windows hardware/driver/installer/ACL/AV/HiDPI/GPU acceptance, large-corpus render ETA/output-size forecasting, Chrome/live providers, long soak and SQLite issue #6. Do not mark P08 or P11 complete.
+
+
+## Clarification — Qt meter semantics
+
+The Qt 6.8 `QAudioBufferOutput` contract is a decoded-stream tap. Qt states that buffers are emitted alongside the corresponding audio output and are not scaled by playback rate; the API is FFmpeg-backend-only. Therefore this meter deliberately reports raw decoded PCM before device/room response. It does **not** claim post-`QAudioOutput` volume/mute, hardware gain or acoustic SPL. See the version-pinned [QAudioBufferOutput](https://doc.qt.io/qtforpython-6.8/PySide6/QtMultimedia/QAudioBufferOutput.html), [QMediaPlayer 6.8](https://doc.qt.io/qt-6.8/qmediaplayer.html) and [QAudioFormat 6.8](https://doc.qt.io/qtforpython-6.8/PySide6/QtMultimedia/QAudioFormat.html) API references.
