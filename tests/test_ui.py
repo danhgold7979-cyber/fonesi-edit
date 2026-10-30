@@ -180,3 +180,20 @@ class UiTests(unittest.TestCase):
         self.assertEqual(self.window.current_project(), project)
         self.assertFalse(self.window.inspect_selected())
         self.assertIsNone(self.window.worker)
+
+    def test_deselection_clears_implicit_export_target(self):
+        from fractions import Fraction
+
+        from fonesi_edit.media import MediaInfo
+
+        self.window.loaded(
+            (Path("/source.mp4"), MediaInfo(Fraction(2), ("video",)), b"")
+        )
+        self.assertTrue(self.window.export.isEnabled())
+        self.window.list.setCurrentRow(-1)
+        self.assertIsNone(self.window.selected)
+        self.assertFalse(self.window.export.isEnabled())
+        self.assertFalse(self.window.export_to(Path("/must-not-create.mp4")))
+        self.assertEqual(len(self.window.media), 1)
+        self.window.list.setCurrentRow(0)
+        self.assertTrue(self.window.export.isEnabled())

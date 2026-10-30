@@ -21,7 +21,7 @@ uv sync --locked
 uv run fonesi-edit
 ```
 
-Đây là đường chạy cho nhà phát triển, chưa phải installer người dùng cuối. UI mới có import/probe/khung nguồn, CPU MP4 trim/speed, project save-as/open và công cụ SRT riêng. Save-as không ghi đè tệp; project cũ không được migrate bằng suy đoán. Preview nguồn chưa phản ánh hiệu ứng xuất. Download/auth/dịch/ma trận/editor layer đầy đủ còn chưa nối.
+Đây là đường chạy cho nhà phát triển, chưa phải installer người dùng cuối. UI mới có import/probe/khung nguồn, CPU MP4 trim/speed, project save-as/open công cụ SRT riêng và hộp thoại batch CPU cục bộ. Batch hiện chỉ một cặp thư mục, cho chọn ứng viên/xem tên đầu ra; không áp preset của Editor và chưa có hàng đợi phục hồi. Save-as không ghi đè tệp; project cũ không được migrate bằng suy đoán. Preview nguồn chưa phản ánh hiệu ứng xuất. Download/auth/dịch/ma trận/editor layer đầy đủ còn chưa nối.
 
 ```bash
 QT_QPA_PLATFORM=offscreen uv run python -m unittest discover -s tests -v
@@ -29,3 +29,8 @@ uv run python scripts/check_rebuild_plan.py
 ```
 
 Windows: đặt biến QT_QPA_PLATFORM=offscreen theo cú pháp shell Windows khi chạy test. Chạy GUI bình thường không cần biến đó. Các phép thử codec cần FFmpeg/ffprobe; không coi test bị skip là đã kiểm chứng media.
+
+
+## Kiểm chứng đóng gói đang phát triển
+
+`uv run fonesi-edit --smoke-test` chỉ kiểm tra mở UI và thoát, không phải nghiệm thu tính năng. CI có build one-folder Windows/Python3.12 và chạy executable riêng với PATH công cụ trống. Không có installer/release hoặc FFmpeg bundled trong lát cắt này; chỉ công nhận Windows proof sau khi job đúng commit PASS. Mọi output build nằm trong `.local/`, không phải source cần commit.

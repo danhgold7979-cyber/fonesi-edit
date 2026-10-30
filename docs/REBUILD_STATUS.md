@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 104/104 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen startup proof chưa có Windows CI.
+- Kiểm tra local: 105/105 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -76,3 +76,8 @@ Escape/reject batch interruption now follows window Close cancellation/wait; 102
 ## Early frozen startup proof — P02-06
 
 Pinned developer-only PyInstaller6.22.3 with public-PyPI hashes in uv.lock. Explicit CLI smoke starts real Editor/SRT/batch windows and verifies six booleans, idle workers and frozen identity. Owned child timeout60/output16KiB; PATH cleared so external media tools are not required for startup. Linux one-folder build and frozen smoke PASS; 104 source tests and Ruff PASS. Windows3.12 CI build/smoke added but not yet run for this commit. No binary upload, installer, signing, bundled FFmpeg, release or user-machine acceptance. Local frozen output is ignored.
+
+Deselection regression clears the implicit export source and preview without removing media/edits; explicit reselection restores it. 105 local tests PASS. Frozen Windows checkpoint remains separately pending.
+
+
+Hosted Windows packaging evidence: exact remote dceeb5ba50272c1524a03775e117e32c9a9d6a6b, run41113327409/job124261038897. Python3.12.10 Windows x64, PyInstaller6.22.3/PySide6.8.3. Actual one-folder EXE launched with cleared tool PATH; all six window/idle/empty-state checks true and frozen=true, exit0. Verified logs, not inferred from source tests. This does not certify installer/signing/media/fonts/GPU or target Windows10/11 user hardware.

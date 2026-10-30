@@ -331,6 +331,10 @@ class MainWindow(QMainWindow):
 
     def select_row(self, row):
         if not 0 <= row < len(self.media):
+            self.selected = None
+            self.preview.setText("Chưa chọn media.")
+            self.details.setText("Chưa chọn media")
+            self.refresh()
             return
         path, info, data = self.media[row]
         if info is None:
