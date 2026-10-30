@@ -261,8 +261,16 @@ def valid_against(row,previous,window=0,different=0,compare_window=False):
 
 
 def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,history=(),seconds=10,locks=None,cancel=None):
-    if count<1 or window<0 or not 0<=different<=len(scenes):raise ValueError('Invalid N/W/K')
-    if not scenes or any(not scene for scene in scenes):raise ValueError('Empty scene')
+    if (type(count) is not int or type(window) is not int
+            or type(different) is not int or type(seed) is not int
+            or type(compare_window) is not bool or count<1 or window<0
+            or not 0<=different<=len(scenes)):
+        raise ValueError('Invalid matrix count/W/K/seed options')
+    if (type(seconds) not in (int,float) or not math.isfinite(seconds)
+            or seconds<=0):
+        raise ValueError('Invalid matrix generation time budget')
+    if not scenes or any(not scene for scene in scenes):
+        raise ValueError('Empty matrix scenes')
     capacity=math.prod(len(scene) for scene in scenes)
     previous=[list(item) for item in history];used={canonical(item) for item in previous}
     allowed_hashes=[{a.hash for a in scene} for scene in scenes]
