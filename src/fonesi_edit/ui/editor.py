@@ -8,11 +8,16 @@ import tempfile
 from PySide6.QtCore import Qt,QUrl,Signal
 from PySide6.QtGui import QUndoCommand,QUndoStack,QColor,QKeySequence,QAction,QActionGroup,QFont
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
+try:
+    from PySide6.QtMultimedia import QAudioBufferOutput
+except ImportError:  # Older Qt or a backend without the decoded-stream tap.
+    QAudioBufferOutput=None
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QFormLayout,QLineEdit,QPlainTextEdit,
-    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox,QInputDialog)
+    QDoubleSpinBox,QSpinBox,QComboBox,QCheckBox,QPushButton,QListWidget,QLabel,QProgressBar,QTabWidget,QFileDialog,QColorDialog,QScrollArea,QToolBar,QMenu,QFontComboBox,QInputDialog)
 
 from ..domain import Composition,Clip,Layer,identifier,canonical
+from ..audio_meter import measure_pcm,meter_bar
 from ..prototypes.media import probe,extract_frame
 from ..thumbnails import thumbnail_identity,thumbnail_strip
 from ..proxy import proxy_identity,playback_proxy
@@ -125,7 +130,26 @@ class Editor(QWidget):
         controls=QHBoxLayout();middle.addLayout(controls)
         play=QPushButton('Phát / dừng');play.clicked.connect(self.toggle_play);controls.addWidget(play)
         ref=QPushButton('Preview chất lượng xuất');ref.clicked.connect(self.reference);controls.addWidget(ref)
+
         self.frame_label=QLabel('');controls.addWidget(self.frame_label)
+        self.meter_output=None
+        self.meter_clipped_samples=0
+        meter=QHBoxLayout();controls.addLayout(meter)
+        self.meter_peak_bar=QProgressBar()
+        self.meter_rms_bar=QProgressBar()
+        for bar in (self.meter_peak_bar,self.meter_rms_bar):
+            bar.setRange(0,600);bar.setValue(0);bar.setTextVisible(False);bar.setFixedWidth(72)
+        self.meter_peak_label=QLabel('Peak — dBFS')
+        self.meter_rms_label=QLabel('RMS — dBFS')
+        self.meter_clip_label=QLabel('Clip mẫu: 0')
+        meter.addWidget(self.meter_peak_bar);meter.addWidget(self.meter_peak_label)
+        meter.addWidget(self.meter_rms_bar);meter.addWidget(self.meter_rms_label)
+        meter.addWidget(self.meter_clip_label)
+        self.meter_status=QLabel('PCM đã giải mã / trước thiết bị')
+        self.meter_status.setToolTip('Đo tín hiệu số trước QAudioOutput/loa. Preview đã render đo bản mix; phát nguồn chỉ đo nguồn. Không phải true-peak hay âm lượng thực của loa.')
+        meter.addWidget(self.meter_status)
+        self.player.sourceChanged.connect(self.reset_audio_meter)
+        self.setup_audio_meter()
         self.timeline=Timeline(self);self.timeline.seek.connect(lambda t:self.player.setPosition(round(t*1000)));middle.addWidget(self.timeline)
         self.player.positionChanged.connect(self.player_position_changed)
         split.addWidget(center)
@@ -775,6 +799,58 @@ class Editor(QWidget):
             try:self.player.setPosition(target)
             finally:self._loop_seeking=False
 
+    def reset_audio_meter(self,*_ignored):
+        """New media or playback session: discard previous peak/clip history."""
+        self.meter_clipped_samples=0
+        self.meter_peak_bar.setValue(0);self.meter_rms_bar.setValue(0)
+        self.meter_peak_label.setText('Peak — dBFS')
+        self.meter_rms_label.setText('RMS — dBFS')
+        self.meter_clip_label.setText('Clip mẫu: 0')
+        if self.meter_output is None:
+            self.meter_status.setText('Meter không khả dụng (Qt/FFmpeg backend)')
+        else:
+            self.meter_status.setText('Chờ PCM • trước thiết bị')
+
+    def setup_audio_meter(self):
+        """Attach the optional decoded-stream tap without replacing audio output."""
+        if QAudioBufferOutput is not None and hasattr(self.player,'setAudioBufferOutput'):
+            try:
+                output=QAudioBufferOutput(self)
+                output.audioBufferReceived.connect(self.audio_buffer_received)
+                self.player.setAudioBufferOutput(output)
+                self.meter_output=output
+            except (TypeError,RuntimeError,AttributeError):
+                self.meter_output=None
+        self.reset_audio_meter()
+
+    def audio_buffer_received(self,buffer):
+        """Read-only decoded stream sample meter; never touch project or mix gain."""
+        if not buffer.isValid() or buffer.frameCount()<=0:
+            self.reset_audio_meter()
+            return
+        try:
+            fmt=buffer.format()
+            if not fmt.isValid():raise ValueError('Invalid audio format')
+            samples=bytes(buffer.constData())
+            if len(samples)!=buffer.byteCount():
+                raise ValueError('Truncated Qt audio data')
+            measured=measure_pcm(samples,fmt.sampleFormat().name,fmt.channelCount())
+        except (ValueError,TypeError,RuntimeError,BufferError,AttributeError):
+            self.meter_peak_bar.setValue(0);self.meter_rms_bar.setValue(0)
+            self.meter_peak_label.setText('Peak — dBFS')
+            self.meter_rms_label.setText('RMS — dBFS')
+            self.meter_status.setText('PCM không hỗ trợ/không hợp lệ')
+            return
+        def display(level):
+            return '−∞' if level==-math.inf else f'{level:+.1f}'
+        self.meter_peak_bar.setValue(meter_bar(measured.peak_dbfs))
+        self.meter_rms_bar.setValue(meter_bar(measured.rms_dbfs))
+        self.meter_peak_label.setText(f'Peak {display(measured.peak_dbfs)} dBFS')
+        self.meter_rms_label.setText(f'RMS {display(measured.rms_dbfs)} dBFS')
+        self.meter_clipped_samples+=measured.clipped_samples
+        self.meter_clip_label.setText(f'Clip mẫu: {self.meter_clipped_samples}')
+        self.meter_status.setText('PCM đã giải mã • trước thiết bị')
+
     def toggle_play(self):
         self.views.setCurrentIndex(1)
         if (self.loop_action.isChecked()
@@ -782,6 +858,8 @@ class Editor(QWidget):
             if hasattr(self.host,'playback_preview'):self.host.playback_preview(self.composition)
             else:self.host.message('Lặp đoạn cần render preview composition trước')
             return
+        if self.player.playbackState()==QMediaPlayer.PlaybackState.StoppedState:
+            self.reset_audio_meter()
         self.player.pause() if self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState else self.player.play()
 
     def request_render(self):self.render_requested.emit(self.composition.to_dict())

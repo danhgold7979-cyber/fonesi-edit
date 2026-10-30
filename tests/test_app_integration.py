@@ -43,6 +43,75 @@ def test_app_project_queue_worker_output_and_reopen(tmp_path):
     close(restored)
 
 
+
+def test_editor_decoded_pcm_meter_signal_and_source_reset(tmp_path):
+    """Qt audio buffer tap is attached to the same player as rendered previews."""
+    import math
+    import struct
+    from PySide6.QtCore import QByteArray,QUrl
+    from PySide6.QtMultimedia import QAudioBuffer,QAudioFormat,QAudioBufferOutput
+    media=create_fixture(tmp_path/'meter-media',duration=.6)
+    window=MainWindow(tmp_path/'state')
+    try:
+        editor=window.editor
+        assert editor.meter_output is not None
+        assert isinstance(editor.meter_output,QAudioBufferOutput)
+        assert editor.player.audioBufferOutput() is editor.meter_output
+        before=editor.composition.to_dict()
+        fmt=QAudioFormat()
+        fmt.setSampleRate(48000)
+        fmt.setChannelCount(2)
+        fmt.setSampleFormat(QAudioFormat.SampleFormat.Int16)
+        raw=struct.pack('=hhhh',0,-32768,32767,0)
+        buffer=QAudioBuffer(QByteArray(raw),fmt)
+        assert buffer.isValid() and buffer.frameCount()==2
+        editor.meter_output.audioBufferReceived.emit(buffer)
+        assert editor.meter_peak_bar.value()==600
+        assert editor.meter_clipped_samples==2
+        assert editor.meter_clip_label.text()=='Clip mẫu: 2'
+        assert editor.meter_rms_bar.value()>0
+        assert 'Peak +0.0 dBFS'==editor.meter_peak_label.text()
+        assert 'trước thiết bị' in editor.meter_status.text()
+        assert editor.composition.to_dict()==before
+        # A second decoded block accumulates only samples near digital full scale.
+        editor.meter_output.audioBufferReceived.emit(buffer)
+        assert editor.meter_clipped_samples==4
+        # Source changes clear stale readings, including when switching to
+        # the rendered-composition preview (which uses this same QMediaPlayer).
+        editor.player.setSource(QUrl.fromLocalFile(str(media['source'])))
+        assert editor.meter_clipped_samples==0
+        assert editor.meter_peak_bar.value()==0
+        assert editor.meter_peak_label.text()=='Peak — dBFS'
+        # End-of-stream empty buffer clears display, never reports false clipping.
+        editor.meter_output.audioBufferReceived.emit(QAudioBuffer())
+        assert editor.meter_rms_bar.value()==0
+        assert editor.composition.to_dict()==before
+    finally:
+        close(window)
+
+
+def test_editor_audio_meter_invalid_buffer_does_not_mutate_project(tmp_path):
+    import struct
+    from PySide6.QtCore import QByteArray
+    from PySide6.QtMultimedia import QAudioBuffer,QAudioFormat
+    window=MainWindow(tmp_path/'state')
+    try:
+        editor=window.editor
+        assert editor.meter_output is not None
+        before=editor.composition.to_dict()
+        fmt=QAudioFormat()
+        fmt.setSampleRate(44100)
+        fmt.setChannelCount(1)
+        fmt.setSampleFormat(QAudioFormat.SampleFormat.Float)
+        buffer=QAudioBuffer(QByteArray(struct.pack('=ff',1.2,float('nan'))),fmt)
+        assert buffer.isValid()
+        editor.audio_buffer_received(buffer)
+        assert 'không hợp lệ' in editor.meter_status.text()
+        assert editor.meter_clipped_samples==0
+        assert editor.composition.to_dict()==before
+    finally:
+        close(window)
+
 def test_menu_shortcut_callback_does_not_receive_checked_as_function(tmp_path):
     window=MainWindow(tmp_path/'state');window.show();window.nav.setCurrentWidget(window.editor)
     window.editor.add_layer('text');window.editor.canvas.setFocus();APP.processEvents()
