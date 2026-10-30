@@ -291,10 +291,10 @@ class Store:
             row=conn.execute('SELECT payload,state FROM jobs WHERE id=?',(job_id,)).fetchone()
             if not row or row['state'] not in {'failed','blocked','canceled'}:return
             data=json.loads(row['payload'])
-            if data.get('matrix_scope'):
+            if 'matrix_scope' in data or 'matrix_combination' in data:
                 scope=data.get('matrix_scope')
                 combination=data.get('matrix_combination')
-                if not isinstance(scope,str) or not scope or not isinstance(combination,str) or not combination:
+                if not isinstance(scope,str) or not scope.strip() or not isinstance(combination,str) or not combination.strip():
                     raise ValueError('Matrix retry is missing its reservation identity')
                 reservation=conn.execute(
                     'SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?',
