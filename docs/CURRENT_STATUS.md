@@ -339,3 +339,13 @@ This closes only the bounded preset/revocation regression slice. P11 remains OPE
 - Synthetic Batch: 128 sources, failed_count=0 (5.012570 s Linux / 10.882223 s Windows). Logical Matrix: 2,000 outputs complete, max spread 5 (9.079294 s Linux / 17.686874 s Windows).
 - Artifacts: Linux evidence 390,874 bytes; Windows evidence 323,726 bytes; Windows development build 197,380,520 bytes.
 - Scope is archive preflight only. Real Windows ACL/AV/disk-full/power-loss, installer/update, tool lease/GC, Chrome authentication, providers, GPU/HiDPI/audio and full P11/P12 remain OPEN.
+
+
+## P11-08 / TOL-04…06 — Replacement installer failure atomicity (30/10/2026)
+
+- Added four tests: interrupted partial download, checksum mismatch, cancel immediately after fetch, and malicious archive rejected during installer integration.
+- Every case keeps the previous verified FFmpeg/ffprobe binary bytes, companion path, active tool_paths and active-version metadata unchanged; no new version is published/activated, temporary staging is removed and failed progress never reaches 100%.
+- [Commit 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6); [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX skip; benchmarks, production/native-host build and packaged proof both OS.
+- Synthetic Batch: 128 sources, failed_count=0 (7.996895 s Linux / 10.505177 s Windows). Logical Matrix: 2,000 outputs complete, max spread 5 (19.011149 s Linux / 17.623936 s Windows).
+- Artifacts: Linux evidence 392,162 bytes; Windows evidence 323,821 bytes; Windows development build 197,385,904 bytes.
+- Real Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, Chrome/provider auth, GPU/HiDPI/audio and full P11/P12 remain OPEN.

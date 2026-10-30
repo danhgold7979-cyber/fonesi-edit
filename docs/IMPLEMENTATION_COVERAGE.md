@@ -105,3 +105,12 @@ Covered whole-archive preflight before extraction; traversal/absolute/drive/cont
 [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD 85654ec: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX-only skip. Both OS passed 128-source synthetic Batch dry-run, 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch 5.012570 s Linux / 10.882223 s Windows; Matrix 9.079294 s Linux / 17.686874 s Windows.
 
 Still OPEN under TOL-04…06: interrupted download/disk-full/write-ACL on real Windows, signed installer/update UX, tool lease/GC and complete rollback companion lifecycle. Synthetic archive proof is not a Windows user-machine install acceptance.
+
+
+## P11-08 / TOL-04…06 — Interrupted install and verification failure atomicity (30/10/2026)
+
+Added replacement-install regressions for partial network transfer failure, checksum mismatch, cancellation after fetch but before verification, and malicious ZIP rejection at installer integration. Each starts with a verified older FFmpeg/ffprobe install and asserts the previous binary bytes, companion, active paths and version metadata remain unchanged; no new version is published/activated and temporary staging is removed. Failed attempts never report progress=1.
+
+[CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD 096d6bb: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX-only skip. Both OS passed 128-source synthetic Batch dry-run, 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch 7.996895 s Linux / 10.505177 s Windows; Matrix 19.011149 s Linux / 17.623936 s Windows.
+
+Remaining OPEN: real Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC and physical machine acceptance.

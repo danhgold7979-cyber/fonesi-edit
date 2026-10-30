@@ -249,3 +249,11 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - Entire archive is preflighted; safe backslash-separated file and directory entries are normalized to consistent nested paths on Linux/Windows.
 - Evidence: [plan](phases/P11_TOOL_ARCHIVE_PORTABILITY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8), [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX skip; production/native-host builds and packaged proofs both OS.
 - Limits: synthetic tests do not prove Windows user-machine ACL/AV/disk-full/power-loss, signed installer/update, Chrome/DPAPI/session bridge, live providers, GPU/HiDPI/audio or full TOL-04…06 acceptance.
+
+
+## P11-08 / TOL-04…06 — Interrupted installer and checksum failure boundaries (30/10/2026)
+
+- TOL-04/TOL-05: a partial download exception, SHA-256 mismatch, cancel after fetch and malicious archive rejection are now tested during replacement installation.
+- Each regression first activates a valid prior FFmpeg/ffprobe version, then verifies failure leaves old binary bytes, companion, active paths and active-version metadata unchanged; no new version is published, no staging folder remains and progress never reaches 1.
+- Evidence: [plan](phases/P11_TOOL_INSTALL_FAILURE_BOUNDARY_PLAN.md), [tests 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6), [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX skip; builds and packaged proofs both OS.
+- Limits: synthetic fetch/SQLite/filesystem tests do not prove physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC, Chrome/DPAPI/session bridge, live providers or GPU.

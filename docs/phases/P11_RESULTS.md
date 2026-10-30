@@ -131,3 +131,12 @@ The tool installer now preflights the complete ZIP before extraction. It rejects
 [Plan](P11_TOOL_ARCHIVE_PORTABILITY_PLAN.md) → [final implementation 85654ec](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8) → [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD: Linux 850 passed; Windows 849 passed + 1 intentional POSIX-only skip. Both OS passed Batch 128-source synthetic FFprobe dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch elapsed 5.012570 s Linux / 10.882223 s Windows; Matrix 9.079294 s Linux / 17.686874 s Windows.
 
 Artifacts: Linux evidence 390,874 bytes; Windows evidence 323,726 bytes; Windows development build 197,380,520 bytes. This does not certify Windows user-machine ACL/AV/disk-full/power-loss, signed installer/update, Chrome/provider auth, GPU/HiDPI/audio or full P11/P12. P11 remains OPEN.
+
+
+## P11-08 / TOL-04…06 — Interrupted download and verification failure atomicity (30/10/2026)
+
+Four synthetic installer regressions now cover partial network transfer exception, SHA-256 mismatch, cancellation after fetch and malicious ZIP preflight failure at install integration. Each test first activates a known-good FFmpeg/ffprobe version and proves its bytes, companion, active paths and active-version record remain unchanged; no new version is published or activated, staging is removed and progress never reports 1 on failure.
+
+[Plan](P11_TOOL_INSTALL_FAILURE_BOUNDARY_PLAN.md) → [tests 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6) → [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD: Linux 854 passed; Windows 853 passed + 1 intentional POSIX-only skip. Both OS passed Batch 128-source synthetic FFprobe dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch 7.996895 s Linux / 10.505177 s Windows; Matrix 19.011149 s Linux / 17.623936 s Windows.
+
+Artifacts: Linux evidence 392,162 bytes; Windows evidence 323,821 bytes; Windows development build 197,385,904 bytes. This does not certify physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update, Chrome/provider auth, GPU/HiDPI/audio or full P11/P12. P11 remains OPEN.

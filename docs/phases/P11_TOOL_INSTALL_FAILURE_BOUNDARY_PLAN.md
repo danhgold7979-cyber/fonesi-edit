@@ -21,13 +21,26 @@ Read the current master P11/P12 requirements, TOL-04…TOL-06 traceability, cove
 
 ## Acceptance
 
-- [ ] Partial network transfer failure leaves the previous active tool and companion unchanged and cleans staging.
-- [ ] SHA-256 mismatch leaves the previous active tool and companion unchanged and cleans staging.
-- [ ] Cancellation after fetch but before verification leaves the previous active tool and companion unchanged and cleans staging.
-- [ ] ZIP preflight failure during install does not publish or activate the new version and does not leave extracted partial files.
-- [ ] Existing repair, successful reuse, atomic activation, startup check and rollback tests remain passing.
-- [ ] Exact-HEAD CI passes Linux and Windows including packaged proof.
+- [x] Partial network transfer failure leaves the previous active tool and companion unchanged and cleans staging.
+- [x] SHA-256 mismatch leaves the previous active tool and companion unchanged and cleans staging.
+- [x] Cancellation after fetch but before verification leaves the previous active tool and companion unchanged and cleans staging.
+- [x] ZIP preflight failure during install does not publish or activate the new version and does not leave extracted partial files.
+- [x] Existing repair, successful reuse, atomic activation, startup check and rollback tests remain passing.
+- [x] Exact-HEAD CI passes Linux and Windows including packaged proof.
 
 ## Limits
 
 Synthetic fetch/SQLite/filesystem fixtures do not certify physical Windows ACL, antivirus, disk-full, process-kill or power-loss behavior; signed installer/update UX; Chrome/DPAPI/session handoff; live providers; GPU/HiDPI/audio; or full P11/P12 acceptance. Do not merge main.
+
+
+## Execution result — PASS (30/10/2026)
+
+- Regression commit: [096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6).
+- Exact-HEAD CI [41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS.
+- Linux: 854 passed; Windows: 853 passed + 1 intentional POSIX-only skip.
+- New tests prove partial download exception, SHA-256 mismatch, cancel-after-fetch and malicious archive preflight failure all preserve the previous FFmpeg/ffprobe paths, bytes and active-version metadata; no new version is activated and staging is cleaned.
+- Both OS passed phase references, Batch 128-source synthetic FFprobe dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof.
+- Batch: 7.996895 s Linux / 10.505177 s Windows. Matrix: 19.011149 s Linux / 17.623936 s Windows.
+- Artifacts: Linux evidence 392,162 bytes; Windows evidence 323,821 bytes; Windows development build 197,385,904 bytes.
+
+This closes a synthetic failure-boundary regression slice only. Real Windows ACL/AV/disk-full/process-kill/power-loss and signed installer/update UX remain open.

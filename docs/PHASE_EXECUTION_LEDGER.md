@@ -293,3 +293,14 @@ ZIP preflight rejects traversal, absolute/drive paths, controls/NUL, symlinks/sp
 CI: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX-only skip. Both runners passed 128-source synthetic Batch (failed_count=0), 2,000-output logical Matrix (complete=true, max spread 5), production desktop/native-host builds and frozen packaged proof. Batch 5.012570 s Linux / 10.882223 s Windows; Matrix 9.079294 s Linux / 17.686874 s Windows. Artifacts: Linux evidence 390,874 bytes; Windows evidence 323,726 bytes; Windows development build 197,380,520 bytes.
 
 This closes only the synthetic archive portability/collision slice. Real Windows ACL/AV/disk-full/power-loss, signed installer/update, tool lease/GC, Chrome/provider auth, GPU/HiDPI/audio and full P11/P12 remain OPEN. Do not merge main.
+
+
+## P11-08 / TOL-04…06 — Interrupted download and verification failure atomicity (30/10/2026)
+
+[Plan](phases/P11_TOOL_INSTALL_FAILURE_BOUNDARY_PLAN.md) → [test commit 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6) → [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD.
+
+Four regressions simulate partial network transfer exception, SHA-256 mismatch, cancellation after fetch and malicious archive rejection during install. Each first installs a valid older FFmpeg/ffprobe and proves its bytes, companion, active paths and active-version metadata survive; no new version is published/activated, staging is removed and failure never reports progress=1.
+
+CI: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX-only skip. Both runners passed phase references, Batch 128-source synthetic dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host builds and frozen packaged proof. Batch 7.996895 s Linux / 10.505177 s Windows; Matrix 19.011149 s Linux / 17.623936 s Windows. Artifacts: Linux evidence 392,162 bytes; Windows evidence 323,821 bytes; Windows development build 197,385,904 bytes.
+
+This closes the synthetic replacement-install failure-boundary slice only. Real Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC, Chrome/provider auth, GPU/HiDPI/audio and full P11/P12 remain OPEN. Do not merge main.
