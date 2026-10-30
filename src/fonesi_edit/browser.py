@@ -105,11 +105,19 @@ def login(store,profile_id,platform,chrome=None):
 
 def pairing_code(store,profile_id):
     with store.connect() as c:
-        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():raise ValueError('Unknown profile')
-    code=secrets.token_urlsafe(18)
-    store.set_setting('pair:'+hashlib.sha256(code.encode()).hexdigest(),{'profile_id':profile_id,'expires':time.time()+300})
+        # Code issuance and profile revocation share one writer lock. A code
+        # created before revocation is visible to the revocation sweep.
+        c.execute('BEGIN IMMEDIATE')
+        if not c.execute('SELECT 1 FROM profiles WHERE id=?',(profile_id,)).fetchone():
+            raise ValueError('Unknown profile')
+        code=secrets.token_urlsafe(18)
+        key='pair:'+hashlib.sha256(code.encode()).hexdigest()
+        value=canonical({'profile_id':profile_id,'expires':time.time()+300})
+        c.execute(
+            'INSERT INTO settings(key,value) VALUES(?,?) '
+            'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+            (key,value))
     return code
-
 
 def pair(store,code):
     key='pair:'+hashlib.sha256(code.encode()).hexdigest()

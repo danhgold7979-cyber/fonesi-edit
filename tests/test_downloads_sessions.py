@@ -680,3 +680,87 @@ def test_handoff_holding_writer_lock_finishes_before_pairing_revocation(tmp_path
     assert {cookie.name: cookie.value for cookie in cookie_jar(
         store, binding_id, "account-A"
     )} == {"c_user": "account-A"}
+
+
+def test_pairing_code_issuance_is_removed_by_waiting_profile_revocation(tmp_path, monkeypatch):
+    from fonesi_edit import browser as browser_module
+
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    generated = Event()
+    release_issuance = Event()
+    revoke_attempting = Event()
+    original_token_urlsafe = browser_module.secrets.token_urlsafe
+    original_connect = store.connect
+
+    def blocking_token_urlsafe(size):
+        if current_thread().name == "pending-code-issuer" and not generated.is_set():
+            generated.set()
+            if not release_issuance.wait(10):
+                raise TimeoutError("pairing-code issuance gate timed out")
+        return original_token_urlsafe(size)
+
+    @contextmanager
+    def signal_revoke_connect():
+        with original_connect() as connection:
+            class Proxy:
+                def execute(self, statement, *args):
+                    if (
+                        current_thread().name == "revoke-pending-code"
+                        and statement.strip().upper() == "BEGIN IMMEDIATE"
+                    ):
+                        revoke_attempting.set()
+                    return connection.execute(statement, *args)
+
+                def __getattr__(self, name):
+                    return getattr(connection, name)
+
+            yield Proxy()
+
+    monkeypatch.setattr(browser_module.secrets, "token_urlsafe", blocking_token_urlsafe)
+    monkeypatch.setattr(store, "connect", signal_revoke_connect)
+    issued = []
+    errors = []
+
+    def issue():
+        try:
+            issued.append(pairing_code(store, profile))
+        except BaseException as exc:
+            errors.append(exc)
+
+    def revoke():
+        try:
+            revoke_pairing(store, profile)
+        except BaseException as exc:
+            errors.append(exc)
+
+    issuer = Thread(target=issue, name="pending-code-issuer")
+    issuer.start()
+    assert generated.wait(10)
+    revoker = Thread(target=revoke, name="revoke-pending-code")
+    revoker.start()
+    assert revoke_attempting.wait(10)
+    release_issuance.set()
+    issuer.join(10)
+    revoker.join(10)
+
+    assert not issuer.is_alive() and not revoker.is_alive()
+    assert not errors and len(issued) == 1
+    code = issued[0]
+    key = "pair:" + hashlib.sha256(code.encode()).hexdigest()
+    assert store.setting(key) is None
+    with pytest.raises(PermissionError, match="expired/invalid"):
+        pair(store, code)
+
+
+def test_explicit_pairing_code_requested_after_revocation_can_be_used(tmp_path):
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    old_token = pair(store, pairing_code(store, profile))
+    revoke_pairing(store, profile)
+
+    fresh_code = pairing_code(store, profile)
+    fresh_token = pair(store, fresh_code)
+    assert fresh_token != old_token
+    key = "bridge:" + hashlib.sha256(fresh_token.encode()).hexdigest()
+    assert store.setting(key) == {"profile_id": profile}
