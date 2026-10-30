@@ -477,15 +477,35 @@ def row_composition(row,preset,audio=None,allocation='proportional',minimum=.5,m
     return c
 
 
-def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None,scene_order=None,all_scenes=None):
+class MatrixEnqueueCancelled(RuntimeError):
+    """Matrix queue preparation was revoked before atomic publication."""
+
+
+def _check_matrix_enqueue_cancel(cancel):
+    if cancel is not None and cancel.is_set():
+        raise MatrixEnqueueCancelled('Đã hủy chuẩn bị hàng đợi ma trận trước khi ghi job')
+
+
+def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='proportional',minimum=.5,maximum=2,window=0,different=0,compare_window=False,weights=None,manual_durations=None,scene_order=None,all_scenes=None,*,progress=None,cancel=None):
+    _check_matrix_enqueue_cancel(cancel)
     jobs=[];plans=[]
-    for row in rows:
+    total=len(rows)
+    for index,row in enumerate(rows):
+        _check_matrix_enqueue_cancel(cancel)
         comp=row_composition(row,preset,audio,allocation,minimum,maximum,weights=weights,manual_durations=manual_durations)
+        # FFprobe/composition work can be slow; a cancel arriving inside one
+        # blocking probe must still prevent the prepared snapshot's publication.
+        _check_matrix_enqueue_cancel(cancel)
         key=combination(row);digest=hashlib.sha256(key.encode()).hexdigest()[:12]
         payload={'composition':comp.to_dict(),'output':str(Path(output_root)/f'video_{digest}.mp4'),'matrix_scope':scope,'matrix_combination':key}
         payload['_tools']=store.setting('tool_paths',{})
         plans.append((identifier(),key,payload))
+        if progress is not None and total:
+            progress(.7*(index+1)/total)
+        _check_matrix_enqueue_cancel(cancel)
+    _check_matrix_enqueue_cancel(cancel)
     with store.connect() as conn:
+        _check_matrix_enqueue_cancel(cancel)
         conn.execute('BEGIN IMMEDIATE')
         import json
         previous=[json.loads(r[0]) for r in conn.execute("SELECT combination FROM matrix_history WHERE scope=? AND state IN ('reserved','succeeded') ORDER BY created",(scope,))]
@@ -493,7 +513,8 @@ def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='prop
             previous=normalize_matrix_history(scene_order,previous,all_scenes=all_scenes)
         used={canonical(values) for values in previous}
         sequence=conn.execute('SELECT COUNT(*) FROM matrix_history WHERE scope=?',(scope,)).fetchone()[0]
-        for job_id,key,data in plans:
+        for index,(job_id,key,data) in enumerate(plans):
+            _check_matrix_enqueue_cancel(cancel)
             existing=conn.execute('SELECT state FROM matrix_history WHERE scope=? AND combination=?',(scope,key)).fetchone()
             if existing and existing[0] in {'reserved','succeeded'}:raise ValueError('Tổ hợp đã được dùng/đặt chỗ; hãy sinh lại')
             values=json.loads(key)
@@ -504,5 +525,12 @@ def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='prop
             output=Path(data['output']);data['output']=str(output.with_name(f'video_{sequence:06d}_'+output.name.removeprefix('video_')))
             now=time.time()
             conn.execute("INSERT INTO jobs(id,kind,state,payload,created,updated) VALUES(?,'render','pending',?,?,?)",(job_id,canonical(checked_payload(data)),now,now))
-            conn.execute("INSERT INTO matrix_history VALUES(?,?,'reserved',?,?) ON CONFLICT(scope,combination) DO UPDATE SET state='reserved',job_id=excluded.job_id,created=excluded.created",(scope,key,job_id,now));jobs.append(job_id)
+            conn.execute("INSERT INTO matrix_history VALUES(?,?,'reserved',?,?) ON CONFLICT(scope,combination) DO UPDATE SET state='reserved',job_id=excluded.job,created=excluded.created",(scope,key,job_id,now));jobs.append(job_id)
+            if progress is not None and total:
+                progress(.7+.25*(index+1)/total)
+            # A cancel after an INSERT must roll back the entire transaction.
+            _check_matrix_enqueue_cancel(cancel)
+        _check_matrix_enqueue_cancel(cancel)
+    if progress is not None:
+        progress(1.0)
     return jobs
