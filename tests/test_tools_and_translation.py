@@ -247,3 +247,64 @@ def test_translation_requires_config_and_never_fakes_output(monkeypatch):
     monkeypatch.delenv("FONESI_GOOGLE_TRANSLATE_API_KEY", raising=False)
     with pytest.raises(TranslationNotConfigured):
         translate([Cue(0, 1000, "你好")])
+
+
+
+def _zip_with_members(members):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, payload, mode in members:
+            info = zipfile.ZipInfo(name)
+            if mode is not None:
+                info.external_attr = mode << 16
+            archive.writestr(info, payload)
+    buffer.seek(0)
+    return buffer
+
+
+@pytest.mark.parametrize(
+    "unsafe_name",
+    [
+        "../escape.txt",
+        "/absolute.txt",
+        "C:/drive.txt",
+        "folder/../../escape.txt",
+        ".",
+        "",
+        "folder/./file.txt",
+    ],
+)
+def test_extract_zip_rejects_unsafe_names_before_writing_any_member(tmp_path, unsafe_name):
+    archive = _zip_with_members([
+        ("safe/first.txt", b"safe", None),
+        (unsafe_name, b"unsafe", None),
+    ])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        dependencies.extract_zip(archive, destination)
+    assert list(destination.rglob("*")) == []
+    assert not (tmp_path / "escape.txt").exists()
+
+
+def test_extract_zip_rejects_symlink_member_before_writing_any_member(tmp_path):
+    archive = _zip_with_members([
+        ("safe/first.txt", b"safe", None),
+        ("link", b"target", 0o120777),
+    ])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    with pytest.raises(ValueError, match="Unsafe archive"):
+        dependencies.extract_zip(archive, destination)
+    assert list(destination.rglob("*")) == []
+
+
+def test_extract_zip_keeps_safe_nested_files_and_directory_entries(tmp_path):
+    archive = _zip_with_members([
+        ("bin/", b"", 0o40755),
+        ("bin/tool.exe", b"binary", None),
+    ])
+    destination = tmp_path / "unpack"
+    destination.mkdir()
+    dependencies.extract_zip(archive, destination)
+    assert (destination / "bin" / "tool.exe").read_bytes() == b"binary"

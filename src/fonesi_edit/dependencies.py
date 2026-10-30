@@ -53,10 +53,23 @@ def download_verified(url,destination,sha256,progress=lambda p:None,cancel=None)
 
 def extract_zip(archive,destination):
     with zipfile.ZipFile(archive) as package:
-        if sum(item.file_size for item in package.infolist())>4*1024**3:raise ValueError('Archive exceeds extraction budget')
-        for item in package.infolist():
-            path=PurePosixPath(item.filename.replace('\\','/'))
-            if path.is_absolute() or '..' in path.parts or ':' in path.parts[0] or (item.external_attr>>16)&0o170000==0o120000:raise ValueError('Unsafe archive path/link')
+        members=package.infolist()
+        if sum(item.file_size for item in members)>4*1024**3:
+            raise ValueError('Archive exceeds extraction budget')
+        # Validate every member before writing the first file. A later malicious
+        # entry must not leave a partially extracted archive behind.
+        for item in members:
+            raw_name=item.filename
+            normalized=raw_name.replace('\\','/')
+            normalized_parts=normalized.rstrip('/')
+            path=PurePosixPath(normalized_parts)
+            mode=(item.external_attr>>16)&0o170000
+            if (not raw_name or not normalized_parts or '\x00' in raw_name
+                    or any(ord(char)<32 or ord(char)==127 for char in raw_name)
+                    or path.is_absolute() or not path.parts
+                    or any(part in {'', '.', '..'} for part in normalized_parts.split('/'))
+                    or ':' in normalized or mode==0o120000):
+                raise ValueError('Unsafe archive path/link')
         package.extractall(destination)
 
 
