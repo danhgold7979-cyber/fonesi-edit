@@ -196,3 +196,42 @@ def replace_text(document, search, replacement):
             candidate
         )  # Validate full output bounds/representability before mutation.
     return TextReplacement(candidate, changed, occurrences, skipped)
+
+
+def split_cue(document, row, at, text_offset, right_id):
+    """Explicit exact split; caller chooses time and Unicode code-point boundary."""
+    if type(row) is not int or not 0 <= row < len(document.cues):
+        raise ValueError("INVALID_CUE_ROW")
+    old = document.cues[row]
+    if old.locked:
+        raise ValueError("CUE_LOCKED")
+    if not isinstance(at, Fraction) or not old.interval.start < at < old.interval.end:
+        raise ValueError("INVALID_SPLIT_TIME")
+    if type(text_offset) is not int or not 0 < text_offset < len(old.text):
+        raise ValueError("INVALID_TEXT_BOUNDARY")
+    left = Cue(old.id, Interval(old.interval.start, at), old.text[:text_offset])
+    right = Cue(right_id, Interval(at, old.interval.end), old.text[text_offset:])
+    result = SubtitleDocument(
+        document.cues[:row] + (left, right) + document.cues[row + 1 :]
+    )
+    export_srt(result)
+    return result
+
+
+def merge_next_cue(document, row):
+    """Merge adjacent chronological unlocked rows, preserving text with a newline."""
+    if type(row) is not int or not 0 <= row < len(document.cues) - 1:
+        raise ValueError("INVALID_CUE_ROW")
+    first, second = document.cues[row : row + 2]
+    if first.locked or second.locked:
+        raise ValueError("CUE_LOCKED")
+    if first.interval.end > second.interval.start:
+        raise ValueError("OVERLAPPING_OR_REVERSED_CUES")
+    cue = Cue(
+        first.id,
+        Interval(first.interval.start, second.interval.end),
+        first.text + "\n" + second.text,
+    )
+    result = SubtitleDocument(document.cues[:row] + (cue,) + document.cues[row + 2 :])
+    export_srt(result)
+    return result

@@ -3,16 +3,21 @@
 import os
 import tempfile
 from pathlib import Path
+from uuid import uuid4
 
 from PySide6.QtCore import QAbstractTableModel, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QTableView,
     QVBoxLayout,
 )
@@ -22,10 +27,12 @@ from fonesi_edit.subtitles import (
     Cue,
     SubtitleDocument,
     export_srt,
+    merge_next_cue,
     parse_srt,
     parse_time,
     replace_text,
     rounded_millis,
+    split_cue,
     timestamp,
 )
 from fonesi_edit.timing import Interval
@@ -178,6 +185,7 @@ class SubtitleEditor(QDialog):
         super().__init__(parent)
         self.worker = None
         self.closing = False
+        self.structure_dialog = None
         self.setWindowTitle("Fonesi Edit · Phụ đề SRT cục bộ")
         self.resize(1050, 650)
         self.setStyleSheet(STYLE)
@@ -214,6 +222,15 @@ class SubtitleEditor(QDialog):
         ):
             search_row.addWidget(widget)
         layout.addLayout(search_row)
+        structure_row = QHBoxLayout()
+        self.split_button = QPushButton("Tách câu chọn…")
+        self.merge_button = QPushButton("Gộp với câu kế tiếp…")
+        structure_row.addWidget(self.split_button)
+        structure_row.addWidget(self.merge_button)
+        structure_row.addStretch()
+        layout.addLayout(structure_row)
+        self.split_button.clicked.connect(lambda: self.open_structure("split"))
+        self.merge_button.clicked.connect(lambda: self.open_structure("merge"))
         self.find_button.clicked.connect(self.find_next)
         self.replace_button.clicked.connect(self.replace_all)
         self.table = QTableView()
@@ -246,6 +263,12 @@ class SubtitleEditor(QDialog):
             self.replace_button,
         ):
             widget.setEnabled(not busy)
+        self.split_button.setEnabled(
+            not busy and not self.closing and bool(self.model.document.cues)
+        )
+        self.merge_button.setEnabled(
+            not busy and not self.closing and len(self.model.document.cues) > 1
+        )
         self.open_button.setEnabled(not busy)
         self.save_button.setEnabled(not busy and bool(self.model.document.cues))
         self.undo_button.setEnabled(not busy and bool(self.model.undo_stack))
@@ -315,6 +338,24 @@ class SubtitleEditor(QDialog):
         )
         return bool(result.changed_cues)
 
+    def open_structure(self, mode):
+        if self.worker or self.closing or self.structure_dialog is not None:
+            return False
+        row = self.table.currentIndex().row()
+        if not 0 <= row < len(self.model.document.cues):
+            self.status.setText("Chọn một câu trước.")
+            return False
+        dialog = CueStructureDialog(self, mode, row)
+        self.structure_dialog = dialog
+        dialog.finished.connect(lambda _: self.structure_closed(dialog))
+        dialog.open()
+        return True
+
+    def structure_closed(self, dialog):
+        if self.structure_dialog is dialog:
+            self.structure_dialog = None
+        dialog.deleteLater()
+
     def choose_open(self):
         path, _ = QFileDialog.getOpenFileName(self, "Mở phụ đề", "", "SRT (*.srt)")
         if path:
@@ -354,6 +395,8 @@ class SubtitleEditor(QDialog):
         self.close()
 
     def closeEvent(self, event):
+        if self.structure_dialog is not None:
+            self.structure_dialog.reject()
         if self.worker:
             self.closing = True
             self.status.setText("Chờ hoàn tất thao tác tệp an toàn trước khi đóng…")
@@ -361,3 +404,107 @@ class SubtitleEditor(QDialog):
         else:
             self.closing = False
             event.accept()
+
+
+class CueStructureDialog(QDialog):
+    """Captured-document edit, validated before a single undoable replacement."""
+
+    def __init__(self, editor, mode, row):
+        super().__init__(editor)
+        self.editor, self.mode, self.row = editor, mode, row
+        self.original = editor.model.document
+        self.right_id = "split-" + str(uuid4())
+        cue = self.original.cues[row]
+        self.setWindowTitle("Tách câu SRT" if mode == "split" else "Gộp hai câu SRT")
+        self.resize(620, 380)
+        layout = QVBoxLayout(self)
+        self.time_text = QLineEdit(
+            timestamp(rounded_millis((cue.interval.start + cue.interval.end) / 2))
+        )
+        self.time_text.setMaxLength(16)
+        self.offset = QSpinBox()
+        self.offset.setRange(1, max(1, len(cue.text) - 1))
+        self.offset.setValue(max(1, len(cue.text) // 2))
+        if mode == "split":
+            form = QFormLayout()
+            form.addRow("Thời điểm tách HH:MM:SS,mmm", self.time_text)
+            form.addRow("Số ký tự Unicode ở phần đầu", self.offset)
+            layout.addLayout(form)
+            note = "Chọn ranh giới chữ bằng xem trước; không tự khớp lời nói. Giữ nguyên mọi ký tự."
+        else:
+            note = "Gộp câu chọn với dòng kế tiếp, nối bằng một xuống dòng. Thời gian mới bao gồm cả khoảng trống giữa hai câu."
+        label = QLabel(note)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        self.preview = QPlainTextEdit()
+        self.preview.setReadOnly(True)
+        layout.addWidget(self.preview)
+        self.message = QLabel()
+        self.message.setTextFormat(Qt.PlainText)
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        buttons = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel)
+        self.apply_button = buttons.button(QDialogButtonBox.Apply)
+        self.apply_button.setText("Áp dụng")
+        self.apply_button.clicked.connect(self.apply_edit)
+        buttons.button(QDialogButtonBox.Cancel).setText("Hủy")
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.time_text.textChanged.connect(self.refresh_preview)
+        self.offset.valueChanged.connect(self.refresh_preview)
+        self.refresh_preview()
+
+    def candidate(self):
+        if self.mode == "split":
+            return split_cue(
+                self.original,
+                self.row,
+                parse_time(self.time_text.text()),
+                self.offset.value(),
+                self.right_id,
+            )
+        return merge_next_cue(self.original, self.row)
+
+    def refresh_preview(self):
+        try:
+            result = self.candidate()
+        except ValueError:
+            self.preview.setPlainText("")
+            self.message.setText(
+                "Chưa hợp lệ: kiểm tra câu khóa, ranh giới chữ/thời gian, thứ tự và giới hạn SRT."
+            )
+            self.apply_button.setEnabled(False)
+            return
+        cues = result.cues[self.row : self.row + (2 if self.mode == "split" else 1)]
+        self.preview.setPlainText(
+            "\n\n──── Câu tiếp theo ────\n\n".join(c.text for c in cues)
+        )
+        self.message.setText(
+            "Chỉ thay đổi trong editor; có thể hoàn tác. Chưa ghi tệp."
+        )
+        self.apply_button.setEnabled(True)
+
+    def apply_edit(self):
+        editor = self.editor
+        if (
+            editor.worker
+            or editor.closing
+            or editor.model.document is not self.original
+        ):
+            self.message.setText(
+                "Tài liệu đã đổi hoặc đang bận; hủy và mở lại thao tác."
+            )
+            self.apply_button.setEnabled(False)
+            return False
+        try:
+            candidate = self.candidate()
+        except ValueError:
+            self.refresh_preview()
+            return False
+        editor.model.replace(candidate)
+        editor.table.setCurrentIndex(editor.model.index(self.row, 3))
+        editor.status.setText(
+            "Đã tách/gộp câu trong editor. Có thể hoàn tác; chưa ghi tệp nguồn."
+        )
+        self.accept()
+        return True

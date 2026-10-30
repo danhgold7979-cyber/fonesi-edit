@@ -82,7 +82,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. SRT table edit/manual lock/undo-redo. Còn mở: Bilingual/find/replace/split/merge/translation integration. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. SRT table edit/manual lock/undo-redo/literal find-replace/explicit split-merge. Còn mở: Bilingual/translation integration/persistent history. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P06-05
 

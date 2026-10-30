@@ -24,7 +24,7 @@ Mỗi dòng dưới là IN_PROGRESS/PARTIAL, không phải DONE. Test tương �
 | P04-05 | Trim/speed controls và mapping khi export | Timeline/playhead/split/gap/ripple/waveform/loop |
 | P04-08 | Native existing-tool selector | Full settings/install/account/profile/readiness UI |
 | P06-01 | UTF8 SRT parser/exporter, diagnostics | VTT/ASS/style/sidecar matching và ambiguity |
-| P06-04 | SRT table edit/manual lock/undo-redo/literal find-replace | Song ngữ/tách/gộp/dịch câu chọn và lưu lịch sử bền vững |
+| P06-04 | SRT table edit/manual lock/undo-redo/literal find-replace/split-merge | Song ngữ/tách/gộp/dịch câu chọn và lưu lịch sử bền vững |
 | P06-05 | Rational cue map/trim/speed/overlap diagnostics | Timeline/offset UI và đầy đủ source/render integration |
 | P06-06 | Xuất SRT mới không overwrite | ASS/bilingual/style/burn-in pipeline |
 | P08-01 | Bounded scan/no-follow và dialog chọn checkbox | Multi-folder UI/filter/search/tree/exclusion controls |

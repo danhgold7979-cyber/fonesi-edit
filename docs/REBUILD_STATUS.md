@@ -117,3 +117,7 @@ Tool-selection checkpointa08e5d3 CI41137290389 SUCCESS all4jobs. Follow-on close
 
 
 Explicit media demuxer boundary: common MOV/MP4-family, Matroska/WebM, AVI, WAV/MP3 allowlist now accompanies file/pipe restriction in probe/preview/encode/decode. Owned valid HLS baseline demonstrates file/pipe alone permits playlists; guarded probe/render reject it without output/source mutation. Disguised extension was already rejected on inspected Linux build, so no claim of demonstrated private-file leak in captured UI. Existing supported-container controls and all regressions pass locally152tests; target CI pending. Broader formats/corpus and hostile-process/filesystem isolation are not accepted by this change.
+
+## P06-04 explicit split/merge checkpoint
+
+2026-10-30: native nonblocking SRT split/merge dialogs with exact Unicode text preview, explicit millisecond time/code-point boundary, gap warning, locked-cue rejection, fresh right ID, one undo command, stale-document/busy/closing guard and no source-file writes. 162 local tests PASS, Ruff/format/plan structure PASS. UI screenshot inspected on cloud Linux with synthetic text. Full Windows/Linux CI for this change pending; prior demuxer checkpoint remote636511f3dac65861906250ac3438ebeb450b964b/run41141038617 has four successful jobs (152 tests). No speech/grapheme alignment, bilingual/translation, persistent lock/history, or whole-P06 acceptance.
