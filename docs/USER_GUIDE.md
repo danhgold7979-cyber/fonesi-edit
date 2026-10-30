@@ -112,6 +112,8 @@ Trong **Edit hàng loạt**, bấm **Lập kế hoạch / dry-run** sau khi qué
 
 Nút **Chạy toàn bộ** ghi tất cả render job của lô bằng **một transaction SQLite**: lỗi ghi ở giữa khiến cả lượt thêm job mới rollback, không để nửa lô chạy. Bản dry-run vẫn còn để sửa lỗi và thử lại; dữ liệu/video nguồn không bị xóa hoặc sửa. Đây không phải resume từng frame render hoặc sửa được database hỏng do lỗi thiết bị.
 
+**Ghép audio bằng playlist thủ công:** Trong **Ghép âm thanh chính**, chọn **Playlist thủ công (nhiều thư mục)**. Bấm **Chọn nhiều file audio…** để thêm file; mỗi đường dẫn nằm trên một dòng và có thể đến từ các thư mục khác nhau. Sửa thứ tự dòng trực tiếp để ánh xạ dòng 1 tới video đầu tiên, dòng 2 tới video thứ hai… Video được duyệt theo thứ tự kênh tự nhiên rồi thứ tự mục đã chọn trong cây Batch. Đây là **một audio chính cho mỗi video**, không phải playlist nhiều bài nối tiếp trong cùng một video. Có thể dùng lại cùng một file ở nhiều dòng. Bấm **Xóa playlist** để xóa danh sách. Dry-run hiển thị đường dẫn audio đầy đủ. Batch kiểm tra đủ số lượng, file tồn tại, loại tệp và audio stream bằng FFprobe trước khi tạo plan; nếu một mục sai, toàn bộ mapping bị từ chối, không tự đổi thứ tự hoặc thay audio. Bốn chế độ shared/by-name/ordered/random cũ vẫn hoạt động riêng.
+
 Để tự đo hiệu năng **lập kế hoạch** bằng video synthetic trên máy phát triển (Python 3.12, uv, FFmpeg/ffprobe), từ thư mục repo chạy:
 
 ```bash
