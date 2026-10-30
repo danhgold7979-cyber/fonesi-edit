@@ -22,6 +22,7 @@ def benchmark(scenes: int = 12, angles: int = 5, outputs: int = 200,
             or not 1 <= scenes <= 100 or not 1 <= angles <= 100
             or not 1 <= outputs <= 100000
             or not 0 <= window <= 1000 or not 0 <= different <= scenes
+            or type(budget_seconds) not in (int,float)
             or not 0 < budget_seconds <= 60 or not math.isfinite(budget_seconds)
             or type(balance_candidates) is not int or not 1 <= balance_candidates <= 64):
         raise ValueError("Invalid logical Matrix benchmark configuration")
