@@ -355,3 +355,24 @@ def test_no_scene_solver_and_scene_wide_pin_helper_refuse_empty_compositions():
         generate([],1)
     with pytest.raises(ValueError,match="Empty"):
         scene_generation_locks([],{ },1)
+
+
+def test_reorder_filtered_angles_accepts_old_known_unselected_angle_only_with_manifest():
+    from fonesi_edit.matrix import select_matrix_scenes
+    full=scenes()
+    choices=_choices_for(full)
+    choices[list(choices)[0]]["angles"]=["a1","a2"]
+    selected=select_matrix_scenes(full,choices)["scenes"]
+    rows=[[group[0] for group in selected]]
+    old_history=[["a0","b0","c0"]]
+    # The first source scene still exists, but its historic G1 was removed
+    # from current options. The complete source scan proves G1's identity.
+    with pytest.raises(ValueError,match="history"):
+        reorder_matrix_scenes(selected,rows,set(),old_history,[2,0,1])
+    result=reorder_matrix_scenes(
+        selected,rows,set(),old_history,[2,0,1],all_scenes=full)
+    assert [a.hash for a in result["rows"][0]]==["c0","a1","b0"]
+    assert result["history"]==[["c0","a0","b0"]]
+    assert result["scenes"][1][0].index==2
+    assert [[a.hash for a in scene] for scene in full]==[
+        ["a0","a1","a2"],["b0","b1","b2"],["c0","c1","c2"]]
