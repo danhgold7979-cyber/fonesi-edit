@@ -1,11 +1,11 @@
 # Trạng thái làm lại Fonesi Edit
 
-## Hiện tại — checkpoint f8c2e63 / remote 5c74c98
+## Hiện tại — schema hardening increment
 
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 92/92 tests PASS; Ruff check/format PASS. CI checkpoint trước 0e5d398 (run 41107887718) SUCCESS; CI static-check checkpoint 5c74c98 (run 41110764844) đang chờ kết quả.
+- Kiểm tra local: 96/96 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; schema hardening increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix/batch chưa tích hợp UI và durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -59,3 +59,8 @@ Scan-limit now retains already visited candidates before returning PARTIAL; inva
 ## Readability/static gate
 
 Ruff0.17.3 added as locked developer tool from PyPI; newly authored source/tests formatted, imports cleaned. Intentional sanitized Qt thread catch boundaries and stable ValueError contracts explicitly documented at their lint exceptions, not runtime-test exemptions. Qt model root-index default made explicit. Static+format checks and unchanged92-test suite pass locally; CI now enforces both.
+
+
+## Ledger schema hardening
+
+Opening a ledger now refuses nonempty unversioned databases and exact-schema drift, including extra triggers/indexes, changed constraints/defaults and missing version1 table. Transactional initialization and rejection preserve existing schema/data/version; constructor failures close their connection. Original rebuild schema indentation remains compatible. 96 local tests PASS including rejection/no-mutation and all prior lease checks; no migrations or production queue acceptance implied.

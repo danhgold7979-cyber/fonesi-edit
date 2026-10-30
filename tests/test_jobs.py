@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -76,3 +77,98 @@ class JobsTests(unittest.TestCase):
         with self.assertRaises(Conflict):
             self.store.transition("job", token, "validating", now=101)
         self.assertEqual(self.store.get("job")["state"], "running")
+
+
+class SchemaTests(unittest.TestCase):
+    def test_reject_foreign_schema_without_mutation(self):
+        scenarios = [
+            (
+                0,
+                "CREATE TABLE unrelated(value TEXT)",
+                "INSERT INTO unrelated VALUES('keep')",
+            ),
+            (
+                1,
+                "CREATE TABLE unrelated(value TEXT)",
+                "INSERT INTO unrelated VALUES('keep')",
+            ),
+            (1, None, None),
+            (2, None, None),
+        ]
+        for version, ddl, insert in scenarios:
+            with (
+                self.subTest(version=version, ddl=ddl),
+                tempfile.TemporaryDirectory() as tmp,
+            ):
+                path = Path(tmp) / "foreign.db"
+                db = sqlite3.connect(path)
+                if ddl:
+                    db.execute(ddl)
+                    db.execute(insert)
+                db.execute(f"PRAGMA user_version={version}")
+                db.commit()
+                before = list(db.iterdump())
+                with self.assertRaises(ValueError):
+                    JobStore(path)
+                self.assertEqual(
+                    db.execute("PRAGMA user_version").fetchone()[0], version
+                )
+                self.assertEqual(list(db.iterdump()), before)
+                db.close()
+
+    def test_reject_schema_drift_without_mutation(self):
+        changes = [
+            "ALTER TABLE jobs ADD COLUMN surprise TEXT",
+            "CREATE TRIGGER side_effect AFTER INSERT ON jobs BEGIN DELETE FROM jobs; END",
+            "CREATE INDEX extra ON jobs(state)",
+            "CREATE TABLE sqlitex_hidden(value TEXT)",
+        ]
+        for ddl in changes:
+            with self.subTest(ddl=ddl), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "jobs.db"
+                store = JobStore(path)
+                store.close()
+                db = sqlite3.connect(path)
+                db.execute(ddl)
+                db.commit()
+                before = list(db.iterdump())
+                with self.assertRaises(ValueError):
+                    JobStore(path)
+                self.assertEqual(list(db.iterdump()), before)
+                db.close()
+
+    def test_reopen_original_foundation_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "jobs.db"
+            db = sqlite3.connect(path)
+            db.execute("""CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY, intent TEXT NOT NULL, digest TEXT NOT NULL,
+                state TEXT NOT NULL CHECK(state IN ('pending','running','validating',
+                'succeeded','failed','canceled','blocked_configuration','interrupted')),
+                token TEXT, lease_until REAL, attempt INTEGER NOT NULL DEFAULT 0,
+                created REAL NOT NULL, validated_artifact TEXT)""")
+            db.execute("PRAGMA user_version=1")
+            db.commit()
+            db.close()
+            store = JobStore(path)
+            store.close()
+
+    def test_reject_changed_constraint_and_default(self):
+        from fonesi_edit.jobs import _SCHEMA
+
+        variants = [
+            _SCHEMA.replace("'pending','running'", "'unexpected','running'"),
+            _SCHEMA.replace("DEFAULT 0", "DEFAULT 7"),
+        ]
+        for ddl in variants:
+            with self.subTest(ddl=ddl), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "changed.db"
+                db = sqlite3.connect(path)
+                db.execute(ddl)
+                db.execute("PRAGMA user_version=1")
+                db.commit()
+                before = list(db.iterdump())
+                with self.assertRaises(ValueError):
+                    JobStore(path)
+                self.assertEqual(list(db.iterdump()), before)
+                db.close()

@@ -13,23 +13,58 @@ class Conflict(ValueError):
     pass
 
 
+_SCHEMA = """CREATE TABLE jobs (
+    id TEXT PRIMARY KEY, intent TEXT NOT NULL, digest TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending','running','validating',
+    'succeeded','failed','canceled','blocked_configuration','interrupted')),
+    token TEXT, lease_until REAL, attempt INTEGER NOT NULL DEFAULT 0,
+    created REAL NOT NULL, validated_artifact TEXT)"""
+
+
+def _schema_objects(db):
+    return [
+        tuple(row)
+        for row in db.execute(
+            "SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name"
+        )
+    ]
+
+
 class JobStore:
     def __init__(self, path: Path):
         self.db = sqlite3.connect(path, timeout=5, isolation_level=None)
         self.db.row_factory = sqlite3.Row
-        self.db.execute("PRAGMA foreign_keys=ON")
-        version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1):
+        try:
+            self.db.execute("PRAGMA foreign_keys=ON")
+            with self.transaction():
+                version = self.db.execute("PRAGMA user_version").fetchone()[0]
+                actual = _schema_objects(self.db)
+                if version == 0 and not actual:
+                    self.db.execute(_SCHEMA)
+                    self.db.execute("PRAGMA user_version=1")
+                elif version == 1:
+                    reference = sqlite3.connect(":memory:")
+                    try:
+                        reference.execute(_SCHEMA)
+                        expected = _schema_objects(reference)
+                    finally:
+                        reference.close()
+
+                    # SQLite preserves harmless whitespace in schema SQL. The original
+                    # foundation emitted identical tokens with different indentation.
+                    def normalize(rows):
+                        return [
+                            (*row[:3], " ".join(row[3].split()) if row[3] else None)
+                            for row in rows
+                        ]
+
+                    if normalize(actual) != normalize(expected):
+                        raise ValueError("Unsupported database schema")
+                else:
+                    raise ValueError("Unsupported database schema")
+        except BaseException:
             self.db.close()
-            raise ValueError("Unsupported database schema")
-        with self.transaction():
-            self.db.execute("""CREATE TABLE IF NOT EXISTS jobs (
-                id TEXT PRIMARY KEY, intent TEXT NOT NULL, digest TEXT NOT NULL,
-                state TEXT NOT NULL CHECK(state IN ('pending','running','validating',
-                'succeeded','failed','canceled','blocked_configuration','interrupted')),
-                token TEXT, lease_until REAL, attempt INTEGER NOT NULL DEFAULT 0,
-                created REAL NOT NULL, validated_artifact TEXT)""")
-            self.db.execute("PRAGMA user_version=1")
+            raise
 
     @contextmanager
     def transaction(self):
