@@ -223,15 +223,15 @@ def _check_batch_cancel(cancel):
 
 
 def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder=None,
-                            seed=0, *, cancel=None):
-    """Pick audio for every selected video without modifying source media.
+                            seed=0, *, cancel=None, playlist_paths=None):
+    """Assign one validated audio source per selected video.
 
-    Return {resolved video path: (resolved audio path, validated duration)}.
-    Ordering follows selected source order within natural-sorted channels;
-    random is stable for the same source path and project seed.
+    Playlist entries are explicit absolute paths in caller order. Unlike the
+    folder-based ordered mode, they may span directories and share basenames.
+    Duplicate playlist paths are intentional and probed only once.
     """
     _check_batch_cancel(cancel)
-    if mode not in {'shared','by_name','ordered','random'}:
+    if mode not in {'shared','by_name','ordered','random','playlist'}:
         raise ValueError('Unknown audio assignment mode')
     sources=[str(Path(source).resolve()) for channel,paths in sorted(
         groups.items(),key=lambda pair:natural_key(pair[0])) for source in paths]
@@ -243,8 +243,52 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         if not sound.is_file():
             raise FileNotFoundError('Âm thanh chung không tồn tại: '+sound.name)
         length=audio_duration(sound)
+        if not math.isfinite(length) or length<=0:
+            raise ValueError('Thời lượng audio không hợp lệ: '+sound.name)
         _check_batch_cancel(cancel)
         return {source:(str(sound),length) for source in sources}
+    if mode=='playlist':
+        if not isinstance(playlist_paths,(list,tuple)):
+            raise ValueError('Playlist audio phải là danh sách đường dẫn riêng biệt')
+        if len(playlist_paths)!=len(sources):
+            raise ValueError('Playlist audio phải có đúng một mục cho mỗi video được chọn')
+        ordered=[]
+        for entry in playlist_paths:
+            _check_batch_cancel(cancel)
+            if not isinstance(entry,str) or not entry.strip():
+                raise ValueError('Mỗi dòng playlist phải là một đường dẫn audio không rỗng')
+            sound=Path(entry)
+            if not sound.is_absolute():
+                raise ValueError('Mỗi đường dẫn playlist phải là đường dẫn tuyệt đối')
+            if any(part.is_symlink() for part in (sound,*sound.parents)):
+                raise ValueError('Playlist audio không chấp nhận symbolic link')
+            try:
+                sound=sound.resolve(strict=True)
+            except OSError as exc:
+                raise FileNotFoundError('Playlist audio không tồn tại') from exc
+            if not sound.is_file():
+                raise ValueError('Mỗi mục playlist phải là một tệp audio, không phải thư mục')
+            if sound.suffix.casefold() not in AUDIO_EXTENSIONS:
+                raise ValueError('Định dạng audio playlist không được hỗ trợ: '+sound.suffix)
+            ordered.append(sound)
+        durations={}
+        for sound in ordered:
+            _check_batch_cancel(cancel)
+            key=str(sound)
+            if key in durations:
+                continue
+            try:
+                length=audio_duration(sound)
+            except (OSError,ValueError,RuntimeError) as exc:
+                raise ValueError('Tệp playlist không có audio stream hợp lệ: '+sound.name) from exc
+            _check_batch_cancel(cancel)
+            if not math.isfinite(length) or length<=0:
+                raise ValueError('Thời lượng audio playlist không hợp lệ: '+sound.name)
+            durations[key]=length
+        selection={source:(str(sound),durations[str(sound)])
+                   for source,sound in zip(sources,ordered,strict=True)}
+        _check_batch_cancel(cancel)
+        return selection
     if not audio_folder:
         raise ValueError('Chọn thư mục audio khi dùng ghép theo tên/danh sách/random')
     directory=Path(audio_folder).resolve()
@@ -255,7 +299,6 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
         key=lambda p:natural_key(p.name))
     if not paths:
         raise ValueError('Thư mục audio không có tệp phù hợp')
-    # Validate real audio tracks before generating *any* batch plan.
     durations={}
     for sound in paths:
         _check_batch_cancel(cancel)
@@ -295,9 +338,8 @@ def batch_audio_assignments(groups, mode='shared', audio_path=None, audio_folder
     _check_batch_cancel(cancel)
     return selection
 
-
 def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,maximum=2,
-               audio_mode='shared',audio_folder=None,*,failures=None,progress=None,cancel=None):
+               audio_mode='shared',audio_folder=None,*,playlist_paths=None,failures=None,progress=None,cancel=None):
     """Build immutable render snapshots; optionally isolate per-video input faults.
 
     Default callers remain fail-fast. Only callers explicitly supplying a
@@ -306,7 +348,7 @@ def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=
     """
     _check_batch_cancel(cancel)
     assignments=batch_audio_assignments(groups,audio_mode,audio_path,audio_folder,preset.seed,
-                                        cancel=cancel)
+                                        cancel=cancel,playlist_paths=playlist_paths)
     _check_batch_cancel(cancel)
     total=sum(len(paths) for paths in groups.values())
     processed=0
@@ -361,13 +403,13 @@ def batch_plan(groups,preset:Composition,audio_path=None,policy='speed',minimum=
 
 
 def batch_plan_report(groups,preset:Composition,audio_path=None,policy='speed',minimum=.5,
-                      maximum=2,audio_mode='shared',audio_folder=None,*,progress=None,cancel=None):
+                      maximum=2,audio_mode='shared',audio_folder=None,*,playlist_paths=None,progress=None,cancel=None):
     """Report per-video errors; cancellation never exposes partial render plans."""
     failures=[]
     try:
         plans=batch_plan(groups,preset,audio_path,policy,minimum,maximum,
-                         audio_mode,audio_folder,failures=failures,
-                         progress=progress,cancel=cancel)
+                         audio_mode,audio_folder,playlist_paths=playlist_paths,
+                         failures=failures,progress=progress,cancel=cancel)
     except BatchPlanCancelled:
         return {'plans':[],'failures':[],'cancelled':True}
     return {'plans':plans,'failures':failures}

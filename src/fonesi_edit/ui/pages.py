@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QPush
 
 from ..domain import Composition,Clip,Layer,canonical,atomic_json
 from ..storage import TERMINAL
-from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS
+from ..batch import scan_folders,scan_multiple_folders,probe_batch_metadata,batch_plan,batch_plan_report,enqueue_batch,VIDEO_EXTENSIONS,AUDIO_EXTENSIONS
 from ..matrix import scan_scenes,generate,history,combination,valid_against,matrix_rows_valid,regenerate_row,angle_usage,row_composition,enqueue_rows
 from ..subtitles import (Caption,read_captions,read_captions_with_warnings,write_captions,
                          caption_warnings,split_caption,merge_captions,KNOWN_IMPORT_WARNINGS)
@@ -868,6 +868,19 @@ class BatchPage(QWidget):
         for label,mode in [('Một audio cho cả lô','shared'),('Trùng tên video/audio','by_name'),('Theo thứ tự danh sách','ordered'),('Ngẫu nhiên với seed cố định','random')]:
             self.audio_mode.addItem(label,mode)
         form.addRow('Ghép âm thanh chính',self.audio_mode)
+        self.audio_playlist_label=QLabel('Playlist audio thủ công')
+        self.audio_playlist=QPlainTextEdit()
+        self.audio_playlist.setPlaceholderText('Mỗi dòng một đường dẫn tuyệt đối. Thứ tự dòng ánh xạ theo thứ tự video đã chọn; có thể trộn nhiều thư mục.')
+        self.audio_playlist.setMaximumHeight(100)
+        form.addRow(self.audio_playlist_label,self.audio_playlist)
+        playlist_actions=QHBoxLayout()
+        self.audio_playlist_pick=QPushButton('Chọn nhiều file audio…')
+        self.audio_playlist_clear=QPushButton('Xóa playlist')
+        playlist_actions.addWidget(self.audio_playlist_pick);playlist_actions.addWidget(self.audio_playlist_clear)
+        form.addRow(QLabel(''),playlist_actions)
+        self.audio_playlist_hint=QLabel('Dòng 1 → video đầu tiên (kênh/video sắp tự nhiên); sửa thứ tự dòng để đổi ánh xạ. Không tự fallback khi thiếu file.')
+        self.audio_playlist_hint.setWordWrap(True)
+        form.addRow(QLabel(''),self.audio_playlist_hint)
         self.policy=QComboBox();self.policy.addItems(['speed','trim','loop','freeze']);form.addRow('Cách khớp thời lượng',self.policy)
         self.minimum=QDoubleSpinBox();self.minimum.setRange(.1,10);self.minimum.setValue(.5);form.addRow('Speed min',self.minimum)
         self.maximum=QDoubleSpinBox();self.maximum.setRange(.1,10);self.maximum.setValue(2);form.addRow('Speed max',self.maximum)
@@ -920,12 +933,43 @@ class BatchPage(QWidget):
         self.extra_roots.textChanged.connect(self.source_changed)
         for field in (self.audio,self.audio_folder):
             field.textChanged.connect(lambda _:self.invalidate_plan())
-        for combo in (self.audio_mode,self.policy):
-            combo.currentIndexChanged.connect(lambda _:self.invalidate_plan())
+        self.audio_playlist.textChanged.connect(lambda _:self.invalidate_plan())
+        self.audio_playlist_pick.clicked.connect(self.select_audio_playlist)
+        self.audio_playlist_clear.clicked.connect(self.clear_audio_playlist)
+        self.audio_mode.currentIndexChanged.connect(self.audio_mode_changed)
+        self.policy.currentIndexChanged.connect(lambda _:self.invalidate_plan())
+        self.update_playlist_controls()
         for spin in (self.minimum,self.maximum):
             spin.valueChanged.connect(lambda _:self.invalidate_plan())
         self.mute.toggled.connect(lambda _:self.invalidate_plan())
         host.editor.changed.connect(self.invalidate_plan)
+
+    def update_playlist_controls(self):
+        active=self.audio_mode.currentData()=='playlist'
+        for widget in (self.audio_playlist_label,self.audio_playlist,
+                       self.audio_playlist_pick,self.audio_playlist_clear,
+                       self.audio_playlist_hint):
+            widget.setVisible(active)
+            widget.setEnabled(active)
+
+    def audio_mode_changed(self,*_ignored):
+        self.invalidate_plan()
+        self.update_playlist_controls()
+
+    def select_audio_playlist(self):
+        patterns=' '.join('*'+extension for extension in sorted(AUDIO_EXTENSIONS))
+        selected,_=QFileDialog.getOpenFileNames(
+            self,'Chọn audio cho playlist','',
+            'Audio files ('+patterns+');;All files (*)')
+        if not selected:
+            return
+        existing=self.audio_playlist.toPlainText()
+        entries=existing.splitlines() if existing else []
+        entries.extend(os.path.abspath(path) for path in selected)
+        self.audio_playlist.setPlainText('\\n'.join(entries))
+
+    def clear_audio_playlist(self):
+        self.audio_playlist.clear()
 
     def invalidate_plan(self):
         self._plan_revision+=1
@@ -1117,8 +1161,11 @@ class BatchPage(QWidget):
         preset=deepcopy(self.host.editor.composition);preset.mute_original=self.mute.isChecked()
         audio=self.audio.text() or None;policy=self.policy.currentText();minimum=self.minimum.value();maximum=self.maximum.value()
         audio_mode=self.audio_mode.currentData() or 'shared';audio_folder=self.audio_folder.text() or None
+        playlist_paths=(self.audio_playlist.toPlainText().splitlines()
+                        if audio_mode=='playlist' else None)
         self.host.background(lambda p,c:batch_plan_report(groups,preset,audio,policy,minimum,maximum,
-                            audio_mode=audio_mode,audio_folder=audio_folder,progress=p,cancel=c),
+                            audio_mode=audio_mode,audio_folder=audio_folder,
+                            playlist_paths=playlist_paths,progress=p,cancel=c),
                             lambda report:self.planned(report) if revision==self._plan_revision
                             else self.host.message('Đã bỏ bản dry-run cũ do cấu hình thay đổi trong lúc tính'))
     def planned(self,report):
