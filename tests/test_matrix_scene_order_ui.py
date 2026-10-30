@@ -484,3 +484,33 @@ def test_qt_angle_exclusion_blocks_unsafe_physical_rename_and_stale_csv(tmp_path
         assert not window.failures,window.failures
     finally:
         close(window)
+
+
+def test_qt_reorder_after_excluding_one_angle_keeps_old_history_provenance(tmp_path,monkeypatch):
+    from fonesi_edit.domain import canonical
+    root=tmp_path/"source"
+    full=synthetic_scenes(root)
+    monkeypatch.setattr(pages_module,"scan_scenes",lambda _root:full)
+    window=MainWindow(tmp_path/"state");window.scheduler.paused=True
+    try:
+        page=window.matrix;page.folder.setText(str(root));page.count.setValue(1)
+        with window.store.connect() as conn:
+            conn.execute(
+                "INSERT INTO matrix_history(scope,combination,state,job_id,created) "
+                "VALUES(?,?,'succeeded',NULL,?)",
+                (page.scope(),canonical(["one-0","two-0","three-0"]),time.time()))
+        page.scan_scene_choices();wait_until(lambda:not window.tasks)
+        page.scene_filter.topLevelItem(0).child(0).setCheckState(
+            0,Qt.CheckState.Unchecked)
+        page.generate();wait_until(lambda:not window.tasks)
+        assert len(page.model.rows)==1
+        assert page.model.rows[0][0].hash=="one-1"
+        assert page.old_history==[["one-0","two-0","three-0"]]
+        page.scene_list.setCurrentRow(0)
+        assert page.move_scene(1)
+        assert page.old_history==[["two-0","one-0","three-0"]]
+        assert page.model.rows[0][1].hash=="one-1"
+        assert window.store.setting(page.scene_order_key())==scene_directories(page.scenes)
+        assert not window.failures,window.failures
+    finally:
+        close(window)
