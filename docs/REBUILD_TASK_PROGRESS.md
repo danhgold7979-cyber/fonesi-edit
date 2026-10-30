@@ -21,7 +21,7 @@ Mỗi dòng dưới là IN_PROGRESS/PARTIAL, không phải DONE. Test tương �
 | P03-07 | Project save-as/open, exact edits, manual relink/undo, ledger backup | Autosave/cache recovery và abrupt-close fault corpus |
 | P03-08 | Session-only explicit paths, busy/generation guards | Persistent registry/ownership/version leases/installer lifecycle |
 | P04-01 | Native panel/theme/media/inspector/numeric controls | HiDPI/drag/drop/reset/full workspace interaction |
-| P04-05 | Trim/speed controls và mapping khi export | Timeline/playhead/split/gap/ripple/waveform/loop |
+| P04-05 | Trim/speed controls, numeric source-frame request và mapping khi export | Timeline/playhead/split/gap/ripple/waveform/loop |
 | P04-08 | Native existing-tool selector | Full settings/install/account/profile/readiness UI |
 | P06-01 | UTF8 SRT parser/exporter, diagnostics | VTT/ASS/style/sidecar matching và ambiguity |
 | P06-04 | SRT table edit/manual lock/undo-redo/literal find-replace/split-merge | Song ngữ/tách/gộp/dịch câu chọn và lưu lịch sử bền vững |

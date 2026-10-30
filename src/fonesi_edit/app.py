@@ -27,11 +27,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from fonesi_edit.media import LOCAL_MEDIA_INPUT_OPTIONS, probe
+from fonesi_edit.media import probe
 from fonesi_edit.prepared_input import capture_source, stage_verified_input
-from fonesi_edit.process import run_bounded
 from fonesi_edit.project import Project, ProjectMedia, load_project, save_new
 from fonesi_edit.render import render_cpu
+from fonesi_edit.source_preview import source_frame
 from fonesi_edit.style import STYLE
 from fonesi_edit.timing import ClipMap, Interval
 from fonesi_edit.worker import Worker
@@ -147,9 +147,20 @@ class MainWindow(QMainWindow):
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumSize(480, 320)
         cl.addWidget(self.preview, 1)
+        seek_row = QHBoxLayout()
+        self.source_time = QDoubleSpinBox()
+        self.source_time.setDecimals(3)
+        self.source_time.setRange(0, 31536000)
+        self.source_time.setSuffix(" s nguồn")
+        self.source_frame_button = QPushButton("Xem khung nguồn")
+        self.source_frame_button.clicked.connect(self.preview_source_frame)
+        seek_row.addWidget(self.source_time)
+        seek_row.addWidget(self.source_frame_button)
+        seek_row.addStretch()
+        cl.addLayout(seek_row)
         cl.addWidget(
             QLabel(
-                "Hiện có: probe thật, khung đầu và xuất CPU.\nTimeline, chèn phụ đề, layer và chuyển động chưa được nối."
+                "Hiện có: probe thật, xem khung nguồn và xuất CPU.\nTimeline, chèn phụ đề, layer và chuyển động chưa được nối."
             )
         )
         panes.addWidget(center)
@@ -226,6 +237,14 @@ class MainWindow(QMainWindow):
             and self.list.currentRow() in self.source_hashes
             and "video" in self.selected[1].stream_types
         )
+        can_preview = (
+            not busy
+            and self.selected is not None
+            and row in self.source_hashes
+            and "video" in self.selected[1].stream_types
+        )
+        self.source_time.setEnabled(can_preview)
+        self.source_frame_button.setEnabled(can_preview)
         for control in (self.start_time, self.end_time, self.speed):
             control.setEnabled(not busy and self.selected is not None)
         if self.selected is not None and (
@@ -368,31 +387,9 @@ class MainWindow(QMainWindow):
                 info = probe(captured.path, Path(self.ffprobe), cancel=cancel)
                 thumbnail = b""
                 if "video" in info.stream_types:
-                    result = run_bounded(
-                        [
-                            self.ffmpeg,
-                            "-nostdin",
-                            "-v",
-                            "error",
-                            *LOCAL_MEDIA_INPUT_OPTIONS,
-                            "-i",
-                            str(captured.path),
-                            "-frames:v",
-                            "1",
-                            "-vf",
-                            "scale=640:-2",
-                            "-f",
-                            "image2pipe",
-                            "-vcodec",
-                            "png",
-                            "-",
-                        ],
-                        limit=1048576,
-                        cancel=cancel,
+                    thumbnail = source_frame(
+                        captured.path, Path(self.ffmpeg), Fraction(0), cancel=cancel
                     )
-                    if result.status != "OK":
-                        raise ValueError("PREVIEW_" + result.status)
-                    thumbnail = result.stdout
                 if cancel.is_set():
                     raise ValueError("CANCELED")
                 return (path, info, thumbnail), captured.sha256
@@ -422,6 +419,7 @@ class MainWindow(QMainWindow):
         self.select_row(row)
 
     def select_row(self, row):
+        self.source_time.setValue(0)
         if not 0 <= row < len(self.media):
             self.selected = None
             self.preview.setText("Chưa chọn media.")
@@ -465,6 +463,71 @@ class MainWindow(QMainWindow):
         else:
             self.preview.setText("Tệp âm thanh · chưa có phát nghe trong lát cắt này")
         self.refresh()
+
+    def preview_source_frame(self):
+        row = self.list.currentRow()
+        if (
+            self.worker
+            or self.closing
+            or self.selected is None
+            or row not in self.source_hashes
+            or "video" not in self.selected[1].stream_types
+        ):
+            return False
+        at = Fraction(str(self.source_time.value()))
+        if at >= self.selected[1].duration:
+            self.status.setText("Thời điểm nguồn phải nhỏ hơn thời lượng đã kiểm tra.")
+            return False
+        source, media_id, reference, digest = (
+            self.selected[0].absolute(),
+            self.media_ids[row],
+            self.source_refs[row],
+            self.source_hashes[row],
+        )
+        ffmpeg = Path(self.ffmpeg)
+
+        def work(cancel):
+            with stage_verified_input(
+                source,
+                digest,
+                Path(tempfile.gettempdir()).absolute(),
+                max_bytes=max(1, source.stat().st_size),
+                timeout=60,
+                cancel=cancel,
+            ) as captured:
+                data = source_frame(captured.path, ffmpeg, at, cancel=cancel)
+                if cancel.is_set():
+                    raise ValueError("CANCELED")
+                return data
+
+        def complete(data):
+            if (
+                row >= len(self.media_ids)
+                or self.media_ids[row] != media_id
+                or self.source_refs[row] != reference
+                or self.source_hashes.get(row) != digest
+            ):
+                self.status.setText(
+                    "Bỏ khung đã lỗi thời; nguồn tham chiếu đã thay đổi."
+                )
+                return
+            pixmap = QPixmap()
+            if not pixmap.loadFromData(data):
+                self.status.setText(
+                    "Không giải mã được ảnh khung nguồn; giữ hình trước."
+                )
+                return
+            self.preview.setPixmap(
+                pixmap.scaled(640, 480, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            )
+            self.status.setText(
+                f"Khung nguồn theo yêu cầu {float(at):.3f} s; chưa áp trim/tốc độ/hiệu ứng, chưa xác nhận PTS chính xác."
+            )
+
+        self.status.setText(
+            "Đang chuẩn bị bản nguồn đã xác minh và đọc một khung; có thể hủy…"
+        )
+        return self.start(work, complete)
 
     def changed_edit(self):
         if self._loading_controls or self.selected is None:

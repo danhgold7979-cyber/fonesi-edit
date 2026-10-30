@@ -99,7 +99,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Trim/speed controls và mapping khi export. Còn mở: Timeline/playhead/split/gap/ripple/waveform/loop. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Trim/speed controls, numeric source-frame request và mapping khi export. Còn mở: Timeline/playhead/split/gap/ripple/waveform/loop. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P04-06
 
