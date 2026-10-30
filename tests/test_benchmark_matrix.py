@@ -25,7 +25,6 @@ def _scenes():
     {"seconds":float("inf")}, {"seconds":"2"}, {"seconds":True},
     {"balance_candidates":0}, {"balance_candidates":65},
     {"balance_candidates":True}, {"balance_candidates":1.5},
-    {"budget_seconds":True}, {"budget_seconds":"1"},
 ])
 def test_matrix_rejects_malformed_parameters_before_search(options):
     arguments={"count":2}
@@ -176,6 +175,7 @@ def test_large_space_balancing_keeps_equal_hashes_separate_per_scene():
     {"different":100},{"budget_seconds":float("nan")},
     {"balance_candidates":0},{"balance_candidates":65},
     {"balance_candidates":True},{"balance_candidates":2.5},
+    {"budget_seconds":True},{"budget_seconds":"1"},
 ])
 def test_logical_benchmark_rejects_bad_configuration(kwargs):
     with pytest.raises(ValueError,match="Invalid logical"):
