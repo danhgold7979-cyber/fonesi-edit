@@ -1,12 +1,13 @@
 from functools import partial
+from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
-from threading import Thread,Event
+from threading import Thread,Event,Barrier
 import os
 import sys
 import time
 import json
 import pytest
-from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity,cookie_jar
+from fonesi_edit.browser import create_profile,bind,pairing_code,pair,receive_session,profiles,bindings,cookie_identity,cookie_jar,revoke_pairing
 from fonesi_edit.downloads import platform_for,safe_name,execute_download_job
 from fonesi_edit.storage import Store
 from fonesi_edit.prototypes.media import create_fixture
@@ -358,15 +359,39 @@ def test_chrome_profiles_keep_distinct_same_platform_session_cookies(tmp_path, m
         [_synthetic_facebook_cookie("facebook-B"),
          {"name": "xs", "value": "session-B", "domain": ".facebook.com", "path": "/"}],
     )
+    token_a_tiktok = pair(store, pairing_code(store, profile_a))
+    session_a_tiktok = receive_session(
+        store, token_a_tiktok, "TikTok",
+        [{"name": "sessionid", "value": "tiktok-A", "domain": ".tiktok.com", "path": "/"}],
+    )
 
     assert session_a["binding_id"] != session_b["binding_id"]
+    assert session_a_tiktok["binding_id"] != session_a["binding_id"]
     jar_a = cookie_jar(store, session_a["binding_id"], "facebook-A")
     jar_b = cookie_jar(store, session_b["binding_id"], "facebook-B")
+    jar_a_tiktok = cookie_jar(store, session_a_tiktok["binding_id"])
     values_a = {cookie.name: cookie.value for cookie in jar_a}
     values_b = {cookie.name: cookie.value for cookie in jar_b}
     assert values_a == {"c_user": "facebook-A", "xs": "session-A"}
     assert values_b == {"c_user": "facebook-B", "xs": "session-B"}
-    assert values_a["c_user"] != values_b["c_user"]
+    assert {cookie.name: cookie.value for cookie in jar_a_tiktok} == {
+        "sessionid": "tiktok-A"
+    }
+
+    # Revoking extension pairing prevents future pushes but does not erase
+    # already received app sessions or another Chrome profile's data.
+    revoke_pairing(store, profile_a)
+    with pytest.raises(PermissionError, match="Bridge is not paired"):
+        receive_session(
+            store, token_a, "Facebook", [_synthetic_facebook_cookie("facebook-A")]
+        )
+    assert {cookie.name: cookie.value for cookie in cookie_jar(
+        store, session_a["binding_id"], "facebook-A"
+    )} == values_a
+    assert {cookie.name: cookie.value for cookie in cookie_jar(
+        store, session_b["binding_id"], "facebook-B"
+    )} == values_b
+    assert len(profiles(store)) == 2
 
 
 def test_account_mismatch_preserves_previous_session_and_expected_identity(tmp_path, monkeypatch):
@@ -456,17 +481,62 @@ def test_expired_session_is_removed_and_binding_requires_relogin(tmp_path, monke
     assert cookie_jar(store, binding_id, "account-A")
 
 
-def test_download_job_snapshot_keeps_account_reference_not_cookie_values(tmp_path):
+def test_download_job_snapshot_keeps_account_reference_not_cookie_values(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
     store = Store(tmp_path / "state.db")
     profile = create_profile(store, "Chrome A")
-    binding_id = bind(store, profile, "Facebook")
+    token = pair(store, pairing_code(store, profile))
+    session = receive_session(
+        store, token, "Facebook",
+        [_synthetic_facebook_cookie("account-A"),
+         {"name": "xs", "value": "private-session-cookie", "domain": ".facebook.com"}],
+    )
     job_id = store.submit("download", {
         "url": "https://www.facebook.com/watch/123",
-        "account_ref": binding_id,
+        "account_ref": session["binding_id"],
         "expected_identity": "account-A",
     })
     payload = store.job(job_id)["payload"]
     encoded = json.dumps(payload, sort_keys=True)
-    assert payload["account_ref"] == binding_id
+    assert payload["account_ref"] == session["binding_id"]
     assert payload["expected_identity"] == "account-A"
-    assert "c_user" not in encoded and "session-token" not in encoded
+    assert token not in encoded
+    assert "account-A" in encoded
+    assert "c_user" not in encoded
+    assert "private-session-cookie" not in encoded
+
+
+def test_concurrent_session_handoffs_cannot_switch_account_after_empty_identity(tmp_path, monkeypatch):
+    _use_test_only_reversible_protection(monkeypatch)
+    store = Store(tmp_path / "state.db")
+    profile = create_profile(store, "Chrome A")
+    token = pair(store, pairing_code(store, profile))
+    binding_id = bind(store, profile, "Facebook")
+    start = Barrier(2)
+
+    def handoff(identity):
+        start.wait(timeout=10)
+        try:
+            receive_session(
+                store, token, "Facebook", [_synthetic_facebook_cookie(identity)]
+            )
+            return ("accepted", identity)
+        except PermissionError as exc:
+            return ("rejected", str(exc))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(handoff, ("account-A", "account-B")))
+
+    assert sorted(result[0] for result in results) == ["accepted", "rejected"]
+    accepted_identity = next(value for status, value in results if status == "accepted")
+    rejected_message = next(value for status, value in results if status == "rejected")
+    assert "Account mismatch" in rejected_message
+    with store.connect() as conn:
+        row = conn.execute(
+            "SELECT identity,status FROM bindings WHERE id=?", (binding_id,)
+        ).fetchone()
+    assert row["identity"] == accepted_identity
+    assert row["status"] == "available"
+    assert {cookie.name: cookie.value for cookie in cookie_jar(
+        store, binding_id, accepted_identity
+    )} == {"c_user": accepted_identity}
