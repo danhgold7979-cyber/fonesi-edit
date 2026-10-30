@@ -1,0 +1,5 @@
+# Rebuild P02-04 / P03-06 — real CPU render proof
+
+Implement a deliberately narrow, real local-media vertical slice: one video input, CPU H.264/AAC MP4 output, no trim/speed/overlay claims. This proves process/artifact plumbing, not full editor coverage. Use explicit verified FFmpeg/ffprobe binaries, shell=False, file/pipe protocols, bounded execution, owned staging on destination filesystem, no-overwrite publication. Decode all output frames before publishing. Caller supplies measured duration tolerance; the proof fixture uses 1 second CFR24 and 100ms tolerance (fixture policy only, not product-wide acceptance).
+
+Publication uses atomic link-to-new-name; filesystems without this primitive fail closed instead of overwriting. Source never deleted or rewritten. If final name exists, return collision error even if contents happen to match. Roll back owned staging only; after publication, never remove an existing final user output on cleanup failure. Tests: actual synthetic source -> encoded/decode verified output; duplicate destination remains unchanged; invalid source publishes nothing. Windows and general VFR/HDR/GPU/audio parity remain BLOCKED/NOT_RUN.
