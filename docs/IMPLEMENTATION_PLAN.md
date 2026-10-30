@@ -177,6 +177,8 @@ Ba đợt kỹ thuật, không giảm phạm vi: A YouTube/Bilibili; B TikTok/Fa
 
 **Bàn giao:** tạo/render nhiều đầu ra theo ma trận, tái tạo được.
 
+**Tiến độ P09-01 (30/10/2026):** Cơ chế đổi thứ tự scene kéo-thả/Lên-Xuống trong Qt, lưu thứ tự theo thư mục nguồn, chuyển vị hàng/lock/history/vectors, bảo vệ worker cũ và SQLite duplicate check đã triển khai/kiểm chứng bằng [CI 41016748802](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41016748802), Linux 701 / Windows 700+1 skip cùng packaged proof. [Plan và giới hạn](phases/P09_SCENE_REORDER_PLAN.md). Chưa đóng ô P09-01 vì scene exclusion/khóa nâng cao và nghiệm thu thực tế còn mở.
+
 **Cổng hoàn tất:** đối chiếu tập nhỏ với toàn bộ tổ hợp; tập lớn không tạo cả tích trong RAM; không nới W/K; đổi tên tệp không vượt chống trùng.
 
 ## 12. P10 — Auto và quản lý tài nguyên

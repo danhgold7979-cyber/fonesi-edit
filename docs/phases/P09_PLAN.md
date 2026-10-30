@@ -61,3 +61,7 @@ Bổ sung tùy chọn `manual` riêng với `weights`: vector thời lượng (g
 - [ ] Nghiệm thu hoàn chỉnh toàn P09 cần scene reorder UI, corpus lớn, UX nhiều tổ hợp/locks nâng cao và Windows/exFAT/power-loss trên máy người dùng.
 
 Đây là **lát cắt đạt theo kiểm thử offline/CI**, không phải đóng toàn bộ phase. Theo `IMPLEMENTATION_PLAN.md`, không thay checklist P09-[01…06] thành hoàn tất khi vẫn thiếu cổng trên.
+
+## 6. P09-01 scene reorder — verified bounded slice (30/10/2026)
+
+Detailed plan: [P09_SCENE_REORDER_PLAN.md](P09_SCENE_REORDER_PLAN.md). Implemented the in-app drag-reorder and Up/Down scene controls, immutable folder/hash/path identities, transpose of rows/locked cells/history/per-scene weight and manual-duration vectors, persisted folder-specific ordering and stale-async protection. The matrix render transaction now rejects cross-order duplicate reservations without rewriting legacy SQLite history. [CI 41016748802](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41016748802) **SUCCESS exact SHA `3ff0e31b28d6c12caeaaf4ae60d7f79eb28818b8`**: Linux 701 PASS; Windows 700 PASS + one intentional skip; production/frozen packaged proof both runners. Physical Windows dragging, advanced scene exclusion/locking and other P09/P11 acceptance gates remain OPEN; **do not mark the entire phase complete**.

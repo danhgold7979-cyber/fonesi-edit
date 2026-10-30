@@ -17,9 +17,18 @@ Reviewed `AGENTS.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md` P09-01/04/05/06
 
 ## Acceptance boundaries
 
-- [ ] Reordering in actual Qt Matrix UI changes output clip order and C/G formula without changing source files or rewriting old queued jobs.
-- [ ] Scene locks, per-scene inputs, deterministic row identity and W/K/history do not silently change; historical ambiguities fail closed.
-- [ ] Stale background callbacks are discarded, saved order is restored only for matching source scenes, and malformed preferences cannot corrupt a matrix.
-- [ ] Regression + exact-HEAD Linux and Windows packaged CI pass.
+- [x] Reordering in actual Qt Matrix UI changes output clip order and C/G formula without changing source files or rewriting old queued jobs.
+- [x] Scene locks, per-scene inputs, deterministic row identity and W/K/history do not silently change; historical ambiguities fail closed.
+- [x] Stale background callbacks are discarded, saved order is restored only for matching source scenes, and malformed preferences cannot corrupt a matrix.
+- [x] Regression + exact-HEAD Linux and Windows packaged CI pass.
 
 Still OPEN: advanced scene-level locking/exclusion and collision-proof identity across changed source archives, solver large-corpus optimality, real Windows/exFAT/NTFS/power loss, Chrome/live platforms, GPU, installer and unrelated SQLite issue #6. No force push and no merge to `main`.
+
+## Verified code, regression and CI (2026-10-30)
+
+- [Plan-before-code a0c3710](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a0c371050c3ea74f6ed17647278e7914f7c0f5d7) → [matrix history/ordering ce5ce09](https://github.com/danhgold7979-cyber/fonesi-edit/commit/ce5ce096b25c9eb3ad4cd8bf9144bcf0cd94b428) → [Qt scene controls 7cefe29](https://github.com/danhgold7979-cyber/fonesi-edit/commit/7cefe2945e487f8df310d540693df06d42a089e6) → test and final concurrency hardening [3ff0e31b28d6c12caeaaf4ae60d7f79eb28818b8](https://github.com/danhgold7979-cyber/fonesi-edit/commit/3ff0e31b28d6c12caeaaf4ae60d7f79eb28818b8). All changes on `develop/fonesi-full`, not `main`.
+- The actual MatrixPage has a drag-reorder scene list and Up/Down commands, original directory identification, persisted folder-specific order (only replayed for the exact complete folder set), safe logical C renumbering and reordering of row columns, locks, per-scene weights and explicit seconds. Source paths/hashes, selected row and already queued payloads remain unchanged. Stale generate/regenerate/preview callbacks are discarded; repeated identical generation requests supersede older requests.
+- New pure helper reconciles legacy SQLite history only when an angle's source-scene membership is provably unique; ambiguity/missing asset causes an explicit error. The atomic render enqueue transaction checks cross-order duplicates and W/K again before writing jobs; no DB migration or historical rewrite.
+- Regression includes bad permutations/locks/history, source immutability, actual FFmpeg render of a newly reordered clip sequence, same-scope reserved-history collision with zero partial jobs, Qt drag-handler/button/model/selection behavior, bad vector/preference handling and concurrent worker races.
+- [GitHub Actions run 41016748802](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41016748802) **SUCCESS on exact code/test SHA `3ff0e31b28d6c12caeaaf4ae60d7f79eb28818b8`**: Linux **701 PASS**, Windows **700 PASS + 1 intentional POSIX-only skip**. Source plan check, 128-file synthetic FFprobe benchmark, production desktop/native-host builds and frozen application render/batch/matrix/localhost download/UI proof **PASS on both CI runners**. Windows development artifact was uploaded (197,307,982 bytes; expires 2026-11-06).
+- **Still OPEN**: physically dragging with real Windows input devices, scene-level lock/exclusion refinements, legacy history where identical hashes belong to multiple scenes (conservatively rejected), large W/K/history solver stress, NTFS/exFAT power-loss, SQLite issue #6, GPU, live providers/Chrome and every other full release gate. This verifies the bounded reorder slice, not all of P09 or the 95 product requirements.
