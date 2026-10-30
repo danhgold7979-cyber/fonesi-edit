@@ -2,7 +2,7 @@
 from pathlib import Path
 import time
 
-from fonesi_edit.domain import Composition
+from fonesi_edit.domain import Composition, canonical
 from fonesi_edit.jobs import Scheduler
 from fonesi_edit.matrix import Angle, enqueue_rows, history
 from fonesi_edit.prototypes.media import create_fixture, probe
@@ -17,6 +17,14 @@ def _prepared(tmp_path, scope):
     preset=Composition(width=320,height=180,fps=25,encoder="cpu")
     ids=enqueue_rows(store,scope,row,preset,tmp_path/"out")
     return store,ids[0],row
+
+
+def _add_unrelated_success(store,scope):
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO matrix_history(scope,combination,state,job_id,created) "
+            "VALUES(?,?,'succeeded',?,?)",
+            (scope,canonical(["other-a","other-b"]),"other-success",1.0))
 
 
 def _mark_worker_orphaned(store,job_id):
@@ -49,6 +57,7 @@ def _run_to_success(store,job_id):
 
 def test_orphaned_matrix_worker_recovers_same_reserved_snapshot_then_succeeds(tmp_path):
     store,job_id,_=_prepared(tmp_path,"orphan-scope")
+    _add_unrelated_success(store,"orphan-scope")
     before=store.job(job_id)
     _mark_worker_orphaned(store,job_id)
     assert store.recover(stale_seconds=1)==1
@@ -61,10 +70,14 @@ def test_orphaned_matrix_worker_recovers_same_reserved_snapshot_then_succeeds(tm
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
             ("orphan-scope",)).fetchone()
         assert (state,linked)==("reserved",job_id)
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("orphan-scope",canonical(["other-a","other-b"]))).fetchone())==("succeeded","other-success")
         assert conn.execute(
             "SELECT COUNT(*) FROM matrix_history WHERE scope=?",
             ("orphan-scope",)).fetchone()[0]==1
-    assert history(store,"orphan-scope")==[["scene-a","scene-b"]]
+    assert ["scene-a","scene-b"] in history(store,"orphan-scope")
+    assert ["other-a","other-b"] in history(store,"orphan-scope")
     _run_to_success(store,job_id)
     assert history(store,"orphan-scope")==[["scene-a","scene-b"]]
     with store.connect() as conn:
@@ -72,10 +85,14 @@ def test_orphaned_matrix_worker_recovers_same_reserved_snapshot_then_succeeds(tm
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
             ("orphan-scope",)).fetchone()
         assert (state,linked)==("succeeded",job_id)
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("orphan-scope",canonical(["other-a","other-b"]))).fetchone())==("succeeded","other-success")
 
 
 def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
     store,job_id,_=_prepared(tmp_path,"cancel-retry-scope")
+    _add_unrelated_success(store,"cancel-retry-scope")
     _mark_worker_orphaned(store,job_id)
     store.cancel(job_id)
     with store.connect() as conn:
@@ -93,7 +110,10 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
         assert tuple(conn.execute(
             "SELECT state,job_id FROM matrix_history WHERE scope=?",
             ("cancel-retry-scope",)).fetchone())==("failed",job_id)
-    assert history(store,"cancel-retry-scope")==[]
+        assert tuple(conn.execute(
+            "SELECT state,job_id FROM matrix_history WHERE scope=? AND combination=?",
+            ("cancel-retry-scope",canonical(["other-a","other-b"]))).fetchone())==("succeeded","other-success")
+    assert history(store,"cancel-retry-scope")==[["other-a","other-b"]]
 
     store.retry(job_id)
     retried=store.job(job_id)
@@ -108,7 +128,8 @@ def test_cancelled_orphaned_matrix_job_retries_same_identity_once(tmp_path):
             ("cancel-retry-scope",)).fetchone()[0]==1
         assert conn.execute(
             "SELECT COUNT(*) FROM jobs WHERE id=?",(job_id,)).fetchone()[0]==1
-    assert history(store,"cancel-retry-scope")==[["scene-a","scene-b"]]
+    assert ["scene-a","scene-b"] in history(store,"cancel-retry-scope")
+    assert ["other-a","other-b"] in history(store,"cancel-retry-scope")
     _run_to_success(store,job_id)
     with store.connect() as conn:
         assert tuple(conn.execute(
