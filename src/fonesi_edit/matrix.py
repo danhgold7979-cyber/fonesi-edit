@@ -525,7 +525,7 @@ def enqueue_rows(store,scope,rows,preset,output_root,audio=None,allocation='prop
             output=Path(data['output']);data['output']=str(output.with_name(f'video_{sequence:06d}_'+output.name.removeprefix('video_')))
             now=time.time()
             conn.execute("INSERT INTO jobs(id,kind,state,payload,created,updated) VALUES(?,'render','pending',?,?,?)",(job_id,canonical(checked_payload(data)),now,now))
-            conn.execute("INSERT INTO matrix_history VALUES(?,?,'reserved',?,?) ON CONFLICT(scope,combination) DO UPDATE SET state='reserved',job_id=excluded.job,created=excluded.created",(scope,key,job_id,now));jobs.append(job_id)
+            conn.execute("INSERT INTO matrix_history VALUES(?,?,'reserved',?,?) ON CONFLICT(scope,combination) DO UPDATE SET state='reserved',job_id=excluded.job_id,created=excluded.created",(scope,key,job_id,now));jobs.append(job_id)
             if progress is not None and total:
                 progress(.7+.25*(index+1)/total)
             # A cancel after an INSERT must roll back the entire transaction.
