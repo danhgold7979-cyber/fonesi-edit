@@ -463,3 +463,24 @@ def test_qt_filter_change_discards_inflight_generation(tmp_path,monkeypatch):
     finally:
         release.set()
         close(window)
+
+
+def test_qt_angle_exclusion_blocks_unsafe_physical_rename_and_stale_csv(tmp_path,monkeypatch):
+    root=tmp_path/"source"
+    monkeypatch.setattr(pages_module,"scan_scenes",lambda _root:synthetic_scenes(root))
+    window=MainWindow(tmp_path/"state");window.scheduler.paused=True
+    try:
+        page=window.matrix;page.folder.setText(str(root));page.count.setValue(1)
+        page.scan_scene_choices();wait_until(lambda:not window.tasks)
+        page.scene_filter.topLevelItem(0).child(0).setCheckState(
+            0,Qt.CheckState.Unchecked)
+        with pytest.raises(ValueError,match="ma trận hợp lệ"):
+            page.csv()
+        page.generate();wait_until(lambda:not window.tasks)
+        assert page.model.rows
+        assert len(page.scenes)==3  # Only one angle, not the whole scene, was removed.
+        with pytest.raises(ValueError,match="đủ mọi cảnh/góc"):
+            page.rename_preview()
+        assert not window.failures,window.failures
+    finally:
+        close(window)
