@@ -23,6 +23,19 @@ def _identity(info):
     return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
+def _cross_api_identity(info):
+    # CPython Windows lstat ctime is birthtime, but fstat ctime is ChangeTime.
+    # Compare creation time when available; retain change time in _identity
+    # for comparisons made within the same API before/after copying.
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_size,
+        info.st_mtime_ns,
+        getattr(info, "st_birthtime_ns", info.st_ctime_ns),
+    )
+
+
 @contextmanager
 def stage_verified_input(
     source, expected_sha256, staging_parent, *, max_bytes, timeout=30, cancel=None
@@ -73,12 +86,12 @@ def stage_verified_input(
         opened = os.fstat(reader.fileno())
         if not stat.S_ISREG(opened.st_mode):
             raise ValueError("INPUT_CHANGED_KIND")
-        if _identity(opened) != _identity(original):
-            fields = ("DEVICE", "INODE", "SIZE", "MTIME", "CTIME")
+        if _cross_api_identity(opened) != _cross_api_identity(original):
+            fields = ("DEVICE", "INODE", "SIZE", "MTIME", "CREATION_OR_CHANGE_TIME")
             changed = [
                 name
                 for name, before, after in zip(
-                    fields, _identity(original), _identity(opened)
+                    fields, _cross_api_identity(original), _cross_api_identity(opened)
                 )
                 if before != after
             ]
@@ -106,7 +119,7 @@ def stage_verified_input(
             check()
             if _identity(os.fstat(reader.fileno())) != _identity(opened) or _identity(
                 source.lstat()
-            ) != _identity(opened):
+            ) != _identity(original):
                 raise ValueError("INPUT_CHANGED")
             if count != opened.st_size or digest.hexdigest() != expected_sha256:
                 raise ValueError("INPUT_DIGEST_MISMATCH")

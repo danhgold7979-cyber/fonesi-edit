@@ -140,3 +140,63 @@ class PreparedInputTests(unittest.TestCase):
             self.fail("Unexpected prepared input")
         self.assertFalse(list(self.root.glob(".fonesi-input-*")))
         self.assertEqual(self.source.read_bytes(), b"external replacement contents")
+
+    def test_cross_api_creation_time_is_not_change_time(self):
+        from types import SimpleNamespace
+
+        from fonesi_edit.prepared_input import _cross_api_identity, _identity
+
+        fields = {
+            "st_dev": 1,
+            "st_ino": 2,
+            "st_size": 3,
+            "st_mtime_ns": 4,
+            "st_birthtime_ns": 5,
+            "st_ctime_ns": 5,
+        }
+        path_stat = SimpleNamespace(**fields)
+        handle_stat = SimpleNamespace(**(fields | {"st_ctime_ns": 99}))
+        self.assertEqual(
+            _cross_api_identity(path_stat), _cross_api_identity(handle_stat)
+        )
+        self.assertNotEqual(_identity(path_stat), _identity(handle_stat))
+        for key in ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_birthtime_ns"):
+            altered = SimpleNamespace(**(fields | {key: 999}))
+            self.assertNotEqual(
+                _cross_api_identity(path_stat), _cross_api_identity(altered)
+            )
+        changed_handle = SimpleNamespace(**(fields | {"st_ctime_ns": 100}))
+        self.assertNotEqual(_identity(handle_stat), _identity(changed_handle))
+
+    def test_windows_style_stat_semantics_full_copy(self):
+        import os
+        from types import SimpleNamespace
+
+        real_lstat, real_fstat = Path.lstat, os.fstat
+        source = self.source
+
+        def fields(info, change):
+            return SimpleNamespace(
+                st_dev=info.st_dev,
+                st_ino=info.st_ino,
+                st_size=info.st_size,
+                st_mtime_ns=info.st_mtime_ns,
+                st_ctime_ns=change,
+                st_birthtime_ns=5,
+                st_mode=info.st_mode,
+            )
+
+        def path_stat(path, *args, **kwargs):
+            info = real_lstat(path, *args, **kwargs)
+            return fields(info, 5) if path == source else info
+
+        def handle_stat(fd):
+            return fields(real_fstat(fd), 99)
+
+        with (
+            patch.object(Path, "lstat", path_stat),
+            patch("fonesi_edit.prepared_input.os.fstat", handle_stat),
+            self.prepare() as result,
+        ):
+            self.assertEqual(result.path.read_bytes(), self.data)
+        self.assertFalse(list(self.root.glob(".fonesi-input-*")))
