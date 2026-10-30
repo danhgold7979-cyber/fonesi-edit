@@ -337,3 +337,9 @@ This closes the bounded receipt/rollback ownership slice only. Physical Windows 
 Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), the 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact: 197,420,154 bytes; evidence artifacts: Linux 391,868 bytes and Windows 324,574 bytes.
 
 These are bounded synthetic/in-process slices; P11/P12 and physical Windows/live-provider acceptance remain OPEN. Do not merge main.
+
+## P11-08 / AUTH-06, AUTH-08 — Bridge handoff and revocation ordering (30/10/2026)
+
+[Plan](phases/P11_BRIDGE_REVOCATION_RACE_PLAN.md) → [code/test commit 683f532](https://github.com/danhgold7979-cyber/fonesi-edit/commit/683f5326021f88da04441b43894d8e9dd16fcc83) → [exact-HEAD CI 41088435585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41088435585) SUCCESS. receive_session and revoke_pairing serialize on the same SQLite writer lock. Revoke-first rejects stale bridge handoff without creating profile binding/session state; handoff-first stores the complete protected session before revocation. Linux 892 passed; Windows 888 passed + 4 intentional platform skips; both OS passed Batch/Matrix, production/native-host build and frozen packaged proof.
+
+OPEN: pending pairing-code issuance can still race the revocation sweep and needs the same writer lock plus deterministic regression. Live Chrome/extension/DPAPI/provider and physical Windows acceptance remain blocked on real user-machine evidence.

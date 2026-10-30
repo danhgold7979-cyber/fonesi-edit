@@ -257,3 +257,10 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - Each regression first activates a valid prior FFmpeg/ffprobe version, then verifies failure leaves old binary bytes, companion, active paths and active-version metadata unchanged; no new version is published, no staging folder remains and progress never reaches 1.
 - Evidence: [plan](phases/P11_TOOL_INSTALL_FAILURE_BOUNDARY_PLAN.md), [tests 096d6bb](https://github.com/danhgold7979-cyber/fonesi-edit/commit/096d6bbb16768fb8c063109d2e4def5cd9e64dd6), [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX skip; builds and packaged proofs both OS.
 - Limits: synthetic fetch/SQLite/filesystem tests do not prove physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC, Chrome/DPAPI/session bridge, live providers or GPU.
+
+
+## AUTH-06 / AUTH-08 — Bridge handoff and revocation ordering (30/10/2026)
+
+[Exact-HEAD CI 41088435585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41088435585) SUCCESS on 683f5326021f88da04441b43894d8e9dd16fcc83. Linux 892 passed / 0 skipped; Windows 888 passed / 4 intentional skips / 0 failures. receive_session revalidates the bridge inside BEGIN IMMEDIATE, and revoke_pairing uses the same writer lock. Deterministic revoke-first and handoff-first tests pass; both production/native-host builds and frozen packaged proofs pass.
+
+Pending pairing-code issuance/revocation serialization remains a follow-up. This synthetic evidence does not certify live Chrome/extension delivery, DPAPI user-account behavior, provider acceptance or physical Windows-machine acceptance.

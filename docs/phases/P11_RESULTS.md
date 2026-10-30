@@ -175,3 +175,13 @@ Settings now reserves a normalized per-tool busy key before scheduling work; FFp
 Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), the 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact: 197,420,154 bytes; evidence artifacts: Linux 391,868 bytes and Windows 324,574 bytes.
 
 These close bounded synthetic SFX and in-process Settings concurrency slices only. Full P11/P12 and physical Windows/live-provider acceptance remain OPEN.
+
+## P11-08 / AUTH-06, AUTH-08 — Serialize profile handoff and pairing revocation (30/10/2026)
+
+Plan d684602 → implementation e4f7b3d → compatibility fix 683f532 → [exact-HEAD CI 41088435585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41088435585) SUCCESS.
+
+receive_session revalidates the bridge inside BEGIN IMMEDIATE; binding creation, account mismatch check, protected session write and binding status update remain in the same writer transaction. revoke_pairing uses the same writer lock. Two deterministic threaded tests prove both lock orderings: revocation-first rejects a stale bridge without creating a binding/session; handoff-first commits the complete session before revocation. Existing profile A/B isolation, mismatch, cookie filtering, expiry/relogin, pairing, job snapshot and DPAPI fail-closed tests remain passing.
+
+Exact-HEAD suite: Linux 892 passed / 0 skipped; Windows 888 passed / 4 intentional skips / 0 failures. Batch 128-source dry-run: 5.873457 s Linux / 7.603461 s Windows, failed_count=0. Logical Matrix 2,000 outputs: 11.955144 s Linux / 9.672810 s Windows, complete=true, max spread 5. Both production/native-host builds and frozen packaged proofs passed (6.419 s Linux / 9.937 s Windows). Windows development artifact: 197,426,877 bytes.
+
+Separate follow-up: serialize pending pairing-code issuance with the revocation transaction; this race is not yet covered. Synthetic evidence does not certify live Chrome/extension, DPAPI user profile, provider login, physical Windows or complete P11/P12 acceptance.

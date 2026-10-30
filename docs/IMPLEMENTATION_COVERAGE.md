@@ -141,3 +141,9 @@ Added a synchronous per-tool busy registry in Settings, FFprobe→FFmpeg alias n
 Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), the 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact: 197,420,154 bytes; evidence artifacts: Linux 391,868 bytes and Windows 324,574 bytes.
 
 Still OPEN: physical Windows ACL/AV/disk-full/power-loss, signed installer/update and cross-process mutex, live Chrome/provider auth, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12 acceptance.
+
+## P11-08 / AUTH-06, AUTH-08 — Bridge handoff/revocation concurrency (30/10/2026)
+
+The bridge record is revalidated inside the SQLite writer transaction before any profile binding is created or updated. Profile revocation uses the same BEGIN IMMEDIATE lock. Deterministic tests prove revoke-first rejects stale requests without a binding/session, and handoff-first commits the complete protected session before revocation. Exact-HEAD [CI 41088435585](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41088435585) SUCCESS on 683f5326021f88da04441b43894d8e9dd16fcc83: Linux 892 passed; Windows 888 passed + 4 intentional skips; both production/native-host builds and frozen packaged proofs passed.
+
+Still OPEN: pending pairing-code issuance vs revocation serialization; live Chrome/extension and DPAPI user-account acceptance, provider authentication, real Windows ACL/AV/disk-full/power-loss, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12.

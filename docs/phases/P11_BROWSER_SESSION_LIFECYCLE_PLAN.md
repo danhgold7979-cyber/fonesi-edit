@@ -31,14 +31,20 @@ Existing coverage proves independent Chrome profile directories, per-profile pai
 
 ## 4. Acceptance criteria
 
-- [ ] Chrome A and Chrome B can hold distinct same-platform identities and cookie jars without cross-profile leakage.
-- [ ] Incoming account mismatch is rejected without mutating the old encrypted session, identity or status.
-- [ ] Foreign-domain and partitionKey cookies are excluded; no transferable cookies means no session is stored.
-- [ ] Expired cookie jars fail with an explicit relogin message, delete only the stale binding secret and set that binding to `login_required`.
-- [ ] A later explicit relogin/bridge handoff can restore the binding to `available` without affecting another profile.
-- [ ] Job snapshots retain only account/profile references and expected identity, never cookie values or session tokens.
-- [ ] Existing pairing, revoke, DPAPI fail-closed, job-account binding, download and complete-suite regressions remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
+- [x] Chrome A and Chrome B can hold distinct same-platform identities and cookie jars without cross-profile leakage.
+- [x] Incoming account mismatch is rejected without mutating the old encrypted session, identity or status.
+- [x] Foreign-domain and partitionKey cookies are excluded; no transferable cookies means no session is stored.
+- [x] Expired cookie jars fail with an explicit relogin message, delete only the stale binding secret and set that binding to `login_required`.
+- [x] A later explicit relogin/bridge handoff can restore the binding to `available` without affecting another profile.
+- [x] Job snapshots retain only account/profile references and expected identity, never cookie values or session tokens.
+- [x] Existing pairing, revoke, DPAPI fail-closed, job-account binding, download and complete-suite regressions remain passing.
+- [x] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
+
+## Execution result — synthetic regression PASS (30/10/2026)
+
+Browser lifecycle tests plus the bridge ordering tests pass exact-HEAD CI 41088435585 on 683f5326021f88da04441b43894d8e9dd16fcc83. Linux 892 passed / 0 skipped; Windows 888 passed / 4 intentional platform skips / 0 failures. Tests cover two same-platform profile identities and cookie jars, mismatch preservation, foreign/partitioned cookie filtering, expiry/relogin, job snapshot secrecy, concurrent handoffs, and revoke-vs-handoff writer-lock ordering. Both runners passed production/native-host build and frozen packaged proof.
+
+This remains synthetic evidence; it does not certify live Chrome/extension delivery, DPAPI on a user's Windows account, provider acceptance, browser challenge/lock behavior, or physical Windows acceptance. Pending pairing-code issuance vs revocation remains a separate follow-up.
 
 ## 5. Limits
 
