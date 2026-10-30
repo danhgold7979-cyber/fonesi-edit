@@ -231,3 +231,18 @@ def test_missing_matrix_source_after_enqueue_never_marks_history_succeeded(tmp_p
         assert history(store,"missing-source-scope")==[]
     finally:
         scheduler.shutdown()
+
+
+@pytest.mark.parametrize("payload",[
+    {"matrix_scope":"","matrix_combination":canonical(["scene-a","scene-b"])},
+    {"matrix_combination":canonical(["scene-a","scene-b"])},
+])
+def test_retry_refuses_incomplete_matrix_reservation_identity(tmp_path,payload):
+    store=Store(tmp_path/"state.db")
+    job_id=store.submit("render",payload)
+    claimed=store.claim({"render"})
+    assert claimed and claimed["id"]==job_id
+    store.fail(job_id,"synthetic malformed Matrix identity")
+    with pytest.raises(ValueError,match="missing its reservation identity"):
+        store.retry(job_id)
+    assert store.job(job_id)["state"]=="failed"
