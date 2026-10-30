@@ -1237,6 +1237,7 @@ class MatrixModel(QAbstractTableModel):
                 self.rows[index.row()][index.column()-1]=old
                 raise ValueError('Thay góc vi phạm unique/W/K/history')
             # Formula column depends on every scene cell: refresh together.
+            self.page._matrix_revision+=1
             self.dataChanged.emit(index,self.index(index.row(),len(self.scenes)+1))
             return True
         except (ValueError,StopIteration) as exc:
@@ -1369,6 +1370,11 @@ class MatrixPage(QWidget):
             self.host.message('Không đổi thứ tự cảnh: '+str(exc))
 
     def generate(self):
+        if not self.folder.text().strip():
+            raise ValueError('Chọn thư mục chứa cảnh trước khi sinh ma trận')
+        # A second request must supersede the first even if its options are
+        # identical; background callbacks may complete out of order.
+        self._matrix_revision+=1
         folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value();w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
         scope=self.scope();revision=self._matrix_revision
         saved=self.host.store.setting(self.scene_order_key(),[])
@@ -1379,6 +1385,7 @@ class MatrixPage(QWidget):
             scenes=scan_scenes(folder)
             natural=scene_directories(scenes)
             reordered=(isinstance(saved,list) and len(saved)==len(natural)
+                       and all(type(path) is str for path in saved)
                        and len(set(saved))==len(natural) and set(saved)==set(natural))
             if reordered:
                 order=[natural.index(value) for value in saved]
@@ -1455,12 +1462,15 @@ class MatrixPage(QWidget):
         self.host.background(work,done)
 
     def lock(self):
+        changed=False
         for index in self.table.selectedIndexes():
             if not index.isValid() or not (1<=index.column()<=len(self.model.scenes)):
                 continue
             key=index.row(),index.column()
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
+            changed=True
+        if changed:self._matrix_revision+=1
         self.table.viewport().update()
     def statistics(self):
         if not self.model.rows:raise ValueError('Chưa có ma trận để thống kê')
