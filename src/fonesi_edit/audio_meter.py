@@ -6,7 +6,6 @@ hardware amplifier level, acoustic SPL, or EBU true-peak/loudness.
 from dataclasses import dataclass
 import math
 import struct
-from typing import Buffer
 
 
 @dataclass(frozen=True)
