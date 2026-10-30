@@ -1492,7 +1492,9 @@ class MatrixPage(QWidget):
         transformed=reorder_matrix_scenes(
             self.scenes,self.model.rows,self.model.locked,self.old_history,order,
             self.window.value(),self.different.value(),self.compare.isChecked())
-        current=normalize_matrix_history(self.scenes,history(self.host.store,self.scope()))
+        current=normalize_matrix_history(
+            self.scenes,history(self.host.store,self.scope()),
+            all_scenes=self._available_scenes if self._history_reordered and self._available_scenes else None)
         if current!=self.old_history:
             raise ValueError('Lịch sử ma trận đã thay đổi hoặc không cùng thứ tự; sinh lại trước')
         ordered=[before[index] for index in order]
@@ -1504,6 +1506,7 @@ class MatrixPage(QWidget):
         self._history_reordered=True
         self.model.replace(self.scenes,transformed['rows'])
         self.model.locked=transformed['locked']
+        self._pinned_columns={order.index(column-1)+1 for column in self._pinned_columns}
         if 0<=selected_row<len(self.model.rows):
             self.table.selectRow(selected_row)
         self.table.viewport().update()
@@ -1540,17 +1543,35 @@ class MatrixPage(QWidget):
     def generate(self):
         if not self.folder.text().strip():
             raise ValueError('Chọn thư mục chứa cảnh trước khi sinh ma trận')
-        # A second request must supersede the first even if its options are
-        # identical; background callbacks may complete out of order.
+        # Qt tree is read on the UI thread. The worker only receives immutable
+        # value snapshots and rescans the actual files before using them.
+        choices=self._scene_choice_snapshot() if self._available_scenes else None
+        manifest=scene_manifest(self._available_scenes) if choices is not None else None
         self._matrix_revision+=1
-        folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value();w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
+        folder=Path(self.folder.text());n=self.count.value();seed=self.seed.value()
+        w=self.window.value();k=self.different.value();compare=self.compare.isChecked()
         scope=self.scope();revision=self._matrix_revision
         saved=self.host.store.setting(self.scene_order_key(),[])
-        locks={}
+        cell_locks={}
         for row,col in self.model.locked:
-            if col>0 and col<=len(self.model.scenes):locks.setdefault(row,{})[col-1]=self.model.rows[row][col-1].hash
+            if col>0 and col<=len(self.model.scenes):
+                cell_locks.setdefault(row,{})[col-1]=self.model.rows[row][col-1].hash
+        if choices is not None:
+            # Save only valid user intent together with its exact scanned
+            # fingerprint; never restore stale angle hashes after media changes.
+            self.host.store.set_setting(self.scene_filter_key(),
+                                        {'version':1,'manifest':manifest,'choices':choices})
         def work(progress,cancel):
-            scenes=scan_scenes(folder)
+            full=scan_scenes(folder)
+            if manifest is not None and scene_manifest(full)!=manifest:
+                raise ValueError('Danh sách cảnh/góc đã đổi trên ổ đĩa; hãy quét lại trước khi sinh')
+            if choices is not None:
+                chosen=select_matrix_scenes(full,choices)
+                scenes=chosen['scenes']
+                pinned_by_folder={chosen['folders'][index]:digest
+                                  for index,digest in chosen['pins'].items()}
+            else:
+                scenes=full;pinned_by_folder={}
             natural=scene_directories(scenes)
             reordered=(isinstance(saved,list) and len(saved)==len(natural)
                        and all(type(path) is str for path in saved)
@@ -1558,11 +1579,17 @@ class MatrixPage(QWidget):
             if reordered:
                 order=[natural.index(value) for value in saved]
                 scenes=reorder_matrix_scenes(scenes,[],set(),[],order)['scenes']
-            prior=history(self.host.store,scope)
-            if reordered:
-                prior=normalize_matrix_history(scenes,prior)
-            result=generate(scenes,n,seed,w,k,compare,prior,seconds=10,locks=locks,cancel=cancel)
-            return scenes,prior,reordered,result
+            pinned={index:pinned_by_folder[folder]
+                    for index,folder in enumerate(scene_directories(scenes))
+                    if folder in pinned_by_folder}
+            previous=history(self.host.store,scope)
+            if reordered or choices is not None:
+                previous=normalize_matrix_history(
+                    scenes,previous,all_scenes=full if choices is not None else None)
+            locks=scene_generation_locks(scenes,pinned,n,w,cell_locks)
+            result=generate(scenes,n,seed,w,k,compare,previous,
+                            seconds=10,locks=locks,cancel=cancel)
+            return full,scenes,previous,bool(reordered or choices is not None),result,pinned
         def done(data):
             if (revision!=self._matrix_revision or self.scope()!=scope
                     or str(Path(self.folder.text()).expanduser().resolve())!=str(folder.expanduser().resolve())
@@ -1570,12 +1597,22 @@ class MatrixPage(QWidget):
                         self.different.value(),self.compare.isChecked())!=(n,seed,w,k,compare)):
                 self.host.message('Đã bỏ ma trận sinh nền vì nguồn/cấu hình/thứ tự cảnh thay đổi')
                 return
-            self.scenes,self.old_history,self._history_reordered,result=data
+            full,self.scenes,self.old_history,self._history_reordered,result,pinned=data
+            if not self._available_scenes:
+                self.fill_scene_choices(full,restore=False)
             self.model.replace(self.scenes,result['rows'])
+            self._pinned_columns={index+1 for index in pinned}
+            for row in range(len(self.model.rows)):
+                for column in self._pinned_columns:
+                    self.model.locked.add((row,column))
             self.refresh_scene_list()
-            self.summary.setText(f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}. "+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
+            pinned_note=(f' • {len(pinned)} cảnh khóa góc mọi hàng.' if pinned else '')
+            self.summary.setText(
+                f"{len(result['rows'])}/{result['requested']} hàng; tối đa lý thuyết {result['capacity']}."
+                +pinned_note+' '+(result['reason'] or 'Đã tìm đủ theo ràng buộc.'))
             if not self.output.text():self.output.setText(str(folder.parent/(folder.name+' edit')))
         self.host.background(work,done)
+
     def valid_rows(self):
         return matrix_rows_valid(self.model.rows,self.old_history,
             self.window.value(),self.different.value(),self.compare.isChecked())
@@ -1594,12 +1631,13 @@ class MatrixPage(QWidget):
         scope=self.scope()
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
         seed=self.seed.value();revision=self._matrix_revision;reordered=self._history_reordered
+        complete=[list(scene) for scene in self._available_scenes] if reordered and self._available_scenes else None
         locked={column-1:current[row][column-1].hash
                 for r,column in self.model.locked
                 if r==row and 1<=column<=len(scenes)}
         def work(progress,cancel):
             latest=history(self.host.store,scope)
-            if reordered:latest=normalize_matrix_history(scenes,latest)
+            if reordered:latest=normalize_matrix_history(scenes,latest,all_scenes=complete)
             if latest!=previous:
                 raise ValueError('Lịch sử đặt chỗ đã thay đổi; hãy sinh lại ma trận')
             return regenerate_row(scenes,current,row,seed,w,k,compare,
@@ -1613,7 +1651,7 @@ class MatrixPage(QWidget):
                        !=[[angle.hash for angle in scene] for scene in scenes]
                     or self.scope()!=scope
                     or self.old_history!=previous
-                    or (normalize_matrix_history(scenes,history(self.host.store,scope))
+                    or (normalize_matrix_history(scenes,history(self.host.store,scope),all_scenes=complete)
                         if reordered else history(self.host.store,scope))!=previous
                     or (self.window.value(),self.different.value(),
                         self.compare.isChecked(),self.seed.value())!=(w,k,compare,seed)
@@ -1635,6 +1673,9 @@ class MatrixPage(QWidget):
             if not index.isValid() or not (1<=index.column()<=len(self.model.scenes)):
                 continue
             key=index.row(),index.column()
+            if index.column() in self._pinned_columns:
+                self.host.message('Góc đã khóa cho toàn cảnh: hãy mở khóa từ danh sách cảnh/góc rồi sinh lại')
+                continue
             if key in self.model.locked:self.model.locked.remove(key)
             else:self.model.locked.add(key)
             changed=True
@@ -1701,9 +1742,11 @@ class MatrixPage(QWidget):
         w,k,compare=self.window.value(),self.different.value(),self.compare.isChecked()
         minimum,maximum=self.minimum.value(),self.maximum.value()
         scene_order=deepcopy(self.scenes) if self._history_reordered else None
+        all_scenes=deepcopy(self._available_scenes) if scene_order is not None and self._available_scenes else None
         self.host.background(lambda p,c:enqueue_rows(self.host.store,scope,rows,preset,root,audio,allocation,
             minimum=minimum,maximum=maximum,window=w,different=k,
-            compare_window=compare,weights=weights,manual_durations=durations,scene_order=scene_order),
+            compare_window=compare,weights=weights,manual_durations=durations,
+            scene_order=scene_order,all_scenes=all_scenes),
             lambda ids:(self.host.message(f'Đã enqueue {len(ids)} hàng'),self.host.activate_queue()))
     def csv(self):
         path,_=QFileDialog.getSaveFileName(self,'Xuất ma trận',filter='CSV (*.csv)')
@@ -1714,6 +1757,9 @@ class MatrixPage(QWidget):
 
     def rename_preview(self):
         if not self.scenes:raise ValueError('Quét cảnh trước')
+        if (self._available_scenes and set(scene_directories(self.scenes))
+                !=set(scene_directories(self._available_scenes))):
+            raise ValueError('Đổi tên file thật yêu cầu đủ mọi cảnh; hãy bật lại cảnh đã loại')
         from ..renaming import scene_rename_plan,apply_rename
         operations=scene_rename_plan(self.scenes)
         if not operations:raise ValueError('Tên C/G đã đúng')
@@ -1731,7 +1777,7 @@ class MatrixPage(QWidget):
             if job['state'] in {'pending','running','blocked'} and any(clip.get('path') in paths for clip in job['payload'].get('composition',{}).get('clips',[])):raise ValueError('Nguồn còn được queue dùng; hủy/hoàn tất các job đó trước khi đổi tên')
         paused=self.host.scheduler.paused;self.host.scheduler.paused=True
         def done(result):
-            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self._matrix_revision+=1;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
+            self.host.relink_renamed(result['mapping']);self.scenes=[];self.old_history=[];self._history_reordered=False;self._matrix_revision+=1;self._pinned_columns=set();self._available_scenes=[];self._pin_by_folder={};self._scene_filter_updating=True;self.scene_filter.clear();self._scene_filter_updating=False;self.model.replace([],[]);self.refresh_scene_list();self.host.message(f"Đã đổi {result['count']} tệp. Journal: {result['journal']}")
         task=self.host.background(lambda progress,cancel:function(cancel),done)
         task.finished.connect(lambda:setattr(self.host.scheduler,'paused',paused))
 
