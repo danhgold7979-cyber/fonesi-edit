@@ -74,9 +74,46 @@ def test_logical_benchmark_reports_incomplete_search_without_claiming_unsat():
 
 
 
+def test_large_space_candidate_competition_improves_per_scene_balance():
+    baseline=benchmark(scenes=8,angles=4,outputs=600,window=1,different=2,
+                       seed=2026,budget_seconds=8,balance_candidates=1)
+    balanced=benchmark(scenes=8,angles=4,outputs=600,window=1,different=2,
+                       seed=2026,budget_seconds=8,balance_candidates=8)
+    assert baseline["complete"] and balanced["complete"]
+    assert baseline["generated"]==balanced["generated"]==600
+    assert baseline["theoretical_capacity"]==balanced["theoretical_capacity"]==4**8
+    assert baseline["max_per_scene_spread"]>0
+    assert balanced["max_per_scene_spread"]<baseline["max_per_scene_spread"]
+    assert balanced["max_per_scene_spread"]<=4
+    assert all(len(scene["angles"])==4 for scene in balanced["per_scene_usage"])
+    assert all(sum(angle["uses"] for angle in scene["angles"])==600
+               for scene in balanced["per_scene_usage"])
+
+
+def test_large_space_balancing_keeps_equal_hashes_separate_per_scene():
+    from fonesi_edit.matrix import combination
+    scenes=[
+        [Angle(1,index+1,f"virtual/C1/G{index+1}.mp4",f"same-{index}")
+         for index in range(101)],
+        [Angle(2,index+1,f"virtual/C2/G{index+1}.mp4",f"same-{index}")
+         for index in range(101)],
+    ]
+    result=generate(scenes,120,seed=41,window=1,different=1,
+                    seconds=5,balance_candidates=6)
+    assert result["complete"] and len(result["rows"])==120
+    assert len({combination(row) for row in result["rows"]})==120
+    assert [scene["scene"] for scene in result["usage"]]==[1,2]
+    assert all(sum(angle["uses"] for angle in scene["angles"])==120
+               for scene in result["usage"])
+    assert result["usage"][0]["angles"][0]["hash"]==result["usage"][1]["angles"][0]["hash"]
+    assert result["usage"][0]["angles"][0]["uses"]==result["usage"][1]["angles"][0]["uses"]
+
+
 @pytest.mark.parametrize("kwargs",[
     {"scenes":0},{"angles":0},{"outputs":False},{"window":-1},
     {"different":100},{"budget_seconds":float("nan")},
+    {"balance_candidates":0},{"balance_candidates":65},
+    {"balance_candidates":True},{"balance_candidates":2.5},
 ])
 def test_logical_benchmark_rejects_bad_configuration(kwargs):
     with pytest.raises(ValueError,match="Invalid logical"):
