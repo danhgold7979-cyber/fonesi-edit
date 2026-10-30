@@ -8,6 +8,7 @@ import argparse
 import json
 import math
 import platform
+from pathlib import Path
 import time
 import tracemalloc
 
@@ -84,11 +85,19 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--budget-seconds", type=float, default=4.0)
     parser.add_argument("--balance-candidates", type=int, default=8)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args(argv)
-    print(json.dumps(benchmark(args.scenes, args.angles, args.outputs,
-                               args.window, args.different, args.seed,
-                               args.budget_seconds, args.balance_candidates),
-                     indent=2, sort_keys=True))
+    report=benchmark(args.scenes, args.angles, args.outputs,
+                     args.window, args.different, args.seed,
+                     args.budget_seconds, args.balance_candidates)
+    if args.require_complete and not report["complete"]:
+        parser.error("bounded Matrix benchmark did not generate every requested row")
+    payload=json.dumps(report,indent=2,sort_keys=True)
+    print(payload)
+    if args.output:
+        args.output.parent.mkdir(parents=True,exist_ok=True)
+        args.output.write_text(payload+"\n",encoding="utf-8")
     return 0
 
 
