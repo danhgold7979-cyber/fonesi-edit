@@ -529,7 +529,7 @@ def test_exported_sfx_is_audible_only_after_percent_anchor(tmp_path):
     out=tmp_path/'sfx-at-half.mp4'
     assert render_composition(c,out)['validated']
     result=subprocess.run([locate_tool('ffmpeg'),'-v','error','-i',str(out),
-                           '-vn','-ac','1','-ar','48000','-f','s16le','-'],
+                           '-vn','-ac','2','-ar','48000','-f','s16le','-'],
                           capture_output=True,check=True)
     samples=array('h');samples.frombytes(result.stdout)
     assert len(samples)>40000
@@ -643,7 +643,7 @@ def test_custom_sfx_trigger_times_render_non_uniform_audible_events(tmp_path):
             'trim_end':.12,'volume':1}])
     args,graph,total=compile_graph(composition,tmp_path/'graph')
     assert abs(total-1)<.01
-    assert all(f'adelay={value}:all=1' in graph for value in (100,400,750))
+    assert all(f'adelay={value}|{value}' in graph for value in (100,400,750))
     assert graph.count('aresample=48000,asetpts=N/SR/TB,aformat=channel_layouts=stereo,adelay=')==3
     assert 'amix=inputs=3:normalize=0:duration=longest[sfxtriggered0]' in graph
     assert args.count(source)==4  # Video input plus three independent SFX inputs.
@@ -654,11 +654,12 @@ def test_custom_sfx_trigger_times_render_non_uniform_audible_events(tmp_path):
         '-vn','-ac','1','-ar','48000','-f','s16le','-'],
         capture_output=True,check=True).stdout
     samples=array('h');samples.frombytes(decoded)
-    assert len(samples)>43000
-    def peak(start,end):
-        return max(abs(sample) for sample in samples[round(start*48000):round(end*48000)])
-    assert peak(.02,.08)<20 and peak(.23,.34)<20 and peak(.55,.68)<20
-    assert peak(.13,.20)>100 and peak(.43,.50)>100 and peak(.78,.85)>100
+    assert len(samples)>86000
+    def peak(start,end,channel):
+        return max(abs(sample) for sample in samples[round(start*48000)*2+channel:round(end*48000)*2:2])
+    for channel in (0,1):
+        assert peak(.02,.08,channel)<20 and peak(.23,.34,channel)<20 and peak(.55,.68,channel)<20
+        assert peak(.13,.20,channel)>100 and peak(.43,.50,channel)>100 and peak(.78,.85,channel)>100
     invalid=deepcopy(composition)
     invalid.audio[0]['trigger_times']=[.1,.4,1.0]
     with pytest.raises(ValueError,match='outside the output timeline'):
@@ -677,21 +678,22 @@ def test_sfx_repeat_anchors_render_two_audible_events_without_leaking_outside(tm
             'repeat_count':2,'repeat_interval':.4,'trim_end':.12,'volume':1}])
     args,graph,total=compile_graph(composition,tmp_path/'graph')
     assert abs(total-1)<.01
-    assert 'adelay=200:all=1' in graph and 'adelay=600:all=1' in graph
+    assert 'adelay=200|200' in graph and 'adelay=600|600' in graph
     assert graph.count('aresample=48000,asetpts=N/SR/TB,aformat=channel_layouts=stereo,adelay=')==2
     assert 'amix=inputs=2:normalize=0:duration=longest[sfxrepeated0]' in graph
     assert args.count(source)==3  # Video input plus two independent SFX inputs.
     result=render_composition(composition,tmp_path/'two-sfx.mp4')
     assert result['validated']
     decoded=subprocess.run([locate_tool('ffmpeg'),'-v','error',
-        '-i',str(tmp_path/'two-sfx.mp4'),'-vn','-ac','1','-ar','48000',
+        '-i',str(tmp_path/'two-sfx.mp4'),'-vn','-ac','2','-ar','48000',
         '-f','s16le','-'],capture_output=True,check=True).stdout
     samples=array('h');samples.frombytes(decoded)
-    assert len(samples)>43000
-    def peak(start,end):
-        return max(abs(sample) for sample in samples[round(start*48000):round(end*48000)])
-    assert peak(.05,.12)<20 and peak(.40,.50)<20
-    assert peak(.23,.30)>100 and peak(.63,.70)>100
+    assert len(samples)>86000
+    def peak(start,end,channel):
+        return max(abs(sample) for sample in samples[round(start*48000)*2+channel:round(end*48000)*2:2])
+    for channel in (0,1):
+        assert peak(.05,.12,channel)<20 and peak(.40,.50,channel)<20
+        assert peak(.23,.30,channel)>100 and peak(.63,.70,channel)>100
     invalid=deepcopy(composition);invalid.audio[0]['repeat_interval']=.81
     with pytest.raises(ValueError,match='outside the output timeline'):
         compile_graph(invalid,tmp_path/'invalid')

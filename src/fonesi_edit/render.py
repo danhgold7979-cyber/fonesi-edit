@@ -392,7 +392,7 @@ def compile_graph(c:Composition,stage:Path):
                 if fi>0:filters.append(f'afade=t=in:d={fi}')
                 if fo>0:
                     filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
-                filters += [f'adelay={round(onset*1000)}:all=1',
+                filters += [f'adelay={round(onset*1000)}|{round(onset*1000)}',
                             'apad',f'atrim=duration={total}']
                 label=f'sfxtrigger{i}_{number}'
                 graph.append(f'[{index}:a]'+','.join(filters)+f'[{label}]')
@@ -422,7 +422,7 @@ def compile_graph(c:Composition,stage:Path):
                 if fi>0:filters.append(f'afade=t=in:d={fi}')
                 if fo>0:
                     filters.append(f'afade=t=out:st={max(0,min(total-onset,end-start)-fo)}:d={fo}')
-                filters += [f'adelay={round(onset*1000)}:all=1',
+                filters += [f'adelay={round(onset*1000)}|{round(onset*1000)}',
                             'apad',f'atrim=duration={total}']
                 label=f'sfxrepeat{i}_{number}'
                 graph.append(f'[{index}:a]'+','.join(filters)+f'[{label}]')
