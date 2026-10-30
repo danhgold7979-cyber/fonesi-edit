@@ -260,12 +260,15 @@ def valid_against(row,previous,window=0,different=0,compare_window=False):
     return True
 
 
-def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,history=(),seconds=10,locks=None,cancel=None):
+def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,
+             history=(),seconds=10,locks=None,cancel=None,balance_candidates=8):
     if (type(count) is not int or type(window) is not int
             or type(different) is not int or type(seed) is not int
             or type(compare_window) is not bool or count<1 or window<0
             or not 0<=different<=len(scenes)):
         raise ValueError('Invalid matrix count/W/K/seed options')
+    if type(balance_candidates) is not int or not 1<=balance_candidates<=64:
+        raise ValueError('Invalid matrix balance candidate count (1..64)')
     if (type(seconds) not in (int,float) or not math.isfinite(seconds)
             or seconds<=0):
         raise ValueError('Invalid matrix generation time budget')
@@ -299,36 +302,78 @@ def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,histo
             normalized_locks[row_index][scene_index]=angle_hash
     rng=random.Random(seed);rows=[];frequency={};start=time.monotonic();attempts=0;locks=normalized_locks
     # Small spaces are enumerated as indices, never as a Cartesian list of media objects.
+    # Large spaces use bounded candidate competition; no product-sized allocation.
     order=rng.sample(range(capacity),capacity) if capacity<=10000 else None;cursor=0
     while len(rows)<count and time.monotonic()-start<seconds:
         if cancel and cancel.is_set():raise RuntimeError('Canceled')
-        attempts+=1
         if order is not None:
             if cursor>=len(order):
                 if not window and not different:break
                 rng.shuffle(order);cursor=0
-            index=order[cursor];cursor+=1;row=[]
+            index=order[cursor];cursor+=1;attempts+=1;row=[]
             for scene in scenes:
                 row.append(scene[index%len(scene)]);index//=len(scene)
+            for scene_index,angle_hash in locks.get(len(rows),{}).items():
+                match=next((a for a in scenes[scene_index] if a.hash==angle_hash),None)
+                if not match:raise ValueError('Locked angle missing from scene')
+                row[scene_index]=match
+            key=combination(row)
+            if key in used or not valid_against(row,previous,window,different,compare_window):continue
         else:
-            row=[]
-            for i,scene in enumerate(scenes):
-                available=[a for a in scene if not any(a.hash==old[i] for old in previous[-window:] if len(old)>i)] if window else list(scene)
-                if not available:break
-                row.append(rng.choices(available,weights=[1/(1+frequency.get(a.hash,0)) for a in available])[0])
-            if len(row)!=len(scenes):break
-        for scene_index,angle_hash in locks.get(len(rows),{}).items():
-            scene_index=int(scene_index)
-            match=next((a for a in scenes[scene_index] if a.hash==angle_hash),None)
-            if not match:raise ValueError('Locked angle missing from scene')
-            row[scene_index]=match
-        key=combination(row)
-        if key in used or not valid_against(row,previous,window,different,compare_window):continue
+            best=None;best_score=None;candidate_keys=set();exhausted=False
+            for _ in range(balance_candidates):
+                if cancel and cancel.is_set():raise RuntimeError('Canceled')
+                if time.monotonic()-start>=seconds:break
+                attempts+=1;candidate=[]
+                for scene_index,scene in enumerate(scenes):
+                    available=(
+                        [angle for angle in scene
+                         if not any(angle.hash==old[scene_index]
+                                    for old in previous[-window:] if len(old)>scene_index)]
+                        if window else list(scene)
+                    )
+                    if not available:
+                        exhausted=True;candidate=[];break
+                    candidate.append(rng.choices(
+                        available,
+                        weights=[1/(1+frequency.get((scene_index,a.hash),0))
+                                 for a in available])[0])
+                if exhausted:break
+                for scene_index,angle_hash in locks.get(len(rows),{}).items():
+                    match=next((a for a in scenes[scene_index] if a.hash==angle_hash),None)
+                    if not match:raise ValueError('Locked angle missing from scene')
+                    candidate[scene_index]=match
+                key=combination(candidate)
+                if key in candidate_keys or key in used:
+                    continue
+                candidate_keys.add(key)
+                if not valid_against(candidate,previous,window,different,compare_window):
+                    continue
+                projected=[frequency.get((i,a.hash),0)+1
+                           for i,a in enumerate(candidate)]
+                # Minimize projected per-scene squared use first, then its
+                # maximum; seeded tie-break preserves repeatability.
+                score=(sum(value*value for value in projected),
+                       max(projected,default=0),rng.random())
+                if best_score is None or score<best_score:
+                    best=candidate;best_score=score
+            if exhausted:break
+            if best is None:
+                continue
+            row=best;key=combination(row)
         rows.append(row);values=[a.hash for a in row];previous.append(values);used.add(key)
-        for angle in row:frequency[angle.hash]=frequency.get(angle.hash,0)+1
-    return {'rows':rows,'capacity':capacity,'complete':len(rows)==count,'requested':count,'seed':seed,'attempts':attempts,
+        for scene_index,angle in enumerate(row):
+            key=(scene_index,angle.hash)
+            frequency[key]=frequency.get(key,0)+1
+    usage=[]
+    for scene_index,scene in enumerate(scenes):
+        counts=[frequency.get((scene_index,angle.hash),0) for angle in scene]
+        usage.append({'scene':scene_index+1,'minimum':min(counts),
+                      'maximum':max(counts),'spread':max(counts)-min(counts)})
+    return {'rows':rows,'capacity':capacity,'complete':len(rows)==count,
+            'requested':count,'seed':seed,'attempts':attempts,
+            'balance_candidates':balance_candidates,'usage':usage,
             'reason':None if len(rows)==count else 'Chưa tìm đủ trong budget; không tự nới W/K hoặc kết luận vô nghiệm'}
-
 
 
 
