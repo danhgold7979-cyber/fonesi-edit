@@ -81,3 +81,9 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 Covered: stale worker recovery to pending with same reservation/job ID; cancellation to failed reservation; retry preserving job identity and output target; fail-closed behavior for missing/partial metadata, missing reservation and reservation owned by a newer job; retry by the current owner; unrelated succeeded history; missing media never reaches succeeded. Regression is synthetic SQLite + real Scheduler/worker/FFmpeg fixture, not physical power-loss.
 
 [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS exact SHA a6d1e9577c2017519c0ecf22edf63f8695a79402: Linux 788 PASS; Windows 787 PASS + 1 intentional POSIX-only skip; phase-reference check, Batch/Matrix benchmarks, production builds and frozen packaged proof passed both OS. P09/P11 and external Windows/SQLite/real-media/live-provider/GPU gates remain open.
+
+## P11-02 / MAT-07 — Published Matrix artifact recovery (30/10/2026)
+
+Covered the crash boundary after renderer publication and before Store.finish: matching output + config/SHA sidecar is reused after recovery; output without sidecar and output with a stale sidecar hash fail closed and remain byte-for-byte unchanged. Only the matching validated artifact can transition job/history to succeeded. Regression ran through real worker/Scheduler/FFmpeg fixture.
+
+[CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS exact SHA 8101f210dfdeac160f7b9f2729fc1d01cfc33fa1: 791 Linux PASS; 790 Windows PASS + 1 intentional POSIX-only skip; benchmarks, production builds and frozen packaged proof passed both OS. This is synthetic crash-boundary evidence only; physical Windows and remaining P11/P12 gates stay open.

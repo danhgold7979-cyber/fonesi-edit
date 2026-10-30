@@ -16,11 +16,20 @@ render_composition publishes the validated MP4, then writes the .mp4.fonesi.json
 6. Run source tests, phase reference checker, Linux/Windows packaged proof and record exact SHA evidence.
 
 ## Acceptance
-- [ ] A published MP4 with matching config_hash + SHA sidecar is reused after simulated interruption before Store.finish; the same artifact is committed as succeeded without a second render.
-- [ ] An orphan output without sidecar is not adopted or overwritten; job/history remain failed/non-succeeded.
-- [ ] A tampered output with a stale sidecar hash is not adopted or overwritten; job/history remain failed/non-succeeded.
-- [ ] Reservation is marked succeeded only after validated/reused result is committed; one job and one history row remain.
-- [ ] Linux/Windows regression and frozen packaged proof pass on the exact code/test SHA.
+- [x] A published MP4 with matching config_hash + SHA sidecar is reused after simulated interruption before Store.finish; the same artifact is committed as succeeded without a second render.
+- [x] An orphan output without sidecar is not adopted or overwritten; job/history remain failed/non-succeeded.
+- [x] A tampered output with a stale sidecar hash is not adopted or overwritten; job/history remain failed/non-succeeded.
+- [x] Reservation is marked succeeded only after validated/reused result is committed; one job and one history row remain.
+- [x] Linux/Windows regression and frozen packaged proof pass on the exact code/test SHA.
 
 ## Limits
 This is a synthetic crash-boundary test using real FFmpeg and the Scheduler/worker path, not a physical power-loss test. It does not close Windows AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, 100k real-media throughput, Chrome/live providers, GPU or remaining P11/P12 gates. Do not merge main.
+
+## Exact-HEAD verification (30/10/2026)
+[CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) **SUCCESS** on exact code/test SHA [8101f210dfdeac160f7b9f2729fc1d01cfc33fa1](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1). Linux: 791 tests PASS; Windows: 790 PASS + 1 intentional POSIX-fixture skip. Both OS passed phase-reference validation, Batch and logical Matrix benchmarks, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost video+image download/UI proof.
+
+Batch dry-run: Linux 5.190757 s / 840,677-byte tracemalloc peak; Windows 7.532058 s / 853,794-byte peak; failed_count=0. Matrix logical benchmark: Linux 12.819268 s / 1,379,048-byte peak; Windows 9.894325 s / 1,379,264-byte peak; theoretical capacity 10^10, 2,000 outputs, complete=true, max per-scene spread 5. These are synthetic/logical CI measurements, not real-media throughput.
+
+Artifacts: Linux evidence 390,168 bytes (ID 12968876692, expires 2026-11-02); Windows evidence 322,849 bytes (ID 12969016070, expires 2026-11-02); Windows development build 197,355,733 bytes (ID 12969011211, expires 2026-11-06). Non-blocking warnings: optional urllib3 EMScripten import unavailable in PyInstaller; Linux CI has no PulseAudio device. Both packaged proofs passed.
+
+The three new regressions cover a valid published artifact before Store.finish, an orphan output without sidecar, and a tampered output with a stale sidecar hash. This is synthetic crash-boundary coverage, not physical power-loss acceptance. Windows AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, 100k real-media throughput, Chrome/live providers, GPU and remaining P11/P12 gates stay OPEN. Do not merge main.

@@ -310,3 +310,10 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - Exact HEAD [a6d1e95](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a6d1e9577c2017519c0ecf22edf63f8695a79402); [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX-only skip. Both packaged synthetic proofs passed.
 - Logical Matrix benchmark: 10^10 theoretical capacity, 2,000 generated, complete=true, max per-scene spread 5. Synthetic Batch benchmark: 128 sources, failed_count=0.
 - P09/P11 remain OPEN. No physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root-cause, 100k real-media, live Chrome/provider or GPU acceptance is claimed. Do not merge main.
+
+## P11-02 — Matrix artifact recovery at the worker commit boundary (30/10/2026)
+
+- Added three regression cases: reuse an already-published MP4 + matching sidecar after recovery before Store.finish; reject an orphan output without sidecar; reject a tampered output whose sidecar SHA is stale.
+- Matching artifact is reused with identical SHA and committed as succeeded exactly once. Unverifiable/mismatched artifacts are preserved, not overwritten or marked succeeded.
+- Test commit [8101f21](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1); [CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS: Linux 791 PASS; Windows 790 PASS + 1 intentional POSIX-only skip. Both packaged synthetic proofs passed.
+- P11 remains OPEN. Physical power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6, real-media scale, Chrome/live providers and GPU remain unverified.

@@ -223,3 +223,12 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - OPS-06: missing media cannot produce a succeeded job or succeeded Matrix history row; valid synthetic FFmpeg output is validated before success.
 - Evidence: [plan](phases/P11_MATRIX_RECOVERY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/58d94f738ca7cd9b5dab39caef8f952719b78718), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a6d1e9577c2017519c0ecf22edf63f8695a79402), [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX skip.
 - Limits: synthetic/localhost only; no physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real 100k-media corpus, live Chrome/provider or GPU proof. P11/P12 remain OPEN.
+
+## MAT-07 / OPS-04 / OPS-05 / OPS-06 — Published Matrix artifact recovery (30/10/2026)
+
+- MAT-07: a stale Matrix job can reuse a previously published artifact only when its sidecar configuration hash and SHA-256 match; history is committed once under the same job/reservation.
+- OPS-04: retry keeps the immutable job payload and output target; matching artifact bytes remain unchanged across recovery.
+- OPS-05: a pre-existing output without provenance sidecar or with a stale SHA sidecar fails closed; the worker does not overwrite or adopt it.
+- OPS-06: missing/mismatched artifact provenance cannot produce succeeded job/history; valid artifact reuse is committed only after renderer validation.
+- Evidence: [plan](phases/P11_MATRIX_OUTPUT_RECOVERY_PLAN.md), [tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1), [CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS: 791 Linux PASS; 790 Windows PASS + 1 intentional POSIX skip; both packaged proofs passed.
+- Limits: synthetic crash boundary only; physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real-media corpus, live Chrome/provider and GPU acceptance remain open.

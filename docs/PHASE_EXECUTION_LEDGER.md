@@ -265,3 +265,9 @@ Retry now requires complete Matrix metadata and a reservation owned by the same 
 [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) SUCCESS exact SHA a6d1e9577c2017519c0ecf22edf63f8695a79402: 788 Linux PASS; 787 Windows PASS + 1 intentional POSIX-only skip. Both OS passed phase references, synthetic Batch/Matrix benchmarks, production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost video+image download/UI proof. Windows development build artifact 197,350,911 bytes (expires 2026-11-06); evidence artifacts expire 2026-11-02.
 
 This slice does not complete P09/P11. Physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 root cause, real 100k-media performance, live Chrome/providers and GPU remain open. Do not merge main.
+
+## P11-02 — Matrix output recovery before Store.finish (30/10/2026)
+
+[Plan](phases/P11_MATRIX_OUTPUT_RECOVERY_PLAN.md) → [test commit 8101f21](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1) → [CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) SUCCESS exact SHA 8101f210dfdeac160f7b9f2729fc1d01cfc33fa1.
+
+Matching MP4 + sidecar survives the simulated gap before Store.finish: recovery reuses identical SHA and commits succeeded once. Orphan output without sidecar and tampered output with stale sidecar hash are rejected, preserved byte-for-byte and leave reservation failed. CI: Linux 791 PASS; Windows 790 PASS + 1 intentional POSIX-only skip; phase references, Batch/Matrix benchmarks, desktop/native-host builds and packaged proofs passed both OS. Synthetic only; physical power-loss and remaining P11/P12 gates stay open.

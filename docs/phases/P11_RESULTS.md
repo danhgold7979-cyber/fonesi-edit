@@ -99,3 +99,13 @@ Matrix stale-worker recovery preserves the same job, payload, output target and 
 [CI 41035225664](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41035225664) **SUCCESS exact SHA a6d1e9577c2017519c0ecf22edf63f8695a79402**: Linux 788 PASS; Windows 787 PASS + 1 intentional POSIX-fixture skip. Both runners passed phase-reference validation, 128-source synthetic FFprobe Batch benchmark, 10^10-capacity logical Matrix benchmark (2,000 complete outputs, max per-scene spread 5), desktop/native-host build and frozen packaged render/Batch/Matrix/localhost download/UI proof. Artifacts: Linux evidence 390,012 bytes; Windows evidence 322,683 bytes; Windows development build 197,350,911 bytes (retention through 2026-11-06).
 
 Only synthetic/localhost CI evidence. Physical Windows power-loss/AV/ACL/NTFS/exFAT, SQLite issue #6 cause, real 100k-media performance, live Chrome/providers, GPU and all remaining P11/P12 gates stay OPEN. This does not complete P11 or authorize merge to main.
+
+## P11-02 / MAT-07 — Matrix artifact recovery before history commit (30/10/2026)
+
+[Plan](P11_MATRIX_OUTPUT_RECOVERY_PLAN.md) → [tests 8101f21](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8101f210dfdeac160f7b9f2729fc1d01cfc33fa1).
+
+Three recovery-boundary regressions now prove: (1) if the real worker renderer has published an MP4 and matching config/SHA sidecar but Store.finish has not committed, recovery reuses the same bytes and the retry commits succeeded once; (2) an orphan destination without sidecar is not adopted or overwritten; (3) a modified output with stale sidecar SHA is rejected and preserved. Failed cases leave the job/result/history non-succeeded and the reservation failed.
+
+[CI 41037280021](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41037280021) **SUCCESS exact SHA 8101f210dfdeac160f7b9f2729fc1d01cfc33fa1**: Linux 791 PASS; Windows 790 PASS + 1 intentional POSIX-only skip. Both OS passed phase references, 128-source synthetic Batch benchmark, 10^10 logical Matrix benchmark (2,000 complete outputs; max spread 5), production desktop/native-host builds and frozen packaged render/Batch/Matrix/localhost download/UI proof. Artifact IDs/sizes and benchmark metrics are in P11_MATRIX_OUTPUT_RECOVERY_PLAN.md.
+
+This closes only the output-recovery test slice. Synthetic crash-boundary tests do not prove physical power-loss recovery or Windows user-machine behavior. P11/P12 and external SQLite/real-media/live-provider/GPU gates remain open; do not merge main.
