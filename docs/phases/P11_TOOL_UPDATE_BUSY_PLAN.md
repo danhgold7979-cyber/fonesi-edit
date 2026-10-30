@@ -30,15 +30,25 @@ FFprobe is an alias of the FFmpeg bundle and must normalize to the same busy key
 
 ## 4. Acceptance criteria
 
-- [ ] A second install/update for the same normalized tool is rejected before another background task is queued.
-- [ ] FFprobe and FFmpeg share one busy key; distinct independent tools can still be scheduled.
-- [ ] install-missing skips busy tools and schedules only independent missing components.
-- [ ] Busy status is visible; relevant Settings actions are disabled while the selected tool is busy.
-- [ ] Rollback, manual path override and managed-version cleanup refuse the same tool while its update is in flight.
-- [ ] Busy state clears after success, error or cancellation and also clears if task scheduling itself fails.
-- [ ] Existing receipt/rollback integrity, cleanup leases, install failure atomicity, Settings UI and complete-suite regressions remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
+- [x] A second install/update for the same normalized tool is rejected before another background task is queued.
+- [x] FFprobe and FFmpeg share one busy key; distinct independent tools can still be scheduled.
+- [x] install-missing skips busy tools and schedules only independent missing components.
+- [x] Busy status is visible; relevant Settings actions are disabled while the selected tool is busy.
+- [x] Rollback, manual path override and managed-version cleanup refuse the same tool while its update is in flight.
+- [x] Busy state clears after success, error or cancellation and also clears if task scheduling itself fails.
+- [x] Existing receipt/rollback integrity, cleanup leases, install failure atomicity, Settings UI and complete-suite regressions remain passing.
+- [x] Exact-HEAD Linux and Windows CI, production builds and frozen packaged proof pass.
 
-## 5. Limits
+## 5. Results (30/10/2026)
+
+[Settings implementation 4bf14f1](https://github.com/danhgold7979-cyber/fonesi-edit/commit/4bf14f1a5f023e923b6ec33b4605454ad2d84979) → [operation routing 5924ed7](https://github.com/danhgold7979-cyber/fonesi-edit/commit/5924ed768a66102469c5f3c5fa4d40778aa0e356) → [Qt regressions 0a0aef9](https://github.com/danhgold7979-cyber/fonesi-edit/commit/0a0aef945fe3ca3759d30248aa50c3667ef58b48) → [exact-HEAD CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) **SUCCESS**.
+
+Five new Qt tests verify duplicate same-tool/FFprobe-alias rejection, independent-tool scheduling, install-missing skipping busy components while scheduling other missing tools, visible busy status/action disabling and path/rollback/cleanup rejection, release after task completion/scheduling failure and the already-finished-worker race. Busy keys are reserved synchronously before `MainWindow.background` and released by the task finished signal.
+
+Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact 197,420,154 bytes.
+
+This guard is per SettingsPage/MainWindow process only; it is not a cross-process installer mutex and does not close physical Windows user-machine acceptance.
+
+## 6. Limits
 
 This slice protects concurrent operations initiated through one SettingsPage/MainWindow process. It does not claim a cross-process installer mutex or certify physical Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, live Chrome/provider auth, GPU/HiDPI/audio, large real-media performance, SQLite issue #6 or complete P11/P12 acceptance. Do not merge to main or force-push.

@@ -35,13 +35,23 @@ A local synthetic reproduction on FFmpeg 7.1.5/Linux confirms the expected timin
 
 ## 4. Acceptance criteria
 
-- [ ] Custom trigger events remain silent before each configured onset and audible in their intended windows.
-- [ ] Repeated SFX remain silent before each configured onset and audible in their intended windows.
-- [ ] Both SFX graph branches normalize decoded audio to a sample-derived PTS clock after 48 kHz resampling and before delay.
-- [ ] Output duration, existing mute/trim/volume/fade behavior and unrelated audio tracks remain unchanged.
-- [ ] Full render tests and phase reference checker pass.
-- [ ] Exact-HEAD Linux and Windows CI, production builds and packaged proof pass.
+- [x] Custom trigger events remain silent before each configured onset and audible in their intended windows.
+- [x] Repeated SFX remain silent before each configured onset and audible in their intended windows.
+- [x] Both SFX graph branches normalize decoded audio to a sample-derived PTS clock after 48 kHz resampling and before delay.
+- [x] Output duration, existing mute/trim/volume/fade behavior and unrelated audio tracks remain unchanged.
+- [x] Full render tests and phase reference checker pass.
+- [x] Exact-HEAD Linux and Windows CI, production builds and packaged proof pass.
 
-## 5. Limits
+## 5. Results (30/10/2026)
+
+[Source/test fix ca32673](https://github.com/danhgold7979-cyber/fonesi-edit/commit/ca32673ccfe40eed14cc3b3c57c9d98807641719) → [exact-HEAD CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) **SUCCESS** on `0a0aef945fe3ca3759d30248aa50c3667ef58b48`.
+
+The earlier Windows failure [41076305870](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41076305870) showed peak 3830 in the pre-trigger silence window. The fix resets each trimmed SFX branch to sample-derived PTS after 48 kHz resampling and before `adelay`, for custom trigger-time and repeated SFX. Strict silence (<20) and audible-window assertions remain unchanged; graph tests verify normalization order.
+
+Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact 197,420,154 bytes.
+
+The exact-HEAD full suite includes both SFX audible-timing tests and passes on Linux and Windows. This closes only the synthetic SFX timing regression, not all AAC/MP4/M4A encoders or physical audio-device behavior.
+
+## 6. Limits
 
 Local FFmpeg 7.1.5/Linux is not Windows acceptance. CI synthetic fixtures do not prove arbitrary AAC encoders, all third-party MP4/M4A containers, physical Windows user machines, GPU/audio devices or large real-media performance. Do not merge to main or force-push.
