@@ -47,3 +47,7 @@ New strict project schema/save-as/open, no media auto-probe on load, missing ref
 ## Windows project reference correction
 
 CI41101541228 Linux PASS54, Windows FAIL1/54: UI converted a preserved POSIX reference into a drive-qualified Windows path. Fix separates original reference strings from native Path objects, preserves exact reference on save, and refuses foreign paths before probe instead of guessing a drive. New OS-dependent negative test complements the existing failing roundtrip test. Local73 tests PASS; Windows rerun pending.
+
+## Matrix planning slice
+
+New pure mixed-radix planner, unique combinations/history scope, W/K, seeded coprime traversal and heuristic lookahead balance. Candidate+wall-clock budgets/cancellation return SEARCH_LIMIT/CANCELED, never false infeasibility proof. Exact small-product and huge logical-space tests included. Local84 tests PASS. No reservation/database/render/UI matrix integration claimed yet.
