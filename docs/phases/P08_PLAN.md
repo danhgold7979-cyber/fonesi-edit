@@ -138,3 +138,12 @@ Lát cắt đã lập kế hoạch tại [P08_SFX_TRIGGER_LIST_PLAN.md](P08_SFX_
 ## P08-03 update — Decoded playback Peak/RMS meter (30/10/2026)
 
 Detailed [plan](P08_AUDIO_PLAYBACK_METER_PLAN.md) preceded [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/c706930e2c5e8a5026e37fb5fd856901585330b5) and [Python 3.12 fix](https://github.com/danhgold7979-cyber/fonesi-edit/commit/743e68b3e4c262fa4bc824f9ccca4f1ec67361c2). [CI 40996183826](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/40996183826) **SUCCESS exact SHA 743e68b**: 676 Linux/675 Windows passed +1 intentional POSIX-only skip, desktop/native-host and frozen synthetic proof both systems. Meter displays source/proxy or rendered-preview decoded PCM before the audio device, not true-peak, speaker volume, EBU loudness or per-track pre-mix levels; full P08 remains open.
+
+
+## P08-04 update — Batch manual playlist across folders (30/10/2026)
+
+[Plan](P08_MANUAL_AUDIO_PLAYLIST_PLAN.md) → [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a4ea6a851ac912503ce4db6fb08841b9dae8257a) → [backend tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/d4fd7e5a3b559fb415c00e54fcc711cdb9f754a6) → [Qt tests](https://github.com/danhgold7979-cyber/fonesi-edit/commit/3acf0b56a2b5f96c450d15076984d4e037c47282) → [final fixes](https://github.com/danhgold7979-cyber/fonesi-edit/commit/cfd2c4cf6a7c7a96e5619631d83c13ff2e2039c0) → [CI 41000959481](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41000959481) **SUCCESS exact SHA cfd2c4c** (682 Linux / 681 Windows + 1 intentional skip; frozen proof both OS).
+
+The new `playlist` mode is distinct from folder-based `ordered`: it accepts an editable, explicit list of absolute audio file paths across multiple directories, permits same basenames and duplicate entries, preserves line order, maps one entry to one selected video, and never falls back silently. Full-path mapping is visible in dry-run. Complete FFprobe preflight (distinct-path cache, stream/duration, symlink/extension checks and cancellation) happens before any video snapshot. Existing shared/by-name/ordered/random behavior and project schema remain unchanged. Actual FFmpeg/PCM render verifies the assigned 660 Hz audio source.
+
+**Still OPEN:** render ETA/output size, real large corpus, per-track meter/solo/true-peak/loudness, physical Windows audio/installer/user machine, live providers and SQLite #6. P08 is not complete as a whole.
