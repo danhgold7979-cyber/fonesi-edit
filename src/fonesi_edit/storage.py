@@ -148,38 +148,49 @@ class Store:
             return [{**dict(row), "data": json.loads(row["data"])} for row in conn.execute(f"SELECT * FROM {table} ORDER BY updated DESC")]
 
     def submit(self, kind, payload, priority=0, depends_on=()):
-        if kind not in {'render','scan','download','translate'}:raise ValueError('Unknown job kind')
-        payload={**payload,'_tools':self.setting('tool_paths',{})}
-        data = canonical(checked_payload(payload))
+        if kind not in {'render','scan','download','translate'}:
+            raise ValueError('Unknown job kind')
+        if type(payload) is not dict:
+            raise ValueError('Job payload must be an object')
+        dependencies=list(depends_on)
         job_id, now = identifier(), time.time()
         with self.connect() as conn:
-            for dependency in depends_on:
+            # Tool-path snapshot and job insertion share the same write lock
+            # as managed-version cleanup. A job cannot acquire a stale path
+            # after its version has been safely removed.
+            conn.execute('BEGIN IMMEDIATE')
+            row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+            tools=json.loads(row['value']) if row else {}
+            data=canonical(checked_payload({**payload,'_tools':tools}))
+            for dependency in dependencies:
                 if not conn.execute("SELECT 1 FROM jobs WHERE id=?", (dependency,)).fetchone():
                     raise ValueError("Unknown dependency")
             conn.execute("INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) VALUES(?,?,'pending',?,?,?,?,?)",
-                         (job_id, kind, data, int(priority), now, now, canonical(list(depends_on))))
+                         (job_id, kind, data, int(priority), now, now, canonical(dependencies)))
         return job_id
 
     def submit_many(self, kind, payloads, priority=0):
-        """Atomically enqueue independently snapshotted jobs; no partial batch."""
+        """Atomically enqueue jobs and lease one consistent tool-path snapshot."""
         if kind not in {'render','scan','download','translate'}:
             raise ValueError('Unknown job kind')
         requests=list(payloads)
         if not requests:
             return []
-        tools=self.setting('tool_paths',{})
         priority=int(priority)
         now=time.time()
         prepared=[]
-        for payload in requests:
-            if type(payload) is not dict:
-                raise ValueError('Job payload must be an object')
-            # Capture tool paths once, just like Store.submit, and validate
-            # *every* payload before the first SQLite INSERT can occur.
-            serialized=canonical(checked_payload({**payload,'_tools':tools}))
-            prepared.append((identifier(),kind,serialized,priority,now,now,'[]'))
         with self.connect() as conn:
+            # Acquire the writer lock before reading tool_paths. Cleanup uses
+            # the same lock while checking leases and removing version folders.
             conn.execute('BEGIN IMMEDIATE')
+            row=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+            tools=json.loads(row['value']) if row else {}
+            for payload in requests:
+                if type(payload) is not dict:
+                    raise ValueError('Job payload must be an object')
+                # Validate every payload before the first INSERT (all-or-none).
+                serialized=canonical(checked_payload({**payload,'_tools':tools}))
+                prepared.append((identifier(),kind,serialized,priority,now,now,'[]'))
             for item in prepared:
                 conn.execute(
                     "INSERT INTO jobs(id,kind,state,payload,priority,created,updated,depends_on) "

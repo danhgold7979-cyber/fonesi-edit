@@ -33,7 +33,7 @@ from ..sync import plan_new_only_sync,sync_media_identity
 from ..browser import PLATFORMS,profiles,bindings,create_profile,bind,login,pairing_code
 from ..native_host import register_host
 from ..prototypes.tools import scan_tools,configure_tools
-from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses
+from ..dependencies import resolve_manifest,install,install_chrome,rollback,statuses,managed_tool_versions,remove_tool_version
 from ..automation import metrics,recommended_parallel,submit_once,submit_many_once
 
 
@@ -1882,7 +1882,11 @@ class SettingsPage(QWidget):
         super().__init__();self.host=host;layout=QVBoxLayout(self);tabs=QTabWidget();layout.addWidget(tabs)
         tools=QWidget();box=QVBoxLayout(tools);buttons(box,host,[('Quét lại',self.scan),('Chọn đường dẫn',self.path),('Tải / cài công cụ chọn',self.install),('Cài phần bắt buộc thiếu',self.install_missing),('Rollback',self.rollback)])
         self.tools=QTableWidget(0,4);self.tools.setHorizontalHeaderLabels(['Công cụ','Trạng thái','Phiên bản','Đường dẫn / lý do']);self.tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);box.addWidget(self.tools,1)
-        note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note);tabs.addTab(tools,'Công cụ')
+        note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note)
+        managed_note=QLabel('Phiên bản do Fonesi quản lý — chỉ gỡ được bản không active và không còn job sử dụng');managed_note.setWordWrap(True);box.addWidget(managed_note)
+        buttons(box,host,[('Làm mới phiên bản đã cài',self.refresh_managed_tools),('Gỡ bản đã chọn',self.remove_managed_tool)])
+        self.managed_tools=QTableWidget(0,5);self.managed_tools.setHorizontalHeaderLabels(['Công cụ','Phiên bản','Active','Trạng thái sử dụng','Thư mục']);self.managed_tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.managed_tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);self.managed_tools.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows);box.addWidget(self.managed_tools,1)
+        tabs.addTab(tools,'Công cụ')
         chrome=QWidget();box=QVBoxLayout(chrome);form=QFormLayout();box.addLayout(form)
         self.profile=QComboBox();form.addRow('Hồ sơ Chrome',self.profile);self.platform=QComboBox();self.platform.addItems(PLATFORMS);form.addRow('Nền tảng',self.platform)
         buttons(box,host,[('Tạo hồ sơ',self.create_profile),('Đổi tên hồ sơ',self.rename_profile),('Mở đăng nhập thật',self.login),('Tạo / copy mã ghép',self.pair),('Thu hồi ghép extension',self.revoke_pairing),('Làm mới trạng thái',self.refresh_profiles),('Đăng ký native host',self.register),('Mở thư mục extension',self.extension),('Tài khoản mặc định',self.default),('Quên phiên trong app',self.forget_session)])
@@ -1908,13 +1912,57 @@ class SettingsPage(QWidget):
         self.background=QCheckBox('Đóng cửa sổ thì tiếp tục chạy nền (nếu có system tray)');self.background.setChecked(host.store.setting('background',False));form.addRow(self.background)
         save=QPushButton('Lưu tài nguyên');save.clicked.connect(host.guard(self.save_resources));form.addRow(save)
         disable=QPushButton('Tắt tất cả watcher/lịch');disable.clicked.connect(host.guard(self.clear_auto));form.addRow(disable);tabs.addTab(resources,'Tự động / máy')
-        self.refresh_profiles();self.scan();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
+        self.refresh_profiles();self.scan();self.refresh_managed_tools();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
 
     def scan(self):self.host.background(lambda p,c:statuses(self.host.store),self.scanned)
     def scanned(self,tools):
         self.statuses=tools;self.tools.setRowCount(len(tools))
         for row,item in enumerate(tools):
             for col,text in enumerate((item.name,item.status,item.version,item.path or item.detail)):self.tools.setItem(row,col,QTableWidgetItem(text))
+        self.refresh_managed_tools()
+
+    def refresh_managed_tools(self):
+        versions=managed_tool_versions(self.host.store)
+        self.managed_tools.setRowCount(len(versions))
+        for row,item in enumerate(versions):
+            active='Có' if item['active'] else 'Không'
+            state='Đang được giữ' if item['in_use'] else 'Có thể gỡ'
+            values=(item['name'],item['version'],active,state,item['folder'] or item['path'])
+            for col,value in enumerate(values):
+                cell=QTableWidgetItem(str(value))
+                if col==0:
+                    cell.setData(Qt.ItemDataRole.UserRole,(item['name'],item['version']))
+                if col==3:
+                    cell.setToolTip(item['reason'])
+                self.managed_tools.setItem(row,col,cell)
+
+    def remove_managed_tool(self):
+        row=self.managed_tools.currentRow()
+        if row<0:
+            raise ValueError('Chọn một phiên bản do app quản lý')
+        identity=self.managed_tools.item(row,0).data(Qt.ItemDataRole.UserRole)
+        if not identity:
+            raise ValueError('Không đọc được danh tính phiên bản')
+        name,version=identity
+        item=next((entry for entry in managed_tool_versions(self.host.store)
+                   if entry['name']==name and entry['version']==version),None)
+        if not item:
+            self.refresh_managed_tools()
+            raise ValueError('Phiên bản đã thay đổi; hãy làm mới danh sách')
+        if item['in_use']:
+            raise ValueError(item['reason'])
+        answer=QMessageBox.question(
+            self.host,'Gỡ phiên bản công cụ',
+            f'Gỡ {name} {version}? Chỉ thư mục do Fonesi quản lý sẽ bị xóa.',
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer!=QMessageBox.StandardButton.Yes:
+            return
+        remove_tool_version(self.host.store,name,version)
+        self.host.message(f'Đã gỡ phiên bản {name} {version}; không thay đổi tool hệ thống hoặc dữ liệu Chrome.')
+        self.refresh_managed_tools()
+        self.scan()
+
     def selected_tool(self):
         row=self.tools.currentRow()
         if row<0:raise ValueError('Chọn một công cụ')
@@ -1930,7 +1978,7 @@ class SettingsPage(QWidget):
         if name=='Google Chrome':self.host.background(lambda p,c:install_chrome(self.host.store,p,c),lambda _:self.scan())
         elif name=='ffprobe':self.install_name('ffmpeg')
         elif name in {'gallery-dl','yt-dlp'}:raise ValueError('Bộ tải được gói cùng ứng dụng; cập nhật qua bản app có dependency đã khóa. Không cài binary rồi báo đang dùng khi backend vẫn là module.')
-        else:self.host.background(lambda p,c:install(self.host.store,resolve_manifest(name),p,c),lambda _:self.scan())
+        else:self.host.background(lambda p,c:install(self.host.store,resolve_manifest(name),p,c),lambda _:(self.refresh_managed_tools(),self.scan()))
     def install_missing(self):
         names={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
         if {'ffmpeg','ffprobe'}&names:self.install_name('ffmpeg')
@@ -1941,7 +1989,7 @@ class SettingsPage(QWidget):
         with self.host.store.connect() as c:versions=[r[0] for r in c.execute('SELECT version FROM tool_versions WHERE name=?',(name,))]
         if not versions:raise ValueError('Chưa có bản do app quản lý')
         version,ok=QInputDialog.getItem(self,'Rollback','Phiên bản',versions,0,False)
-        if ok:rollback(self.host.store,name,version);self.scan()
+        if ok:rollback(self.host.store,name,version);self.refresh_managed_tools();self.scan()
     def refresh_profiles(self):
         selected=self.profile.currentData()
         self.profile.clear()

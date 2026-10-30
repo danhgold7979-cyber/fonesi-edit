@@ -11,7 +11,7 @@ import time
 from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
 import zipfile
 
-from .domain import fingerprint,atomic_json,canonical,checked_payload
+from .domain import fingerprint,atomic_json,canonical,checked_payload,identifier
 from .prototypes.tools import check_tool,scan_tools,configure_tools
 
 
@@ -165,6 +165,166 @@ def _save_tool_activation(store,name,version,receipt):
                      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",(encoded,))
     # Workers in this process must use the newly committed path immediately.
     configure_tools(overrides)
+
+
+def _version_directory(store,name,version,row_path=None):
+    """Resolve a version folder only inside the app-managed tools root."""
+    if (not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_.-]+',name)
+            or not isinstance(version,str) or not re.fullmatch(r'[A-Za-z0-9_.-]+',version)
+            or version in {'.','..'}):
+        return None
+    tools_root=store.path.parent/'tools'
+    root=tools_root/name
+    if tools_root.is_symlink() or root.is_symlink():
+        return None
+    folder=root/version
+    if folder.is_symlink():
+        return None
+    try:
+        resolved_root=root.resolve(strict=False)
+        resolved_folder=folder.resolve(strict=False)
+        if resolved_folder.parent!=resolved_root:
+            return None
+        if row_path is not None:
+            executable=Path(row_path).resolve(strict=False)
+            if executable==resolved_folder or resolved_folder not in executable.parents:
+                return None
+    except (OSError,RuntimeError,ValueError):
+        return None
+    return folder
+
+
+def _path_is_within(path,folder):
+    try:
+        candidate=Path(path).resolve(strict=False)
+        boundary=Path(folder).resolve(strict=False)
+        return candidate==boundary or boundary in candidate.parents
+    except (OSError,RuntimeError,ValueError,TypeError):
+        return False
+
+
+def _job_tool_paths(payload):
+    if not isinstance(payload,dict):
+        raise ValueError('Job payload is not an object')
+    tools=payload.get('_tools',{})
+    if not isinstance(tools,dict):
+        raise ValueError('Job tool snapshot is not an object')
+    paths=[]
+    for value in tools.values():
+        if value is None:
+            continue
+        if not isinstance(value,str) or not value:
+            raise ValueError('Job tool path is invalid')
+        paths.append(value)
+    return paths
+
+
+def managed_tool_versions(store):
+    """List app-managed versions and explain why each one is or is not removable."""
+    with store.connect() as conn:
+        rows=[dict(row) for row in conn.execute(
+            'SELECT name,version,path,hash,active FROM tool_versions ORDER BY name,version')]
+        setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        configured=json.loads(setting['value']) if setting else {}
+        jobs=[dict(row) for row in conn.execute(
+            "SELECT id,state,payload FROM jobs WHERE state!='succeeded'")]
+    if not isinstance(configured,dict):
+        configured={}
+        invalid_configuration=True
+    else:
+        invalid_configuration=False
+    parsed_jobs=[]
+    unknown_jobs=[]
+    for job in jobs:
+        try:
+            parsed_jobs.append((job['id'],_job_tool_paths(json.loads(job['payload']))))
+        except (ValueError,TypeError,json.JSONDecodeError):
+            unknown_jobs.append(job['id'])
+    result=[]
+    for row in rows:
+        folder=_version_directory(store,row['name'],row['version'],row['path'])
+        reasons=[]
+        if folder is None:
+            reasons.append('Đường dẫn quản lý không hợp lệ; chặn gỡ an toàn')
+        if row['active']:
+            reasons.append('Phiên bản đang active')
+        if invalid_configuration:
+            reasons.append('Cấu hình tool_paths không đọc được')
+        configured_paths=[value for value in configured.values() if isinstance(value,str)]
+        if folder is not None and any(_path_is_within(path,folder) for path in configured_paths):
+            reasons.append('Đang được cấu hình làm tool hiện tại')
+        held=[]
+        if folder is not None:
+            for job_id,paths in parsed_jobs:
+                if any(_path_is_within(path,folder) for path in paths):
+                    held.append(job_id)
+        if unknown_jobs:
+            held.extend(unknown_jobs)
+            reasons.append('Có job snapshot lỗi; fail-closed')
+        if held:
+            reasons.append('Được giữ bởi job: '+', '.join(sorted(set(held))[:4]))
+        result.append({
+            **row,
+            'folder':str(folder) if folder is not None else None,
+            'job_ids':sorted(set(held)),
+            'in_use':bool(reasons),
+            'reason':'; '.join(reasons) if reasons else 'Có thể gỡ an toàn',
+        })
+    return result
+
+
+def remove_tool_version(store,name,version):
+    """Remove one inactive app-managed version only when no runnable/retryable job leases it."""
+    with store.connect() as conn:
+        # Store.submit/submit_many use the same writer lock while acquiring a
+        # snapshot. This closes the race between checking leases and new jobs.
+        conn.execute('BEGIN IMMEDIATE')
+        row=conn.execute(
+            'SELECT name,version,path,hash,active FROM tool_versions WHERE name=? AND version=?',
+            (name,version)).fetchone()
+        if not row:
+            raise ValueError('Managed tool version was not found')
+        folder=_version_directory(store,name,version,row['path'])
+        if folder is None:
+            raise ValueError('Refusing to remove a path outside the app-managed version root')
+        if row['active']:
+            raise ValueError('Cannot remove the active tool version')
+        setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
+        configured=json.loads(setting['value']) if setting else {}
+        if not isinstance(configured,dict):
+            raise ValueError('Tool path configuration is invalid; refusing cleanup')
+        if any(isinstance(path,str) and _path_is_within(path,folder)
+               for path in configured.values()):
+            raise ValueError('Tool version is still selected in current tool paths')
+        held=[]
+        for job in conn.execute("SELECT id,state,payload FROM jobs WHERE state!='succeeded'"):
+            try:
+                paths=_job_tool_paths(json.loads(job['payload']))
+            except (ValueError,TypeError,json.JSONDecodeError) as exc:
+                raise ValueError(
+                    f"Cannot verify tool leases because job {job['id']} has an invalid snapshot"
+                ) from exc
+            if any(_path_is_within(path,folder) for path in paths):
+                held.append(job['id'])
+        if held:
+            raise ValueError(
+                'Tool version is held by pending/running/retryable jobs: '+', '.join(held[:8])
+            )
+        if folder.exists():
+            if folder.is_symlink() or not folder.is_dir():
+                raise ValueError('Managed version folder is not a safe directory')
+            # Reject unexpected symlinks rather than risk deleting through a
+            # tampered folder tree. Installed ZIPs already reject such entries.
+            for root,dirs,files in os.walk(folder,followlinks=False):
+                if any((Path(root)/item).is_symlink() for item in [*dirs,*files]):
+                    raise ValueError('Managed version contains a symlink; refusing cleanup')
+            shutil.rmtree(folder)
+        deleted=conn.execute(
+            'DELETE FROM tool_versions WHERE name=? AND version=? AND active=0',
+            (name,version))
+        if deleted.rowcount!=1:
+            raise RuntimeError('Managed tool version changed during cleanup')
+    return {'name':name,'version':version,'folder':str(folder),'directory_removed':True}
 
 
 def install(store,manifest,progress=lambda p:None,cancel=None,fetch=download_verified):

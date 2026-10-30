@@ -5,7 +5,7 @@ import os
 import sqlite3
 import zipfile
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 
 import pytest
 
@@ -491,3 +491,67 @@ def test_installer_archive_preflight_failure_preserves_active_tool_and_cleans_st
     assert not (tool_root / "escape.txt").exists()
     assert not (tmp_path / "escape.txt").exists()
     _assert_previous_tool_remains_active(store, receipt, "2.0.0")
+
+
+
+def test_store_submit_holds_writer_lock_until_tool_snapshot_is_inserted(tmp_path, monkeypatch):
+    from fonesi_edit import storage as storage_module
+
+    store, first = _install_active_ffmpeg_for_failure_tests(tmp_path, monkeypatch)
+    snapshot_read = Event()
+    release_submit = Event()
+    update_at_activation = Event()
+    update_finished = Event()
+    submitted = {}
+    failures = []
+    original_checked_payload = storage_module.checked_payload
+    original_activation = dependencies._save_tool_activation
+
+    def pause_after_tool_snapshot(payload):
+        if (isinstance(payload, dict) and "_tools" in payload
+                and payload["_tools"].get("ffmpeg") == first["path"]):
+            snapshot_read.set()
+            if not release_submit.wait(10):
+                raise AssertionError("test did not release the submit transaction")
+        return original_checked_payload(payload)
+
+    def observe_activation(*args, **kwargs):
+        update_at_activation.set()
+        return original_activation(*args, **kwargs)
+
+    monkeypatch.setattr(storage_module, "checked_payload", pause_after_tool_snapshot)
+    monkeypatch.setattr(dependencies, "_save_tool_activation", observe_activation)
+
+    def submit_job():
+        try:
+            submitted["id"] = store.submit("render", {"output": str(tmp_path / "race.mp4")})
+        except BaseException as exc:
+            failures.append(exc)
+
+    def update_tool():
+        try:
+            _install_next_ffmpeg_version(store, monkeypatch)
+        except BaseException as exc:
+            failures.append(exc)
+        finally:
+            update_finished.set()
+
+    submit_thread = Thread(target=submit_job)
+    submit_thread.start()
+    assert snapshot_read.wait(10)
+    update_thread = Thread(target=update_tool)
+    update_thread.start()
+    assert update_at_activation.wait(10)
+    time.sleep(0.05)
+    # The update cannot commit while submit owns BEGIN IMMEDIATE.
+    assert not update_finished.is_set()
+    release_submit.set()
+    submit_thread.join(10)
+    update_thread.join(10)
+    assert not submit_thread.is_alive() and not update_thread.is_alive()
+    assert not failures
+    assert submitted["id"]
+    payload = store.job(submitted["id"])["payload"]
+    assert payload["_tools"]["ffmpeg"] == first["path"]
+    with pytest.raises(ValueError, match="held by"):
+        remove_tool_version(store, "ffmpeg", "1.0.0")
