@@ -1404,6 +1404,62 @@ def test_batch_search_format_and_visible_only_selection_keep_hidden_choices(tmp_
 
 
 
+def test_batch_manual_audio_playlist_picker_order_clear_and_dry_run_snapshot(tmp_path,monkeypatch):
+    from PySide6.QtWidgets import QFileDialog
+    from threading import Event
+    from fonesi_edit.ui import pages as pages_module
+    window=MainWindow(tmp_path/'state')
+    try:
+        page=window.batch
+        group=str(tmp_path/'channel')
+        page.scanned({group:[str(tmp_path/'channel'/'first.mp4'),
+                             str(tmp_path/'channel'/'second.mp4')]})
+        audio_a=tmp_path/'music-a'/'same.wav'
+        audio_b=tmp_path/'music-b'/'same.wav'
+        audio_c=tmp_path/'music-c'/'third.wav'
+        for item in (audio_a,audio_b,audio_c):
+            item.parent.mkdir(parents=True,exist_ok=True);item.write_bytes(b'placeholder')
+        assert page.audio_playlist.isHidden()
+        page.audio_mode.setCurrentIndex(page.audio_mode.findData('playlist'))
+        assert not page.audio_playlist.isHidden()
+        monkeypatch.setattr(QFileDialog,'getOpenFileNames',
+            lambda *args:([str(audio_b),str(audio_a)],''))
+        page.select_audio_playlist()
+        monkeypatch.setattr(QFileDialog,'getOpenFileNames',
+            lambda *args:([str(audio_c)],''))
+        page.select_audio_playlist()
+        assert page.audio_playlist.toPlainText().splitlines()==[
+            str(audio_b),str(audio_a),str(audio_c)]
+        page.plans=[{'output':'stale'}]
+        page.audio_playlist.setPlainText('\n'.join([str(audio_c),str(audio_b),str(audio_a)]))
+        assert page.plans==[]
+        assert page.audio_playlist.toPlainText().splitlines()==[
+            str(audio_c),str(audio_b),str(audio_a)]
+
+        captured={}
+        def fake_report(*args,**kwargs):
+            captured['playlist_paths']=kwargs['playlist_paths']
+            return {'plans':[],'failures':[]}
+        monkeypatch.setattr(pages_module,'batch_plan_report',fake_report)
+        monkeypatch.setattr(window,'background',
+            lambda work,done:captured.update(work=work,done=done))
+        page.plan()
+        report=captured['work'](lambda _value:None,Event())
+        assert captured['playlist_paths']==[str(audio_c),str(audio_b),str(audio_a)]
+        # Any playlist edit invalidates the async snapshot before its callback.
+        page.audio_playlist.setPlainText(str(audio_a)+'\n'+str(audio_b))
+        captured['done'](report)
+        assert page.plans==[]
+        assert 'Đã bỏ bản dry-run cũ' in window.status.text()
+        page.clear_audio_playlist()
+        assert page.audio_playlist.toPlainText()==''
+        page.audio_mode.setCurrentIndex(page.audio_mode.findData('shared'))
+        assert page.audio_playlist.isHidden()
+        assert page.audio_playlist_pick.isHidden()
+    finally:
+        close(window)
+
+
 def test_batch_dry_run_is_invalidated_by_settings_and_async_stale_result(tmp_path,monkeypatch):
     window=MainWindow(tmp_path/'state')
     try:
