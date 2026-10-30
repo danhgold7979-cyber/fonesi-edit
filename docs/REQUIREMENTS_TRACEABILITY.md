@@ -241,3 +241,11 @@ Still OPEN: 100k real-media corpus/global solver optimality, physical Windows/Hi
 - AUTH-11: profile A revoke removes A bridge and pending pairing code but preserves both A/B Chrome profile directories, both account bindings and B's bridge.
 - Evidence: plan [2774ef2](https://github.com/danhgold7979-cyber/fonesi-edit/commit/2774ef2955c44eee9a9bf61fcfec731231c4a5e4), implementation [a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec), follow-up regression [e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb), [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip; desktop/native-host builds and packaged proof both OS.
 - Limits: CI synthetic/local-file tests do not prove Windows user-machine Chrome login, DPAPI/real cookie bridge, provider availability, GPU/HiDPI, installer/update, or full AUTH-11/P11 acceptance.
+
+
+## P11-08 / TOL-05 — ZIP archive extraction safety and portability (30/10/2026)
+
+- TOL-05: extraction rejects traversal/absolute/drive paths, controls/NUL, symlinks and special Unix types, encrypted entries, Windows reserved names/invalid characters/trailing dot-space, case-fold duplicates and file/directory conflicts before the first write.
+- Entire archive is preflighted; safe backslash-separated file and directory entries are normalized to consistent nested paths on Linux/Windows.
+- Evidence: [plan](phases/P11_TOOL_ARCHIVE_PORTABILITY_PLAN.md), [implementation](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8), [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX skip; production/native-host builds and packaged proofs both OS.
+- Limits: synthetic tests do not prove Windows user-machine ACL/AV/disk-full/power-loss, signed installer/update, Chrome/DPAPI/session bridge, live providers, GPU/HiDPI/audio or full TOL-04…06 acceptance.

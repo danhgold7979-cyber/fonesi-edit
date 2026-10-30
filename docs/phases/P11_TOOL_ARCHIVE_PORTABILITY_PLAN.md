@@ -23,12 +23,25 @@ A remaining portability gap exists because the app's install target includes Win
 
 ## Acceptance
 
-- [ ] All unsafe and ambiguous archive entries fail with ValueError before writing any file.
-- [ ] Case-folded duplicate names and file/directory collisions are rejected deterministically.
-- [ ] Safe nested archives and explicit directory entries still extract.
-- [ ] Existing installer, repair, cancellation, rollback, and tool-path tests remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, phase checker, benchmarks, builds and packaged proofs pass.
+- [x] All unsafe and ambiguous archive entries fail with ValueError before writing any file.
+- [x] Case-folded duplicate names and file/directory collisions are rejected deterministically.
+- [x] Safe nested archives and explicit directory entries still extract.
+- [x] Existing installer, repair, cancellation, rollback, and tool-path tests remain passing.
+- [x] Exact-HEAD Linux and Windows CI, phase checker, benchmarks, builds and packaged proofs pass.
 
 ## Limits
 
 Synthetic CI does not certify Windows user-machine ACL/AV/power-loss behavior, signed installer/update UX, live Chrome/provider authentication, GPU/HiDPI/audio, or full P11/P12. Do not merge main.
+
+
+## Execution result — PASS (30/10/2026)
+
+- Implementation chain: [8f70309](https://github.com/danhgold7979-cyber/fonesi-edit/commit/8f703094607398fc398161664feacaa75dea58e5) → [e2c2a08](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e2c2a085474eed80901d95e1dd4eabb01d4d2b72) → [f880daf](https://github.com/danhgold7979-cyber/fonesi-edit/commit/f880dafcfed0143a9a3416bc073718446e5a4b4f) → final [85654ec](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8).
+- Final exact-HEAD CI [41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS: Linux 850 passed; Windows 849 passed + 1 intentional POSIX-only skip.
+- Both runners passed phase references, 128-source synthetic FFprobe Batch dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost download/UI proof.
+- Batch: 5.012570 s Linux / 10.882223 s Windows. Matrix: 9.079294 s Linux / 17.686874 s Windows.
+- Artifacts: [Linux evidence 390,874 bytes](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336/artifacts/12975194835), [Windows evidence 323,726 bytes](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336/artifacts/12976023012), [Windows development build 197,380,520 bytes](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336/artifacts/12975818540).
+
+Two intermediate CI attempts exposed defects in backslash extraction: first, validation normalization did not normalize the extracted path; second, changing ZipInfo.filename while relying on extractall's implicit name lookup caused a KeyError. The final code preflights all members, normalizes names after preflight and passes the validated ZipInfo list explicitly. The exact final Linux/Windows run passes.
+
+This closes the synthetic archive portability/collision slice only. Physical Windows ACL/AV/disk-full/power-loss, signed installer/update, Chrome authentication, providers, GPU/HiDPI/audio and all P11/P12 gates remain open.

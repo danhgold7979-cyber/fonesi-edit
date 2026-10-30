@@ -330,3 +330,12 @@ Browser regression proves profile-scoped pairing revocation: A bridge and pendin
 CI: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip. Batch 128-source synthetic FFprobe dry-run: 7.751278 s Linux / 10.102146 s Windows, failed_count=0. Matrix logical-ID benchmark: 2,000 complete outputs on both, max per-scene spread 5 (19.860847 s Linux / 17.556047 s Windows). Production desktop/native-host build and frozen packaged render/Batch/Matrix/localhost video+image download/UI proof passed both OS. Artifacts: Linux evidence 391,472 bytes; Windows evidence 323,245 bytes (expire 2026-11-02); Windows development build 197,366,359 bytes (expires 2026-11-06).
 
 This closes only the bounded preset/revocation regression slice. P11 remains OPEN for full 95-group audit, physical Windows/HiDPI/GPU/audio, real Chrome/DPAPI/provider, SQLite issue #6 root cause, real-media corpus, power-loss/AV/ACL/NTFS/exFAT and long soak. Do not merge main.
+
+
+## P11-08 / TOL-05 — ZIP installer archive preflight (30/10/2026)
+
+- ZIP extraction now rejects traversal/absolute/drive paths, symlink/special Unix entries, encrypted members, Windows reserved names/invalid characters/trailing dot-space, case-insensitive duplicates and file/directory collisions. Full preflight occurs before any member is written; path separators are normalized for both OS.
+- Final implementation [85654ec](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8); [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX skip; Batch/Matrix benchmarks, production/native-host builds and packaged proofs both OS.
+- Synthetic Batch: 128 sources, failed_count=0 (5.012570 s Linux / 10.882223 s Windows). Logical Matrix: 2,000 outputs complete, max spread 5 (9.079294 s Linux / 17.686874 s Windows).
+- Artifacts: Linux evidence 390,874 bytes; Windows evidence 323,726 bytes; Windows development build 197,380,520 bytes.
+- Scope is archive preflight only. Real Windows ACL/AV/disk-full/power-loss, installer/update, tool lease/GC, Chrome authentication, providers, GPU/HiDPI/audio and full P11/P12 remain OPEN.

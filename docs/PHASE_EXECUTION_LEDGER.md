@@ -282,3 +282,14 @@ Strict preset schema-v1 parsing/export now uses a 2 MiB cap, UTF-8 and duplicate
 CI: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip. Both runners passed 128-source synthetic Batch FFprobe dry-run, 10^10 theoretical logical Matrix benchmark with 2,000 complete outputs and max per-scene spread 5, production desktop/native-host builds and frozen packaged render/Batch/Matrix/localhost download/UI proof. Batch elapsed 7.751278 s Linux / 10.102146 s Windows; Matrix elapsed 19.860847 s Linux / 17.556047 s Windows. Artifacts: Linux evidence 391,472 bytes; Windows evidence 323,245 bytes; Windows development build 197,366,359 bytes (expires 2026-11-06).
 
 This closes only the bounded preset/revocation regression slice. Physical Windows, real Chrome/DPAPI/provider, GPU/HiDPI/audio, SQLite issue #6, real-media corpus and power-loss/AV/ACL/NTFS/exFAT/soak gates remain open. Do not merge main.
+
+
+## P11-08 / TOL-05 — Installer ZIP archive safety and path portability (30/10/2026)
+
+[Hardening plan](phases/P11_TOOL_ARCHIVE_HARDENING_PLAN.md) → [first commit bf51cd9](https://github.com/danhgold7979-cyber/fonesi-edit/commit/bf51cd9ea7e09842b7f89fffea022b5f8788d58a) → [portability plan](phases/P11_TOOL_ARCHIVE_PORTABILITY_PLAN.md) → [final commit 85654ec](https://github.com/danhgold7979-cyber/fonesi-edit/commit/85654ec780f3ab8752af834e081a46f406d124d8) → [CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD.
+
+ZIP preflight rejects traversal, absolute/drive paths, controls/NUL, symlinks/special Unix types, encrypted entries, Windows reserved names/invalid characters/trailing dot-space, case-fold duplicates and file/directory collisions. All members are checked before writing; safe backslash paths/directories normalize on both OS.
+
+CI: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX-only skip. Both runners passed 128-source synthetic Batch (failed_count=0), 2,000-output logical Matrix (complete=true, max spread 5), production desktop/native-host builds and frozen packaged proof. Batch 5.012570 s Linux / 10.882223 s Windows; Matrix 9.079294 s Linux / 17.686874 s Windows. Artifacts: Linux evidence 390,874 bytes; Windows evidence 323,726 bytes; Windows development build 197,380,520 bytes.
+
+This closes only the synthetic archive portability/collision slice. Real Windows ACL/AV/disk-full/power-loss, signed installer/update, tool lease/GC, Chrome/provider auth, GPU/HiDPI/audio and full P11/P12 remain OPEN. Do not merge main.

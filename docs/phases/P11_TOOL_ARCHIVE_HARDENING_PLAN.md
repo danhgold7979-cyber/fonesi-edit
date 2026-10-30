@@ -24,12 +24,23 @@ The archive extraction boundary is security- and reliability-critical but has no
 
 ## Acceptance
 
-- [ ] Unsafe archive names/links fail with a controlled ValueError before extraction writes any member.
-- [ ] No file is created outside the staging destination in traversal/absolute/drive tests.
-- [ ] Safe nested archives continue to extract.
-- [ ] Existing install/repair/cancel/rollback regressions remain passing.
-- [ ] Exact-HEAD CI passes Linux and Windows including packaged proof.
+- [x] Unsafe archive names/links fail with a controlled ValueError before extraction writes any member.
+- [x] No file is created outside the staging destination in traversal/absolute/drive tests.
+- [x] Safe nested archives continue to extract.
+- [x] Existing install/repair/cancel/rollback regressions remain passing.
+- [x] Exact-HEAD CI passes Linux and Windows including packaged proof.
 
 ## Limits
 
 This synthetic archive-boundary slice does not certify Windows user-machine ACL/antivirus/power-loss behavior, real installer/update UX, Chrome authentication, live providers, GPU/HiDPI/audio, or full P11/P12 acceptance. No release merge to main.
+
+
+## Execution result — PASS (30/10/2026)
+
+- Implementation/test: [bf51cd9](https://github.com/danhgold7979-cyber/fonesi-edit/commit/bf51cd9ea7e09842b7f89fffea022b5f8788d58a).
+- Exact-HEAD CI [41051655230](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41051655230) SUCCESS: Linux 832 passed; Windows 831 passed + 1 intentional POSIX-only skip.
+- Both OS passed phase references, Batch 128-source synthetic FFprobe dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof.
+- Batch: 6.619013 s Linux / 10.326949 s Windows. Matrix: 15.191691 s Linux / 17.587695 s Windows.
+- Artifacts: Linux evidence 390,718 bytes; Windows evidence 323,577 bytes; Windows development build 197,376,218 bytes.
+
+This closes only the initial traversal/absolute/drive/symlink preflight slice. Windows portability and the broader P11-08 installer/authentication gates remain separate.

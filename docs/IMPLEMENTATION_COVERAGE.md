@@ -96,3 +96,12 @@ The schema-v1 preset contract now rejects malformed/oversized/duplicate-key/non-
 Implementation [a7f2328](https://github.com/danhgold7979-cyber/fonesi-edit/commit/a7f2328fa3448b5e9664e83dcb5d0f7793f0bdec), follow-up test [e3d3272](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e3d3272cf8753fe08652b8f1d54bf8f5359214cb), [CI 41046744447](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41046744447) SUCCESS: Linux 817 PASS; Windows 816 PASS + 1 intentional POSIX-only skip; desktop/native-host builds and frozen packaged proof both OS.
 
 This is a bounded OPS-07/pairing regression slice, not acceptance of all P11-05, AUTH-11, all 95 requirement groups, real Chrome login, Windows user-machine, GPU or live provider behavior.
+
+
+## P11-08 / TOL-05 — Tool archive extraction preflight and Windows path portability (30/10/2026)
+
+Covered whole-archive preflight before extraction; traversal/absolute/drive/control/NUL paths; symlink and non-regular Unix file types; encrypted ZIP entries; Windows reserved device names, invalid characters and trailing dot/space; case-fold duplicate paths and file/directory collisions. Safe nested files and slash/backslash directory entries are normalized consistently.
+
+[CI 41053597336](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41053597336) SUCCESS exact HEAD 85654ec: Linux 850 PASS; Windows 849 PASS + 1 intentional POSIX-only skip. Both OS passed 128-source synthetic Batch dry-run, 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch 5.012570 s Linux / 10.882223 s Windows; Matrix 9.079294 s Linux / 17.686874 s Windows.
+
+Still OPEN under TOL-04…06: interrupted download/disk-full/write-ACL on real Windows, signed installer/update UX, tool lease/GC and complete rollback companion lifecycle. Synthetic archive proof is not a Windows user-machine install acceptance.
