@@ -24,3 +24,7 @@ Previous exact source/test [CI 41021003352](https://github.com/danhgold7979-cybe
 - [ ] Full CI Linux and Windows at exact code/test SHA and packaged synthetic proofs PASS.
 
 **External blockers:** real NTFS/exFAT loss-of-power and SQLite intermittent issue #6, user Windows controls/HiDPI/installer, live Chrome/provider, GPU/audio and large solver performance remain OPEN; this slice does not close P09 or the 95 requirements.
+
+## CI regression follow-up (30/10/2026, before repair)
+- [CI 41022883448](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41022883448) at SHA `a09af716bbacbadafd274154105d672d132f1a94` is **FAIL** on both Linux and Windows. Source unit suite logged 6 failures all caused by `sqlite3.OperationalError: no such column: excluded.job` at `matrix.enqueue_rows` UPSERT on the newly added cancel-safe path; Linux 746 passed / 6 failed. The actual `matrix_history` column is `job_id`.
+- First change the erroneous `excluded.job` to `excluded.job_id` without modifying schema, data, cancellation rules or existing assertions. Add an explicit SQLite regression for retrying a failed reservation, ensuring the new queued job owns the `job_id` after an ON CONFLICT UPSERT; existing create/duplicate/rollback tests remain mandatory. Verify exact new commit on Linux and Windows CI and packaged proof before calling this regression resolved.
