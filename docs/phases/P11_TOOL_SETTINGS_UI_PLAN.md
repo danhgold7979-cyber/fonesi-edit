@@ -30,14 +30,25 @@ However, there is no Qt integration test in the existing suite that drives this 
 
 ## 4. Acceptance criteria
 
-- [ ] A real Qt Settings table distinguishes eligible, active and job-leased managed versions and exposes the protection reason.
-- [ ] A leased version is rejected before confirmation and remains intact.
-- [ ] Confirmed cleanup removes only the selected eligible app-managed version; active version and current tool paths remain intact.
-- [ ] Chrome profile directory/marker and account binding are unchanged by tool cleanup.
-- [ ] Cancel leaves the managed directory, registry row and all unrelated state unchanged.
-- [ ] Existing tool installer, rollback, archive, job lease and complete-suite regressions remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, production builds and packaged proof pass.
+- [x] A real Qt Settings table distinguishes eligible, active and job-leased managed versions and exposes the protection reason.
+- [x] A leased version is rejected before confirmation and remains intact.
+- [x] Confirmed cleanup removes only the selected eligible app-managed version; active version and current tool paths remain intact.
+- [x] Chrome profile directory/marker and account binding are unchanged by tool cleanup.
+- [x] Cancel leaves the managed directory, registry row and all unrelated state unchanged.
+- [x] Existing tool installer, rollback, archive, job lease and complete-suite regressions remain passing.
+- [x] Exact-HEAD Linux and Windows CI, production builds and packaged proof pass.
 
-## 5. Limits
+## 5. Results (30/10/2026)
+
+[Plan commit e258d06](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e258d06c0cd336957f876b4f20f687577ba432e9) → [Qt tests 28b9385](https://github.com/danhgold7979-cyber/fonesi-edit/commit/28b938589b495d9e0c8aff66a6d37a06f840cead) → [CI 41066952938](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41066952938) **SUCCESS exact HEAD**.
+
+- Linux: 873 passed, 0 skipped, 0 failures/errors. Windows: 871 passed, 2 intentional skips, 0 failures/errors (POSIX-only fixture installation and Windows symlink privilege).
+- Three real-MainWindow Qt regressions pass on both OS: confirmed cleanup preserves active FFmpeg and Chrome profile/account data; cancel leaves the version untouched; a retryable job lease blocks cleanup before confirmation.
+- Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5), production desktop/native-host build and frozen packaged proof.
+- Batch planning: 7.623922 s Linux / 10.117165 s Windows. Matrix: 19.857709 s Linux / 17.514511 s Windows. Windows development artifact: 197,404,488 bytes.
+
+This proves the bounded Settings UI/SQLite/filesystem integration only; it is not physical Windows user-machine or full P11/P12 acceptance.
+
+## 6. Limits
 
 This is synthetic filesystem/SQLite/Qt integration evidence. It does not certify physical Windows ACL/AV/disk-full/power-loss behavior, signed installer/update UX, real Chrome login/DPAPI/session handoff, live providers, GPU/HiDPI/audio, large real-media performance, SQLite issue #6 or complete P11/P12 acceptance. Do not merge to main or force-push.

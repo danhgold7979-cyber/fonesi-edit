@@ -304,3 +304,12 @@ Four regressions simulate partial network transfer exception, SHA-256 mismatch, 
 CI: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX-only skip. Both runners passed phase references, Batch 128-source synthetic dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host builds and frozen packaged proof. Batch 7.996895 s Linux / 10.505177 s Windows; Matrix 19.011149 s Linux / 17.623936 s Windows. Artifacts: Linux evidence 392,162 bytes; Windows evidence 323,821 bytes; Windows development build 197,385,904 bytes.
 
 This closes the synthetic replacement-install failure-boundary slice only. Real Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC, Chrome/provider auth, GPU/HiDPI/audio and full P11/P12 remain OPEN. Do not merge main.
+
+
+## P11-08 / TOL-06 — Settings UI inventory and safe cleanup (30/10/2026)
+
+[Plan e258d06](https://github.com/danhgold7979-cyber/fonesi-edit/commit/e258d06c0cd336957f876b4f20f687577ba432e9) → [Qt tests 28b9385](https://github.com/danhgold7979-cyber/fonesi-edit/commit/28b938589b495d9e0c8aff66a6d37a06f840cead) → [CI 41066952938](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41066952938) **SUCCESS exact SHA**.
+
+Three Qt integration tests verify inventory/protection reasons, explicit Yes/No behavior, active tool and Chrome profile/account preservation, and rejection of a version held by a retryable job before confirmation. CI: Linux 873 passed / 0 skipped; Windows 871 passed / 2 intentional skips / 0 failures. Both runners passed Batch 128-source FFprobe dry-run, 2,000-output logical Matrix benchmark (complete, max spread 5), production/native-host build and frozen packaged proof. Windows development artifact 197,404,488 bytes.
+
+This is synthetic Qt/SQLite/filesystem evidence, not physical Windows user-machine acceptance. Receipt name/version identity validation and the remaining P11/P12 release gates remain OPEN.

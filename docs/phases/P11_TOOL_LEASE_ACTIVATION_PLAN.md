@@ -32,12 +32,18 @@ Install resolves and verifies an existing version receipt before calling _save_t
 ## 4. Acceptance criteria
 
 - [ ] Activation verifies receipt identity, executable containment, executable SHA-256 and optional ffprobe companion while holding the same SQLite writer lock as cleanup.
-- [ ] Cleanup-first ordering cannot activate a deleted version or recreate stale metadata.
-- [ ] Activation-first ordering prevents cleanup from removing the active/configured version.
-- [ ] Settings inventory accurately displays eligibility and confirmed removal deletes only an eligible app-managed version.
-- [ ] Existing job leases continue protecting pending/running/blocked/failed/canceled snapshots; succeeded jobs release leases.
-- [ ] Existing install/repair/archive/cancel/rollback tests remain passing.
-- [ ] Exact-HEAD Linux and Windows CI, packaged proofs and production builds pass.
+- [x] Cleanup-first ordering cannot activate a deleted version or recreate stale metadata.
+- [x] Activation-first ordering prevents cleanup from removing the active/configured version.
+- [x] Settings inventory accurately displays eligibility and confirmed removal deletes only an eligible app-managed version.
+- [x] Existing job leases continue protecting pending/running/blocked/failed/canceled snapshots; succeeded jobs release leases.
+- [x] Existing install/repair/archive/cancel/rollback tests remain passing.
+- [x] Exact-HEAD Linux and Windows CI, packaged proofs and production builds pass.
+
+## Progress (30/10/2026)
+
+Acceptance items 2–7 are now backed by the cleanup/activation race regressions, existing lease/install suite, and [exact-HEAD CI 41066952938](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41066952938) on `28b938589b495d9e0c8aff66a6d37a06f840cead`. The Settings inventory, confirmation, cancel and Chrome non-interference checks are covered by [P11_TOOL_SETTINGS_UI_PLAN.md](P11_TOOL_SETTINGS_UI_PLAN.md).
+
+**Acceptance item 1 remains OPEN:** `_save_tool_activation` validates the managed folder, executable containment/hash and companion location, but does not yet explicitly assert that receipt `name` and `version` match the activation arguments. A follow-up slice must close this identity check before this plan can be fully accepted.
 
 ## 5. Limits
 

@@ -114,3 +114,10 @@ Added replacement-install regressions for partial network transfer failure, chec
 [CI 41056951728](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41056951728) SUCCESS exact HEAD 096d6bb: Linux 854 PASS; Windows 853 PASS + 1 intentional POSIX-only skip. Both OS passed 128-source synthetic Batch dry-run, 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch 7.996895 s Linux / 10.505177 s Windows; Matrix 19.011149 s Linux / 17.623936 s Windows.
 
 Remaining OPEN: real Windows ACL/AV/disk-full/process-kill/power-loss, signed installer/update UX, tool lease/GC and physical machine acceptance.
+
+
+## P11-08 / TOL-06 — Settings UI cleanup regression (30/10/2026)
+
+`tests/test_tool_settings_ui.py` now exercises the production MainWindow/SettingsPage and filesystem/SQLite registry. It verifies eligibility/protection tooltips, confirmed removal of one old managed version without touching active FFmpeg or Chrome profile/account data, cancellation without deletion, and fail-closed rejection of a retryable job lease before confirmation. [CI 41066952938](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41066952938) SUCCESS exact HEAD `28b938589b495d9e0c8aff66a6d37a06f840cead`: Linux 873 passed; Windows 871 passed + 2 intentional skips; both OS passed Batch 128-source synthetic dry-run, 2,000-output logical Matrix benchmark, production/native-host build and frozen packaged proof.
+
+Still OPEN: activation receipt name/version identity validation, physical Windows ACL/AV/disk-full/power-loss, signed installer/update, real Chrome/provider auth, GPU/HiDPI/audio, real-media corpus, SQLite issue #6 and full P11/P12 acceptance.
