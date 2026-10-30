@@ -71,11 +71,17 @@ def test_large_space_candidate_selection_preserves_per_row_locks_and_wk():
     assert matrix_rows_valid(result["rows"],[],1,3,False)
 
 
-def test_large_space_solver_does_not_start_candidates_after_budget_expires():
+def test_large_space_solver_does_not_start_candidates_after_budget_expires(monkeypatch):
+    from types import SimpleNamespace
+    import fonesi_edit.matrix as matrix_module
+    ticks=iter([100.0,100.5])
+    monkeypatch.setattr(
+        matrix_module,"time",
+        SimpleNamespace(monotonic=lambda:next(ticks)))
     scenes=[[Angle(i+1,j+1,f"virtual/C{i+1}/G{j+1}.mp4",f"{i}-{j}")
              for j in range(6)] for i in range(14)]
     report=generate(scenes,100,seed=3,window=1,different=2,
-                    seconds=1e-12,balance_candidates=8)
+                    seconds=.1,balance_candidates=8)
     assert not report["complete"] and report["rows"]==[]
     assert report["attempts"]==0
 
