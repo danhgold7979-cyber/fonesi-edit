@@ -51,3 +51,7 @@ CI41101541228 Linux PASS54, Windows FAIL1/54: UI converted a preserved POSIX ref
 ## Matrix planning slice
 
 New pure mixed-radix planner, unique combinations/history scope, W/K, seeded coprime traversal and heuristic lookahead balance. Candidate+wall-clock budgets/cancellation return SEARCH_LIMIT/CANCELED, never false infeasibility proof. Exact small-product and huge logical-space tests included. Local84 tests PASS. No reservation/database/render/UI matrix integration claimed yet.
+
+## Local batch slice
+
+Bounded/no-follow folder scan, output subtree exclusion/dedup, real per-file CPU render preserving source; failures/collisions isolated and never called verified reuse. Real two-video+corrupt fixture and collision rerun pass. Local90 tests PASS. Batch UI, immutable source snapshots and durable queue recovery remain open; not a hostile-filesystem isolation guarantee.
