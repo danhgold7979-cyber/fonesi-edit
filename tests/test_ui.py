@@ -49,3 +49,15 @@ class UiTests(unittest.TestCase):
             self.assertTrue(output.is_file());self.assertIn('Đã kiểm tra',self.window.status.text())
             self.assertTrue(self.window.export_to(output));self.wait_worker()
             self.assertIn('FileExistsError',self.window.status.text())
+
+    def test_invalid_trim_disables_export(self):
+        from fractions import Fraction
+        from fonesi_edit.media import MediaInfo
+        self.window.loaded((Path('/synthetic.mp4'),MediaInfo(Fraction(2),('video',)),b''))
+        self.window.start_time.setValue(1.5);self.window.end_time.setValue(1)
+        self.assertFalse(self.window.export.isEnabled())
+        self.window.end_time.setValue(2)
+        self.assertTrue(self.window.export.isEnabled())
+        self.assertEqual(self.window.edits[0],(1.5,2.0,1.0))
+        self.window.end_time.setValue(3)
+        self.assertFalse(self.window.export.isEnabled())

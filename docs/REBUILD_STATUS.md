@@ -26,3 +26,9 @@
 - Local 41 tests PASS under Python3.12.14, PySide6 6.8.3, FFmpeg7.1.5; two inspected synthetic screenshots1280/1600.
 - CI41099091424: Linux3.12/3.13 PASS38; Windows3.12/3.13 FAIL1/38 at fsync on read-only staged descriptor (Errno9). Fix opens ONLY owned staged output r+b before fsync; source remains read-only and no-overwrite unchanged. Windows rerun pending.
 - Source proof does not establish Windows user-machine acceptance, installer, complete timeline/editor, live download/auth or provider translation.
+
+## Trim/speed increment
+
+- One immutable ClipMap can drive real video/audio trim and speed0.5–2, with explicit duration policy. Real2s audio/video fixture -> one-second interval at2x -> approximately0.5s verified.
+- Qt start/end/speed controls preserve per-row edits; invalid/beyond-source interval disables export. Source preview remains clearly distinct from output.
+- Local43 tests PASS; Windows/Python3.12 run41099958032 passed41 tests on prior UI/fsync checkpoint, other matrix jobs awaited. New trim/speed increment not yet CI-verified.

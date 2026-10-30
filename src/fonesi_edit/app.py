@@ -7,10 +7,11 @@ import threading
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,
-    QPushButton,QLabel,QListWidget,QSplitter,QFileDialog,QProgressBar,QTabBar)
+    QPushButton,QLabel,QListWidget,QSplitter,QFileDialog,QProgressBar,QTabBar,QDoubleSpinBox,QFormLayout)
 from fonesi_edit.media import probe
 from fonesi_edit.process import run_bounded
 from fonesi_edit.render import render_cpu
+from fonesi_edit.timing import ClipMap, Interval
 
 
 class Worker(QThread):
@@ -28,7 +29,7 @@ class Worker(QThread):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False
+        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False;self.edits={};self._loading_controls=False
         self.ffmpeg=shutil.which('ffmpeg');self.ffprobe=shutil.which('ffprobe')
         self.setWindowTitle('Fonesi Edit · Bản xây lại đang phát triển');self.resize(1280,800)
         root=QWidget();self.setCentralWidget(root);layout=QVBoxLayout(root);layout.setContentsMargins(20,16,20,16);layout.setSpacing(14)
@@ -48,8 +49,14 @@ class MainWindow(QMainWindow):
         center=QWidget();cl=QVBoxLayout(center);cl.addWidget(QLabel('KHUNG HÌNH NGUỒN · chưa áp hiệu ứng'))
         self.preview=QLabel('Thêm một video để kiểm tra nội dung.\nNguồn gốc luôn được giữ nguyên.');self.preview.setObjectName('preview');self.preview.setAlignment(Qt.AlignCenter);self.preview.setMinimumSize(480,320);cl.addWidget(self.preview,1)
         cl.addWidget(QLabel('Hiện có: probe thật, khung đầu và xuất CPU.\nTimeline, phụ đề, layer và chuyển động chưa được nối.'));panes.addWidget(center)
-        right=QWidget();rl=QVBoxLayout(right);rl.addWidget(QLabel('THUỘC TÍNH NGUỒN'));self.details=QLabel('Chưa chọn media');self.details.setWordWrap(True);rl.addWidget(self.details);rl.addStretch()
-        rl.addWidget(QLabel('Xuất thử giữ thời lượng nguồn.\nKhông ghi đè tệp đã có.\nKhông áp trim, tốc độ hay hiệu ứng.'));panes.addWidget(right);panes.setSizes([220,760,260])
+        right=QWidget();rl=QVBoxLayout(right);rl.addWidget(QLabel('THUỘC TÍNH NGUỒN'));self.details=QLabel('Chưa chọn media');self.details.setWordWrap(True);rl.addWidget(self.details)
+        form=QFormLayout();self.start_time=QDoubleSpinBox();self.end_time=QDoubleSpinBox();self.speed=QDoubleSpinBox()
+        for control in (self.start_time,self.end_time):control.setDecimals(6);control.setRange(0,31536000);control.setSuffix(' s')
+        self.speed.setDecimals(3);self.speed.setRange(.5,2);self.speed.setValue(1);self.speed.setSingleStep(.1);self.speed.setSuffix(' ×')
+        form.addRow('Bắt đầu',self.start_time);form.addRow('Kết thúc',self.end_time);form.addRow('Tốc độ',self.speed);rl.addLayout(form)
+        for control in (self.start_time,self.end_time,self.speed):control.valueChanged.connect(self.changed_edit)
+        rl.addStretch()
+        rl.addWidget(QLabel('Trim/tốc độ áp dụng khi xuất.\nKhung nguồn không phải preview hiệu ứng.\nKhông ghi đè tệp đã có.'));panes.addWidget(right);panes.setSizes([220,760,260])
         self.progress=QProgressBar();self.progress.setTextVisible(False);layout.addWidget(self.progress)
         self.status=QLabel('Sẵn sàng · Chọn media cục bộ.');self.status.setWordWrap(True);layout.addWidget(self.status)
         self.list.currentRowChanged.connect(self.select_row)
@@ -62,6 +69,8 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
     def refresh(self):
         busy=self.worker is not None
         self.add.setEnabled(not busy and bool(self.ffmpeg and self.ffprobe));self.export.setEnabled(not busy and self.selected is not None and 'video' in self.selected[1].stream_types)
+        for control in (self.start_time,self.end_time,self.speed):control.setEnabled(not busy and self.selected is not None)
+        if self.selected is not None and (self.start_time.value()>=self.end_time.value() or Fraction(str(self.end_time.value()))>self.selected[1].duration):self.export.setEnabled(False)
         self.cancel_button.setEnabled(busy);self.list.setEnabled(not busy);self.progress.setRange(0,0 if busy else 1)
         if not busy:self.progress.setValue(0)
     def start(self, operation, on_result):
@@ -97,10 +106,19 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
     def select_row(self,row):
         if not 0<=row<len(self.media):return
         self.selected=self.media[row];path,info,data=self.selected
+        self._loading_controls=True
+        values=self.edits.get(row,(0,(info.duration.numerator*1000000//info.duration.denominator)/1000000,1))
+        for control,value in zip((self.start_time,self.end_time,self.speed),values):control.setValue(value)
+        self._loading_controls=False
         self.details.setText(f'{path.name}\n\nThời lượng: {float(info.duration):.3f} s\nTrack: {", ".join(info.stream_types)}')
         if data:
             pixmap=QPixmap();pixmap.loadFromData(data);self.preview.setPixmap(pixmap.scaled(640,480,Qt.KeepAspectRatio,Qt.SmoothTransformation))
         else:self.preview.setText('Tệp âm thanh · chưa có phát nghe trong lát cắt này')
+        self.refresh()
+    def changed_edit(self):
+        if self._loading_controls or self.selected is None:return
+        self.edits[self.list.currentRow()]=(self.start_time.value(),self.end_time.value(),self.speed.value())
+        self.status.setText('Thiết lập xuất đã đổi. Khung đang xem vẫn là nguồn, chưa áp trim/tốc độ.')
         self.refresh()
     def choose_output(self):
         if not self.selected:return
@@ -109,9 +127,13 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
     def export_to(self,destination):
         if not self.selected or self.worker:return False
         source=self.selected[0]
+        mapping=None
+        if self.list.currentRow() in self.edits:
+            try:mapping=ClipMap(Interval(Fraction(str(self.start_time.value())),Fraction(str(self.end_time.value()))),Fraction(str(self.speed.value())))
+            except ValueError:self.status.setText('Khoảng trim không hợp lệ: kết thúc phải lớn hơn bắt đầu.');return False
         self.status.setText('Đang xuất thử CPU và giải mã kiểm tra; chưa biết % chính xác…')
         # Provisional developer proof tolerance, not a general editor acceptance gate.
-        return self.start(lambda cancel:render_cpu(source,destination,Path(self.ffmpeg),Path(self.ffprobe),duration_tolerance=Fraction(1,10),cancel=cancel),
+        return self.start(lambda cancel:render_cpu(source,destination,Path(self.ffmpeg),Path(self.ffprobe),duration_tolerance=Fraction(1,10),cancel=cancel,clip_map=mapping),
             lambda artifact:self.status.setText(f'Đã kiểm tra đầu ra: {artifact.path.name} · {artifact.size:,} bytes.'))
     def closeEvent(self,event):
         if self.worker:

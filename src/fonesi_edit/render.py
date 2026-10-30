@@ -7,6 +7,7 @@ import os
 import tempfile
 from fonesi_edit.media import probe
 from fonesi_edit.process import run_bounded
+from fonesi_edit.timing import ClipMap
 
 @dataclass(frozen=True)
 class Artifact:
@@ -17,7 +18,7 @@ class Artifact:
 
 
 def render_cpu(source: Path, destination: Path, ffmpeg: Path, ffprobe: Path,
-               *, duration_tolerance: Fraction, cancel=None) -> Artifact:
+               *, duration_tolerance: Fraction, cancel=None, clip_map: ClipMap | None=None) -> Artifact:
     if not isinstance(duration_tolerance,Fraction) or not 0<=duration_tolerance<=1:
         raise ValueError('EXPLICIT_DURATION_POLICY_REQUIRED')
     source=source.resolve(strict=True)
@@ -27,15 +28,25 @@ def render_cpu(source: Path, destination: Path, ffmpeg: Path, ffprobe: Path,
     if destination.exists() or destination.is_symlink(): raise FileExistsError('OUTPUT_EXISTS')
     original=probe(source,ffprobe,cancel=cancel)
     if 'video' not in original.stream_types: raise ValueError('VIDEO_REQUIRED')
+    filters=[];expected_duration=original.duration
+    if clip_map is not None:
+        if not isinstance(clip_map,ClipMap) or clip_map.output_start!=0 or clip_map.source.end>original.duration or not Fraction(1,2)<=clip_map.speed<=2:
+            raise ValueError('UNSUPPORTED_CLIP_MAP')
+        start=f'{float(clip_map.source.start):.9f}';end=f'{float(clip_map.source.end):.9f}'
+        ratio=f'{clip_map.speed.numerator}/{clip_map.speed.denominator}'
+        filters=['-vf',f'trim=start={start}:end={end},setpts=(PTS-STARTPTS)/({ratio})','-fps_mode','vfr']
+        if 'audio' in original.stream_types:
+            filters+=['-af',f'atrim=start={start}:end={end},asetpts=PTS-STARTPTS,atempo={float(clip_map.speed):.9f}']
+        expected_duration=clip_map.output.duration
     with tempfile.TemporaryDirectory(prefix='.fonesi-render-',dir=destination.parent) as folder:
         staged=Path(folder)/'validated.mp4'
         result=run_bounded([str(ffmpeg),'-nostdin','-v','error','-n',
             '-protocol_whitelist','file,pipe','-i',str(source),
             '-map','0:v:0','-map','0:a:0?','-c:v','libx264','-pix_fmt','yuv420p',
-            '-c:a','aac','-movflags','+faststart',str(staged)],timeout=60,cancel=cancel)
+            '-c:a','aac',*filters,'-movflags','+faststart',str(staged)],timeout=60,cancel=cancel)
         if result.status!='OK': raise ValueError('ENCODE_'+result.status)
         output=probe(staged,ffprobe,cancel=cancel)
-        if 'video' not in output.stream_types or abs(output.duration-original.duration)>duration_tolerance:
+        if 'video' not in output.stream_types or abs(output.duration-expected_duration)>duration_tolerance:
             raise ValueError('OUTPUT_DURATION_OR_STREAM_MISMATCH')
         if 'audio' in original.stream_types and 'audio' not in output.stream_types:
             raise ValueError('OUTPUT_AUDIO_MISSING')
