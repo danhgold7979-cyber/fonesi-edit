@@ -43,3 +43,7 @@ New strict project schema/save-as/open, no media auto-probe on load, missing ref
 - Native virtual table edits text/times/lock, bounded100-command undo/redo, asynchronous new-file save/open, no overwrite. SRT does not persist manual-lock metadata; UI states this explicitly.
 - Plain-text user-controlled labels prevent accidental rich-text interpretation.
 - Local72 tests PASS, Python3.12.14/Qt6.8.3/Linux/FFmpeg7.1.5. All4 jobs CI41099958032 passed41 tests on prior UI/fsync checkpoint; newer increments await CI.
+
+## Windows project reference correction
+
+CI41101541228 Linux PASS54, Windows FAIL1/54: UI converted a preserved POSIX reference into a drive-qualified Windows path. Fix separates original reference strings from native Path objects, preserves exact reference on save, and refuses foreign paths before probe instead of guessing a drive. New OS-dependent negative test complements the existing failing roundtrip test. Local73 tests PASS; Windows rerun pending.

@@ -89,3 +89,12 @@ class UiTests(unittest.TestCase):
         from PySide6.QtCore import Qt
         for label in (self.window.status,self.window.details,self.window.preview):
             self.assertEqual(label.textFormat(),Qt.PlainText)
+
+    def test_foreign_path_preserved_and_not_probed(self):
+        import os
+        from fonesi_edit.project import Project,ProjectMedia
+        foreign='/foreign/source.mp4' if os.name=='nt' else 'C:\\foreign\\source.mp4'
+        project=Project('12345678-1234-5678-1234-567812345678','Foreign',(ProjectMedia('22345678-1234-5678-1234-567812345678',foreign),))
+        self.window.project_loaded(project)
+        self.assertEqual(self.window.current_project(),project)
+        self.assertFalse(self.window.inspect_selected());self.assertIsNone(self.window.worker)

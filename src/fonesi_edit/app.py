@@ -31,7 +31,7 @@ class Worker(QThread):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False;self.edits={};self._loading_controls=False;self.media_ids=[];self.exact_edits={};self.project_id=str(uuid4());self.project_title='Dự án mới'
+        super().__init__();self.worker=None;self.selected=None;self.media=[];self.closing=False;self.edits={};self._loading_controls=False;self.media_ids=[];self.source_refs={};self.exact_edits={};self.project_id=str(uuid4());self.project_title='Dự án mới'
         self.ffmpeg=shutil.which('ffmpeg');self.ffprobe=shutil.which('ffprobe')
         self.setWindowTitle('Fonesi Edit · Bản xây lại đang phát triển');self.resize(1280,800)
         root=QWidget();self.setCentralWidget(root);layout=QVBoxLayout(root);layout.setContentsMargins(20,16,20,16);layout.setSpacing(14)
@@ -113,7 +113,7 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         return self.start(work,lambda result:self.loaded(result,replace_row))
     def loaded(self,result,replace_row=None):
         if replace_row is None:
-            self.media.append(result);self.media_ids.append(str(uuid4()));self.list.addItem(result[0].name);row=len(self.media)-1
+            self.media.append(result);self.media_ids.append(str(uuid4()));self.list.addItem(result[0].name);row=len(self.media)-1;self.source_refs[row]=str(result[0].absolute())
         else:
             row=replace_row;self.media[row]=result
         self.list.setCurrentRow(row)
@@ -141,7 +141,11 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         self.refresh()
     def inspect_selected(self):
         row=self.list.currentRow()
-        if 0<=row<len(self.media):return self.load_source(self.media[row][0],replace_row=row)
+        if 0<=row<len(self.media):
+            reference=self.source_refs.get(row,str(self.media[row][0]))
+            if not Path(reference).is_absolute():
+                self.status.setText('Đường dẫn thuộc hệ khác hoặc chưa tuyệt đối. Cần chọn lại media, không tự đoán ổ đĩa.');return False
+            return self.load_source(self.media[row][0],replace_row=row)
         return False
     def current_project(self):
         entries=[]
@@ -150,7 +154,7 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
             if edit is None and row in self.edits:
                 start,end,speed=self.edits[row]
                 edit=ClipMap(Interval(Fraction(str(start)),Fraction(str(end))),Fraction(str(speed)))
-            entries.append(ProjectMedia(self.media_ids[row],str(path.absolute()),edit))
+            entries.append(ProjectMedia(self.media_ids[row],self.source_refs.get(row,str(path.absolute())),edit))
         return Project(self.project_id,self.project_title,tuple(entries))
     def choose_save(self):
         path,_=QFileDialog.getSaveFileName(self,'Lưu thành project mới','project.fonesi','Fonesi project (*.fonesi)')
@@ -170,10 +174,10 @@ QListWidget,QLabel#preview{background:#0b1220;border:1px solid #38445b;} QListWi
         self.status.setText('Đang kiểm tra cấu trúc project; không tự mở media…')
         return self.start(lambda cancel:load_project(path),self.project_loaded)
     def project_loaded(self,project):
-        self.project_id=project.id;self.project_title=project.title;self.selected=None;self.media=[];self.media_ids=[];self.edits={};self.exact_edits={}
+        self.project_id=project.id;self.project_title=project.title;self.selected=None;self.media=[];self.media_ids=[];self.source_refs={};self.edits={};self.exact_edits={}
         self.list.blockSignals(True);self.list.clear()
         for row,entry in enumerate(project.media):
-            self.media.append((Path(entry.source),None,b''));self.media_ids.append(entry.id);self.list.addItem(Path(entry.source).name)
+            self.media.append((Path(entry.source),None,b''));self.media_ids.append(entry.id);self.source_refs[row]=entry.source;self.list.addItem(Path(entry.source).name)
             if entry.edit is not None:
                 self.exact_edits[row]=entry.edit
                 self.edits[row]=(float(entry.edit.source.start),float(entry.edit.source.end),float(entry.edit.speed))
