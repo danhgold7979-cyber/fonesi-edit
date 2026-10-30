@@ -5,7 +5,7 @@
 - Repo: danhgold7979-cyber/fonesi-edit; nhánh rebuild. Main và develop/fonesi-full không đổi.
 - 12 phase / 94 task / 95 nhóm yêu cầu; chưa nghiệm thu trọn phase hoặc task đầy đủ. Không dùng số test để suy ra phần trăm sản phẩm.
 - Code mới đã có: rational timing, immutable intent, SQLite lease ledger, probe/render CPU, Qt import/preview/trim-speed/export, project save-as/open, SRT editor, thuật toán matrix và batch local.
-- Kiểm tra local: 110/110 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
+- Kiểm tra local: 119/119 tests PASS; Ruff check/format PASS. CI checkpoint 0e5d398 (run 41107887718) SUCCESS; batch/Escape checkpoint f70f64b CI41112455704 SUCCESS; frozen Windows checkpoint dceeb5b/run41113327409 job124261038897 build + sáu startup checks PASS; selection-fix increment chưa có CI.
 - Đã có CI Windows/Linux Python 3.12/3.13, không đồng nghĩa nghiệm thu máy Windows người dùng, installer hoặc GPU.
 - UI/real CPU output có bằng chứng riêng; các workspace chưa triển khai vẫn bị vô hiệu hóa. Matrix chưa tích hợp UI; batch có dialog CPU độc lập nhưng chưa có durable queue; ledger chưa nối production worker.
 - Còn mở: full timeline/layers/preview parity, VTT/ASS/translation/burn-in, download/browser auth, durable queue recovery, matrix integration, Windows packaging/live acceptance.
@@ -86,3 +86,8 @@ Hosted Windows packaging evidence: exact remote dceeb5ba50272c1524a03775e117e32c
 ## Online ledger backup primitive
 
 JobStore.backup_new uses SQLite online backup into owned staging, integrity/schema readback, fsync and atomic no-overwrite publication. Active transactions reject; bounded-page progress checks cancellation/monotonic deadline. Caller must run storage work off UI; fsync/SQLite busy handling is not a hard realtime guarantee. Reopened backup retains intent/lease and cannot silently retry expired uncertain work. Failure staging cleanup, destination preservation, cancellation and timeout regressions pass. 110 local tests PASS; integration into UI/production workers and power-loss faults remain open.
+
+
+## Complete CPU export snapshot, not execution
+
+New cpu_snapshot.py has separately tagged version1 canonical immutable source/destination/tool hashes, exact clip/time tolerance and seed. Old RenderIntentv1 is preserved and explicitly rejected by the executable-snapshot parser, never default-converted. Strict fields/duplicates/size/rational/path/digest limits; pinned Unicode/rational golden digest. 119 local tests PASS. No hashing/file copy/tool invocation or queue-success path is added by snapshot creation. Queued execution remains blocked on the explicit stable-input/tool-trust/lease/publication-reconciliation contracts in REBUILD_QUEUED_EXPORT_PLAN.md.
