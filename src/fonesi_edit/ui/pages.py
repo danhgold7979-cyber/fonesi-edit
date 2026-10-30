@@ -1880,12 +1880,12 @@ class QueuePage(QWidget):
 class SettingsPage(QWidget):
     def __init__(self,host):
         super().__init__();self.host=host;layout=QVBoxLayout(self);tabs=QTabWidget();layout.addWidget(tabs)
-        tools=QWidget();box=QVBoxLayout(tools);buttons(box,host,[('Quét lại',self.scan),('Chọn đường dẫn',self.path),('Tải / cài công cụ chọn',self.install),('Cài phần bắt buộc thiếu',self.install_missing),('Rollback',self.rollback)])
+        tools=QWidget();box=QVBoxLayout(tools);self._tool_busy={};tool_toolbar=buttons(box,host,[('Quét lại',self.scan),('Chọn đường dẫn',self.path),('Tải / cài công cụ chọn',self.install),('Cài phần bắt buộc thiếu',self.install_missing),('Rollback',self.rollback)]);self.tool_actions={action.text():action for action in tool_toolbar.actions()};self.tool_busy_label=QLabel('');self.tool_busy_label.setWordWrap(True);box.addWidget(self.tool_busy_label)
         self.tools=QTableWidget(0,4);self.tools.setHorizontalHeaderLabels(['Công cụ','Trạng thái','Phiên bản','Đường dẫn / lý do']);self.tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);box.addWidget(self.tools,1)
         note=QLabel('Bộ tải mặc định chạy module gói cùng app. Binary downloader ngoài được quét để chẩn đoán; chọn override thực thi hiện áp dụng FFmpeg/ffprobe/Chrome.');note.setWordWrap(True);box.addWidget(note)
         managed_note=QLabel('Phiên bản do Fonesi quản lý — chỉ gỡ được bản không active và không còn job sử dụng');managed_note.setWordWrap(True);box.addWidget(managed_note)
-        buttons(box,host,[('Làm mới phiên bản đã cài',self.refresh_managed_tools),('Gỡ bản đã chọn',self.remove_managed_tool)])
-        self.managed_tools=QTableWidget(0,5);self.managed_tools.setHorizontalHeaderLabels(['Công cụ','Phiên bản','Active','Trạng thái sử dụng','Thư mục']);self.managed_tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.managed_tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);self.managed_tools.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows);box.addWidget(self.managed_tools,1)
+        managed_toolbar=buttons(box,host,[('Làm mới phiên bản đã cài',self.refresh_managed_tools),('Gỡ bản đã chọn',self.remove_managed_tool)]);self.managed_actions={action.text():action for action in managed_toolbar.actions()}
+        self.managed_tools=QTableWidget(0,5);self.managed_tools.setHorizontalHeaderLabels(['Công cụ','Phiên bản','Active','Trạng thái sử dụng','Thư mục']);self.managed_tools.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents);self.managed_tools.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);self.managed_tools.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows);self.managed_tools.currentCellChanged.connect(lambda *_:self._refresh_tool_action_states());box.addWidget(self.managed_tools,1);self.tools.currentCellChanged.connect(lambda *_:self._refresh_tool_action_states())
         tabs.addTab(tools,'Công cụ')
         chrome=QWidget();box=QVBoxLayout(chrome);form=QFormLayout();box.addLayout(form)
         self.profile=QComboBox();form.addRow('Hồ sơ Chrome',self.profile);self.platform=QComboBox();self.platform.addItems(PLATFORMS);form.addRow('Nền tảng',self.platform)
@@ -1912,7 +1912,77 @@ class SettingsPage(QWidget):
         self.background=QCheckBox('Đóng cửa sổ thì tiếp tục chạy nền (nếu có system tray)');self.background.setChecked(host.store.setting('background',False));form.addRow(self.background)
         save=QPushButton('Lưu tài nguyên');save.clicked.connect(host.guard(self.save_resources));form.addRow(save)
         disable=QPushButton('Tắt tất cả watcher/lịch');disable.clicked.connect(host.guard(self.clear_auto));form.addRow(disable);tabs.addTab(resources,'Tự động / máy')
-        self.refresh_profiles();self.scan();self.refresh_managed_tools();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
+        self.refresh_profiles();self.scan();self.refresh_managed_tools();self._refresh_tool_action_states();config=host.store.setting('translation',{});self.provider.setCurrentText(config.get('provider','google'));self.endpoint.setText(config.get('endpoint',''));self.budget.setValue(config.get('daily_limit',100000));self.glossary.setPlainText(json.dumps(config.get('glossary',{}),ensure_ascii=False,indent=2))
+
+    @staticmethod
+    def _tool_busy_key(name):
+        return 'ffmpeg' if name=='ffprobe' else name
+
+    def _tool_is_busy(self,name):
+        return self._tool_busy_key(name) in self._tool_busy
+
+    def _refresh_tool_action_states(self):
+        busy_names=sorted(self._tool_busy)
+        if busy_names:
+            self.tool_busy_label.setText(
+                'Đang tải/cài/cập nhật: '+', '.join(busy_names)+
+                '. Các thao tác chọn đường dẫn, cài lại, rollback và gỡ phiên bản cùng công cụ đang bị khóa.')
+        else:
+            self.tool_busy_label.clear()
+        try:
+            selected=self.selected_tool()
+        except (ValueError,AttributeError):
+            selected=None
+        selected_busy=bool(selected and self._tool_is_busy(selected))
+        for label in ('Chọn đường dẫn','Tải / cài công cụ chọn','Rollback'):
+            action=self.tool_actions.get(label)
+            if action is not None:
+                action.setEnabled(bool(selected) and not selected_busy)
+        missing={item.name for item in getattr(self,'statuses',[]) if item.status!='ready'}
+        installable={self._tool_busy_key(name) for name in missing
+                     if name in {'ffmpeg','ffprobe','Google Chrome','node'}}
+        installable={name for name in installable if name not in self._tool_busy}
+        action=self.tool_actions.get('Cài phần bắt buộc thiếu')
+        if action is not None:
+            action.setEnabled(bool(installable))
+        row=self.managed_tools.currentRow()
+        can_remove=False
+        if row>=0 and self.managed_tools.item(row,0) is not None:
+            identity=self.managed_tools.item(row,0).data(Qt.ItemDataRole.UserRole)
+            if identity:
+                name,_version=identity
+                state=self.managed_tools.item(row,3)
+                can_remove=bool(state and state.text()=='Có thể gỡ'
+                                and not self._tool_is_busy(name))
+        action=self.managed_actions.get('Gỡ bản đã chọn')
+        if action is not None:
+            action.setEnabled(can_remove)
+
+    def _release_tool_operation(self,key,task):
+        if self._tool_busy.get(key) is task:
+            self._tool_busy.pop(key,None)
+            self._refresh_tool_action_states()
+
+    def _schedule_tool_operation(self,name,function,done):
+        key=self._tool_busy_key(name)
+        if key in self._tool_busy:
+            raise ValueError(f'{key} đang được tải/cài/cập nhật; không thể xếp thêm thao tác')
+        self._tool_busy[key]=None
+        self._refresh_tool_action_states()
+        try:
+            task=self.host.background(function,done)
+            self._tool_busy[key]=task
+            task.finished.connect(
+                lambda key=key,task=task:self._release_tool_operation(key,task),
+                Qt.ConnectionType.QueuedConnection)
+            if task.isFinished():
+                self._release_tool_operation(key,task)
+            return task
+        except Exception:
+            if self._tool_busy.get(key) is None:
+                self._tool_busy.pop(key,None)
+                self._refresh_tool_action_states()
+            raise
 
     def scan(self):self.host.background(lambda p,c:statuses(self.host.store),self.scanned)
     def scanned(self,tools):
@@ -1935,6 +2005,7 @@ class SettingsPage(QWidget):
                 if col==3:
                     cell.setToolTip(item['reason'])
                 self.managed_tools.setItem(row,col,cell)
+        self._refresh_tool_action_states()
 
     def remove_managed_tool(self):
         row=self.managed_tools.currentRow()
@@ -1944,6 +2015,8 @@ class SettingsPage(QWidget):
         if not identity:
             raise ValueError('Không đọc được danh tính phiên bản')
         name,version=identity
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể gỡ phiên bản')
         item=next((entry for entry in managed_tool_versions(self.host.store)
                    if entry['name']==name and entry['version']==version),None)
         if not item:
@@ -1958,6 +2031,8 @@ class SettingsPage(QWidget):
             QMessageBox.StandardButton.No)
         if answer!=QMessageBox.StandardButton.Yes:
             return
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} vừa bắt đầu cập nhật; hãy thử gỡ lại sau')
         remove_tool_version(self.host.store,name,version)
         self.host.message(f'Đã gỡ phiên bản {name} {version}; không thay đổi tool hệ thống hoặc dữ liệu Chrome.')
         self.refresh_managed_tools()
@@ -1969,6 +2044,8 @@ class SettingsPage(QWidget):
         return self.tools.item(row,0).text()
     def path(self):
         name=self.selected_tool()
+        if self._tool_is_busy(name):
+            raise ValueError(f'{self._tool_busy_key(name)} đang được cập nhật; chưa thể đổi đường dẫn')
         if name not in {'ffmpeg','ffprobe','Google Chrome','node'}:raise ValueError('Bộ tải dùng module gói kèm. Binary ngoài được chẩn đoán riêng; không tự đổi backend chưa kiểm chứng.')
         path,_=QFileDialog.getOpenFileName(self.host,'Chọn executable')
         if path:
