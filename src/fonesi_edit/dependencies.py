@@ -11,7 +11,7 @@ import time
 from urllib.request import Request,urlopen,HTTPRedirectHandler,build_opener
 import zipfile
 
-from .domain import fingerprint,atomic_json,canonical,checked_payload,identifier
+from .domain import fingerprint,atomic_json,canonical,checked_payload
 from .prototypes.tools import check_tool,scan_tools,configure_tools
 
 
@@ -225,14 +225,16 @@ def managed_tool_versions(store):
         rows=[dict(row) for row in conn.execute(
             'SELECT name,version,path,hash,active FROM tool_versions ORDER BY name,version')]
         setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
-        configured=json.loads(setting['value']) if setting else {}
         jobs=[dict(row) for row in conn.execute(
             "SELECT id,state,payload FROM jobs WHERE state!='succeeded'")]
-    if not isinstance(configured,dict):
+    try:
+        configured=json.loads(setting['value']) if setting else {}
+        invalid_configuration=not isinstance(configured,dict)
+    except (TypeError,ValueError,json.JSONDecodeError):
         configured={}
         invalid_configuration=True
-    else:
-        invalid_configuration=False
+    if invalid_configuration:
+        configured={}
     parsed_jobs=[]
     unknown_jobs=[]
     for job in jobs:
@@ -290,7 +292,10 @@ def remove_tool_version(store,name,version):
         if row['active']:
             raise ValueError('Cannot remove the active tool version')
         setting=conn.execute("SELECT value FROM settings WHERE key='tool_paths'").fetchone()
-        configured=json.loads(setting['value']) if setting else {}
+        try:
+            configured=json.loads(setting['value']) if setting else {}
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            raise ValueError('Tool path configuration is invalid; refusing cleanup') from exc
         if not isinstance(configured,dict):
             raise ValueError('Tool path configuration is invalid; refusing cleanup')
         if any(isinstance(path,str) and _path_is_within(path,folder)
