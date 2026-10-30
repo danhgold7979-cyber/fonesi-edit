@@ -966,7 +966,7 @@ class BatchPage(QWidget):
         existing=self.audio_playlist.toPlainText()
         entries=existing.splitlines() if existing else []
         entries.extend(os.path.abspath(path) for path in selected)
-        self.audio_playlist.setPlainText('\\n'.join(entries))
+        self.audio_playlist.setPlainText('\n'.join(entries))
 
     def clear_audio_playlist(self):
         self.audio_playlist.clear()

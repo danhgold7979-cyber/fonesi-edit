@@ -219,10 +219,13 @@ def test_batch_manual_playlist_rejects_invalid_paths_before_video_planning(tmp_p
     with pytest.raises(ValueError,match='không được hỗ trợ'):
         batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(unsupported)])
     link=tmp_path/'linked.wav'
-    try:link.symlink_to(valid)
-    except OSError:pytest.skip('Symlink creation is not permitted on this runner')
-    with pytest.raises(ValueError,match='symbolic link'):
-        batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(link)])
+    try:
+        link.symlink_to(valid)
+    except OSError:
+        pass
+    else:
+        with pytest.raises(ValueError,match='symbolic link'):
+            batch_plan(groups,preset,audio_mode='playlist',playlist_paths=[str(link)])
     no_audio=tmp_path/'no-audio.mp4'
     subprocess.run([locate_tool('ffmpeg'),'-v','error','-nostdin','-n','-i',
         str(video),'-an','-c:v','libx264','-threads','2',str(no_audio)],
