@@ -163,3 +163,15 @@ New tests cover malformed/name/version-mismatched receipts, external byte-identi
 Exact-HEAD CI: Linux **879 passed / 0 skipped**; Windows **875 passed / 4 intentional skips / 0 failures** (one POSIX fixture installer and three Windows symlink-privilege tests). Both runners passed 128-source synthetic FFprobe Batch dry-run (failed_count=0), 2,000-output logical Matrix benchmark (complete=true, max spread 5), production desktop/native-host build and frozen packaged proof. Batch: 7.526041 s Linux / 10.676617 s Windows. Matrix: 19.938691 s Linux / 18.143151 s Windows. Artifacts: Linux evidence 391,632 bytes; Windows evidence 324,455 bytes; Windows development build 197,408,920 bytes.
 
 This closes the bounded receipt/rollback ownership slice only. Physical Windows ACL/AV/disk-full/power-loss, signed installer/update UX, Chrome real login/DPAPI/session handoff, live providers, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12 remain OPEN.
+
+## P11-01 / P11-04 — Cross-platform SFX sample-clock timing (30/10/2026)
+
+The Windows regression in [CI 41076305870](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41076305870) reported peak 3830 in the pre-trigger silence window. [Fix ca32673](https://github.com/danhgold7979-cyber/fonesi-edit/commit/ca32673ccfe40eed14cc3b3c57c9d98807641719) normalizes trimmed SFX to `asetpts=N/SR/TB` after 48 kHz resampling and before delay for custom and repeated SFX. Strict pre-trigger silence and audible-window assertions remain unchanged. Exact-HEAD [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) SUCCESS: Linux 884 passed; Windows 880 passed + 4 intentional skips; both packaged proofs passed.
+
+## P11-08 / TOL-04…06 — Per-tool update-busy guard (30/10/2026)
+
+Settings now reserves a normalized per-tool busy key before scheduling work; FFprobe aliases FFmpeg. Duplicate install/update is rejected, independent tools may queue concurrently, install-missing skips busy components, relevant actions are disabled/guarded, and busy state clears after task completion, scheduling failure or a worker that finishes before signal hookup. Five Qt regressions were added. Exact-HEAD [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) SUCCESS: Linux 884 passed; Windows 880 passed + 4 intentional skips; production/native-host builds and frozen packaged proofs both OS.
+
+Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), the 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact: 197,420,154 bytes; evidence artifacts: Linux 391,868 bytes and Windows 324,574 bytes.
+
+These close bounded synthetic SFX and in-process Settings concurrency slices only. Full P11/P12 and physical Windows/live-provider acceptance remain OPEN.

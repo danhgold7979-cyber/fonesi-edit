@@ -129,3 +129,15 @@ dependencies.py now validates receipt object/name/version identity and SHA-256 f
 New regressions cover malformed/name/version-mismatched receipt identity, byte-identical external rollback executable, symlinked ffprobe during activation and rollback. [CI 41072242592](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41072242592) SUCCESS exact HEAD 13a044e51f96498d7b3ee0728e7892fffd8c4194: Linux 879 passed / 0 skipped; Windows 875 passed / 4 intentional skips / 0 failures. Both OS passed Batch 128-source synthetic dry-run, 2,000-output logical Matrix benchmark, production/native-host build and frozen packaged proof.
 
 Still OPEN: physical Windows ACL/AV/disk-full/power-loss, signed installer/update, real Chrome/provider auth, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12 acceptance.
+
+## P11-01 / P11-04 — SFX sample-clock timing (30/10/2026)
+
+Custom trigger-time and repeated SFX branches now reset PTS from sample count after 48 kHz resampling and before `adelay`. Graph assertions verify ordering; strict decoded-MP4 pre-trigger silence and audible windows are unchanged. The earlier Windows failure at [41076305870](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41076305870) is covered by the fix and exact-HEAD [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) SUCCESS.
+
+## P11-08 / TOL-04…06 — Per-tool Settings update-busy guard (30/10/2026)
+
+Added a synchronous per-tool busy registry in Settings, FFprobe→FFmpeg alias normalization, duplicate scheduling rejection, independent-tool scheduling, install-missing skip behavior, visible status/action disabling, rollback/path/cleanup guards, and completion/scheduling/fast-worker release handling. Five Qt tests cover these paths. Exact-HEAD [CI 41080729485](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41080729485) SUCCESS: Linux 884 passed; Windows 880 passed + 4 intentional skips; both production/native-host/frozen proofs passed.
+
+Linux 884 passed / 0 skipped; Windows 880 passed / 4 intentional skips / 0 failures. Both runners passed the 128-source synthetic FFprobe Batch dry-run (failed_count=0; 7.013533 s Linux / 9.322799 s Windows), the 2,000-output logical Matrix benchmark (complete=true, max per-scene spread 5; 16.364985 s Linux / 16.197908 s Windows), production desktop/native-host build and frozen packaged proof. Windows development artifact: 197,420,154 bytes; evidence artifacts: Linux 391,868 bytes and Windows 324,574 bytes.
+
+Still OPEN: physical Windows ACL/AV/disk-full/power-loss, signed installer/update and cross-process mutex, live Chrome/provider auth, GPU/HiDPI/audio, real-media soak, SQLite issue #6 and full P11/P12 acceptance.
