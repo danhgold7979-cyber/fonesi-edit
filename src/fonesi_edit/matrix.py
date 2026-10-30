@@ -90,6 +90,8 @@ def scene_generation_locks(scenes,pins,count,window=0,locks=None):
     """Merge per-cell locks with scene-wide angle pins, never relaxing W/K."""
     if type(count) is not int or count<1:
         raise ValueError('Invalid matrix output count')
+    if not scenes or any(not scene for scene in scenes):
+        raise ValueError('Empty matrix scenes')
     if type(window) is not int or window<0:
         raise ValueError('Invalid W')
     if type(pins) is not dict:
@@ -245,7 +247,7 @@ def valid_against(row,previous,window=0,different=0,compare_window=False):
 
 def generate(scenes,count,seed=0,window=0,different=0,compare_window=False,history=(),seconds=10,locks=None,cancel=None):
     if count<1 or window<0 or not 0<=different<=len(scenes):raise ValueError('Invalid N/W/K')
-    if any(not scene for scene in scenes):raise ValueError('Empty scene')
+    if not scenes or any(not scene for scene in scenes):raise ValueError('Empty scene')
     capacity=math.prod(len(scene) for scene in scenes)
     previous=[list(item) for item in history];used={canonical(item) for item in previous}
     allowed_hashes=[{a.hash for a in scene} for scene in scenes]
