@@ -132,8 +132,16 @@ class MultiRootTests(unittest.TestCase):
                 len({item.root_id for item in self.window.scan_result.items}), 2
             )
             displayed = [self.window.items.item(i).text() for i in range(2)]
-            self.assertTrue(any(str(a / "clip.mp4") in text for text in displayed))
-            self.assertTrue(any(str(b / "clip.mp4") in text for text in displayed))
+            expected_sources = {(a / "clip.mp4").resolve(), (b / "clip.mp4").resolve()}
+            self.assertEqual(
+                {item.source for item in self.window.scan_result.items},
+                expected_sources,
+            )
+            for expected in expected_sources:
+                self.assertTrue(
+                    any(text.startswith(str(expected) + " → ") for text in displayed),
+                    f"Canonical source {expected!s}; displayed={displayed!r}",
+                )
             self.assertTrue(self.window.run_selected())
             self.wait()
             self.assertEqual(len(list(out.rglob("clip-mp4-edit.mp4"))), 2)
