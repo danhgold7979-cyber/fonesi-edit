@@ -27,7 +27,7 @@ Mỗi dòng dưới là IN_PROGRESS/PARTIAL, không phải DONE. Test tương �
 | P06-04 | SRT table edit/manual lock/undo-redo/literal find-replace/split-merge | Song ngữ/tách/gộp/dịch câu chọn và lưu lịch sử bền vững |
 | P06-05 | Rational cue map/trim/speed/overlap diagnostics | Timeline/offset UI và đầy đủ source/render integration |
 | P06-06 | Xuất SRT mới không overwrite | ASS/bilingual/style/burn-in pipeline |
-| P08-01 | Bounded scan/no-follow và dialog chọn checkbox | Multi-folder UI/filter/search/tree/exclusion controls |
+| P08-01 | Bounded scan/no-follow, multi-folder UI và checkbox | Filter/search/tree/exclusion controls |
 | P08-02 | Selected tuple snapshot và tên output preview/no-overwrite | Presets/clip override/source-content snapshot/versioning |
 | P08-07 | Actual CPU batch/decode/probe, per-item progress và isolated failures | ETA/resume/durable queue/full duration-tracks corpus |
 | P09-02 | Lazy combination/history scope/uniqueness | Real media hashes/reservations/durable history |

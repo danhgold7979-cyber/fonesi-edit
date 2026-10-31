@@ -27,7 +27,7 @@ Revision: rebuild-2026-10-30. Các kết quả bên dưới phần lịch sử t
 
 **Phụ thuộc:** thực hiện sau task tạo contract/nguồn dữ liệu của chức năng; xem đồ thị master. Adapter/live/Windows/GPU phải được kiểm chứng riêng trước công bố khả dụng.
 
-**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Bounded scan/no-follow và dialog chọn checkbox. Còn mở: Multi-folder UI/filter/search/tree/exclusion controls. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
+**Trạng thái rebuild:** IN_PROGRESS / chưa nghiệm thu. Bounded scan/no-follow, multi-folder UI và checkbox. Còn mở: Filter/search/tree/exclusion controls. Xem [đối chiếu hiện tại](../REBUILD_TASK_PROGRESS.md); dẫn chứng lịch sử không chứng nhận code mới.
 
 ### P08-02
 

@@ -27,7 +27,7 @@ class BatchEditor(QDialog):
         super().__init__(parent)
         self.worker = None
         self.closing = False
-        self.source = None
+        self.sources = []
         self.output = None
         self.scan_result = None
         self.batch_progress = None
@@ -38,10 +38,10 @@ class BatchEditor(QDialog):
         self.setStyleSheet(STYLE)
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel("Một nguồn → một MP4 CPU. Không áp preset/trim/sub của Editor.")
+            QLabel("Mỗi tệp nguồn → một MP4 CPU. Không áp preset/trim/sub của Editor.")
         )
         bar = QHBoxLayout()
-        self.source_button = QPushButton("Thư mục nguồn…")
+        self.source_button = QPushButton("Thêm thư mục nguồn…")
         self.output_button = QPushButton("Thư mục đầu ra…")
         self.scan_button = QPushButton("Quét nguồn")
         self.run_button = QPushButton("Xuất các mục đã chọn")
@@ -59,6 +59,17 @@ class BatchEditor(QDialog):
         self.paths.setTextFormat(Qt.PlainText)
         self.paths.setWordWrap(True)
         layout.addWidget(self.paths)
+        roots_bar = QHBoxLayout()
+        roots_bar.addWidget(QLabel("THƯ MỤC NGUỒN ĐÃ CHỌN · tối đa 100"))
+        roots_bar.addStretch()
+        self.remove_source_button = QPushButton("Bỏ thư mục chọn")
+        self.remove_source_button.clicked.connect(self.remove_source)
+        roots_bar.addWidget(self.remove_source_button)
+        layout.addLayout(roots_bar)
+        self.source_roots = QListWidget()
+        self.source_roots.setMaximumHeight(90)
+        self.source_roots.currentRowChanged.connect(self.refresh)
+        layout.addWidget(self.source_roots)
         self.items = QListWidget()
         layout.addWidget(self.items)
         self.progress = QProgressBar()
@@ -81,24 +92,62 @@ class BatchEditor(QDialog):
     def choose_folder(self, output):
         path = QFileDialog.getExistingDirectory(self, "Chọn thư mục hiện có")
         if path:
-            self.set_folder(Path(path), output=output)
+            if output:
+                self.set_folder(Path(path), output=True)
+            else:
+                self.add_source(Path(path))
 
     def set_folder(self, path, *, output):
-        if self.worker is not None:
+        if self.worker is not None or self.closing:
             return False
         if output:
             self.output = path
         else:
-            self.source = path
+            self.sources = [path]
+        self.folders_changed()
+        return True
+
+    def add_source(self, path):
+        if self.worker is not None or self.closing or not isinstance(path, Path):
+            return False
+        if path in self.sources:
+            self.status.setText(
+                "Đường dẫn này đã được chọn; giữ kết quả quét hiện tại."
+            )
+            return False
+        if len(self.sources) >= 100:
+            self.status.setText(
+                "Tối đa 100 đường dẫn nguồn trong một lô; chưa thêm thư mục."
+            )
+            return False
+        self.sources.append(path)
+        self.folders_changed()
+        self.source_roots.setCurrentRow(len(self.sources) - 1)
+        return True
+
+    def remove_source(self):
+        row = self.source_roots.currentRow()
+        if self.worker is not None or self.closing or not 0 <= row < len(self.sources):
+            return False
+        self.sources.pop(row)
+        self.folders_changed()
+        if self.sources:
+            self.source_roots.setCurrentRow(min(row, len(self.sources) - 1))
+        return True
+
+    def folders_changed(self):
         self.scan_result = None
         self.batch_progress = None
         self.items.clear()
+        self.source_roots.clear()
+        self.source_roots.addItems([str(path) for path in self.sources])
         self.paths.setText(
-            f"Nguồn: {self.source or 'chưa chọn'}\nĐầu ra: {self.output or 'chưa chọn'}"
+            f"Nguồn đã chọn: {len(self.sources)} đường dẫn · Đầu ra: {self.output or 'chưa chọn'}"
         )
-        self.status.setText("Thư mục đã đổi; cần quét lại trước khi xuất.")
+        self.status.setText(
+            "Thư mục đã đổi; cần quét lại trước khi xuất. Bỏ thư mục khỏi danh sách không xóa tệp."
+        )
         self.refresh()
-        return True
 
     def selected_items(self):
         if self.scan_result is None:
@@ -110,15 +159,19 @@ class BatchEditor(QDialog):
         )
 
     def refresh(self, *_):
-        busy = self.worker is not None
+        busy = self.worker is not None or self.closing
         for button in (self.source_button, self.output_button):
             button.setEnabled(not busy)
+        self.source_roots.setEnabled(not busy)
+        self.remove_source_button.setEnabled(
+            not busy and self.source_roots.currentRow() >= 0
+        )
         self.scan_button.setEnabled(
-            not busy and self.source is not None and self.output is not None
+            not busy and bool(self.sources) and self.output is not None
         )
         self.run_button.setEnabled(
             not busy
-            and self.source is not None
+            and bool(self.sources)
             and self.output is not None
             and bool(self.ffmpeg and self.ffprobe)
             and self.scan_result is not None
@@ -139,7 +192,7 @@ class BatchEditor(QDialog):
                 self.progress.setValue(0)
 
     def start(self, operation, callback, *, report_progress=False):
-        if self.worker is not None:
+        if self.worker is not None or self.closing:
             return False
         worker = (
             Worker(lambda cancel: operation(cancel, worker.progress.emit))
@@ -191,15 +244,15 @@ class BatchEditor(QDialog):
             self.status.setText("Đang yêu cầu hủy; chờ dừng an toàn…")
 
     def scan_sources(self):
-        if self.worker or self.source is None or self.output is None:
+        if self.worker or self.closing or not self.sources or self.output is None:
             return False
         self.scan_result = None
         self.batch_progress = None
         self.items.clear()
-        source, output = self.source, self.output
+        sources, output = tuple(self.sources), self.output
         self.status.setText("Đang quét; chưa xác nhận nội dung media.")
         return self.start(
-            lambda cancel: scan((source,), output, cancel=cancel.is_set), self.scanned
+            lambda cancel: scan(sources, output, cancel=cancel.is_set), self.scanned
         )
 
     def scanned(self, result):
@@ -214,7 +267,7 @@ class BatchEditor(QDialog):
                 + "-edit.mp4"
             )
             destination = Path(value.root_id) / value.relative.parent / name
-            item = QListWidgetItem(f"{value.relative} → {destination}")
+            item = QListWidgetItem(f"{value.source} → {destination}")
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
             self.items.addItem(item)
@@ -281,4 +334,5 @@ class BatchEditor(QDialog):
             event.ignore()
         else:
             self.closing = False
+            self.refresh()
             event.accept()
