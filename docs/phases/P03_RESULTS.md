@@ -880,3 +880,27 @@ hosted-41300558073. Local2 affected cases PASS and independent2 PASS; next paire
 Windows3.12/3.13. Prior48/47PASS cases are carried forward, not repeated. Frozen
 unchanged remains skipped. No source-byte immutability, safe cleanup or criterion
 acceptance inferred.
+
+### Admission observation terminal evidence
+
+Run41300884252 public556c9ad3a35637613053dcc423ab32c2a6300a4f/tree0573e501:
+both Windows3.12.10 and3.13.16 SUCCESS,2 targeted cases PASS each,0 skips/failures.
+Exact source/4members and both ZIP API hashes verified under hosted-41300884252.
+No application changes from2c5ddff; prior unaffected48/47PASS evidence carried,
+not called a new full aggregate. No frozen rerun, new child or P03 closure.
+
+### Windows cleanup capability prototype (not integrated)
+
+New artifacts/windows_cleanup.py + tests/test_windows_cleanup.py reuse official
+Win32 APIs through stdlib ctypes; original→bridge→DELETE-handle continuity, pinned
+expected parent, deny-write/delete target, no-follow/no-create/no-inherit, no pathname
+unlink. This module is NOT invoked by PublicationSession or normal app flow. Actual
+Windows tests must establish native hardlink/foreign replacement/disposition/handle
+retirement behavior before completed-job integration. Local unsupported-platform
+case PASS; native tests remain SKIPPED/NOT_RUN until scoped [windows-cleanup] CI.
+No claim that the earlier destructive race is solved on POSIX (still retain).
+
+Independent prototype review caught authority failure allowing another mark attempt;
+fixed one-shot latch before all guards/callbacks and permanent revoke. New platform-
+neutral causal regression PASS (also independently1PASS), actual native remains pending.
+Final scoped source/workflow CLEAR in P03_NATIVE_CLEANUP_PRIMITIVE_REVIEW.md.

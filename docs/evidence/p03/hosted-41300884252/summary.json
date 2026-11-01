@@ -1,0 +1,57 @@
+{
+  "run_id": 41300884252,
+  "public_source": "556c9ad3a35637613053dcc423ab32c2a6300a4f",
+  "status": "SCOPED_PASS_NOT_AGGREGATE",
+  "jobs": [
+    {
+      "name": "publication-admission-windows-latest-py3.12",
+      "zip_sha256": "2e4f7e2564e2cd72e81a52ca762ad4dd38fad4b673904eab1a5ce252cfcfd4c6",
+      "files_sha256": {
+        "foundation-source.json": "fab9247a27b7d14b26ebaa3550e1bdfc10e2333f24485ba7a82f15e915e95cff",
+        "foundation-results.xml": "d2f9f4833ccd12ed1eda0cdd087ff4e0de464b9b90f988e477790bb2a979acec"
+      },
+      "source": {
+        "source_sha": "556c9ad3a35637613053dcc423ab32c2a6300a4f",
+        "source_tree": "0573e50132b7e3af3f2230c0edf52816a062317d",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "2",
+        "time": "0.613",
+        "timestamp": "2026-11-01T11:13:33.722765+00:00",
+        "hostname": "runnervmdaln5"
+      }
+    },
+    {
+      "name": "publication-admission-windows-latest-py3.13",
+      "zip_sha256": "72edb3262183e1037f853a4b0150e10a9daea076b8fb647adbc8d619a7b2cf43",
+      "files_sha256": {
+        "foundation-source.json": "5b9492a2f94109840f2fc3539625001a44c75efc823ff61b52f00309adfa7c78",
+        "foundation-results.xml": "944134d59f807b50fd1343522a6daeea338b92635c1b17c911c5df2a1ee7f442"
+      },
+      "source": {
+        "source_sha": "556c9ad3a35637613053dcc423ab32c2a6300a4f",
+        "source_tree": "0573e50132b7e3af3f2230c0edf52816a062317d",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "2",
+        "time": "0.459",
+        "timestamp": "2026-11-01T11:13:27.208490+00:00",
+        "hostname": "runnervmdaln5"
+      }
+    }
+  ]
+}

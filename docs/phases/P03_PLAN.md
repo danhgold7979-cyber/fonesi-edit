@@ -413,3 +413,23 @@ manifest-driven scanner exclusions/hardlink aliases, epoch loss after I/O, zero 
 creation on rejected admission; cleanup foreign child/same-bytes replacement,
 final/history/epoch loss, success final preservation, repeat/partial outcome handling.
 Independent review before coherent checkpoint. No new acceptance count by test volume.
+
+### Windows object-bound cleanup capability prototype entry
+
+After rejecting POSIX stat/unlink TOCTOU, reuse official Win32 CreateFileW and
+SetFileInformationByHandle(FileDispositionInfo), through existing stdlib ctypes.
+No new package or copied third-party implementation; no ACL/security/privilege changes.
+A continuous original-FD→share-delete metadata bridge→DELETE-access deny-write/delete
+handle chain preserves physical incarnation while acquiring destructive rights.
+Expected parent namespace pinned before handoff; OPEN_EXISTING/OPEN_REPARSE_POINT,
+correct directory BACKUP_SEMANTICS, type/identity/reparse checks, noninherited handles,
+exact once HANDLE→CRT ownership, no path-delete fallback. Before disposition recheck
+name/parent/handle identity and caller's live authority. Native disposal failure/close
+uncertainty retires capability without retry. POSIX remains unsupported/retained.
+
+Prototype first, NOT wired to production PublicationSession cleanup until actual
+Windows hardlink, file/directory substitution, foreign child, authority loss,
+sharing-conflict, unmarked close and handle-plateau tests establish the primitive.
+Then integrate exact completed journal/history/quiescence/final readback as one
+subsequent coherent slice. No generic process/worker abstraction invented while
+this critical safe-deletion primitive remains unverified.
