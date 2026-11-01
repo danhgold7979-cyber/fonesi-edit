@@ -99,6 +99,49 @@ class JobRepository:
         self.guard_database()
         return os.dup(self._file_anchor)
 
+    def _prepare_coordinator_connection(self, *, windows=None):
+        """Read-only preflight before epoch BEGIN; never replay a transaction.
+
+        A peer's Windows exit can invalidate the WAL shared-memory view of an
+        already-open idle connection. Exact1546 alone permits closing/reopening
+        that owned connection through the existing bounded startup-read helper.
+        """
+        self.guard_database()
+        if self.db is None or self.db.in_transaction:
+            raise JobConflict('Coordinator setup requires an idle database connection')
+        windows=os.name=='nt' if windows is None else windows
+        try:
+            self.db.execute('SELECT epoch FROM coordinator_epochs ORDER BY epoch DESC LIMIT 1').fetchall()
+            return
+        except sqlite3.OperationalError as exc:
+            if (not windows or getattr(exc,'sqlite_errorcode',None)!=1546 or self.db.in_transaction or
+                not owns_database(self.path,APPLICATION_ID,KNOWN_LINEAGE_HASHES)):
+                raise
+        # No BEGIN/INSERT/COMMIT has run in this setup attempt. Keep original DB
+        # incarnation pinned while retiring only this failed idle SQLite handle.
+        self.guard_database()
+        self.db.close();self.db=None
+        connection=None
+        def owned():
+            self.guard_database()
+            return owns_database(self.path,APPLICATION_ID,KNOWN_LINEAGE_HASHES)
+        try:
+            connection,version=open_versioned(self.path,windows=windows,owned=owned)
+            self.guard_database()
+            if (version!=VERSION or connection.execute('PRAGMA application_id').fetchone()[0]!=APPLICATION_ID or
+                not matches(connection,VERSION) or connection.execute('PRAGMA journal_mode').fetchone()[0]!='wal'):
+                raise JobConflict('Reopened coordinator database identity/schema/mode changed')
+            connection.row_factory=sqlite3.Row
+            connection.execute('PRAGMA foreign_keys=ON')
+            connection.execute('PRAGMA synchronous=FULL')
+            connection.execute('PRAGMA busy_timeout=5000')
+            connection.execute('SELECT epoch FROM coordinator_epochs ORDER BY epoch DESC LIMIT 1').fetchall()
+            self.guard_database()
+            self.db=connection
+        except BaseException:
+            if connection is not None:connection.close()
+            raise
+
     def close(self):
         try:
             if self.db is not None:self.db.close()

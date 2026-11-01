@@ -56,6 +56,8 @@ class CoordinatorOwnership:
             self._db_fd=self.repository.duplicate_database_anchor()
             self._db_identity=self.repository.database_identity
             self._check_db()
+            self.repository._prepare_coordinator_connection()
+            self._check_lock();self._check_db()
             db=self.repository.db
             db.execute('BEGIN IMMEDIATE')
             try:

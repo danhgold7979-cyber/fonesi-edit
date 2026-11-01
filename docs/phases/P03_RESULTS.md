@@ -436,3 +436,22 @@ this scope. Further final-publication/success/cleanup/recovery expansion is held
 actual newer-source Windows/hosted verification, which depends on resolving the denied
 public-source upload. Main remains accepted P01; P03 remains IN_PROGRESS,0/9 tasks
 accepted and2/438 overall child assertions accepted. This checkpoint is not app completion.
+
+## New hosted checkpoint301934ae and scoped native recovery
+
+Run41286035491: Windows3.12/SQLite3.49.1 source313PASS/22SKIP and frozen CompositionPlan
+SUCCESS; Ubuntu3.12/3.13 each322PASS/13SKIP. Windows3.13/SQLite3.50.4 had312PASS/22SKIP/
+1FAIL: existing idle DB connection's first coordinator BEGIN after killed peer returned
+I/O error. Four original source/JUnit artifacts downloaded and SHA256-verified; no PASS
+job replay. Diagnostic-only public8dad3c6/run41286452680 reproduced exact1546
+SQLITE_IOERR_TRUNCATE, in_transaction=False; no runtime behavior was changed in diagnosis.
+
+Repair adds read-only epoch preflight before any coordinator BEGIN/INSERT. Only exact
+Windows1546 on idle, physically anchored, receipt-owned DB closes/reopens connection
+through existing bounded startup-read helper; rechecks appID/schema/WAL and restores
+connection settings. No BEGIN/COMMIT/job replay, journal deletion or other-error retry.
+Known matching upstream report: https://sqlite.org/forum/info/ba7afbd0e81501118563617430fe06d0aca052e55ece2b0d457f8e16fcf85bba .
+38 affected local recovery/ownership/journal tests PASS, not native proof. Scoped
+[coordinator-recovery] CI runs affected DB/coordinator/journal tests on all4 OS/Python
+targets; unchanged parser/UI/frozen suites retain prior exact evidence rather than rerun.
+Independent repair review and native corrected-source evidence pending; no new criteria.
