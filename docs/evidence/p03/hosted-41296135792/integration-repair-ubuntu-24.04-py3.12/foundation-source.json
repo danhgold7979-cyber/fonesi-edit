@@ -1,0 +1,7 @@
+{
+  "source_sha": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+  "source_tree": "ea3a2a4d6bffe1f58c2d4bc097b484c8dd189357",
+  "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+  "python": "3.12.15",
+  "sqlite": "3.45.1"
+}

@@ -1,0 +1,115 @@
+{
+  "run_id": 41296135792,
+  "public_source": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+  "status": "FAIL",
+  "jobs": [
+    {
+      "name": "integration-repair-ubuntu-24.04-py3.12",
+      "zip_sha256": "315262bc60c23c79d4c9ce6929312b0238690dbca37cd765f55ab33fce866340",
+      "files_sha256": {
+        "foundation-source.json": "cdc0bd0fcf9a43367d8e247375b45fc975869193e128ba75a6242b4bed9abb38",
+        "foundation-results.xml": "e8d9414825c9b1ff0f6e2b00a4d15100a022ea1cd2bdc323b15cabe94134bf1b"
+      },
+      "source": {
+        "source_sha": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+        "source_tree": "ea3a2a4d6bffe1f58c2d4bc097b484c8dd189357",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "48",
+        "time": "0.664",
+        "timestamp": "2026-11-01T10:08:38.755712+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "failed_cases": []
+    },
+    {
+      "name": "integration-repair-ubuntu-24.04-py3.13",
+      "zip_sha256": "deea78390d4a721c925d478fc7dc54c103e7f9e8d99efe045a64a56a03c737e5",
+      "files_sha256": {
+        "foundation-source.json": "68956c799a958d3dc4df2b040da284b4814dbc5121d4acbfc99cfa6a665fc389",
+        "foundation-results.xml": "868da678c7dc6be18ff5c474b8b504aa7a73030091b622dc1dc2f710b7521b46"
+      },
+      "source": {
+        "source_sha": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+        "source_tree": "ea3a2a4d6bffe1f58c2d4bc097b484c8dd189357",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "48",
+        "time": "0.659",
+        "timestamp": "2026-11-01T10:08:42.716713+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "failed_cases": []
+    },
+    {
+      "name": "integration-repair-windows-latest-py3.12",
+      "zip_sha256": "43945f79227b9d7b045cbc0e6fdc6341c6e876ce211fb0560c13a798034f05e3",
+      "files_sha256": {
+        "foundation-source.json": "aeda4199db2f84ee6f5078fe95e1c6aae582cedbcd53c1294b3a9620c60d5213",
+        "foundation-results.xml": "b8f9eca33897765131fd2588df4b5ca4698772540657ff02f12e3d4a7519f271"
+      },
+      "source": {
+        "source_sha": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+        "source_tree": "ea3a2a4d6bffe1f58c2d4bc097b484c8dd189357",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "48",
+        "time": "3.191",
+        "timestamp": "2026-11-01T10:08:45.093190+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "failed_cases": [
+        "test_fresh_process_scan_imports_no_gui_or_storage"
+      ]
+    },
+    {
+      "name": "integration-repair-windows-latest-py3.13",
+      "zip_sha256": "da3822b2809bb09537c80b08e24eb7f0c667d4b66cf650b3e775db2e2df6b665",
+      "files_sha256": {
+        "foundation-source.json": "61d61217996e90486b70d72a7da4c21fcf753e535f677ca90011f02ce0e4cf92",
+        "foundation-results.xml": "257cc3ff95d2401685f1b6e7410d0ce260c8fe864d831080c1b24f937587166f"
+      },
+      "source": {
+        "source_sha": "9b62a1a7b067ad340a1be41996d3aa86861f6abc",
+        "source_tree": "ea3a2a4d6bffe1f58c2d4bc097b484c8dd189357",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.17",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "48",
+        "time": "3.165",
+        "timestamp": "2026-11-01T10:08:49.384934+00:00",
+        "hostname": "runnervmhao91"
+      },
+      "failed_cases": [
+        "test_fresh_process_scan_imports_no_gui_or_storage"
+      ]
+    }
+  ]
+}

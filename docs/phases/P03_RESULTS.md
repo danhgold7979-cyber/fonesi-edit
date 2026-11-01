@@ -780,3 +780,27 @@ cases are carried forward, not rerun. Pending plan/schema and actual Windows3.12
 frozen schema/subtitle/tool-discovery/license checks remain enabled. A green repair
 is affected evidence, not a new full aggregate or P03 acceptance. No criterion
 closure;2/438 and0/9 remain unchanged.
+
+### Native repair result and corrected boundary oracle
+
+Run41296135792 public9b62a1a7b067ad340a1be41996d3aa86861f6abc,
+treeea3a2a4d6bffe1f58c2d4bc097b484c8dd189357: Linux3.12/3.13 each48 PASS;
+Windows3.12/3.13 each47 PASS/1 FAIL. All media discovery identity/hardlink/exclusion
+and jobs migration/ownership repairs now pass on actual Windows. All4 ZIP API
+hashes/source identities verified, exact members retained under hosted-41296135792.
+The remaining test incorrectly assumed an empty host candidate list; Windows child
+still observed installed Chrome despite attempted process-local search hints. The
+precise environment/startup mechanism has NOT been established. Earlier wording
+that explicit environment values prevent restoration was too strong and is corrected.
+
+The actual requirement is read-only candidate discovery, no GUI/storage startup,
+no execute/install/readiness grant, and invalid explicit selection never falling
+back—not absence of installed tools. Corrected fresh-process/frozen oracle explicitly
+selects an owned nonexistent Chrome path and requires INVALID_EXPLICIT_PATH with no
+selected candidate, while any real host candidates remain UNCHECKED and other
+selections only MISSING/NEEDS_CHECK. Input/no-appdata checks remain. Application
+source is unchanged; four affected local harness/import tests PASS exit0.
+Next [integration-repair] [windows-boundary] run covers only these four affected
+checks on both Windows Python versions plus still-unrun Windows3.12 frozen build;
+Linux48 and unaffected Windows47 results are carried forward. No aggregate rerun,
+new criterion closure, permission/security setting change or fake tool readiness.

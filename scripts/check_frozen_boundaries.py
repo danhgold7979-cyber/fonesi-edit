@@ -53,15 +53,18 @@ def main(argv=None):
         saved=dict(os.environ)
         try:
             empty=work/'empty-tools';empty.mkdir();os.environ['PATH']=str(empty)
-            # Explicit values prevent Windows startup from restoring absent
-            # well-known variables; only this test process environment changes.
+            # Narrow test-process search hints, not a promise that Windows
+            # child startup cannot expose host candidates; never machine PATH.
             for key in ('PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'):
                 os.environ[key]=str(empty)
-            case=run_case(binary,['--scan-tools','--data-dir',data],0)
+            case=run_case(binary,['--scan-tools','--tool-path','chrome='+str(work/'missing-chrome'),'--data-dir',data],0)
         finally:
             os.environ.clear();os.environ.update(saved) # Test process only; no machine/user PATH mutation.
         payload=json.loads(case['stdout'])
-        if payload['status']!='COMPLETE' or payload['candidates'] or any(x['state']!='MISSING' for x in payload['selections']):
+        chrome=next(x for x in payload['selections'] if x['tool']=='chrome')
+        if (payload['status']!='COMPLETE' or any(x['readiness']!='UNCHECKED' for x in payload['candidates']) or
+            chrome['state']!='INVALID_EXPLICIT_PATH' or chrome['candidate'] is not None or
+            any(x['state'] not in {'MISSING','NEEDS_CHECK','INVALID_EXPLICIT_PATH'} for x in payload['selections'])):
             raise AssertionError('Frozen candidate-only boundary failed')
         case['name']='read-only-tool-discovery';report['cases'].append(case)
         if data.exists() or any(sha256(path.read_bytes()).hexdigest()!=digest for path,digest in inputs.items()):

@@ -116,11 +116,17 @@ def guarded(name,*args,**kwargs):
     return real(name,*args,**kwargs)
 builtins.__import__=guarded
 from fonesi_edit.__main__ import main
-raise SystemExit(main(['--scan-tools']))
+raise SystemExit(main(['--scan-tools','--tool-path','chrome='+sys.argv[1]]))
 """
-    result=subprocess.run([sys.executable,'-c',script],env={**{k:v for k,v in os.environ.items() if k.upper() not in {'PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'}},'PATH':str(tmp_path),**{key:str(tmp_path) for key in ('PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA')}},capture_output=True,text=True,timeout=10)
+    result=subprocess.run([sys.executable,'-c',script,str(tmp_path/'missing-chrome')],env={**{k:v for k,v in os.environ.items() if k.upper() not in {'PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'}},'PATH':str(tmp_path),**{key:str(tmp_path) for key in ('PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA')}},capture_output=True,text=True,timeout=10)
     assert result.returncode==0,result.stderr
-    assert json.loads(result.stdout)['candidates']==[]
+    payload=json.loads(result.stdout)
+    assert payload['status']=='COMPLETE'
+    # Host-installed tools may be discovered; existence never grants readiness.
+    assert all(c['readiness']=='UNCHECKED' for c in payload['candidates'])
+    chrome=next(s for s in payload['selections'] if s['tool']=='chrome')
+    assert chrome['state']=='INVALID_EXPLICIT_PATH' and chrome['candidate'] is None
+    assert all(s['state'] in {'MISSING','NEEDS_CHECK','INVALID_EXPLICIT_PATH'} for s in payload['selections'])
 
 
 def test_windows_named_executable_metadata_without_execution(tmp_path):
