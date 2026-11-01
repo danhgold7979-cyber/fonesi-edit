@@ -1063,3 +1063,33 @@ PASS locally; actual Windows object-bound stage removal in this combinedcase
 awaits scoped16-case4targetCI. No FFmpeg simulation passed as codec evidence.
 Initial test referenced nonexistent job_history, corrected to completion_history;
 not an application failure. No new criterion accepted before native proof.
+
+### Combined cancellation native gate41308555823
+Exactpublicf40bdf3c/tree085c9aca (local672490c), fourSUCCESS/all16PASS/noSKIP each.
+Windows3.12.10/3.13.16 own-stage cleanup and Linux3.12.15/3.13.17 safe retention
+actually executed in combined UI path. API4ZIP digests/8members/source/JUnit
+independently verified; exact OPS-02.02 child accepted with root concurrence.
+Ledger7/438 globally,7/78P03mapped; wholeP03tasks0/9 unchanged. Not FFmpeg/default
+scheduler/provider/restart or physical-desktop acceptance. No unchanged test reruns.
+
+### Typed durable diagnostics — P03-05 local source
+Separate owned diagnostic SQLite store; no jobs schema migration or native lock
+change. Allowlisted codes/stages/numeric exit values only, capped retained rows,
+fixed plain-text UI labels, original-FD/receipt/schema checks. Selected command
+outcome remains committed if diagnostic append/open/close fails; explicit warning
+without command/log replay. Read-only selected view runs outside UI thread and
+creates no missing store/sidecars; original-FD SQLite header rejects WAL before
+SQLite connection. DELETE journal/zero busy wait; no hard OS-I/O deadline claimed.
+
+18backend+4UI newcases exercised across affected local runs, including actual
+worker-thread Python exit7 with private stderr→typed store→Qt fixed error text,
+row caps, foreign/future/corrupt/unmarked refusal, unknown append, busy log store,
+read-only byte/file preservation and close lifetime. Initial receipt test used a
+wrong filename, corrected to receipt_path; no app failure hidden. Reviewer reproduced
+unsupported-WAL sidecar creation, fixed header preflight and causal negative.
+Four shared command/inbox/progress/cancel regressions plus3UI cases7PASS exit0; no
+aggregate repeat. Independent source CLEAR; scoped55-case4targetCI remains pending.
+Ledger7/438, tasks0/9 unchanged; full provider/executor/error integration not accepted.
+
+Native exit-code model includes signed POSIX signals and unsigned Windows DWORD
+crash codes (e.g.0xC0000005); exact bounded numeric roundtrip regression1PASS.

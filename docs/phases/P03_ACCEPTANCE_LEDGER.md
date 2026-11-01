@@ -1,6 +1,6 @@
 # P03 evidence and remaining acceptance ledger
 
-Current accepted count: **6/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41306207422 (7a87baa7), plus prior cancellation/preservation41304594711; earlier accepted children retain their exact historical evidence.
+Current accepted count: **7/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41308555823 (f40bdf3c), combined UI cancellation/retirement/owned cleanup; earlier accepted children retain their exact historical evidence.
 
 Original evidence checkpoint: public source `f16dca9986fd1181363c52580b11d7cef5a8b70c`, local source `a935fccc6746eff726b26dbf352189e0f8f1a30e`, tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`, hosted run `41277250696`. This ledger does not change the original 94 task / 95 group / 438 child-assertion denominators. Test-case count is not product completion percentage. A task closes only when its complete planned acceptance is satisfied; shared child assertions may close before either owning task.
 
@@ -11,7 +11,7 @@ Independent review accepted these exact two closures on 2026-11-01; see `docs/re
 - **OPS-03.05 — Newer schema never overwritten.** ProjectStore future SQLite version refuses before migration/WAL mutation; hosted `tests.test_projects::test_newer_database_untouched` verifies full file bytes unchanged. Project envelope future schema is rejected by `test_invalid_project_envelope_rejected[<lambda>0]`. Supported JSON saves validate existing ownership/schema before replacement. This is the project compatibility criterion, not a claim that every future repository exists or autosave is implemented.
 - **OPS-04.02 — Canonical snapshot immutable.** Hosted `tests.test_composition::test_caller_and_returned_dict_cannot_mutate_snapshot` proves defensive copies and frozen snapshot. `tests.test_jobs::test_idempotence_snapshot_conflict_and_reopen` proves immutable canonical composition+seed persistence and conflicting submission rejection across reopen. Competing claims, stale versions/leases and forged lease records cannot rewrite it. Complete resolved tool/account/provider snapshot fields and artifact traceability remain P03-05 / OPS-04.01 work; this criterion addresses immutability, not field completeness.
 
-At that original checkpoint all other P03-mapped criteria remained unaccepted; four additional narrow closures are recorded below. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
+At that original checkpoint all other P03-mapped criteria remained unaccepted; five additional narrow closures are recorded below. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
 
 ## Nine task gates: actual implementation and specific missing cases
 
@@ -21,13 +21,13 @@ At that original checkpoint all other P03-mapped criteria remained unaccepted; f
 | P03-02 | Project/job SQLite identity/schema guards, project JSON, CAS, transactional initialization, backups, process-kill rollback | Media/preset/artifact/history/cache repositories and version migrations; verified backup restore path and fault at every migration step; complete repository integrity/corruption integration |
 | P03-03 | Bounded probe/hash, unchanged-source identity checks, exact rational time mapping, selected streams | Normalize real no-audio/rotation/VFR/malformed corpus into complete typed probe; actual Windows FFmpeg/ffprobe corpus; large-media cancellation and stream timing integration |
 | P03-04 | Durable admission/idempotence/lease CAS, native owned Windows jobs and POSIX groups, termination/quiescence/crash tests; local live-owner command inbox and bounded numeric Qt progress | Production scheduler/executor integration, queue-level pause, classified retry/blocked states, startup lease recovery, stale completion integration, UI responsiveness under workload |
-| P03-05 | Immutable composition/seed/required-output policies; pure account references; actual bounded own-thread queue view with no snapshot/credential selection (local5cbb079); later reviewed selected pause/resume/cancel-request CAS and explicit Qt retirement | Fully resolved tools/account/provider/preset/matrix snapshot; durable redacted log/error taxonomy; production scheduler wiring (local owner routing/progress slice implemented); preset-change/secret-sentinel integration |
+| P03-05 | Immutable composition/seed/required-output policies; pure account references; actual bounded own-thread queue view with no snapshot/credential selection (local5cbb079); later reviewed selected pause/resume/cancel-request CAS and explicit Qt retirement | Fully resolved tools/account/provider/preset/matrix snapshot; complete executor/provider diagnostic integration (local typed bounded store/selected viewer implemented); production scheduler wiring (local owner routing/progress slice implemented); preset-change/secret-sentinel integration |
 | P03-06 | Same-DB journal, semantic media/subtitle validation, streaming retained staging, live-anchor per-member publication and exact-set job/history commit; conservative new-owner quarantine with4real child kills; bounded exclusion-aware candidate CLI; actual Windows live-session completed/canceled owned cleanup and typed retirement | Incarnation-safe automatic restart recovery; automatic restart-safe staging cleanup; complete exclusion/source-overlap policy integration; remaining disk-full/permission/native Windows crash and lifecycle gates |
 | P03-07 | Explicit atomic file save/open and process-kill evidence; local typed completed-command session CAS, explicit recovery choice/shell Save, atomic original-base metadata, same-content asset/font relink and actual background root-folder picker | Actual editor commands/timer autosave; unknown-origin recovery/latest-state ordering; cache and explicit different-content replacement; end-to-end crash/identity/invalidation and native GUI tests; unmarked DB/lock recovery diagnostics |
 | P03-08 | Explicit probe path, bounded named executable candidate CLI and explicit-path no-fallback preference (all unverified); trusted distribution contract | Verified registry/manifests/pair capability/resolver/ownership installation receipts; version leases, staging/self-test/activation/rollback/cleanup; actual Windows trusted installation and UI evidence |
 | P03-09 | Reviewed pure profiles/bindings/access models plus owned metadata persistence, CAS/defaults, one login identity per profile/platform, separately scoped channel rights and unlink-only metadata | Credential-reference/secure-store boundary; job/export/log integration; full cache retention; profile acquisition/lease/version/path checks; actual Windows/live Chrome/provider handoff |
 
-**Child assertions accepted: 6/438 globally; 6/78 P03-mapped, 72 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
+**Child assertions accepted: 7/438 globally; 7/78 P03-mapped, 71 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
 
 **Whole P03 tasks accepted: 0/9.** No main merge or phase-complete claim follows from the foundation checkpoint. P01 accepted design tasks remain separately 8/94; P02 external gates stay open. Next implementation priority is P03-06 publication protocol plus P03-04 coordinator integration, preserving worker quiescence and ownership contracts.
 
@@ -77,3 +77,12 @@ acknowledgment and object-bound own-stage cleanup passed. Prior41304594711
 preservation and foreign-handoff cases remain unchanged. Unknown lifecycle, restart
 and POSIX retain stages; no FFmpeg, full queue, task or phase acceptance. Independent
 review: `docs/reviews/P03_TYPED_RETIREMENT_HOSTED_41306207422.md`.
+
+## OPS-02.02 narrow combined cancellation closure (41308555823)
+
+Actual selected Qt command→live owner→owned child/descendant→typed retirement→
+DB acknowledgment→only-owned Windows stage deletion passed, preserving source and
+foreign sentinels with no output/history success. Linux explicitly retains stages.
+All16affectedcases passed on all4targets; Python decoder is not FFmpeg proof.
+Default production scheduler/provider/restart/full task gates remain open. Exact
+receipt review: `docs/reviews/P03_QUEUE_LIFECYCLE_HOSTED_41308555823.md`.

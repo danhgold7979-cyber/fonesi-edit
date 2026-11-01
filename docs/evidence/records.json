@@ -498,5 +498,68 @@
         "scope": "Actual Windows live-stage preservation; helpers/tests unchanged at current checkpoint"
       }
     ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-02.02",
+    "generation": "clean-2026-11-01",
+    "commit": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+    "tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+    "task_ids": [
+      "P03-04",
+      "P10-06"
+    ],
+    "criterion_ids": [
+      "OPS-02.02"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "pytest tests/test_queue_cancel_lifecycle.py tests/test_coordinator_inbox.py tests/test_queue_progress.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+          "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+          "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+          "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+          "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_queue_cancel_lifecycle::test_selected_ui_cancel_retires_descendant_then_cleans_only_owned_stage"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41308555823/summary.json"
+    ],
+    "run_id": 41308555823,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41308555823",
+    "independent_review": "docs/reviews/P03_QUEUE_LIFECYCLE_HOSTED_41308555823.md",
+    "limitations": [
+      "Actual Windows live-owner UI cancellation, typed retirement and only-owned stage cleanup; Linux retains safely.",
+      "Python probe/decoder stand-ins are lifecycle evidence, not FFmpeg capability.",
+      "No default production scheduler, provider, restart recovery, full task/phase acceptance."
+    ]
   }
 ]

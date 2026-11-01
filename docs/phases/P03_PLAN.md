@@ -560,3 +560,31 @@ The Python media decoder remains labelled a lifecycle stand-in. Windows removes
 only its owned stage; POSIX retains without a pathname-delete fallback. Native
 session cleanup proof and UI final-state refresh are separate from production
 renderer/provider/scheduler acceptance.
+
+### P03-05 / OPS-05.03 typed durable diagnostics
+Reuse stdlib dataclasses/enums/json/sqlite3 and existing original-FD/schema/receipt
+ownership helpers; no new package or raw logging formatter. Independent design
+review rejected automatic jobs-v3 migration as insufficiently protected against
+already-open older writers. Keep jobs schema unchanged. Use a separate owned,
+versioned diagnostic store with an explicit observational/non-atomic contract.
+A committed job command is never rolled back/replayed because diagnostic storage
+fails; return a diagnostic-unavailable flag, retain known state outcome, and retire
+an uncertain log sink rather than retry an unknown append.
+
+Events expose only job-store token, UUID, attempt/version, finite observed time,
+enumerated stage/code and optional bounded process exit code. No exception text,
+traceback, argv, stdout/stderr, URL, account object, request key or free dictionary.
+Default retained-row limits5000global/500perjob are configurable within bounded
+ranges; this is not a physical SQLite/WAL byte bound. Settings UI remains open.
+Selected-job read-only diagnostics returns only validated fields and never creates
+or upgrades any database. Only explicit command/worker diagnostic emission may
+initialize the application-owned event store; preexisting unmarked/foreign/future
+or corrupt files are refused before mutation. Logs never confer retry/publication
+or billing authority. No jobs schema/native coordinator lock refactor is needed.
+
+Tests: exact foreign/future/schema refusal and original-FD continuity; append/read,
+row caps, corrupt record rejection; raw secret sentinels unrepresentable; successful
+job command remains committed when logging fails/unknown outcome is not retried;
+current-owner/version checks before live worker diagnostic emission; actual selected
+job Qt read-only view, close/cancel lifetime, no initialization from viewing logs.
+This does not fabricate production executors or accept all OPS-05.03 by itself.

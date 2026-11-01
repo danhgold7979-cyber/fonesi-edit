@@ -5985,12 +5985,17 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-OPS-02.02"
+    ],
     "planned_case_id": "case_ops_02_02",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L169"
+    ],
+    "implemented_test_cases": [
+      "tests.test_queue_cancel_lifecycle::test_selected_ui_cancel_retires_descendant_then_cleans_only_owned_stage"
     ]
   },
   {

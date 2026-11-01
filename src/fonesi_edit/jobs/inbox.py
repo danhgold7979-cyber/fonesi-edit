@@ -12,11 +12,12 @@ from fonesi_edit.storage.db_ownership import ownership_token
 
 
 class CoordinatorInbox:
-    def __init__(self, owner, *, capacity=64):
+    def __init__(self, owner, *, capacity=64, events_path=None):
         if type(capacity) is not int or not 1 <= capacity <= 256:
             raise ValueError('Inbox capacity must be 1..256')
         owner.guard()
         self._owner = owner
+        self._events_path = events_path
         self._thread = get_ident()
         self._capacity = capacity
         self._pending = deque()
@@ -91,7 +92,7 @@ class CoordinatorInbox:
                         continue
                     self._running += 1
                 try:
-                    result = _apply_owned(self._owner.repository, self._owner, command)
+                    result = _apply_owned(self._owner.repository, self._owner, command, events_path=self._events_path)
                 except BaseException as exc:
                     future.set_exception(exc)
                     # Ordinary stale/invalid requests are refusals. Unknown SQLite

@@ -1,0 +1,30 @@
+{
+  "scope": "Affected local typed diagnostic tests, not native/criterion/phase acceptance",
+  "source_sha256": {
+    "src/fonesi_edit/jobs/events.py": "515800555382e1e5e1ebe44a695b1bf72278567fc0314aba5cc2358c1cf54e8f",
+    "src/fonesi_edit/jobs/event_store.py": "8eaaa076933b16f2295f505ea9ac38ffcface1839a6db8ec0e745030759ddc53",
+    "src/fonesi_edit/jobs/diagnostics.py": "1f76a80a1a56990b1c8b7f496a7c1c1f1f09509b50d88ba3b3179c6e587b5a2d",
+    "src/fonesi_edit/jobs/commands.py": "8f452e15a913985521a097fa3a80eeb484bcd5a83e52858181c669792475f774",
+    "src/fonesi_edit/jobs/inbox.py": "155829d1f209301dd3d337b2d447651677c30b9d4db55557fb85a586a52ee3d3",
+    "src/fonesi_edit/ui/queue.py": "97207efa26847ec4516e2568b82141095fa344f33ddffe77418fd12348393c04",
+    "tests/test_job_events.py": "d74e30e461781f3bf01eb68583354a2e789935a1601a71240e797f47bcfe06bf",
+    "tests/test_job_events_ui.py": "59de570631f31bbe7ae576e85ba28aa3eda9e85f5e19f5455c6d7773c9065763"
+  },
+  "new_cases": {
+    "backend": 18,
+    "ui": 4,
+    "execution": "Focused affected batches, not a claimed single aggregate"
+  },
+  "affected_existing": {
+    "cases": 4,
+    "passed": 4,
+    "exit_code": 0
+  },
+  "independent_review": "docs/reviews/P03_TYPED_EVENT_STORE_LOCAL_REVIEW.md",
+  "limitations": [
+    "Separate diagnostic store is observational/non-atomic with jobs; log failure does not replay job.",
+    "No complete default executor/provider integration.",
+    "Windows native verification pending; current actual worker error uses Python process, not FFmpeg.",
+    "Reader assumes cooperating writers do not switch journal mode concurrently."
+  ]
+}

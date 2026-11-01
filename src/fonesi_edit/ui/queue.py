@@ -1,9 +1,12 @@
 """Actual durable queue observations on a worker thread, no simulated progress."""
 from concurrent.futures import TimeoutError
 from PySide6.QtCore import QThread,Signal,Qt,QTimer
-from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,QTableWidgetItem,QAbstractItemView,QHeaderView
+from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,QTableWidgetItem,QAbstractItemView,QHeaderView,QPlainTextEdit
 from fonesi_edit.jobs.view import read_queue,QueueReadError
 from fonesi_edit.jobs.commands import QueueCommand,apply_queue_command
+from fonesi_edit.jobs.event_store import event_path,read_events
+from fonesi_edit.jobs.events import describe
+from fonesi_edit.jobs.diagnostics import DiagnosticStatus
 
 
 class QueueCommander(QThread):
@@ -13,7 +16,7 @@ class QueueCommander(QThread):
     def run(self):
         try:
             if self.inbox is None:
-                result=apply_queue_command(self.path,self.command,cancel=self.isInterruptionRequested)
+                result=apply_queue_command(self.path,self.command,cancel=self.isInterruptionRequested,events_path=event_path(self.path))
             else:
                 if self.isInterruptionRequested():return
                 future=self.inbox.submit(self.command)
@@ -30,6 +33,18 @@ class QueueCommander(QThread):
         except Exception:self.refused.emit('Yêu cầu chưa được xác nhận. Đọc lại trạng thái; không tự gửi lại thao tác.')
 
 
+class QueueEventReader(QThread):
+    observed=Signal(object)
+    refused=Signal(str)
+    def __init__(self,path,store_token,job_id,parent=None):
+        super().__init__(parent);self.path=path;self.store_token=store_token;self.job_id=job_id
+    def run(self):
+        try:
+            rows=read_events(event_path(self.path),self.store_token,self.job_id,cancel=self.isInterruptionRequested)
+            self.observed.emit((self.store_token,self.job_id,rows))
+        except Exception:self.refused.emit('Không đọc được nhật ký; không thay đổi dữ liệu.')
+
+
 class QueueReader(QThread):
     observed=Signal(object)
     refused=Signal(str)
@@ -42,7 +57,7 @@ class QueueReader(QThread):
 class QueuePage(QWidget):
     idle=Signal()
     def __init__(self,path,parent=None,*,inbox=None):
-        super().__init__(parent);self.inbox=inbox;self.path=path;self.reader=None;self.commander=None;self.stopping=False;self.store_token=None;self._snapshot_valid=False
+        super().__init__(parent);self.inbox=inbox;self.path=path;self.reader=None;self.commander=None;self.event_reader=None;self.stopping=False;self.store_token=None;self._snapshot_valid=False
         self._route_revision=inbox.state()[0] if inbox is not None else 0
         layout=QVBoxLayout(self)
         self.message=QLabel('Chưa đọc dữ liệu hàng đợi. Không có số liệu giả lập.')
@@ -62,7 +77,12 @@ class QueuePage(QWidget):
         actions=QHBoxLayout();self.action_buttons={}
         for action,label in (('pause','Tạm dừng chờ'),('resume','Tiếp tục chờ'),('cancel','Yêu cầu hủy')):
             button=QPushButton(label);button.clicked.connect(lambda checked=False,action=action:self.command(action));actions.addWidget(button);self.action_buttons[action]=button
-        layout.addLayout(actions);self._actions()
+        self.events_button=QPushButton('Đọc nhật ký tác vụ');self.events_button.clicked.connect(self.read_selected_events)
+        actions.addWidget(self.events_button)
+        self.events_view=QPlainTextEdit();self.events_view.setReadOnly(True);self.events_view.setMaximumBlockCount(501)
+        self.events_view.setMaximumHeight(150);self.events_view.setPlaceholderText('Nhật ký chẩn đoán có giới hạn; không chứa nội dung riêng tư.')
+        self.table.itemSelectionChanged.connect(self.events_view.clear)
+        layout.addLayout(actions);layout.addWidget(self.events_view);self._actions()
         note=QLabel('Chỉ thao tác tác vụ đã chọn. Hủy đang chạy chỉ là yêu cầu, chưa xác nhận tiến trình đã dừng. Bộ đếm quan sát không xác nhận hoàn tất.')
         note.setWordWrap(True);layout.addWidget(note)
         self.progress_timer=QTimer(self);self.progress_timer.setInterval(100)
@@ -127,9 +147,10 @@ class QueuePage(QWidget):
         self.stopping=True;self.progress_timer.stop();self.refresh_button.setEnabled(False)
         if self.reader is not None:self.reader.requestInterruption()
         if self.commander is not None:self.commander.requestInterruption()
+        if self.event_reader is not None:self.event_reader.requestInterruption()
         self._actions()
     @property
-    def busy(self):return self.reader is not None or self.commander is not None
+    def busy(self):return self.reader is not None or self.commander is not None or self.event_reader is not None
 
     def _selected(self):
         selected=self.table.selectionModel().selectedRows()
@@ -141,6 +162,7 @@ class QueuePage(QWidget):
     def _actions(self):
         if not hasattr(self,'action_buttons'):return
         row=self._selected();available=row is not None and self.store_token is not None and not self.busy and not self.stopping
+        if hasattr(self,'events_button'):self.events_button.setEnabled(available)
         allowed={'pause':{'pending'},'resume':{'paused'},'cancel':{'pending','paused','running','validating'}}
         for action,button in self.action_buttons.items():button.setEnabled(available and row.state in allowed[action])
 
@@ -154,7 +176,9 @@ class QueuePage(QWidget):
         self.refresh_button.setEnabled(False);self._actions();self.commander.start()
 
     def _applied(self,result):
-        self.command_notice.setText('Đã ghi yêu cầu hủy; chưa xác nhận tiến trình đã dừng.' if result.cancel_requested and result.state in {'running','validating'} else 'Đã ghi trạng thái tác vụ.')
+        text='Đã ghi yêu cầu hủy; chưa xác nhận tiến trình đã dừng.' if result.cancel_requested and result.state in {'running','validating'} else 'Đã ghi trạng thái tác vụ.'
+        if result.diagnostic_status is DiagnosticStatus.UNAVAILABLE:text+=' Nhật ký chưa được xác nhận; không gửi lại lệnh.'
+        self.command_notice.setText(text)
 
     def _command_refused(self,message):
         self.command_notice.setText(message)
@@ -167,3 +191,31 @@ class QueuePage(QWidget):
         self._actions();self.refresh_button.setEnabled(not self.stopping)
         if not self.stopping:self.refresh()
         self.idle.emit()
+
+    def read_selected_events(self):
+        row=self._selected()
+        if row is None or self.store_token is None or self.busy or self.stopping:return
+        self.event_reader=QueueEventReader(self.path,self.store_token,row.id,self)
+        self.event_reader.observed.connect(self._events_observed)
+        self.event_reader.refused.connect(self.events_view.setPlainText)
+        self.event_reader.finished.connect(self._events_finished)
+        self.events_view.setPlainText('Đang đọc nhật ký đã chọn…');self.refresh_button.setEnabled(False)
+        self._actions();self.event_reader.start()
+
+    def _events_observed(self,result):
+        token,job_id,rows=result;selected=self._selected()
+        if selected is None or selected.id!=job_id or token!=self.store_token:
+            self.events_view.clear();return
+        lines=[f'Nhật ký tác vụ {job_id} — tối đa 100 mục gần nhất; quan sát lịch sử, không phải quyền chạy lại.']
+        for record in rows:
+            category,label=describe(record.event)
+            lines.append(f'{record.observed_ms} ms | lần {record.attempt} | v{record.job_version} | {record.event.stage.value} | {category}: {label}')
+        if not rows:lines.append('Chưa có nhật ký đã xác nhận cho tác vụ này.')
+        self.events_view.setPlainText('\n'.join(lines))
+
+    def _events_finished(self):
+        if self.event_reader is not None and not self.event_reader.wait(0):
+            QTimer.singleShot(10,self._events_finished);return
+        old=self.event_reader;self.event_reader=None
+        if old is not None:old.deleteLater()
+        self._actions();self.refresh_button.setEnabled(not self.stopping and not self.busy);self.idle.emit()

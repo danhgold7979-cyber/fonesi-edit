@@ -1,0 +1,115 @@
+{
+  "run_id": 41308555823,
+  "scope": "Affected queue UI cancellation through typed validator retirement and owned-stage cleanup; Python decoder stand-in, not FFmpeg proof",
+  "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+  "artifacts": [
+    {
+      "artifact_id": 13084755272,
+      "artifact": "queue-lifecycle-ubuntu-24.04-py3.12",
+      "zip_sha256": "14a71ac4f6ad701f1e3e4e37c7d0688ce832d631c4b82c6d68da610e06f0e7b5",
+      "members": {
+        "foundation-results.xml": "0a9507e9d7c2d2b3c15d8556d6f8c2b8e8ccf5b8030dff75b5d87e8f5b8d236e",
+        "foundation-source.json": "42258f2d195e8c9b056ac737266a4538a41d79d05659523dab8b58ae6ee04eac"
+      },
+      "runtime": {
+        "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+        "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "16",
+        "time": "5.392",
+        "timestamp": "2026-11-01T12:52:57.500871+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13084382436,
+      "artifact": "queue-lifecycle-windows-latest-py3.12",
+      "zip_sha256": "9311185359bfce7038ca9a98e27ef15cc7edae239372d7c40fbdb35d4f5f49ce",
+      "members": {
+        "foundation-results.xml": "a76d877ee3988890582b178a6f535e4aeb8914553424448c76ab4c5e10763ec4",
+        "foundation-source.json": "82bd41476aa98cc61289c7bac6a9899193c879ee689d59e94ab82bfecc3b217b"
+      },
+      "runtime": {
+        "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+        "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "16",
+        "time": "5.660",
+        "timestamp": "2026-11-01T12:53:18.329648+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13083699732,
+      "artifact": "queue-lifecycle-ubuntu-24.04-py3.13",
+      "zip_sha256": "d960048fd16044ce95c5e19649b3964763dfa2251ecb7184926d50965dddbb12",
+      "members": {
+        "foundation-results.xml": "39a2f4ffecd7cf3bc0248265021a5f67428167eb678b9ec86b1583f3dbd0ae58",
+        "foundation-source.json": "02a72456b852524f8ed4d2c9cb213e22ce4b8f642ef23ba344b9d571970df22a"
+      },
+      "runtime": {
+        "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+        "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "16",
+        "time": "4.846",
+        "timestamp": "2026-11-01T12:53:08.149645+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13083484733,
+      "artifact": "queue-lifecycle-windows-latest-py3.13",
+      "zip_sha256": "d2095a6b7a59074ae56c2757eb9fbfd77e0a05b6c1195f54ad64da95db1cbe6e",
+      "members": {
+        "foundation-results.xml": "304cad2dd3f2493e2a39c57bb40bd9a793f0bc0d3ec929aa075774a831be02f2",
+        "foundation-source.json": "bc37116343a457803578588eb7284fe1cd78d55e9804cb3df11c5924211545b6"
+      },
+      "runtime": {
+        "source_sha": "f40bdf3c5faf54fb64a57269920bf8626e6184b5",
+        "source_tree": "085c9aca01f92bf0b08cbbe730651641e8e2d839",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "16",
+        "time": "5.219",
+        "timestamp": "2026-11-01T12:53:16.012105+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": []
+    }
+  ]
+}

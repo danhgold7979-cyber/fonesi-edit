@@ -8,6 +8,8 @@ from fonesi_edit.storage.db_ownership import ownership_token
 from .schema import APPLICATION_ID,KNOWN_LINEAGE_HASHES
 from .repository import JobRepository,JobConflict
 from .ownership import CoordinatorOwnership
+from .diagnostics import DiagnosticStatus,record_job_event
+from .events import Event,EventCode,EventStage
 
 
 @dataclass(frozen=True)
@@ -31,9 +33,10 @@ class QueueCommandResult:
     state: str
     version: int
     cancel_requested: bool
+    diagnostic_status: DiagnosticStatus=DiagnosticStatus.NOT_REQUESTED
 
 
-def apply_queue_command(path,command,*,cancel=lambda:False):
+def apply_queue_command(path,command,*,cancel=lambda:False,events_path=None):
     if type(command) is not QueueCommand:raise JobConflict('Typed queue command required')
     if cancel():raise JobConflict('Queue command canceled before admission')
     path=Path(path)
@@ -41,15 +44,15 @@ def apply_queue_command(path,command,*,cancel=lambda:False):
     if ownership_token(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES)!=command.store_token:raise JobConflict('Queue store changed; refresh required')
     with closing(JobRepository(path,existing_only=True)) as repo:
         if ownership_token(repo.path,APPLICATION_ID,KNOWN_LINEAGE_HASHES)!=command.store_token:raise JobConflict('Queue store changed; refresh required')
-        return _apply(repo,command,cancel)
+        return _apply(repo,command,cancel,events_path=events_path)
 
 
-def _apply(repo,command,cancel):
+def _apply(repo,command,cancel,*,events_path=None):
     with CoordinatorOwnership(repo) as owner:
-        return _apply_owned(repo,owner,command,cancel)
+        return _apply_owned(repo,owner,command,cancel,events_path=events_path)
 
 
-def _apply_owned(repo,owner,command,cancel=lambda:False):
+def _apply_owned(repo,owner,command,cancel=lambda:False,*,events_path=None):
     if type(command) is not QueueCommand or owner.repository is not repo:
         raise JobConflict("Exact command and repository owner required")
     owner.guard()
@@ -72,4 +75,7 @@ def _apply_owned(repo,owner,command,cancel=lambda:False):
         if db.in_transaction:db.execute('ROLLBACK')
         raise
     # No automatic retry after any SQLite error/unknown commit outcome.
-    return QueueCommandResult(result.id,result.state,result.version,result.cancel_requested)
+    code=(EventCode.QUEUE_PAUSED if command.action=='pause' else EventCode.QUEUE_RESUMED if command.action=='resume'
+          else EventCode.CANCELED_BEFORE_RUN if result.state=='canceled' else EventCode.CANCEL_REQUESTED)
+    diagnostic=record_job_event(repo,owner,result,Event(code,EventStage.QUEUE),events_path)
+    return QueueCommandResult(result.id,result.state,result.version,result.cancel_requested,diagnostic)
