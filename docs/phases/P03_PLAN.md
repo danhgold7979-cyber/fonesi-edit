@@ -711,3 +711,15 @@ before work creates nothing; after creation the file is retained, not auto-delet
 or falsely reported canceled-with-no-effects. Dialog/picker cancel never writes.
 This is project lifecycle foundation, not P04 editor/timeline or renderer acceptance;
 shared writer's cooperating-namespace/owned-staging assumptions remain unchanged.
+
+## Stable unresolved media persistence (P03-02/03/07; no P04 UI yet)
+
+Implement reviewed MEDIA_LIBRARY_PERSISTENCE_PROPOSAL as a coherent model/storage
+batch: symmetric bounded typed observations; independent stable media UUIDs and
+content-bound references; project envelope v1 preserved vs explicit v2 library;
+Project preservation helper; library-only completed commands advance the EXISTING
+plan revision exactly once; all autosave/recovery/relative-origin and same-content
+relink paths preserve the library. No lossy intermediate v2 writer may publish.
+Existing SQLite document schema remains unchanged; future envelope versions refuse.
+Initial scope is pure record/persistence/relink, not file admission, P04 import/drop
+UI, render-ready conversion, executable trust or ownership/deletion capability.

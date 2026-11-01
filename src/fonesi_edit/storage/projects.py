@@ -1,7 +1,7 @@
 """Versioned SQLite projects and recoverable explicit project-file saves."""
 from __future__ import annotations
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 from hashlib import sha256
 import json,os,sqlite3,time,uuid,stat
 from pathlib import Path
@@ -10,6 +10,7 @@ from ..fileio import read_bounded
 from .sqlite_open import open_versioned
 from .db_ownership import owns_database,register_database,receipt_path
 from ..domain.composition import CompositionPlan,canonical,PlanError
+from ..domain.media_library import MediaLibrary,MediaRecord
 
 SCHEMA_VERSION=2
 APPLICATION_ID=1178946130
@@ -32,6 +33,7 @@ class Project:
     id: str
     name: str
     plan: CompositionPlan
+    library: MediaLibrary|None = None
 
     def __post_init__(self):
         try:uuid.UUID(self.id)
@@ -39,9 +41,33 @@ class Project:
         if not isinstance(self.name,str) or not self.name.strip() or len(self.name)>200:
             raise StorageError('Project name must contain1..200characters')
         if not isinstance(self.plan,CompositionPlan):raise StorageError('Validated CompositionPlan required')
+        if self.library is not None:
+            if type(self.library) is not MediaLibrary:raise StorageError('Typed source library required')
+            self.library.__post_init__()
+
+    def with_plan(self,plan):
+        """Preserve every project-level field when changing composition."""
+        return replace(self,plan=plan)
 
     def to_json(self):
-        return canonical({'format':'fonesi-edit-project','schema_version':1,'project_id':self.id,'name':self.name,'composition':self.plan.to_dict()})
+        self.__post_init__()
+        payload={'format':'fonesi-edit-project','schema_version':1 if self.library is None else 2,
+                 'project_id':self.id,'name':self.name,'composition':self.plan.to_dict()}
+        if self.library is not None:payload['media_library']=self.library
+        def encode(value):
+            # Do not eagerly asdict the entire library before enforcing the
+            # whole-envelope budget. At most one bounded record is projected.
+            if type(value) is MediaLibrary:return {'schema_version':1,'items':value.items}
+            if type(value) is MediaRecord:return value.to_dict()
+            raise TypeError('Unsupported project field')
+        encoder=json.JSONEncoder(sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False,default=encode)
+        chunks=[];size=0
+        for chunk in encoder.iterencode(payload):
+            if len(chunk)>MAX_PROJECT_BYTES-size:raise StorageError('Project envelope exceeds33MiB')
+            size+=len(chunk.encode('utf-8'))
+            if size>MAX_PROJECT_BYTES:raise StorageError('Project envelope exceeds33MiB')
+            chunks.append(chunk)
+        return ''.join(chunks)
 
     @classmethod
     def parse(cls,text):
@@ -52,14 +78,19 @@ class Project:
                 out[k]=v
             return out
         try:
-            if len(text.encode() if isinstance(text,str) else text)>33*1024*1024:raise StorageError('Project file too large')
+            if type(text) not in (str,bytes) or len(text)>MAX_PROJECT_BYTES:raise StorageError('Project file too large/invalid input')
+            if isinstance(text,str) and len(text.encode('utf-8'))>MAX_PROJECT_BYTES:raise StorageError('Project file too large')
             raw=json.loads(text,object_pairs_hook=pairs,parse_constant=lambda x:(_ for _ in ()).throw(StorageError('Nonfinite JSON')))
-            if not isinstance(raw,dict) or set(raw)!={'format','schema_version','project_id','name','composition'}:raise StorageError('Invalid/unknown project envelope fields')
+            if type(raw) is not dict or 'schema_version' not in raw:raise StorageError('Invalid project envelope')
             if type(raw['schema_version']) is not int:raise StorageError('Invalid project schema version')
-            if raw['schema_version']>1:raise NewerSchemaError('Newer project schema: original left unchanged')
-            if raw['schema_version']!=1 or raw['format']!='fonesi-edit-project':raise StorageError('Unsupported project format/version')
-            return cls(raw['project_id'],raw['name'],CompositionPlan.parse(raw['composition']))
-        except (ValueError,TypeError,UnicodeError) as exc:
+            if raw['schema_version']>2:raise NewerSchemaError('Newer project schema: original left unchanged')
+            expected={'format','schema_version','project_id','name','composition'}
+            if raw['schema_version']==2:expected.add('media_library')
+            if set(raw)!=expected:raise StorageError('Invalid/unknown project envelope fields')
+            if raw['schema_version'] not in (1,2) or raw['format']!='fonesi-edit-project':raise StorageError('Unsupported project format/version')
+            library=None if raw['schema_version']==1 else MediaLibrary.from_dict(raw['media_library'])
+            return cls(raw['project_id'],raw['name'],CompositionPlan.parse(raw['composition']),library)
+        except (ValueError,TypeError,UnicodeError,RecursionError) as exc:
             if isinstance(exc,StorageError):raise
             raise StorageError(str(exc)) from exc
 
@@ -198,6 +229,9 @@ class ProjectStore:
                 self.db.execute('INSERT INTO projects VALUES (?,?,?,?,?,?)',(project.id,project.name,document,version,time.time(),origin_base))
             else:
                 if current[0]!=expected_version:raise ConflictError('Project changed; reload before saving')
+                if project.library is None:
+                    prior=self.db.execute('SELECT document FROM projects WHERE id=?',(project.id,)).fetchone()[0]
+                    if Project.parse(prior).library is not None:raise ConflictError('Cannot downgrade v2 project library')
                 version=current[0]+1
                 self.db.execute('UPDATE projects SET name=?,document=?,version=?,updated_at=?,origin_base=? WHERE id=? AND version=?',(project.name,document,version,time.time(),origin_base,project.id,expected_version))
             self._fault('before_project_commit')
@@ -287,7 +321,9 @@ def save_project_file(path:Path|str,project:Project,*,expected_digest:str|None=N
         if path.exists():
             previous=_read_project(path)
             if expected_digest is None or sha256(previous).hexdigest()!=expected_digest:raise ConflictError('Existing project differs or overwrite not explicitly authorized')
-            if Project.parse(previous).id!=project.id:raise ConflictError('Target belongs to another project')
+            prior=Project.parse(previous)
+            if prior.id!=project.id:raise ConflictError('Target belongs to another project')
+            if prior.library is not None and project.library is None:raise ConflictError('Cannot downgrade v2 project library')
         elif expected_digest is not None:raise ConflictError('Expected previous project is missing')
         staging=path.with_name('.'+path.name+'.staging-'+uuid.uuid4().hex)
         try:

@@ -1,7 +1,7 @@
 """Explicit project recovery and completed-command persistence (no UI/timer)."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 from pathlib import Path, PureWindowsPath
 from typing import Literal
 from fonesi_edit.domain.composition import CompositionPlan
@@ -20,8 +20,9 @@ class RelinkRequired(StorageError):
 
 def _relative(project: Project) -> bool:
     plan = project.plan.to_dict()
-    return any(item['path_ref']['base'] == 'project'
-               for key in ('assets', 'fonts') for item in plan[key])
+    return (any(item['path_ref']['base'] == 'project'
+               for key in ('assets', 'fonts') for item in plan[key]) or
+            (project.library is not None and any(item.path_ref.base=='project' for item in project.library.items)))
 
 
 def _observation(store: ProjectStore, project_id: str) -> StoredProject | None:
@@ -96,7 +97,15 @@ class RecoveryOffer:
                                 raise RelinkRequired('Project-relative reference has ambiguous absolute/drive syntax')
                             ref['path']=str(Path(self.local.origin_base)/value)
                             ref['base']='absolute'
-                selected=Project(selected.id,selected.name,CompositionPlan.parse(plan))
+                selected=selected.with_plan(CompositionPlan.parse(plan))
+                if selected.library is not None:
+                    from fonesi_edit.domain.media_library import MediaLibrary,MediaPath
+                    items=[]
+                    for item in selected.library.items:
+                        if item.path_ref.base=='project':
+                            item=replace(item,path_ref=MediaPath('absolute',str(Path(self.local.origin_base)/item.path_ref.path),item.sha256))
+                        items.append(item)
+                    selected=replace(selected,library=MediaLibrary(tuple(items)))
         return ProjectSession(store, selected, self.path, digest,
                               self.local)
 
@@ -148,6 +157,8 @@ class ProjectSession:
         if not isinstance(command, CompletedCommand):
             raise StorageError('Only completed typed commands may autosave')
         candidate = Project.parse(command.project.to_json())
+        if self._project.library is not None and candidate.library is None:
+            raise ConflictError('Completed command cannot discard v2 library; retain explicit empty library')
         old = self._project.plan.to_dict()
         new = candidate.plan.to_dict()
         if (command.expected_revision != self.revision or candidate.id != self._project.id

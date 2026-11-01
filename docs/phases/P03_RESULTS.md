@@ -1325,3 +1325,36 @@ UNKNOWN panel lock),2newcasesPASS; final target scope56cases. Initial failures s
 recorded. TOL-01.02 independently accepted with exact unchanged-source historical
 carryforward plus current first-navigation GUI; root concurrence13/438, P03still11/78.
 No creation criterion or whole task is accepted.
+
+New-project target run41328128912 independently VERIFIED at publicfa3675f6,
+treeaff45856: fourSUCCESS, each56PASS0SKIP, including real empty-project write/open/
+Save and cancellation/unknown/stale-session cases. Windows3.12.10/3.13.16,
+Linux3.12.15/3.13.17; fourZIP API/local digests/eight member bytes verified. No
+renderer/editor/full autosave/crash criterion closure; ledger13 unchanged.
+
+## Unresolved media library persistence — local coherent batch
+
+P03-02/03/07 only: independent stable UUIDs/content references and typed unresolved
+observations persist in explicit project envelope v2, while v1 remains byte-compatible.
+Completed library additions use existing project revision CAS; duplicate exact content
+is a no-op, conflicting identity/facts refuse. Save/autosave/recovery/same-content and
+root relink preserve v2 library and library-only relative origins. Current composition
+readiness and source ownership are not inferred from library facts. No P04 UI added.
+
+Author focused evidence: initial26newcasesPASS;62affected existing storage/autosave/
+creation/origin casesPASS. Additional streaming-bound1PASS; real owned-v1 migration
+backup containing v2 document→restore→reopen1PASS (initial fixture lacked receipt and
+correctly failed; fixed fixture, no relaxed ownership). Six additional mixed legacy/
+library relink and strict array/path casesPASS. Reviewer found two causal bugs:
+v2→v1 completed command could erase library; duplicate SHA early-return could hide
+another existing UUID. Fixed no-downgrade at session/direct DB/existing-file boundaries
+and precheck all UUID collisions before SHA no-op. Two ID-order regressionsPASS;
+combined session/DB/file/explicit-empty-v2 testPASS after correcting its initially
+missing persisted-row fixture. Original failing observations are not counted asPASS.
+
+[media-library] ALONE scopes next CI to four targets/13 affected files/165collected
+cases, with Qt recovery/relink/creation plus actual process-kill persistence tests.
+No unchanged FFmpeg, frozen bundle or unrelated aggregate rerun. Native result is
+PENDING, not inferred from local checks.13/438 and P03 11/78 remain unchanged.
+Independent final source review CLEAR: prior4selected cases and exact3correction
+instancesPASS, no repeated baseline. Workflow fe4191f9 reviewed for165-case scope.

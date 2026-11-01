@@ -1,0 +1,100 @@
+{
+  "run_id": 41328128912,
+  "source_sha": "fa3675f64e3d1f2a9ae352b3671616a41523e62e",
+  "source_tree": "aff45856786216ed754778d80bbb4a3d4fd92a43",
+  "scope": "Real blank project creation + affected shared Qt; not aggregate/frozen/native FFmpeg",
+  "artifacts": [
+    {
+      "id": 13092570585,
+      "name": "project-create-windows-latest-py3.12",
+      "zip_sha256": "e4ede62f6f0e216d8b27e6cf253a89c0e89e4ab9087f859c3e38d316b00c7255",
+      "members": {
+        "foundation-results.xml": "ed1d10de3b9a2abd3e513ddfbda1893403efa0b43bef686ba472b51f47345609",
+        "foundation-source.json": "78b4fdcad847b51a40fdd3ec7f290bcfdb6532c1c787c28791223b2e78bc5d02"
+      },
+      "runtime": {
+        "source_sha": "fa3675f64e3d1f2a9ae352b3671616a41523e62e",
+        "source_tree": "aff45856786216ed754778d80bbb4a3d4fd92a43",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 56,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 56
+      }
+    },
+    {
+      "id": 13092430994,
+      "name": "project-create-ubuntu-24.04-py3.13",
+      "zip_sha256": "078d914de25629eeaaa2cc12996d66309332527f0a9032367b0c769ebbc562fa",
+      "members": {
+        "foundation-results.xml": "fec56ae38fe5cdae2623578d744c5e4621328c5e844e9f3fa2d48a36557ae245",
+        "foundation-source.json": "eed2221ed6427feeb656e03fa5ea1497a13ee33d1c0b34ec04401381382af1d2"
+      },
+      "runtime": {
+        "source_sha": "fa3675f64e3d1f2a9ae352b3671616a41523e62e",
+        "source_tree": "aff45856786216ed754778d80bbb4a3d4fd92a43",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 56,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 56
+      }
+    },
+    {
+      "id": 13092291537,
+      "name": "project-create-ubuntu-24.04-py3.12",
+      "zip_sha256": "4c00ee7835b024accc1f6772e2deb548af5aa74f15b0f151e8b916bf5117b47b",
+      "members": {
+        "foundation-results.xml": "6f9b34808e764e9e8d5db6585f8702390b1c40ac6d739451703db0770cdb60ef",
+        "foundation-source.json": "9380c7ae2c50752f1dcb601ded7bda038b61cc90c33d6c9bfe6a566f0dc98640"
+      },
+      "runtime": {
+        "source_sha": "fa3675f64e3d1f2a9ae352b3671616a41523e62e",
+        "source_tree": "aff45856786216ed754778d80bbb4a3d4fd92a43",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 56,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 56
+      }
+    },
+    {
+      "id": 13091553269,
+      "name": "project-create-windows-latest-py3.13",
+      "zip_sha256": "69b8d3967393e3bf172b06ac11267a6cdb1d9f74076019393ad73a2bc1155062",
+      "members": {
+        "foundation-results.xml": "f97bb49b466a3493b43a8b835278c3e496ecee48ec5ee1b22259c3b18a0857ed",
+        "foundation-source.json": "ac2f0e8789b62b56a488e80f46e7d1fba57b11744e7e087e26d901ec46481661"
+      },
+      "runtime": {
+        "source_sha": "fa3675f64e3d1f2a9ae352b3671616a41523e62e",
+        "source_tree": "aff45856786216ed754778d80bbb4a3d4fd92a43",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 56,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 56
+      }
+    }
+  ]
+}
