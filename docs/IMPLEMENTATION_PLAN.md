@@ -1,6 +1,6 @@
 # Fonesi Edit — Master clean rebuild
 
-Revision: clean-2026-11-01. **P01 IN_PROGRESS; P02–P12 NOT_STARTED. Không kế thừa PASS cũ.**
+Revision: clean-2026-11-01. **P01 ACCEPTED (design only); P02 experiments next; P03–P12 PLANNED. Không kế thừa PASS cũ.**
 
 ## Baseline và quy tắc
 
@@ -152,7 +152,7 @@ Nguồn chuẩn: PRODUCT_REQUIREMENTS.md, EDITOR_SPEC.md, SETTINGS_AND_BROWSER_S
 
 ## Acceptance records
 
-`requirements/tasks.json` is the task inventory, not acceptance evidence. `requirements/criteria.json` will expand the 95 groups into independently checkable source-backed subcriteria before P01 acceptance. `CURRENT_STATUS.md` is the sole current status. Old CI/reports remain only in external recovery archive. P01 contract/design acceptance does not certify application behavior.
+`requirements/tasks.json` is the task inventory, not acceptance evidence. `requirements/criteria.json` expands the95 groups into438 source-backed child assertions; exact source-clause mapping and independent semantic review are required before P01 acceptance. `requirements/dependencies.json` separates101 acyclic artifact milestones from whole-task acceptance and external gates. `CURRENT_STATUS.md` is the sole current status. Old CI/reports remain only in external recovery archive. P01 contract/design acceptance does not certify application behavior.
 
 ## Release policy
 

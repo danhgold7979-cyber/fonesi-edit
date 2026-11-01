@@ -1,0 +1,1659 @@
+{
+  "contract": "Artifact readiness is not task acceptance. External blockers do not prohibit independent schema/pure/local implementations.",
+  "nodes": {
+    "P01-01.artifact_ready": {
+      "dependencies": [],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-02.artifact_ready": {
+      "dependencies": [
+        "P01-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-03.artifact_ready": {
+      "dependencies": [
+        "P01-02.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-04.artifact_ready": {
+      "dependencies": [
+        "P01-01.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-05.artifact_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-06.artifact_ready": {
+      "dependencies": [
+        "P01-01.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-07.artifact_ready": {
+      "dependencies": [
+        "P01-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P01-08.artifact_ready": {
+      "dependencies": [
+        "P01-02.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P01_PLAN.md#p01-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-01.artifact_ready": {
+      "dependencies": [
+        "P01-06.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-02.artifact_ready": {
+      "dependencies": [
+        "P01-08.artifact_ready",
+        "P02-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-03.artifact_ready": {
+      "dependencies": [
+        "P01-06.artifact_ready",
+        "P02-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-04.artifact_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready",
+        "P02-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-05.artifact_ready": {
+      "dependencies": [
+        "P02-01.artifact_ready",
+        "P02-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-06.artifact_ready": {
+      "dependencies": [
+        "P02-01.artifact_ready",
+        "P02-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-07.artifact_ready": {
+      "dependencies": [
+        "P02-04.artifact_ready",
+        "P02-05.artifact_ready",
+        "P02-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-08.artifact_ready": {
+      "dependencies": [
+        "P02-01.artifact_ready",
+        "P02-02.artifact_ready",
+        "P02-03.artifact_ready",
+        "P02-04.artifact_ready",
+        "P02-05.artifact_ready",
+        "P02-06.artifact_ready",
+        "P02-07.artifact_ready",
+        "P02-09.artifact_ready",
+        "P02-10.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-09.artifact_ready": {
+      "dependencies": [
+        "P01-08.artifact_ready",
+        "P02-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-09",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-10.artifact_ready": {
+      "dependencies": [
+        "P01-08.artifact_ready",
+        "P02-01.artifact_ready",
+        "P02-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P02_PLAN.md#p02-10",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-01.artifact_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready",
+        "P02-01.dev_toolchain_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-02.artifact_ready": {
+      "dependencies": [
+        "P03-01.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-03.artifact_ready": {
+      "dependencies": [
+        "P03-01.artifact_ready",
+        "P02-01.dev_toolchain_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-04.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P03-03.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-05.artifact_ready": {
+      "dependencies": [
+        "P03-04.artifact_ready",
+        "P01-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-06.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P03-04.artifact_ready",
+        "P01-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-07.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P03-03.artifact_ready",
+        "P03-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-08.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P03-04.artifact_ready",
+        "P01-08.tool_contract_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P03-09.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P01-08.account_schema_ready"
+      ],
+      "deliverable_ref": "docs/phases/P03_PLAN.md#p03-09",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-01.artifact_ready": {
+      "dependencies": [
+        "P03-01.artifact_ready",
+        "P03-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-02.artifact_ready": {
+      "dependencies": [
+        "P04-01.artifact_ready",
+        "P01-07.artifact_ready",
+        "P02-04.canonical_preview_candidate"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-03.artifact_ready": {
+      "dependencies": [
+        "P04-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-04.artifact_ready": {
+      "dependencies": [
+        "P04-02.artifact_ready",
+        "P04-03.artifact_ready",
+        "P03-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-05.artifact_ready": {
+      "dependencies": [
+        "P04-04.artifact_ready",
+        "P03-03.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-06.artifact_ready": {
+      "dependencies": [
+        "P04-01.artifact_ready",
+        "P04-05.artifact_ready",
+        "P02-04.canonical_preview_candidate"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-07.artifact_ready": {
+      "dependencies": [
+        "P04-01.artifact_ready",
+        "P04-04.artifact_ready",
+        "P04-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P04-08.artifact_ready": {
+      "dependencies": [
+        "P03-08.artifact_ready",
+        "P03-09.artifact_ready",
+        "P04-01.artifact_ready",
+        "P01-08.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P04_PLAN.md#p04-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-01.artifact_ready": {
+      "dependencies": [
+        "P03-03.artifact_ready",
+        "P03-09.artifact_ready",
+        "P01-08.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-02.artifact_ready": {
+      "dependencies": [
+        "P05-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-03.artifact_ready": {
+      "dependencies": [
+        "P05-02.artifact_ready",
+        "P04-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-04.artifact_ready": {
+      "dependencies": [
+        "P03-04.artifact_ready",
+        "P03-06.artifact_ready",
+        "P03-08.artifact_ready",
+        "P05-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-05.artifact_ready": {
+      "dependencies": [
+        "P05-01.artifact_ready",
+        "P05-04.artifact_ready",
+        "P01-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-06.artifact_ready": {
+      "dependencies": [
+        "P05-04.artifact_ready",
+        "P05-05.artifact_ready",
+        "P03-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-07.artifact_ready": {
+      "dependencies": [
+        "P05-01.artifact_ready",
+        "P05-02.artifact_ready",
+        "P05-03.artifact_ready",
+        "P05-04.artifact_ready",
+        "P05-05.artifact_ready",
+        "P05-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-08.artifact_ready": {
+      "dependencies": [
+        "P03-09.artifact_ready",
+        "P04-08.artifact_ready",
+        "P01-08.account_schema_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-09.artifact_ready": {
+      "dependencies": [
+        "P05-08.artifact_ready",
+        "P01-08.account_schema_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-09",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P05-10.artifact_ready": {
+      "dependencies": [
+        "P05-09.artifact_ready",
+        "P05-04.artifact_ready",
+        "P03-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P05_PLAN.md#p05-10",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-01.artifact_ready": {
+      "dependencies": [
+        "P03-03.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-02.artifact_ready": {
+      "dependencies": [
+        "P06-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-03.artifact_ready": {
+      "dependencies": [
+        "P06-01.artifact_ready",
+        "P06-02.artifact_ready",
+        "P03-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-04.artifact_ready": {
+      "dependencies": [
+        "P06-01.artifact_ready",
+        "P06-03.artifact_ready",
+        "P04-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-05.artifact_ready": {
+      "dependencies": [
+        "P06-01.artifact_ready",
+        "P04-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P06-06.artifact_ready": {
+      "dependencies": [
+        "P06-04.artifact_ready",
+        "P06-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P06_PLAN.md#p06-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-01.artifact_ready": {
+      "dependencies": [
+        "P04-06.artifact_ready",
+        "P02-04.canonical_preview_candidate"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-02.artifact_ready": {
+      "dependencies": [
+        "P07-01.artifact_ready",
+        "P04-02.artifact_ready",
+        "P06-06.model_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-03.artifact_ready": {
+      "dependencies": [
+        "P04-02.artifact_ready",
+        "P02-04.canonical_preview_candidate"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-04.artifact_ready": {
+      "dependencies": [
+        "P04-04.artifact_ready",
+        "P04-05.artifact_ready",
+        "P01-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-05.artifact_ready": {
+      "dependencies": [
+        "P07-04.artifact_ready",
+        "P04-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-06.artifact_ready": {
+      "dependencies": [
+        "P07-04.artifact_ready",
+        "P07-05.artifact_ready",
+        "P01-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-07.artifact_ready": {
+      "dependencies": [
+        "P03-03.artifact_ready",
+        "P07-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P07-08.artifact_ready": {
+      "dependencies": [
+        "P07-01.artifact_ready",
+        "P07-02.style_ready",
+        "P07-03.artifact_ready",
+        "P07-04.artifact_ready",
+        "P07-05.artifact_ready",
+        "P07-06.artifact_ready",
+        "P07-07.artifact_ready",
+        "P03-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P07_PLAN.md#p07-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-01.artifact_ready": {
+      "dependencies": [
+        "P03-03.artifact_ready",
+        "P03-07.artifact_ready",
+        "P04-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-02.artifact_ready": {
+      "dependencies": [
+        "P08-01.artifact_ready",
+        "P01-04.artifact_ready",
+        "P03-05.artifact_ready",
+        "P03-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-03.artifact_ready": {
+      "dependencies": [
+        "P07-08.render_ready",
+        "P04-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-04.artifact_ready": {
+      "dependencies": [
+        "P08-03.artifact_ready",
+        "P08-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-05.artifact_ready": {
+      "dependencies": [
+        "P08-03.artifact_ready",
+        "P08-04.artifact_ready",
+        "P01-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-06.artifact_ready": {
+      "dependencies": [
+        "P08-05.artifact_ready",
+        "P06-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P08-07.artifact_ready": {
+      "dependencies": [
+        "P08-02.artifact_ready",
+        "P08-03.artifact_ready",
+        "P08-04.artifact_ready",
+        "P08-05.artifact_ready",
+        "P08-06.artifact_ready",
+        "P03-04.artifact_ready",
+        "P03-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P08_PLAN.md#p08-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-01.artifact_ready": {
+      "dependencies": [
+        "P08-01.artifact_ready",
+        "P01-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-02.artifact_ready": {
+      "dependencies": [
+        "P03-02.artifact_ready",
+        "P03-06.artifact_ready",
+        "P09-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-03.artifact_ready": {
+      "dependencies": [
+        "P09-02.artifact_ready",
+        "P01-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-04.artifact_ready": {
+      "dependencies": [
+        "P09-03.artifact_ready",
+        "P04-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-05.artifact_ready": {
+      "dependencies": [
+        "P09-04.artifact_ready",
+        "P08-05.artifact_ready",
+        "P08-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P09-06.artifact_ready": {
+      "dependencies": [
+        "P09-02.artifact_ready",
+        "P09-05.artifact_ready",
+        "P07-08.render_ready",
+        "P03-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P09_PLAN.md#p09-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-01.artifact_ready": {
+      "dependencies": [
+        "P05-06.artifact_ready",
+        "P06-06.artifact_ready",
+        "P08-07.artifact_ready",
+        "P09-06.artifact_ready",
+        "P03-04.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-02.artifact_ready": {
+      "dependencies": [
+        "P10-01.artifact_ready",
+        "P08-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-03.artifact_ready": {
+      "dependencies": [
+        "P10-01.artifact_ready",
+        "P01-04.artifact_ready",
+        "P07-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-04.artifact_ready": {
+      "dependencies": [
+        "P03-04.artifact_ready",
+        "P02-01.dev_toolchain_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-05.artifact_ready": {
+      "dependencies": [
+        "P10-04.artifact_ready",
+        "P02-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-06.artifact_ready": {
+      "dependencies": [
+        "P10-01.artifact_ready",
+        "P10-04.artifact_ready",
+        "P03-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P10-07.artifact_ready": {
+      "dependencies": [
+        "P10-01.artifact_ready",
+        "P03-08.artifact_ready",
+        "P03-09.artifact_ready",
+        "P05-09.artifact_ready",
+        "P05-10.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P10_PLAN.md#p10-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-01.artifact_ready": {
+      "dependencies": [
+        "P10-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-02.artifact_ready": {
+      "dependencies": [
+        "P03-04.artifact_ready",
+        "P03-06.artifact_ready",
+        "P10-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-03.artifact_ready": {
+      "dependencies": [
+        "P02-07.artifact_ready",
+        "P10-04.artifact_ready",
+        "P10-05.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-04.artifact_ready": {
+      "dependencies": [
+        "P07-08.render_ready",
+        "P08-06.artifact_ready",
+        "P09-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-05.artifact_ready": {
+      "dependencies": [
+        "P01-01.artifact_ready",
+        "P10-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-06.artifact_ready": {
+      "dependencies": [
+        "P05-07.artifact_ready",
+        "P06-03.artifact_ready",
+        "P05-09.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-07.artifact_ready": {
+      "dependencies": [
+        "P11-01.artifact_ready",
+        "P11-02.artifact_ready",
+        "P11-03.artifact_ready",
+        "P11-04.artifact_ready",
+        "P11-05.artifact_ready",
+        "P11-06.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P11-08.artifact_ready": {
+      "dependencies": [
+        "P03-08.artifact_ready",
+        "P03-09.artifact_ready",
+        "P04-08.artifact_ready",
+        "P05-08.artifact_ready",
+        "P05-09.artifact_ready",
+        "P05-10.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P11_PLAN.md#p11-08",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-01.artifact_ready": {
+      "dependencies": [
+        "P11-07.artifact_ready",
+        "P11-08.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-01",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-02.artifact_ready": {
+      "dependencies": [
+        "P12-01.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-02",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-03.artifact_ready": {
+      "dependencies": [
+        "P12-01.artifact_ready",
+        "P12-02.artifact_ready",
+        "P11-01.artifact_ready",
+        "P11-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-03",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-04.artifact_ready": {
+      "dependencies": [
+        "P12-03.artifact_ready",
+        "P01-02.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-04",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-05.artifact_ready": {
+      "dependencies": [
+        "P12-01.artifact_ready",
+        "P03-08.artifact_ready",
+        "P11-08.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-05",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-06.artifact_ready": {
+      "dependencies": [
+        "P12-01.artifact_ready",
+        "P12-02.artifact_ready",
+        "P12-03.artifact_ready",
+        "P12-04.artifact_ready",
+        "P12-05.artifact_ready",
+        "P12-07.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-06",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P12-07.artifact_ready": {
+      "dependencies": [
+        "P12-02.artifact_ready",
+        "P12-03.artifact_ready",
+        "P05-09.artifact_ready",
+        "P03-08.artifact_ready"
+      ],
+      "deliverable_ref": "docs/phases/P12_PLAN.md#p12-07",
+      "status": "NOT_ACCEPTED",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+    },
+    "P02-01.dev_toolchain_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready"
+      ],
+      "meaning": "Pinned locally launchable Python/Qt and available media-tool capability report; no provider/Windows certification.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P01-08.tool_contract_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready"
+      ],
+      "meaning": "Typed tool manifest/discovery/ownership/lease contract; trusted publisher release still separate acceptance.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P01-08.account_schema_ready": {
+      "dependencies": [
+        "P01-07.artifact_ready"
+      ],
+      "meaning": "Profile/binding/readiness schemas and no-secret data boundary; live Chrome handoff not prerequisite to schema.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P02-04.canonical_preview_candidate": {
+      "dependencies": [
+        "P02-01.dev_toolchain_ready",
+        "P01-07.artifact_ready"
+      ],
+      "meaning": "Locally runnable shared raster/layout experiment and explicit limitations; full preview/Windows acceptance remains open.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P06-06.model_ready": {
+      "dependencies": [
+        "P06-04.artifact_ready",
+        "P06-05.artifact_ready"
+      ],
+      "meaning": "Source/resolved cue model, linked mono/bilingual style refs, sidecar serializer and pure tests; no burn-in claim.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P07-02.style_ready": {
+      "dependencies": [
+        "P07-01.artifact_ready",
+        "P04-02.artifact_ready",
+        "P06-06.model_ready"
+      ],
+      "meaning": "Style schema/evaluator/raster API with fixtures; full encoded export parity not yet accepted.",
+      "status": "NOT_ACCEPTED"
+    },
+    "P07-08.render_ready": {
+      "dependencies": [
+        "P07-08.artifact_ready"
+      ],
+      "meaning": "Runnable canonical compiler/renderer with decode/probe validation; broader style/Windows/live gates remain independent.",
+      "status": "NOT_ACCEPTED"
+    }
+  },
+  "task_acceptance": {
+    "P01-01": {
+      "requires": [
+        "P01-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-02": {
+      "requires": [
+        "P01-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-03": {
+      "requires": [
+        "P01-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-04": {
+      "requires": [
+        "P01-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-05": {
+      "requires": [
+        "P01-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-06": {
+      "requires": [
+        "P01-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-07": {
+      "requires": [
+        "P01-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P01-08": {
+      "requires": [
+        "P01-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-01": {
+      "requires": [
+        "P02-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-02": {
+      "requires": [
+        "P02-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-03": {
+      "requires": [
+        "P02-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-04": {
+      "requires": [
+        "P02-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-05": {
+      "requires": [
+        "P02-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-06": {
+      "requires": [
+        "P02-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-07": {
+      "requires": [
+        "P02-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-08": {
+      "requires": [
+        "P02-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-09": {
+      "requires": [
+        "P02-09.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P02-10": {
+      "requires": [
+        "P02-10.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-01": {
+      "requires": [
+        "P03-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-02": {
+      "requires": [
+        "P03-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-03": {
+      "requires": [
+        "P03-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-04": {
+      "requires": [
+        "P03-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-05": {
+      "requires": [
+        "P03-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-06": {
+      "requires": [
+        "P03-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-07": {
+      "requires": [
+        "P03-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P03-08": {
+      "requires": [
+        "P03-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    },
+    "P03-09": {
+      "requires": [
+        "P03-09.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-01": {
+      "requires": [
+        "P04-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-02": {
+      "requires": [
+        "P04-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-03": {
+      "requires": [
+        "P04-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-04": {
+      "requires": [
+        "P04-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-05": {
+      "requires": [
+        "P04-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-06": {
+      "requires": [
+        "P04-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-07": {
+      "requires": [
+        "P04-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P04-08": {
+      "requires": [
+        "P04-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    },
+    "P05-01": {
+      "requires": [
+        "P05-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-02": {
+      "requires": [
+        "P05-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-03": {
+      "requires": [
+        "P05-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-04": {
+      "requires": [
+        "P05-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-05": {
+      "requires": [
+        "P05-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-06": {
+      "requires": [
+        "P05-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-07": {
+      "requires": [
+        "P05-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Permitted live connector/account/source evidence",
+        "Official Windows Chrome handoff where authentication used"
+      ]
+    },
+    "P05-08": {
+      "requires": [
+        "P05-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P05-09": {
+      "requires": [
+        "P05-09.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Permitted live connector/account/source evidence",
+        "Official Windows Chrome handoff where authentication used"
+      ]
+    },
+    "P05-10": {
+      "requires": [
+        "P05-10.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Permitted live connector/account/source evidence",
+        "Official Windows Chrome handoff where authentication used"
+      ]
+    },
+    "P06-01": {
+      "requires": [
+        "P06-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P06-02": {
+      "requires": [
+        "P06-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P06-03": {
+      "requires": [
+        "P06-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Configured authorized live translation and quality/quota evidence"
+      ]
+    },
+    "P06-04": {
+      "requires": [
+        "P06-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P06-05": {
+      "requires": [
+        "P06-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P06-06": {
+      "requires": [
+        "P06-06.artifact_ready",
+        "P07-02.style_ready",
+        "P07-08.render_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-01": {
+      "requires": [
+        "P07-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-02": {
+      "requires": [
+        "P07-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-03": {
+      "requires": [
+        "P07-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-04": {
+      "requires": [
+        "P07-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-05": {
+      "requires": [
+        "P07-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-06": {
+      "requires": [
+        "P07-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-07": {
+      "requires": [
+        "P07-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P07-08": {
+      "requires": [
+        "P07-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-01": {
+      "requires": [
+        "P08-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-02": {
+      "requires": [
+        "P08-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-03": {
+      "requires": [
+        "P08-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-04": {
+      "requires": [
+        "P08-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-05": {
+      "requires": [
+        "P08-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-06": {
+      "requires": [
+        "P08-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P08-07": {
+      "requires": [
+        "P08-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-01": {
+      "requires": [
+        "P09-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-02": {
+      "requires": [
+        "P09-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-03": {
+      "requires": [
+        "P09-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-04": {
+      "requires": [
+        "P09-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-05": {
+      "requires": [
+        "P09-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P09-06": {
+      "requires": [
+        "P09-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-01": {
+      "requires": [
+        "P10-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-02": {
+      "requires": [
+        "P10-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-03": {
+      "requires": [
+        "P10-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-04": {
+      "requires": [
+        "P10-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-05": {
+      "requires": [
+        "P10-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-06": {
+      "requires": [
+        "P10-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P10-07": {
+      "requires": [
+        "P10-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-01": {
+      "requires": [
+        "P11-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-02": {
+      "requires": [
+        "P11-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-03": {
+      "requires": [
+        "P11-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-04": {
+      "requires": [
+        "P11-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-05": {
+      "requires": [
+        "P11-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-06": {
+      "requires": [
+        "P11-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-07": {
+      "requires": [
+        "P11-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P11-08": {
+      "requires": [
+        "P11-08.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P12-01": {
+      "requires": [
+        "P12-01.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    },
+    "P12-02": {
+      "requires": [
+        "P12-02.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    },
+    "P12-03": {
+      "requires": [
+        "P12-03.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    },
+    "P12-04": {
+      "requires": [
+        "P12-04.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P12-05": {
+      "requires": [
+        "P12-05.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P12-06": {
+      "requires": [
+        "P12-06.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": []
+    },
+    "P12-07": {
+      "requires": [
+        "P12-07.artifact_ready"
+      ],
+      "criteria": "all mandatory child assertions mapped to task plus task-specific gate",
+      "external_gates": [
+        "Actual Windows tool/build/workflow tests as specified; fixtures do not close target gate"
+      ]
+    }
+  }
+}

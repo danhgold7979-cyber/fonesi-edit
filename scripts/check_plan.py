@@ -32,10 +32,39 @@ def check() -> dict:
         if c['status'] == 'PASS':
             assert c['evidence'], 'Unbacked PASS'
             assert all(ref in {e['id'] for e in evidence} for ref in c['evidence'])
+    clause_ids = {c['id'] for c in clauses}
+    criterion_ids = {c['id'] for c in criteria}
+    assert len(clause_ids) == len(clauses), 'Duplicate source clause ID'
+    for c in criteria:
+        assert c['source_clause_ids'] and set(c['source_clause_ids']) <= clause_ids, c['id']
+        assert c['planned_case_id'] and c['test_implementation_status']
+        assert set(c['source_clause_ids']) == {x['id'] for x in clauses if c['id'] in x['criterion_ids']}, c['id']
     for clause in clauses:
+        assert clause['criterion_ids'] and set(clause['criterion_ids']) <= criterion_ids, clause['id']
         data = (ROOT / 'docs' / clause['file']).read_bytes()
         assert hashlib.sha256(data).hexdigest() == clause['source_sha256']
         assert data.decode().splitlines()[clause['line'] - 1] == clause['verbatim']
+    graph = json.loads((ROOT / 'docs/requirements/dependencies.json').read_text())
+    assert set(graph['task_acceptance']) == expected
+    nodes = graph['nodes']; active = set(); done = set()
+    def visit(name):
+        assert name in nodes, ('unknown dependency', name)
+        assert name not in active, ('dependency cycle', name)
+        if name in done: return
+        active.add(name)
+        for dep in nodes[name]['dependencies']: visit(dep)
+        active.remove(name); done.add(name)
+    for name in nodes: visit(name)
+    for gate in graph['task_acceptance'].values():
+        assert all(dep in nodes for dep in gate['requires'])
+    excluded = json.loads((ROOT / 'docs/requirements/source_exclusions.json').read_text())
+    for alias, file in [('PR','PRODUCT_REQUIREMENTS.md'),('ED','EDITOR_SPEC.md'),('SB','SETTINGS_AND_BROWSER_SPEC.md')]:
+        in_fence = False
+        for line_no, line in enumerate((ROOT/'docs'/file).read_text().splitlines(),1):
+            if line.startswith('```'): in_fence = not in_fence; continue
+            if in_fence or not line.strip() or line.startswith('#') or re.match(r'^\|\s*[-:]+', line): continue
+            sid = f'{alias}-L{line_no:03}'
+            assert sid in clause_ids or sid in excluded, ('unmapped source prose/table/bullet', sid)
     for name in ['COMPOSITION', 'JOBS', 'PRESET', 'PLANNING', 'UX', 'VERIFICATION']:
         assert (ROOT / f'docs/contracts/{name}.md').is_file()
     for e in evidence:
@@ -43,7 +72,7 @@ def check() -> dict:
         assert e['commit'] and e['command'] and e['environment']
     current = '\n'.join((ROOT / p).read_text() for p in ['docs/CURRENT_STATUS.md', 'docs/IMPLEMENTATION_PLAN.md', 'docs/REQUIREMENTS_TRACEABILITY.md'])
     assert not re.search(r'actions/runs/\d+', current), 'Old CI in current evidence'
-    return {'task_count': len(tasks), 'phase_counts': expected_counts, 'requirement_groups': len(groups), 'child_assertions': len(criteria), 'source_clauses': len(clauses), 'runtime_evidence_records': len(evidence), 'integrity': 'PASS', 'semantic_coverage': 'PENDING_INDEPENDENT_REVIEW', 'runtime_acceptance': 'NOT_RUN'}
+    return {'task_count': len(tasks), 'phase_counts': expected_counts, 'requirement_groups': len(groups), 'child_assertions': len(criteria), 'source_clauses': len(clauses), 'artifact_milestones': len(nodes), 'dependency_graph': 'ACYCLIC', 'runtime_evidence_records': len(evidence), 'integrity': 'PASS', 'semantic_coverage': 'PENDING_INDEPENDENT_REVIEW', 'runtime_acceptance': 'NOT_RUN'}
 
 if __name__ == '__main__':
     print(json.dumps(check(), indent=2))

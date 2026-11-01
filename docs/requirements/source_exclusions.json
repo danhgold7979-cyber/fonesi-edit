@@ -1,0 +1,14 @@
+{
+  "PR-L003": "Historical document status, not functional requirement.",
+  "PR-L024": "Introduces two mode bullets mapped at PR26/27.",
+  "PR-L153": "Cross-reference and heading for following mapped rules.",
+  "PR-L179": "Table header; every data row mapped.",
+  "ED-L003": "Document status/reference.",
+  "ED-L088": "Motion table header; all option rows mapped.",
+  "ED-L152": "Shortcut table header; every binding row mapped individually.",
+  "ED-L187": "Automation table header; every data row mapped.",
+  "SB-L003": "Historical status/cross-references.",
+  "SB-L022": "Introduces following mapped button bullets.",
+  "SB-L040": "Tool table header; each component row mapped.",
+  "SB-L108": "Introduces following mapped workflow steps."
+}

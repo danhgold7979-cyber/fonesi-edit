@@ -1,6 +1,6 @@
 # P01 — Design before new implementation
 
-Revision clean-2026-11-01; branch phase-01 (not yet initialized pending recovery inventory). Status IN_PROGRESS, not accepted. Master alignment: eight areas, all 94 tasks and 95 original requirement IDs; technical proposals do not remove functionality. Read the three source specs and master before executing. Design deliverables are subject to independent review, not old implementation results.
+Revision clean-2026-11-01; branch phase-01 (initialized after recovery inventory). Status ACCEPTED_DESIGN against independent review dbc3f30; runtime not accepted. Master alignment: eight areas, all 94 tasks and 95 original requirement IDs; technical proposals do not remove functionality. Read the three source specs and master before executing. Design deliverables are subject to independent review, not old implementation results.
 
 ## P01-01 — Requirement baseline and executable criteria
 - Input: three immutable original specs; 95 rows of REQUIREMENTS_TRACEABILITY; 94 original task scopes.
@@ -66,4 +66,7 @@ Revision clean-2026-11-01; branch phase-01 (not yet initialized pending recovery
 - Acceptance: all ten platforms represented without supported claim; fixes target correct readiness axis; actual Windows Chrome handoff remains P02 acceptance, not inferred from design.
 
 ## P01 gate and result format
-No ACCEPTED until all eight design deliverables exist and independent reviewer verifies source coverage and contracts. Results list task, file/section, check command or review record, outcome, remaining blockers. A P01 PASS cannot count as runnable application evidence. Current: deliverables being authored, zero accepted tasks.
+No ACCEPTED until all eight design deliverables exist and independent reviewer verifies source coverage and contracts. Results list task, file/section, check command or review record, outcome, remaining blockers. A P01 PASS cannot count as runnable application evidence. Current: all8 design tasks accepted after independent review dbc3f30; zero runtime feature criteria passed.
+
+## Independent review corrections
+Pinned4916a67 review identified prose-only coverage gaps, hash-vs-physical publication ownership, multi-artifact commit ordering, digest projection, stream/cue ambiguity, dependency cycles/cancellation contradiction and keyframe/ducking schema ambiguity. Corrections include explicit438 child assertions/392 mapped source clauses, all shortcut table rows individually, Draft2020-12 schema, content/execution digest separation,101 acyclic artifact milestones and final required-artifact-set publication. Reviewer must recheck; author changes are not acceptance.

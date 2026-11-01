@@ -49,7 +49,7 @@ Generation clean-2026-11-01; branch `phase-06`. Status PLANNED, not implemented 
 
 ## P06-06 — đơn/song ngữ, style cơ bản liên kết P07, xuất SRT/ASS và burn-in qua pipeline chung.
 
-- **Depends on:** P06-04/05,P07-02/08 for full render. Only independent work may proceed while external portions remain blocked.
+- **Depends on:** P06-04/05 for P06-06.model_ready; P07-02.style_ready and P07-08.render_ready for P06-06.accepted. Only independent work may proceed while external portions remain blocked.
 - **Input:** Linked mono/bilingual tracks/styles and output policy.
 - **Output/interface:** SRT/ASS sidecars plus canonical burn-in execution plan; independent block styles/visibility.
 - **Errors/cancellation:** Missing font/style capability blocks affected render; partial sidecar publication no success; cancel publication contract.
@@ -58,3 +58,6 @@ Generation clean-2026-11-01; branch `phase-06`. Status PLANNED, not implemented 
 
 ## Phase gate
 Every task acceptance above and corresponding master gate must pass. Unit/mock evidence does not close live/Windows/GPU/Chrome acceptance. Keep LOCAL_VERIFIED, BLOCKED_EXTERNAL and ACCEPTED distinct. Submit independent review and one aggregate checkpoint after affected tests; do not mark whole phase complete from a working slice.
+
+## Split model and render milestones (no cycle)
+P06-06.model_ready delivers serialized cue provenance, mono/bilingual linked blocks, sidecar writer and style references with pure tests; it does NOT require a working P07 renderer. P07-02 consumes this model and delivers style_ready. P07-08 consumes style_ready plus effects and delivers render_ready. Only then can P06-06.accepted pass sidecar+burn-in/external-player parity. Partial model readiness never marks full task accepted.

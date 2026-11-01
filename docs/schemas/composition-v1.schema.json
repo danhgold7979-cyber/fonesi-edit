@@ -1,0 +1,1621 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "evaluator_version": {
+      "const": "eval-1"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "output": {
+      "$ref": "#/$defs/output"
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/asset"
+      }
+    },
+    "clips": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clip"
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    },
+    "audio": {
+      "$ref": "#/$defs/audio"
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/transition"
+      }
+    },
+    "fonts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/font"
+      }
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "algorithm_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    }
+  },
+  "required": [
+    "schema_version",
+    "evaluator_version",
+    "id",
+    "revision",
+    "output",
+    "assets",
+    "clips",
+    "layers",
+    "audio",
+    "transitions",
+    "fonts",
+    "seed",
+    "algorithm_revision",
+    "provenance"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fonesi-edit:composition:1",
+  "$defs": {
+    "rational": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2,
+      "$comment": "Semantic R01: numerator/denominator coprime; domain bounds applied per property; bool must not pass as int."
+    },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/rational"
+        },
+        "end": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "$comment": "R02: 0<=start<end<=output duration; half-open."
+    },
+    "rgba": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "path_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base": {
+          "enum": [
+            "absolute",
+            "project"
+          ]
+        },
+        "asset_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "base",
+        "asset_hash"
+      ]
+    },
+    "crop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/rational"
+        },
+        "top": {
+          "$ref": "#/$defs/rational"
+        },
+        "width": {
+          "$ref": "#/$defs/rational"
+        },
+        "height": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "left",
+        "top",
+        "width",
+        "height"
+      ],
+      "$comment": "R03: normalized displayed source bounds; width,height>0; left/top>=0; sums<=1."
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/rational"
+        },
+        "y": {
+          "$ref": "#/$defs/rational"
+        },
+        "width": {
+          "$ref": "#/$defs/rational"
+        },
+        "height": {
+          "$ref": "#/$defs/rational"
+        },
+        "scale_x": {
+          "$ref": "#/$defs/rational"
+        },
+        "scale_y": {
+          "$ref": "#/$defs/rational"
+        },
+        "rotation": {
+          "$ref": "#/$defs/rational"
+        },
+        "opacity": {
+          "$ref": "#/$defs/rational"
+        },
+        "anchor": {
+          "enum": [
+            "top_left",
+            "top_center",
+            "top_right",
+            "center_left",
+            "center",
+            "center_right",
+            "bottom_left",
+            "bottom_center",
+            "bottom_right"
+          ]
+        },
+        "flip_x": {
+          "type": "boolean"
+        },
+        "flip_y": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height",
+        "scale_x",
+        "scale_y",
+        "rotation",
+        "opacity",
+        "anchor",
+        "flip_x",
+        "flip_y"
+      ],
+      "$comment": "R04: normalized position/extent, width,height,scales>0; opacity in[0,1]; clockwise rotation degrees; outside bounds warning, no clamp."
+    },
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brightness": {
+          "$ref": "#/$defs/rational"
+        },
+        "contrast": {
+          "$ref": "#/$defs/rational"
+        },
+        "saturation": {
+          "$ref": "#/$defs/rational"
+        },
+        "gamma": {
+          "$ref": "#/$defs/rational"
+        },
+        "temperature": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "brightness",
+        "contrast",
+        "saturation",
+        "gamma",
+        "temperature"
+      ],
+      "$comment": "R05: brightness[-1,1],contrast/saturation[0,4],gamma(0,10],temperature[-1,1]; processing order explicit in COMPOSITION."
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fps": {
+          "$ref": "#/$defs/rational"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "sample_rate": {
+          "enum": [
+            44100,
+            48000,
+            96000
+          ]
+        },
+        "channel_layout": {
+          "enum": [
+            "mono",
+            "stereo"
+          ]
+        },
+        "color_space": {
+          "enum": [
+            "bt709"
+          ]
+        },
+        "pixel_format": {
+          "enum": [
+            "yuv420p",
+            "yuv444p",
+            "rgba"
+          ]
+        },
+        "container": {
+          "enum": [
+            "mp4",
+            "mkv",
+            "mov"
+          ]
+        },
+        "video_codec": {
+          "enum": [
+            "h264",
+            "hevc",
+            "ffv1",
+            "prores"
+          ]
+        },
+        "audio_codec": {
+          "enum": [
+            "aac",
+            "pcm_s16le",
+            "flac"
+          ]
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "fps",
+        "duration",
+        "sample_rate",
+        "channel_layout",
+        "color_space",
+        "pixel_format",
+        "container",
+        "video_codec",
+        "audio_codec"
+      ],
+      "$comment": "R06: fps,duration>0; yuv420p width/height even; all codec/container combinations require actual capability preflight."
+    },
+    "stream": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/video_stream"
+        },
+        {
+          "$ref": "#/$defs/audio_stream"
+        },
+        {
+          "$ref": "#/$defs/subtitle_stream"
+        },
+        {
+          "$ref": "#/$defs/image_stream"
+        }
+      ]
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "streams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stream"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "duration",
+        "streams"
+      ],
+      "$comment": "R07: unique stream indices. Asset duration is container summary only; selected stream owns time_base/start_time/duration and geometry/audio/glyph metadata. Video PTS strictly increasing in its timebase. Selected stream type/index must match clip/audio/cue; decoder applies its offset exactly once."
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "video",
+            "image",
+            "audio"
+          ]
+        },
+        "path_ref": {
+          "$ref": "#/$defs/path_ref"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "probe": {
+          "$ref": "#/$defs/probe"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path_ref",
+        "sha256",
+        "probe"
+      ]
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "asset_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_in": {
+          "$ref": "#/$defs/rational"
+        },
+        "source_out": {
+          "$ref": "#/$defs/rational"
+        },
+        "output_start": {
+          "$ref": "#/$defs/rational"
+        },
+        "speed": {
+          "$ref": "#/$defs/rational"
+        },
+        "fit": {
+          "enum": [
+            "contain",
+            "cover",
+            "stretch"
+          ]
+        },
+        "background": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "color",
+                "blur"
+              ]
+            },
+            "color": {
+              "$ref": "#/$defs/rgba"
+            },
+            "blur_amount": {
+              "$ref": "#/$defs/rational"
+            }
+          },
+          "required": [
+            "kind",
+            "color",
+            "blur_amount"
+          ]
+        },
+        "crop": {
+          "$ref": "#/$defs/crop"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "freeze_duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "video_stream_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "source_in",
+        "source_out",
+        "output_start",
+        "speed",
+        "fit",
+        "background",
+        "crop",
+        "transform",
+        "color",
+        "freeze_duration",
+        "video_stream_index"
+      ],
+      "$comment": "R08: source bounds within asset; speed>0; freeze>=0 explicit extension; overlaps only via transitions; IDs resolve; repeat via separate clips."
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "path_ref": {
+          "$ref": "#/$defs/path_ref"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "face_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "style": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "license_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "path_ref",
+        "sha256",
+        "face_index",
+        "family",
+        "style",
+        "fallback_ids",
+        "license_ref",
+        "provenance_ref"
+      ]
+    },
+    "keyframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "enum": [
+            "x",
+            "y",
+            "width",
+            "height",
+            "scale_x",
+            "scale_y",
+            "rotation",
+            "opacity"
+          ]
+        },
+        "time": {
+          "$ref": "#/$defs/rational"
+        },
+        "time_mode": {
+          "enum": [
+            "absolute",
+            "relative"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/rational"
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease_in",
+            "ease_out",
+            "ease_in_out"
+          ]
+        },
+        "reference_clip_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "property",
+        "time",
+        "time_mode",
+        "value",
+        "easing",
+        "reference_clip_id"
+      ],
+      "$comment": "R09: unique property/effective time. Relative[0,1] maps referenced clip output_start + keyframe.time*clip_output_duration, or whole output duration if null. Absolute time ignores reference (must null). Layer intervals mask evaluated result; they do not redefine time basis."
+    },
+    "cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "start": {
+          "$ref": "#/$defs/rational"
+        },
+        "end": {
+          "$ref": "#/$defs/rational"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_cue_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "manual_lock": {
+          "type": "boolean"
+        },
+        "time_basis": {
+          "enum": [
+            "source",
+            "output"
+          ]
+        },
+        "asset_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "subtitle_stream_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "source_track_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "segment_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        },
+        "sidecar_origin": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/rational"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "text",
+        "language",
+        "source_cue_id",
+        "manual_lock",
+        "time_basis",
+        "asset_id",
+        "subtitle_stream_index",
+        "source_track_id",
+        "segment_ids",
+        "sidecar_origin"
+      ],
+      "$comment": "R10: source basis requires asset/track and explicit matching clip segment IDs; output basis requires asset/stream null and no segments. Preserve source times; evaluator emits separately bound ResolvedCue per intersection/repeat. Embedded subtitle uses selected stream start_time and sidecar_origin=null; sidecar requires explicit rational sidecar_origin (default materialized zero); output basis uses null."
+    },
+    "font_style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "size_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "underline": {
+          "type": "boolean"
+        },
+        "strike": {
+          "type": "boolean"
+        },
+        "letter_spacing_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "line_spacing": {
+          "$ref": "#/$defs/rational"
+        },
+        "wrap_width_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "max_lines": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "overflow": {
+          "enum": [
+            "wrap",
+            "shrink",
+            "warn"
+          ]
+        },
+        "min_size_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "fill": {
+          "$ref": "#/$defs/rgba"
+        },
+        "outline": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/rgba"
+            },
+            "width_px": {
+              "$ref": "#/$defs/rational"
+            }
+          },
+          "required": [
+            "color",
+            "width_px"
+          ]
+        },
+        "shadow": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/rgba"
+            },
+            "x_px": {
+              "$ref": "#/$defs/rational"
+            },
+            "y_px": {
+              "$ref": "#/$defs/rational"
+            },
+            "blur_px": {
+              "$ref": "#/$defs/rational"
+            }
+          },
+          "required": [
+            "color",
+            "x_px",
+            "y_px",
+            "blur_px"
+          ]
+        },
+        "background": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "none",
+                "block",
+                "line"
+              ]
+            },
+            "color": {
+              "$ref": "#/$defs/rgba"
+            },
+            "padding_px": {
+              "$ref": "#/$defs/rational"
+            },
+            "radius_px": {
+              "$ref": "#/$defs/rational"
+            }
+          },
+          "required": [
+            "mode",
+            "color",
+            "padding_px",
+            "radius_px"
+          ]
+        },
+        "case_transform": {
+          "enum": [
+            "none",
+            "upper",
+            "lower"
+          ]
+        }
+      },
+      "required": [
+        "font_id",
+        "size_px",
+        "weight",
+        "italic",
+        "underline",
+        "strike",
+        "letter_spacing_px",
+        "line_spacing",
+        "wrap_width_px",
+        "align",
+        "max_lines",
+        "overflow",
+        "min_size_px",
+        "fill",
+        "outline",
+        "shadow",
+        "background",
+        "case_transform"
+      ],
+      "$comment": "R11: size/min_size>0,min<=size; nonnegative widths/padding/radius; font actual weight/style/capabilities checked; full glyph coverage/fallback required."
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "enum": [
+            "mask",
+            "logo",
+            "text",
+            "subtitle"
+          ]
+        },
+        "z": {
+          "type": "integer"
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interval"
+          },
+          "minItems": 1
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "style": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/font_style"
+            },
+            {
+              "$ref": "#/$defs/mask_style"
+            },
+            {
+              "$ref": "#/$defs/logo_style"
+            }
+          ]
+        },
+        "content": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/text_content"
+            },
+            {
+              "$ref": "#/$defs/image_content"
+            },
+            {
+              "$ref": "#/$defs/subtitle_content"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/keyframe"
+          }
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "z",
+        "intervals",
+        "transform",
+        "style",
+        "content",
+        "keyframes",
+        "visible",
+        "locked_fields"
+      ],
+      "$comment": "R12: layer type chooses exact compatible style/content; intervals sorted disjoint; keyframes use explicit clip/global time basis; z ties stable by ID."
+    },
+    "mask_style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "blur",
+            "mosaic",
+            "color"
+          ]
+        },
+        "amount": {
+          "$ref": "#/$defs/rational"
+        },
+        "feather_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "radius_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "color": {
+          "$ref": "#/$defs/rgba"
+        }
+      },
+      "required": [
+        "mode",
+        "amount",
+        "feather_px",
+        "radius_px",
+        "color"
+      ]
+    },
+    "logo_style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "crop": {
+          "$ref": "#/$defs/crop"
+        },
+        "outline_color": {
+          "$ref": "#/$defs/rgba"
+        },
+        "outline_width_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "shadow_color": {
+          "$ref": "#/$defs/rgba"
+        },
+        "shadow_x_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "shadow_y_px": {
+          "$ref": "#/$defs/rational"
+        },
+        "shadow_blur_px": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "crop",
+        "outline_color",
+        "outline_width_px",
+        "shadow_color",
+        "shadow_x_px",
+        "shadow_y_px",
+        "shadow_blur_px"
+      ]
+    },
+    "text_content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "dynamic_fields": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "channel",
+              "title",
+              "output_number",
+              "scene",
+              "date"
+            ]
+          }
+        }
+      },
+      "required": [
+        "text",
+        "dynamic_fields"
+      ]
+    },
+    "image_content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "asset_id"
+      ]
+    },
+    "subtitle_content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "linked_track_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "cues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cue"
+          }
+        },
+        "block_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gap_px": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "language",
+        "linked_track_id",
+        "cues",
+        "block_order",
+        "gap_px"
+      ]
+    },
+    "audio_clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "asset_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_in": {
+          "$ref": "#/$defs/rational"
+        },
+        "source_out": {
+          "$ref": "#/$defs/rational"
+        },
+        "output_start": {
+          "$ref": "#/$defs/rational"
+        },
+        "speed": {
+          "$ref": "#/$defs/rational"
+        },
+        "preserve_pitch": {
+          "type": "boolean"
+        },
+        "gain_db": {
+          "$ref": "#/$defs/rational"
+        },
+        "pan": {
+          "$ref": "#/$defs/rational"
+        },
+        "mute": {
+          "type": "boolean"
+        },
+        "solo": {
+          "type": "boolean"
+        },
+        "fade_in": {
+          "$ref": "#/$defs/rational"
+        },
+        "fade_out": {
+          "$ref": "#/$defs/rational"
+        },
+        "role": {
+          "enum": [
+            "original",
+            "main",
+            "music",
+            "sfx"
+          ]
+        },
+        "audio_stream_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "source_in",
+        "source_out",
+        "output_start",
+        "speed",
+        "preserve_pitch",
+        "gain_db",
+        "pan",
+        "mute",
+        "solo",
+        "fade_in",
+        "fade_out",
+        "role",
+        "audio_stream_index"
+      ],
+      "$comment": "R13: bounds/speed as video; pan[-1,1], fades>=0 and fit output duration; selected audio stream must exist."
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/audio_clip"
+          }
+        },
+        "master": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "normalization": {
+              "enum": [
+                "none",
+                "loudness",
+                "peak"
+              ]
+            },
+            "target_lufs": {
+              "$ref": "#/$defs/rational"
+            },
+            "target_peak_db": {
+              "$ref": "#/$defs/rational"
+            },
+            "limiter": {
+              "type": "boolean"
+            },
+            "ducking": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "start": {
+                    "$ref": "#/$defs/rational"
+                  },
+                  "end": {
+                    "$ref": "#/$defs/rational"
+                  },
+                  "gain_db": {
+                    "$ref": "#/$defs/rational"
+                  },
+                  "attack": {
+                    "$ref": "#/$defs/rational"
+                  },
+                  "release": {
+                    "$ref": "#/$defs/rational"
+                  },
+                  "envelope_hash": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "target_audio_clip_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  },
+                  "sidechain_audio_clip_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "uniqueItems": true
+                  },
+                  "source_mode": {
+                    "enum": [
+                      "marked_intervals",
+                      "signal_envelope"
+                    ]
+                  },
+                  "threshold_db": {
+                    "$ref": "#/$defs/rational"
+                  }
+                },
+                "required": [
+                  "start",
+                  "end",
+                  "gain_db",
+                  "attack",
+                  "release",
+                  "envelope_hash",
+                  "target_audio_clip_ids",
+                  "sidechain_audio_clip_ids",
+                  "source_mode",
+                  "threshold_db"
+                ],
+                "$comment": "R15: apply gain before mix to explicit target clips (normally music), not main/master. Signal mode requires valid sidechain IDs and envelope hash; marked mode uses interval/gain. No fabricated ASR."
+              }
+            }
+          },
+          "required": [
+            "normalization",
+            "target_lufs",
+            "target_peak_db",
+            "limiter",
+            "ducking"
+          ]
+        }
+      },
+      "required": [
+        "clips",
+        "master"
+      ]
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "left_clip_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "right_clip_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "video": {
+          "enum": [
+            "cut",
+            "crossfade"
+          ]
+        },
+        "audio": {
+          "enum": [
+            "cut",
+            "crossfade"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "left_clip_id",
+        "right_clip_id",
+        "duration",
+        "video",
+        "audio"
+      ],
+      "$comment": "R14: positive overlap <= adjacent durations, clip intervals agree, no undeclared triple overlap."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preset_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "preset_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preset_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "account_binding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "required": [
+        "project_id",
+        "project_revision",
+        "preset_id",
+        "preset_version",
+        "preset_hash",
+        "source_ids",
+        "account_binding_ids"
+      ]
+    },
+    "video_stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time_base": {
+          "$ref": "#/$defs/rational"
+        },
+        "start_time": {
+          "$ref": "#/$defs/rational"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "type": {
+          "const": "video"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sar": {
+          "$ref": "#/$defs/rational"
+        },
+        "rotation_degrees": {
+          "$ref": "#/$defs/rational"
+        },
+        "display_matrix": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/rational"
+              },
+              "minItems": 9,
+              "maxItems": 9
+            }
+          ]
+        },
+        "frame_pts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rational"
+          }
+        }
+      },
+      "required": [
+        "index",
+        "codec",
+        "time_base",
+        "start_time",
+        "duration",
+        "type",
+        "width",
+        "height",
+        "sar",
+        "rotation_degrees",
+        "display_matrix",
+        "frame_pts"
+      ],
+      "$comment": "Per-stream metadata; never borrow geometry/timing/audio parameters from another stream."
+    },
+    "audio_stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time_base": {
+          "$ref": "#/$defs/rational"
+        },
+        "start_time": {
+          "$ref": "#/$defs/rational"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "type": {
+          "const": "audio"
+        },
+        "sample_rate": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "channel_layout": {
+          "enum": [
+            "mono",
+            "stereo"
+          ]
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "index",
+        "codec",
+        "time_base",
+        "start_time",
+        "duration",
+        "type",
+        "sample_rate",
+        "channel_layout",
+        "channels"
+      ],
+      "$comment": "Per-stream metadata; never borrow geometry/timing/audio parameters from another stream."
+    },
+    "subtitle_stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time_base": {
+          "$ref": "#/$defs/rational"
+        },
+        "start_time": {
+          "$ref": "#/$defs/rational"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "type": {
+          "const": "subtitle"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subtitle_format": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "index",
+        "codec",
+        "time_base",
+        "start_time",
+        "duration",
+        "type",
+        "language",
+        "subtitle_format"
+      ],
+      "$comment": "Per-stream metadata; never borrow geometry/timing/audio parameters from another stream."
+    },
+    "image_stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time_base": {
+          "$ref": "#/$defs/rational"
+        },
+        "start_time": {
+          "$ref": "#/$defs/rational"
+        },
+        "duration": {
+          "$ref": "#/$defs/rational"
+        },
+        "type": {
+          "const": "image"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sar": {
+          "$ref": "#/$defs/rational"
+        },
+        "rotation_degrees": {
+          "$ref": "#/$defs/rational"
+        }
+      },
+      "required": [
+        "index",
+        "codec",
+        "time_base",
+        "start_time",
+        "duration",
+        "type",
+        "width",
+        "height",
+        "sar",
+        "rotation_degrees"
+      ],
+      "$comment": "Per-stream metadata; never borrow geometry/timing/audio parameters from another stream."
+    }
+  },
+  "title": "CompositionPlan v1 draft design schema",
+  "$comment": "Structural schema only. Semantic R01-R15 and source/font/tool validation mandatory before compile. JSON parser must reject duplicate keys/NaN/Infinity. All IDs unique in namespace and refs resolve. Unknown keys rejected. This design artifact is not runtime implementation."
+}

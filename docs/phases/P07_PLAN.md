@@ -13,7 +13,7 @@ Generation clean-2026-11-01; branch `phase-07`. Status PLANNED, not implemented 
 
 ## P07-02 — chữ/viền/bóng/nền/padding/căn/giãn dòng/giãn chữ/ngắt dòng/nội dung động; nhiều logo, vị trí/lề/opacity/thời gian.
 
-- **Depends on:** P07-01,P04-02,P06-06 model only. Only independent work may proceed while external portions remain blocked.
+- **Depends on:** P07-01, P04-02, P06-06.model_ready (not P06-06.accepted). Only independent work may proceed while external portions remain blocked.
 - **Input:** Text/bilingual/logo layer styles/content and channel metadata.
 - **Output/interface:** Full text outline/shadow/background/padding/wrap/spacing and logo intervals/opacity controls+evaluator.
 - **Errors/cancellation:** Overflow policy bounded or warning; dynamic metadata allowlist; wrong/missing logo blocked, canceled replacement preserves transform.

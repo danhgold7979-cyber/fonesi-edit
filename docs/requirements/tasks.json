@@ -2,50 +2,74 @@
   {
     "id": "P01-01",
     "scope": "đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-02",
     "scope": "wireframe tám khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-03",
     "scope": "luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-04",
     "scope": "preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-05",
     "scope": "định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-06",
     "scope": "corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-07",
     "scope": "hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P01-08",
     "scope": "wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.",
-    "status": "IN_PROGRESS",
-    "plan": "docs/phases/P01_PLAN.md"
+    "status": "ACCEPTED",
+    "plan": "docs/phases/P01_PLAN.md",
+    "acceptance_kind": "DESIGN_ONLY",
+    "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+    "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
   },
   {
     "id": "P02-01",

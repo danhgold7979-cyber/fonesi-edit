@@ -1,10 +1,10 @@
 # Fonesi Edit — clean rebuild
 
-Personal Windows desktop media tool, rebuilt independently from preserved requirements. **Current phase: P01 design and plan review. No new application release yet.**
+Personal Windows desktop media tool, rebuilt independently from preserved requirements. **Current phase: P01 design accepted; P02 experiments starting. No new application release yet.**
 
 - [Master: 12 phases / 94 tasks](docs/IMPLEMENTATION_PLAN.md)
 - [Current status](docs/CURRENT_STATUS.md)
-- [95 requirement groups](docs/REQUIREMENTS_TRACEABILITY.md) / [394 child assertions](docs/requirements/criteria.json)
+- [95 requirement groups](docs/REQUIREMENTS_TRACEABILITY.md) / [438 child assertions](docs/requirements/criteria.json)
 - [Technical contracts](docs/TECHNICAL_DESIGN.md)
 - [Original product specification](docs/PRODUCT_REQUIREMENTS.md)
 

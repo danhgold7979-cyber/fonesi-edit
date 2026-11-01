@@ -1,9 +1,7 @@
 # Current clean rebuild status
 
-Generation clean-2026-11-01. Branch phase-01. P01 IN_PROGRESS (independent review pending); P02–P12 PLANNED, no implementation yet. No inherited PASS.
+P01 ACCEPTED DESIGN ONLY after independent review dbc3f30. P02 experiments next; P03–P12 PLANNED. Branch phase-01 until experimental phase branch created.12phases/94tasks/95groups/438runtime child assertions/392exact source clauses/101acyclic artifact milestones.
 
-Prepared: preserved original specs, all12 task-specific plans/94 tasks,95 groups/394 child assertions,367 exact source clauses, six normative contracts, ADR register, eight-area UX and reset inventory. Source-clause mapping review remains PENDING; numeric coverage is not semantic proof.
+Design evidence: [P01 review](reviews/P01_DESIGN_ACCEPTANCE.md), [results](phases/P01_RESULTS.md). Design checks PASS2valid+22negative schema examples; runtime validators NOT_IMPLEMENTED, runtime criteria NOT_RUN, runtime evidence0. No inherited old PASS.
 
-Checks: `python scripts/check_plan.py` PASS structural integrity; `python -m py_compile scripts/check_plan.py` PASS. Runtime evidence records0. Not app tests; Windows/GPU/live connector/provider/Chrome NOT_RUN.
-
-Archive/reset: only new tree cleared of old implementation. Original dirty checkout untouched; parent manages recovery graph and remote publication/deletion. Current next step: independent design corrections/criteria mapping, then P02 experiments and fresh P03 foundation under documented dependencies.
+Main clean reset and archive history: [HISTORY_ARCHIVE](HISTORY_ARCHIVE.md). Original dirty checkout preserved; root owns all remote actions. Next: versioned fresh P02 experiments, resolve engine/toolchain locally while actual Windows/GPU/Chrome/provider gates stay open.

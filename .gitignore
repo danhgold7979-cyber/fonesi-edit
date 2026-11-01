@@ -12,3 +12,5 @@ dist/
 *.db
 runtime/
 profiles/
+
+.uv-cache/

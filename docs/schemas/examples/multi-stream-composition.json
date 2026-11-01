@@ -1,0 +1,564 @@
+{
+  "schema_version": 1,
+  "evaluator_version": "eval-1",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "revision": 0,
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": [
+      30,
+      1
+    ],
+    "duration": [
+      2,
+      1
+    ],
+    "sample_rate": 48000,
+    "channel_layout": "stereo",
+    "color_space": "bt709",
+    "pixel_format": "yuv420p",
+    "container": "mp4",
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "assets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "kind": "video",
+      "path_ref": {
+        "path": "fixtures/multi-stream.mkv",
+        "base": "project",
+        "asset_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe": {
+        "duration": [
+          9,
+          4
+        ],
+        "streams": [
+          {
+            "codec": "fixture",
+            "time_base": [
+              1,
+              1000
+            ],
+            "start_time": [
+              0,
+              1
+            ],
+            "duration": [
+              2,
+              1
+            ],
+            "index": 0,
+            "type": "video",
+            "width": 640,
+            "height": 360,
+            "sar": [
+              1,
+              1
+            ],
+            "rotation_degrees": [
+              0,
+              1
+            ],
+            "display_matrix": null,
+            "frame_pts": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                30
+              ]
+            ]
+          },
+          {
+            "codec": "fixture",
+            "time_base": [
+              1,
+              1000
+            ],
+            "start_time": [
+              0,
+              1
+            ],
+            "duration": [
+              2,
+              1
+            ],
+            "index": 1,
+            "type": "video",
+            "width": 360,
+            "height": 640,
+            "sar": [
+              1,
+              1
+            ],
+            "rotation_degrees": [
+              90,
+              1
+            ],
+            "display_matrix": null,
+            "frame_pts": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                24
+              ]
+            ]
+          },
+          {
+            "codec": "fixture",
+            "time_base": [
+              1,
+              1000
+            ],
+            "start_time": [
+              0,
+              1
+            ],
+            "duration": [
+              2,
+              1
+            ],
+            "index": 2,
+            "type": "audio",
+            "sample_rate": 44100,
+            "channel_layout": "mono",
+            "channels": 1
+          },
+          {
+            "codec": "fixture",
+            "time_base": [
+              1,
+              1000
+            ],
+            "start_time": [
+              1,
+              4
+            ],
+            "duration": [
+              2,
+              1
+            ],
+            "index": 3,
+            "type": "audio",
+            "sample_rate": 48000,
+            "channel_layout": "stereo",
+            "channels": 2
+          },
+          {
+            "codec": "fixture",
+            "time_base": [
+              1,
+              1000
+            ],
+            "start_time": [
+              1,
+              10
+            ],
+            "duration": [
+              2,
+              1
+            ],
+            "index": 4,
+            "type": "subtitle",
+            "language": "zh-Hans",
+            "subtitle_format": "ass"
+          }
+        ]
+      }
+    }
+  ],
+  "clips": [
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "asset_id": "00000000-0000-4000-8000-000000000010",
+      "video_stream_index": 1,
+      "source_in": [
+        0,
+        1
+      ],
+      "source_out": [
+        2,
+        1
+      ],
+      "output_start": [
+        0,
+        1
+      ],
+      "speed": [
+        1,
+        1
+      ],
+      "fit": "contain",
+      "background": {
+        "kind": "color",
+        "color": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "blur_amount": [
+          0,
+          1
+        ]
+      },
+      "crop": {
+        "left": [
+          0,
+          1
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "width": [
+          1,
+          1
+        ],
+        "height": [
+          1,
+          1
+        ]
+      },
+      "transform": {
+        "x": [
+          1,
+          2
+        ],
+        "y": [
+          1,
+          2
+        ],
+        "width": [
+          1,
+          1
+        ],
+        "height": [
+          1,
+          1
+        ],
+        "scale_x": [
+          1,
+          1
+        ],
+        "scale_y": [
+          1,
+          1
+        ],
+        "rotation": [
+          0,
+          1
+        ],
+        "opacity": [
+          1,
+          1
+        ],
+        "anchor": "center",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "color": {
+        "brightness": [
+          0,
+          1
+        ],
+        "contrast": [
+          1,
+          1
+        ],
+        "saturation": [
+          1,
+          1
+        ],
+        "gamma": [
+          1,
+          1
+        ],
+        "temperature": [
+          0,
+          1
+        ]
+      },
+      "freeze_duration": [
+        0,
+        1
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "id": "00000000-0000-4000-8000-000000000015",
+      "type": "subtitle",
+      "z": 10,
+      "intervals": [
+        {
+          "start": [
+            0,
+            1
+          ],
+          "end": [
+            2,
+            1
+          ]
+        }
+      ],
+      "transform": {
+        "x": [
+          1,
+          2
+        ],
+        "y": [
+          1,
+          2
+        ],
+        "width": [
+          1,
+          1
+        ],
+        "height": [
+          1,
+          1
+        ],
+        "scale_x": [
+          1,
+          1
+        ],
+        "scale_y": [
+          1,
+          1
+        ],
+        "rotation": [
+          0,
+          1
+        ],
+        "opacity": [
+          1,
+          1
+        ],
+        "anchor": "center",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "style": {
+        "font_id": "00000000-0000-4000-8000-000000000012",
+        "size_px": [
+          32,
+          1
+        ],
+        "weight": 400,
+        "italic": false,
+        "underline": false,
+        "strike": false,
+        "letter_spacing_px": [
+          0,
+          1
+        ],
+        "line_spacing": [
+          1,
+          1
+        ],
+        "wrap_width_px": [
+          500,
+          1
+        ],
+        "align": "center",
+        "max_lines": 2,
+        "overflow": "warn",
+        "min_size_px": [
+          20,
+          1
+        ],
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "outline": {
+          "color": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "width_px": [
+            1,
+            1
+          ]
+        },
+        "shadow": {
+          "color": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "x_px": [
+            0,
+            1
+          ],
+          "y_px": [
+            0,
+            1
+          ],
+          "blur_px": [
+            0,
+            1
+          ]
+        },
+        "background": {
+          "mode": "none",
+          "color": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "padding_px": [
+            0,
+            1
+          ],
+          "radius_px": [
+            0,
+            1
+          ]
+        },
+        "case_transform": "none"
+      },
+      "content": {
+        "language": "zh-Hans",
+        "linked_track_id": null,
+        "cues": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "start": [
+              0,
+              1
+            ],
+            "end": [
+              1,
+              1
+            ],
+            "text": "Schema example 中文",
+            "language": "zh-Hans",
+            "source_cue_id": null,
+            "manual_lock": false,
+            "time_basis": "source",
+            "asset_id": "00000000-0000-4000-8000-000000000010",
+            "subtitle_stream_index": 4,
+            "source_track_id": "embedded-stream-4",
+            "segment_ids": [
+              "00000000-0000-4000-8000-000000000011"
+            ],
+            "sidecar_origin": null
+          }
+        ],
+        "block_order": 0,
+        "gap_px": [
+          0,
+          1
+        ]
+      },
+      "keyframes": [],
+      "visible": true,
+      "locked_fields": []
+    }
+  ],
+  "audio": {
+    "clips": [
+      {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "asset_id": "00000000-0000-4000-8000-000000000010",
+        "audio_stream_index": 3,
+        "source_in": [
+          0,
+          1
+        ],
+        "source_out": [
+          7,
+          4
+        ],
+        "output_start": [
+          1,
+          4
+        ],
+        "speed": [
+          1,
+          1
+        ],
+        "preserve_pitch": true,
+        "gain_db": [
+          0,
+          1
+        ],
+        "pan": [
+          0,
+          1
+        ],
+        "mute": false,
+        "solo": false,
+        "fade_in": [
+          0,
+          1
+        ],
+        "fade_out": [
+          0,
+          1
+        ],
+        "role": "original"
+      }
+    ],
+    "master": {
+      "normalization": "none",
+      "target_lufs": [
+        -16,
+        1
+      ],
+      "target_peak_db": [
+        -1,
+        1
+      ],
+      "limiter": false,
+      "ducking": []
+    }
+  },
+  "transitions": [],
+  "fonts": [
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "path_ref": {
+        "path": "fixtures/font.ttf",
+        "base": "project",
+        "asset_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "face_index": 0,
+      "family": "SyntheticExample",
+      "style": "Regular",
+      "fallback_ids": [],
+      "license_ref": "fixture-only-not-distributed-font",
+      "provenance_ref": "schema example, NOT actual file"
+    }
+  ],
+  "seed": 0,
+  "algorithm_revision": "motion-1",
+  "provenance": {
+    "project_id": "00000000-0000-4000-8000-000000000002",
+    "project_revision": 0,
+    "preset_id": null,
+    "preset_version": 0,
+    "preset_hash": null,
+    "source_ids": [],
+    "account_binding_ids": []
+  }
+}

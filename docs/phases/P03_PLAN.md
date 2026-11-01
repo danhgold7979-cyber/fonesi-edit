@@ -4,7 +4,7 @@ Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented 
 
 ## P03-01 — scaffold module, môi trường tái lập, dependency lock, config và user data tách khỏi thư mục chương trình.
 
-- **Depends on:** P01-07,P02-01/08. Only independent work may proceed while external portions remain blocked.
+- **Depends on:** P01-07.contract_ready, P02-01.dev_toolchain_ready (not full P02-08 acceptance). Only independent work may proceed while external portions remain blocked.
 - **Input:** Chosen runtime/Qt versions, install/user-data policy.
 - **Output/interface:** Fresh pyproject/lock/src package/entrypoint, eight-area shell, config paths and test runner.
 - **Errors/cancellation:** Missing FFmpeg does not prevent app/settings startup; bad config quarantined with explanation; shutdown cancels owned tasks.
@@ -43,7 +43,7 @@ Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented 
 - **Depends on:** P03-04,P01-04. Only independent work may proceed while external portions remain blocked.
 - **Input:** Resolved snapshot/seed/tool/account refs and progress events.
 - **Output/interface:** Canonical immutable snapshot hash; redacted event log; queue table commands and error taxonomy.
-- **Errors/cancellation:** Secret-valued unknown keys rejected; malformed progress ignored with bounded diagnostic; cancel/update running disallowed.
+- **Errors/cancellation:** Secret-valued unknown keys rejected; malformed progress ignored with bounded diagnostic; running cancellation allowed through coordinator; running snapshot update disallowed.
 - **Tests and acceptance:** Snapshot unchanged after preset edit; secret sentinels absent; unknown totals show counts; repeated submit idempotent.
 - **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P03_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. Current outcome NOT_RUN.
 
@@ -76,7 +76,7 @@ Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented 
 
 ## P03-09 — schema BrowserProfile/PlatformAccountBinding, profile ownership/browser state/auth state, credential refs và account-scoped cache; không lưu cookie/mật khẩu trong project.
 
-- **Depends on:** P03-02,P02-10. Only independent work may proceed while external portions remain blocked.
+- **Depends on:** P03-02, P01-08.account_schema_ready (live P02-10 gates only authenticated handoff acceptance). Only independent work may proceed while external portions remain blocked.
 - **Input:** Profile and account binding schema; credential reference store.
 - **Output/interface:** Profile/browser-state/account web+bridge+rights repositories and account-scoped cache.
 - **Errors/cancellation:** No secret persistence/export; profile busy distinct auth expired; unlink does not delete Chrome data; cancel leaves mappings.
