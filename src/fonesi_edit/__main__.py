@@ -19,7 +19,27 @@ def main(argv=None):
     parser.add_argument('--subtitle-format', choices=('srt','vtt','ass','ssa'))
     parser.add_argument('--subtitle-encoding', default=None)
     parser.add_argument('--data-dir', type=Path, help='Explicit user-data directory (never installation directory by default)')
+    modes.add_argument('--restore-project-store',type=Path,help='Restore an offline project backup to a NEW database; never overwrite')
+    parser.add_argument('--restore-destination',type=Path,help='New absolute database path in an existing private directory')
+    parser.add_argument('--restore-timeout',type=float,default=None,help='Cooperative restore deadline in seconds (maximum 3600)')
     args = parser.parse_args(argv)
+    if args.restore_project_store is not None:
+        if (args.restore_destination is None or args.data_dir is not None or args.tool_path or args.tool_dir or
+            args.exclude_root or args.subtitle_format is not None or args.subtitle_encoding is not None):
+            parser.error('Restore requires --restore-destination and cannot accompany unrelated mode options')
+        from fonesi_edit.storage.restore import restore_project_backup,RestoreError
+        try:
+            result=restore_project_backup(args.restore_project_store,args.restore_destination,
+                                          timeout=300 if args.restore_timeout is None else args.restore_timeout)
+        except RestoreError as exc:
+            print('Project restore not confirmed. Source is not modified; any new destination is retained. Do not automatically retry.',file=sys.stderr)
+            if exc.ownership_unknown:
+                print('Destination ownership outcome requires reconciliation.',file=sys.stderr)
+            return 2
+        print(f'Restored {result.project_count} project(s) to a new store; schema {result.schema_version}. Original backup is unchanged.')
+        return 0
+    if args.restore_destination is not None or args.restore_timeout is not None:
+        parser.error('Restore options require --restore-project-store')
     if args.scan_tools:
         if args.subtitle_format is not None or args.subtitle_encoding is not None or args.exclude_root:
             parser.error('Media/subtitle options cannot accompany --scan-tools')

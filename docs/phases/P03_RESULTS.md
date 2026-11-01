@@ -1093,3 +1093,24 @@ Ledger7/438, tasks0/9 unchanged; full provider/executor/error integration not ac
 
 Native exit-code model includes signed POSIX signals and unsigned Windows DWORD
 crash codes (e.g.0xC0000005); exact bounded numeric roundtrip regression1PASS.
+
+### Typed diagnostic native gate41310543152
+Exactpublic97af44fd/treef107870e (local08dd4d0), fourSUCCESS/all55PASS/noSKIP each.
+Windows3.12.10/3.13.16 and Linux3.12.15/3.13.17. API4ZIP digests/8members/source/JUnit
+independently verified. OPS-05.03 exact child accepted with root concurrence;
+ledger8/438, P03 8/78, whole tasks0/9. Scope limitations remain as above.
+
+### Offline project migration backup restore — local source checkpoint
+P03-02/07: explicit headless restore into a NEW exclusive store, ownership receipt
+last, no live-store overwrite/source SQLite open/path deletion/replay. Actual v1
+migration backup→copy→normal reopen/migrate preserves all original IDs/documents/CAS
+versions and unknown origins, while old live DB retains its newer state unchanged.
+Local affected runs:17 initial restore cases,7 CLI cases,1 explicit rollback-v2
+origin case,4 complete metadata/NUL cases,3 SQLite BLOB-type negatives PASS. The
+first v2 fixture used a WAL-header snapshot and correctly refused; fixture then
+explicitly prepared rollback format, not a claimed WAL recovery fix. Reviewer found
+TEXT substr NUL truncation; replaced with bounded BLOB projections, original text
+type gates and full comparisons. Fresh CLI subprocess imports no Qt; errors omit
+private paths/project content. Native Windows gate pending. No new child accepted;
+8/438 and0/9 full P03tasks remain. GUI store switching/latest-backup choice and WAL
+backup recovery are separate open scopes. No unchanged aggregate/frozen rerun.

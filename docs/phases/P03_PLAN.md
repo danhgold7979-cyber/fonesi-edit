@@ -588,3 +588,22 @@ job command remains committed when logging fails/unknown outcome is not retried;
 current-owner/version checks before live worker diagnostic emission; actual selected
 job Qt read-only view, close/cancel lifetime, no initialization from viewing logs.
 This does not fabricate production executors or accept all OPS-05.03 by itself.
+
+### P03-02 / P03-07 migration backup restoration
+Provide an explicit restore-to-NEW-store operation and headless CLI, never replacing
+an open/current store or source. No live-source SQLite recovery: original source FD
+is read-only; require known rollback-format project backup header and no sidecars.
+Copy opened-size-bounded chunks into an exclusively reserved pinned destination,
+validate copied exact known v1/v2 schema and every bounded Project document/row,
+quick_check, readback hash and unchanged source. Register ownership last. Existing
+schema lineage lets normal ProjectStore subsequently load/migrate the fresh copy.
+Cancellation, disk/full/permission/schema failures retain an unmarked partial target
+without unsafe pathname deletion; registration-attempt uncertainty is explicit and
+never auto-retried. Existing destination/foreign receipt is refused untouched.
+
+Tests: actual migration-produced v1 backup restored and opened by current store;
+original live store/backup unchanged, source origins preserved/unknown never cwd;
+foreign/future/corrupt/oversize document and existing target refusal; midcopy cancel,
+growth/source mutation, fault before/after registration, native Unicode paths and
+CLI no Qt/unrelated data initialization. Full latest-state selection/UI picker and
+in-place replacement are not implied by this bounded new-copy restoration gate.

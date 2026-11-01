@@ -561,5 +561,71 @@
       "Python probe/decoder stand-ins are lifecycle evidence, not FFmpeg capability.",
       "No default production scheduler, provider, restart recovery, full task/phase acceptance."
     ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-05.03",
+    "generation": "clean-2026-11-01",
+    "commit": "97af44fd62269e866b93ed55c088a630a498a698",
+    "tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+    "task_ids": [
+      "P03-04",
+      "P11-02"
+    ],
+    "criterion_ids": [
+      "OPS-05.03"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "pytest tests/test_job_events.py tests/test_job_events_ui.py tests/test_queue_commands.py tests/test_coordinator_inbox.py tests/test_queue_progress.py tests/test_queue_cancel_lifecycle.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+          "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+          "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+          "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+          "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_job_events_ui::test_actual_worker_error_shows_fixed_diagnostic_not_private_output",
+      "tests.test_job_events::test_retention_reopen_and_store_token_selection",
+      "tests.test_job_events::test_unknown_append_retires_store_and_never_replays",
+      "tests.test_job_events::test_event_allowlist_roundtrip_cannot_hold_raw_secret"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41310543152/summary.json"
+    ],
+    "run_id": 41310543152,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41310543152",
+    "independent_review": "docs/reviews/P03_TYPED_DIAGNOSTICS_HOSTED_41310543152.md",
+    "limitations": [
+      "Separate diagnostic store observational/non-atomic; retained rows bounded, not physical DB size.",
+      "Python process error is actual lifecycle/diagnostic evidence, not FFmpeg/provider capability.",
+      "No default executor/provider/retention settings/full task acceptance; DWORD bound is representation not native crash."
+    ]
   }
 ]

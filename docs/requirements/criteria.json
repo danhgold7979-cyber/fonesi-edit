@@ -6368,12 +6368,20 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-OPS-05.03"
+    ],
     "planned_case_id": "case_ops_05_03",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "SB-L169"
+    ],
+    "implemented_test_cases": [
+      "tests.test_job_events_ui::test_actual_worker_error_shows_fixed_diagnostic_not_private_output",
+      "tests.test_job_events::test_retention_reopen_and_store_token_selection",
+      "tests.test_job_events::test_unknown_append_retires_store_and_never_replays",
+      "tests.test_job_events::test_event_allowlist_roundtrip_cannot_hold_raw_secret"
     ]
   },
   {

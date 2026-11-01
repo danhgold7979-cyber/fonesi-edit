@@ -1,0 +1,115 @@
+{
+  "run_id": 41310543152,
+  "scope": "Affected bounded typed diagnostics and shared queue command/lifecycle; no full phase or provider acceptance",
+  "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+  "artifacts": [
+    {
+      "artifact_id": 13084633612,
+      "artifact": "job-diagnostics-windows-latest-py3.13",
+      "zip_sha256": "32f24fa99b3d1d765bcae218857768a7a6c0e0dd0ec1de0c2053e5fe8a9a8408",
+      "members": {
+        "foundation-results.xml": "18426eca1acd6328a20f9dc2fc611165927219a3f97ca14fe0d97fb1e6e5d171",
+        "foundation-source.json": "d8b56dd83f7b39a4d7d4467b2fa83ec236784da306fe57f5b40ec1b1d37de000"
+      },
+      "runtime": {
+        "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+        "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "55",
+        "time": "11.132",
+        "timestamp": "2026-11-01T13:18:09.485559+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13084543787,
+      "artifact": "job-diagnostics-windows-latest-py3.12",
+      "zip_sha256": "1f51491942cb7373e833ade45b7a33d0e4b04981e1a2b92eb3415c928d1ef09b",
+      "members": {
+        "foundation-results.xml": "fd87198fde9e03c590a886d503caf244a2736f62d5c625c476b57d67e3a87655",
+        "foundation-source.json": "f9793f164b1c804a84c3ca62ebc5b78e3d04f223e14c5d865b643004382a1cdd"
+      },
+      "runtime": {
+        "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+        "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "55",
+        "time": "9.627",
+        "timestamp": "2026-11-01T13:18:02.127430+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13084134748,
+      "artifact": "job-diagnostics-ubuntu-24.04-py3.12",
+      "zip_sha256": "64acf32b203c7a43d821a3a3f3dad2707071de43fc88a8fcfb8c7e5631c60e41",
+      "members": {
+        "foundation-results.xml": "e31b4a38c2bfb22bc4bc69ce3e15035189440f07f854e281e8176e5640b9f8db",
+        "foundation-source.json": "9feb9fa0321de87d29feb77937f3702eb05d101160760ee4abfd8e1374f25aa8"
+      },
+      "runtime": {
+        "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+        "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "55",
+        "time": "6.925",
+        "timestamp": "2026-11-01T13:17:57.743282+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": []
+    },
+    {
+      "artifact_id": 13084124627,
+      "artifact": "job-diagnostics-ubuntu-24.04-py3.13",
+      "zip_sha256": "1e1398883fa2b1295581e329aefae07201db13c24625e513b59c7f3cf01b6de0",
+      "members": {
+        "foundation-results.xml": "02d0f7447954fafcc90f1800176fea144401e8be4e3b9d21c690c10d7a6108c1",
+        "foundation-source.json": "2984c215a05285e24abd7b1f6f1b86c83ca275cfd97f147916412a46ace2ef50"
+      },
+      "runtime": {
+        "source_sha": "97af44fd62269e866b93ed55c088a630a498a698",
+        "source_tree": "f107870e98e4eb7659e6e9b04ef5b30e1eae34e2",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "55",
+        "time": "6.348",
+        "timestamp": "2026-11-01T13:17:50.484061+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": []
+    }
+  ]
+}
