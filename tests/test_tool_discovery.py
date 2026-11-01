@@ -118,7 +118,7 @@ builtins.__import__=guarded
 from fonesi_edit.__main__ import main
 raise SystemExit(main(['--scan-tools']))
 """
-    result=subprocess.run([sys.executable,'-c',script],env={**{k:v for k,v in os.environ.items() if k.upper() not in {'PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'}},'PATH':str(tmp_path)},capture_output=True,text=True,timeout=10)
+    result=subprocess.run([sys.executable,'-c',script],env={**{k:v for k,v in os.environ.items() if k.upper() not in {'PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'}},'PATH':str(tmp_path),**{key:str(tmp_path) for key in ('PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA')}},capture_output=True,text=True,timeout=10)
     assert result.returncode==0,result.stderr
     assert json.loads(result.stdout)['candidates']==[]
 

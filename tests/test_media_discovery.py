@@ -81,3 +81,22 @@ def test_cli_returns_real_candidates_without_userdata_or_validation_claim(tmp_pa
     assert not list(tmp_path.rglob('*.sqlite3'))
     assert main(['--scan-media',str(source),'--exclude-root',str(source)])==2
     assert str(source) not in capsys.readouterr().err
+
+
+def test_fresh_nofollow_stat_not_direntry_cached_identity(tmp_path,monkeypatch):
+    """Windows cached DirEntry identity is zero; never use it for aliases."""
+    import fonesi_edit.media.discovery as module
+    source,output,cache=tree(tmp_path)
+    os.link(source/'clip.mp4',source/'alias.mp4')
+    real_scan=os.scandir
+    class Entry:
+        def __init__(self,entry):self.name=entry.name
+        def stat(self,**kwargs):raise AssertionError('Cached DirEntry identity must not be used')
+    class Entries:
+        def __init__(self,path):self.inner=real_scan(path)
+        def __enter__(self):return (Entry(entry) for entry in self.inner)
+        def __exit__(self,*args):self.inner.close()
+    monkeypatch.setattr(module.os,'scandir',Entries)
+    result=scan_media(source,excluded_roots=(output,cache))
+    assert result.status=='COMPLETE' and len(result.paths)==3
+    assert len([p for p in result.paths if p.name in {'clip.mp4','alias.mp4'}])==1

@@ -59,7 +59,7 @@ class JobRepository:
             self.guard_database()
             marker=receipt_path(path)
             if ((not created and not adopt_unmarked) or marker.exists() or marker.is_symlink()) and not owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES):
-                raise JobConflict('Unmarked/foreign existing jobs schema; explicit adoption required before SQLite')
+                raise JobConflict('Unmarked/foreign ownership receipt for existing jobs schema; explicit adoption required before SQLite')
             options={'connect':self._connect_existing}
             self.db, version = open_versioned(path,**options,owned=lambda:owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES))
             self.guard_database() # SQLite opened while original file anchor stayed live

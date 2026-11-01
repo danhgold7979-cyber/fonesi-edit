@@ -749,3 +749,34 @@ Windows3.12 onedir/frozen schema/subtitle/empty-encoding/tool-discovery/exact-MI
 No diagnostic marker or new binary acquisition. Main stays accepted P01; phase03 is
 IN_PROGRESS. Reconciled all9 machine-readable P03 states from stale PLANNED to
 IN_PROGRESS, never ACCEPTED. Accepted children remain2/438 and whole tasks0/9.
+
+## Hosted integration 41295642110 and bounded repair
+
+Public `5d8a3389affe5386f52b0925d6943f78b2a2d313` (local f996800, tree
+`e5fd4c1538b79beaf53f37782538a798f1074866`) ran the full 505-case matrix.
+Ubuntu Python3.12/3.13 each:491 PASS/13 SKIP/1 FAIL. Windows Python3.12/3.13
+each:475 PASS/22 SKIP/8 FAIL. All jobs terminated normally; actual native process,
+coordinator crash/lock, publication, queue and Qt lifetime cases have individual
+PASS evidence, not whole-phase acceptance. Frozen build/checks were skipped after
+source-test failure, NOT passed. Exact source/JUnit receipts retained in
+`docs/evidence/p03/hosted-41295642110/`; summary records ZIP and member SHA256.
+
+Failures: one old test expected 'receipt' while the strengthened pre-SQLite guard
+returned an otherwise correct refusal message; Windows media discovery incorrectly
+used cached DirEntry.stat identity (zero device/inode); subprocess environment
+removal still allowed a real host Chrome candidate. No foreign DB adoption or
+source overwrite occurred. Repair preserves ownership refusal and changes only
+its diagnostic wording; discovery now fresh no-follow os.stat with anchored POSIX
+dir_fd or pinned Windows directory path. Zero identity still refuses. Python's
+primary contract: https://docs.python.org/3.13/library/os.html#os.DirEntry.stat .
+Test/frozen harness explicitly assigns the owned empty directory to Chrome search
+roots instead of removing variables; this changes only the test process environment.
+No application tool availability is fabricated.
+
+30 affected local tests PASS, independent causal discovery regression1 PASS.
+Next `[integration-repair]` checkpoint uses all4 platforms but ONLY affected
+migration/open-identity/discovery/harness tests; unchanged prior native/GUI PASS
+cases are carried forward, not rerun. Pending plan/schema and actual Windows3.12
+frozen schema/subtitle/tool-discovery/license checks remain enabled. A green repair
+is affected evidence, not a new full aggregate or P03 acceptance. No criterion
+closure;2/438 and0/9 remain unchanged.

@@ -52,9 +52,11 @@ def main(argv=None):
             report['cases'].append(case)
         saved=dict(os.environ)
         try:
-            for key in tuple(os.environ):
-                if key.upper() in {'PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'}:os.environ.pop(key)
             empty=work/'empty-tools';empty.mkdir();os.environ['PATH']=str(empty)
+            # Explicit values prevent Windows startup from restoring absent
+            # well-known variables; only this test process environment changes.
+            for key in ('PROGRAMFILES','PROGRAMFILES(X86)','LOCALAPPDATA'):
+                os.environ[key]=str(empty)
             case=run_case(binary,['--scan-tools','--data-dir',data],0)
         finally:
             os.environ.clear();os.environ.update(saved) # Test process only; no machine/user PATH mutation.

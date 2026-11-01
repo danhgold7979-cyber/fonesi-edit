@@ -69,8 +69,12 @@ def scan_media(root,*,excluded_roots=(),excluded_file_ids=(),extensions=None,can
                         directory._check()
                         if examined>=max_entries:status='PARTIAL_LIMIT';return
                         examined+=1
-                        info=entry.stat(follow_symlinks=False);identity=(info.st_dev,info.st_ino)
                         path=directory.root/entry.name
+                        # Windows DirEntry.stat caches zero device/inode. Fresh
+                        # no-follow stat is required for physical alias exclusion.
+                        info=(os.stat(entry.name,dir_fd=directory.fd,follow_symlinks=False)
+                              if directory.fd is not None else os.stat(path,follow_symlinks=False))
+                        identity=(info.st_dev,info.st_ino)
                         if (stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400 or
                             entry.name.startswith('.fonesi-stage-') or identity in blocked_files or
                             any(under(path,item.root) for item in blocked)):
