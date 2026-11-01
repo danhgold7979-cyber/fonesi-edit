@@ -622,12 +622,17 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-SRC-08.04"
+    ],
     "planned_case_id": "case_src_08_04",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L169"
+    ],
+    "implemented_test_cases": [
+      "tests.test_retirement_lifecycle::test_actual_owned_decoder_cancel_then_ack_and_only_own_temp_cleanup"
     ]
   },
   {

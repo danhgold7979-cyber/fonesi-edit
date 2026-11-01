@@ -1014,3 +1014,30 @@ failure mislabeled WINDOWS_JOB_EMPTY; fixed NO_PROCESS with new1PASS+independent
 Source CLEAR for22affectedcases/fourtargets via `[validator-retirement]`; no unchanged
 aggregate/frozen/Qt install. Actual Windows cancellation→proof→own-temp cleanup and
 native finalizer-unknown test remain target gates. No newchild/task acceptance.
+
+### Typed validator retirement — hosted41306207422
+Four targets SUCCESS, each20PASS/2inapplicableSKIP. Windows3.12.10/3.13.16;
+Linux3.12.15/3.13.17. Exactsource7a87baa7/tree7637a86c. Independent API/ZIP/member
+verification recorded in P03_TYPED_RETIREMENT_HOSTED_41306207422.md. SRC-08.04
+accepted only for live owned Windows cleanup; ledger6/438, P03 6/78, tasks0/9.
+Python decoder/descendant is a lifecycle stand-in, not actual FFmpeg proof.
+
+### Active coordinator inbox — local implementation
+P03-04/P03-05: bounded cross-thread immutable command routing, owner-thread CAS,
+no second coordinator lock, pending cancellation/close, unknown-COMMIT retirement,
+and optional Qt command route. New8 inbox tests PASS across affected runs, exit0, including actual owned
+Python child/descendant cancellation and Qt dispatcher. Default shell scheduler
+and progress consumer are still open; no new criterion or Windows claim.
+
+Bounded latest-per-job numeric progress transport and actual optional queue consumer
+added:5newcases PASS across affected runs, including real Python stdout to Qt
+frame/time/byte display, selected cancellation through live owner, retirement and
+acknowledgment. Store/hash/attempt/final-state filtering, initial read retention and
+failed-read pause exercised. This is not a default production scheduler or FFmpeg
+codec test. Independent progress source review CLEAR; native checkpoint pending.
+
+One integration aggregate:573PASS/36nativeSKIP/1FAIL (old privacy repr assertion
+rejected intended snapshot_hash field). Exact field-allowlist/full-body exclusion
+test corrected, focused1PASS exit0; no unchanged aggregate rerun. Failed original
+JUnit and source hashes preserved under docs/evidence/p03/inbox-progress-local/.
+Normal four-target checkpoint will establish native integration afresh.

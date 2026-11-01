@@ -2,7 +2,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 import sqlite3
 import time
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError,fields
 import pytest
 from PySide6.QtWidgets import QApplication
 from fonesi_edit.domain.composition import CompositionPlan
@@ -27,7 +27,11 @@ def test_actual_queue_rows_bounded_immutable_no_snapshot_or_request_key(queue):
     assert result.truncated and result.store_exists
     assert tuple(r.id for r in result.rows)==tuple(job.id for job in reversed(jobs[-2:]))
     assert all(r.state=='pending' for r in result.rows)
-    assert 'secret-sentinel' not in repr(result) and 'snapshot' not in repr(result)
+    assert 'secret-sentinel' not in repr(result) and 'snapshot_json' not in repr(result)
+    assert {field.name for field in fields(result.rows[0])}=={
+        'id','state','attempt','cancel_requested','unresolved_publication','version','snapshot_hash'}
+    assert all(row.snapshot_hash==repo.get(row.id).snapshot_hash for row in result.rows)
+    assert all(repo.get(row.id).snapshot_json not in repr(result) for row in result.rows)
     with pytest.raises(FrozenInstanceError):result.rows[0].state='succeeded'
     running=repo.claim(jobs[0]);result=read_queue(repo.path)
     assert next(r for r in result.rows if r.id==running.id).state=='running'

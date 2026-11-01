@@ -421,5 +421,82 @@
       "Actual target FFmpeg unavailable/skipped; no Windows FFmpeg proof.",
       "Restart reconciliation remains UNKNOWN and cancellation temporary cleanup remains open."
     ]
+  },
+  {
+    "id": "P03-HOSTED-SRC-08.04",
+    "generation": "clean-2026-11-01",
+    "commit": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+    "tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+    "task_ids": [
+      "P03-06",
+      "P05-04"
+    ],
+    "criterion_ids": [
+      "SRC-08.04"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "uv run --no-sync python -m pytest -q tests/test_retirement_lifecycle.py tests/test_canceled_cleanup.py::test_unknown_validator_retirement_stays_blocked_after_cancel_ack tests/test_process.py::test_output_and_exit_code tests/test_windows_process.py::test_real_output_unicode_argument_and_exit tests/test_media_validation.py::test_exact_mapping_and_owned_decode_flags tests/test_media_validation.py::test_failed_decode_changed_bytes_and_cancel_never_accept --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+          "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+          "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+          "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+          "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_retirement_lifecycle::test_actual_owned_decoder_cancel_then_ack_and_only_own_temp_cleanup"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41306207422/summary.json",
+      "docs/evidence/p03/hosted-41304594711/summary.json"
+    ],
+    "run_id": 41306207422,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41306207422",
+    "independent_review": "docs/reviews/P03_TYPED_RETIREMENT_HOSTED_41306207422.md",
+    "limitations": [
+      "Windows live-session owned cleanup only; unknown lifecycle/restart/POSIX retain without deletion.",
+      "Python decoder stand-in is not FFmpeg capability proof.",
+      "Prior 41304594711 exact preservation/foreign-handoff cases retained unchanged; full queue/UI/task remains open."
+    ],
+    "carried_forward": [
+      {
+        "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+        "run_id": 41304594711,
+        "test_cases": [
+          "tests.test_canceled_cleanup::test_canceled_exact_stages_removed_sources_foreign_final_preserved[False]",
+          "tests.test_canceled_cleanup::test_canceled_exact_stages_removed_sources_foreign_final_preserved[True]",
+          "tests.test_canceled_cleanup::test_foreign_child_survives_partial_canceled_cleanup",
+          "tests.test_canceled_cleanup::test_canceled_handoff_swap_preserves_foreign_payload"
+        ],
+        "scope": "Actual Windows live-stage preservation; helpers/tests unchanged at current checkpoint"
+      }
+    ]
   }
 ]

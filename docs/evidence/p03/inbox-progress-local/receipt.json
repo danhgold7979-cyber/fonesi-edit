@@ -1,0 +1,40 @@
+{
+  "scope": "Local coherent owner inbox / optional Qt progress integration; not Windows or full task acceptance",
+  "source_sha256": {
+    "src/fonesi_edit/jobs/commands.py": "52110606526272bfa0b93bd5898c0d2922591cd0d11f3232475fed59862b5278",
+    "src/fonesi_edit/jobs/inbox.py": "34101d714315ddc0e47e7142e3a406cb6966ed5a59d84b56db41eea9dc13435e",
+    "src/fonesi_edit/jobs/observations.py": "ae213ddf03b3b8aa7de25f3bf6bda41722bae33e86177d61140c6b9d44b4276a",
+    "src/fonesi_edit/jobs/view.py": "7e051d408dc320c141b76e15bb7c36ef725539fdb3936724685e01c4e9bc4e1e",
+    "src/fonesi_edit/ui/queue.py": "4c6085f09cca2a9385bd7f4fdb0e222bd28d7241a5cd7f96994733ac5e8ad3a1",
+    "tests/test_coordinator_inbox.py": "6fd661f5bd3b6f4ef78dfa235132813b8999c709e2e4849be4b5a3fa8cca42f0",
+    "tests/test_queue_progress.py": "ecc70af924c059137b414a697c874f71294a1d06dd5c5a005a58735ee4aab471",
+    "tests/test_queue_view.py": "1d1a009920634f17f40d488c279e60c86cacd750453c9674229a323805cb2263"
+  },
+  "aggregate": {
+    "command": "QT_QPA_PLATFORM=offscreen PYTHONFAULTHANDLER=1 .venv/bin/pytest -q --junitxml=runtime/p03-inbox-progress-local.xml",
+    "status": "FAIL",
+    "passed": 573,
+    "skipped": 36,
+    "failed": 1,
+    "exit_code": 1,
+    "artifact": "aggregate-before-test-correction.xml",
+    "sha256": "cdd4e6197dcfe7f25e5d9c963a34c1b65aae303cf4c6bae9da050bea6219a3ce",
+    "failure": "Old repr assertion rejected newly intended snapshot_hash field; source/data exposure did not fail. This artifact predates final test_queue_view hash above."
+  },
+  "focused_correction": {
+    "command": ".venv/bin/pytest -q tests/test_queue_view.py::test_actual_queue_rows_bounded_immutable_no_snapshot_or_request_key",
+    "passed": 1,
+    "exit_code": 0,
+    "assertions": "Exact field allowlist; immutable hash only, full snapshot JSON and secret request key absent"
+  },
+  "new_tests": {
+    "inbox": 8,
+    "progress": 5,
+    "evidence": "Affected runs and independent source reviews; no duplicated unchanged aggregate"
+  },
+  "limitations": [
+    "Actual Windows native queue integration pending checkpoint CI.",
+    "Python stdout producer is not FFmpeg codec proof.",
+    "Default shell scheduler/executor absent; explicitly supplied live owner route required."
+  ]
+}

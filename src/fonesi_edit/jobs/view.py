@@ -1,6 +1,7 @@
 """Bounded queue observations; no snapshot/credential content or state mutation."""
 from dataclasses import dataclass
 import os
+import re
 from pathlib import Path
 import sqlite3
 import stat
@@ -21,6 +22,7 @@ class QueueRow:
     cancel_requested: bool
     unresolved_publication: bool
     version: int=1
+    snapshot_hash: str|None=None
 
 
 @dataclass(frozen=True)
@@ -60,17 +62,18 @@ def read_queue(path,*,limit=500,cancel=lambda:False):
             raise QueueReadError('Unsupported queue schema')
         # No snapshot_json/request_key/source paths are selected or exposed.
         rows=db.execute('''SELECT j.id,j.state,j.attempt,j.cancel_requested,
-            EXISTS(SELECT 1 FROM artifact_sets s WHERE s.job_id=j.id AND s.state IN ('prepared','claimed')),j.version
+            EXISTS(SELECT 1 FROM artifact_sets s WHERE s.job_id=j.id AND s.state IN ('prepared','claimed')),j.version,j.snapshot_hash
             FROM jobs j ORDER BY j.rowid DESC LIMIT ?''',(limit+1,)).fetchall()
         guard()
         states={'pending','running','validating','publishing','retry_wait','blocked_configuration','paused','succeeded','succeeded_with_warnings','failed','canceled','skipped'}
         for row in rows:
             if (type(row[0]) is not str or str(uuid.UUID(row[0]))!=row[0] or row[1] not in states or
-                type(row[2]) is not int or not 0<=row[2]<=2147483647 or row[3] not in (0,1) or type(row[5]) is not int or row[5]<1):
+                type(row[2]) is not int or not 0<=row[2]<=2147483647 or row[3] not in (0,1) or type(row[5]) is not int or row[5]<1 or
+                type(row[6]) is not str or not re.fullmatch('[0-9a-f]{64}',row[6])):
                 raise QueueReadError('Malformed queue observation')
         if token!=ownership_token(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES):raise QueueReadError('Queue ownership changed')
         if cancel():raise QueueReadError('Queue read canceled')
-        return QueueSnapshot(tuple(QueueRow(r[0],r[1],r[2],bool(r[3]),bool(r[4]),r[5]) for r in rows[:limit]),len(rows)>limit,True,token)
+        return QueueSnapshot(tuple(QueueRow(r[0],r[1],r[2],bool(r[3]),bool(r[4]),r[5],r[6]) for r in rows[:limit]),len(rows)>limit,True,token)
     except QueueReadError:raise
     except (OSError,sqlite3.Error,ValueError,DatabaseOwnershipError) as exc:
         raise QueueReadError('Queue unavailable; existing data left unchanged') from exc

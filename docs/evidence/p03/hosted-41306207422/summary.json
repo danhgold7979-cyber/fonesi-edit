@@ -1,0 +1,151 @@
+{
+  "run_id": 41306207422,
+  "scope": "Affected typed retirement; Python decoder stand-in, not FFmpeg proof",
+  "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+  "artifacts": [
+    {
+      "artifact_id": 13083700346,
+      "artifact": "validator-retirement-ubuntu-24.04-py3.12",
+      "zip_sha256": "acc2e30a84c128dbe767f081f47dad772ccd2b4ece1ccc2421855602382d8f17",
+      "members": {
+        "foundation-results.xml": "af98a1570f4d5f7bbaf4c5fd6de8d33f38782bc56700bd415da561121459eb5d",
+        "foundation-source.json": "f6a532828678d36752223364aab554c4ba04aa33f27066ee0208c6fbc66a496e"
+      },
+      "runtime": {
+        "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+        "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "22",
+        "time": "2.228",
+        "timestamp": "2026-11-01T12:22:54.750952+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_retirement_lifecycle.test_windows_failed_empty_observation_never_confirms",
+          "reason": "Actual Windows finalizer observation failure required"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_output_unicode_argument_and_exit",
+          "reason": "Real Windows Job Object test; not simulated"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13083471487,
+      "artifact": "validator-retirement-ubuntu-24.04-py3.13",
+      "zip_sha256": "a16f06f34e76017dc9ff34d9512c32edc38cd86ac2dd9a59643b0ee80705d707",
+      "members": {
+        "foundation-results.xml": "524e9787d61f1ed8f303506f890eb5aceec24bef979619aa110b9f0fd179d2ab",
+        "foundation-source.json": "ad9116b81c3f5f60a2fb0bbbe54276cf4f6290e4e4ff808c60a44731b1fc4375"
+      },
+      "runtime": {
+        "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+        "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "22",
+        "time": "2.211",
+        "timestamp": "2026-11-01T12:22:57.449351+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_retirement_lifecycle.test_windows_failed_empty_observation_never_confirms",
+          "reason": "Actual Windows finalizer observation failure required"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_output_unicode_argument_and_exit",
+          "reason": "Real Windows Job Object test; not simulated"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13083162796,
+      "artifact": "validator-retirement-windows-latest-py3.13",
+      "zip_sha256": "1b292cc131aae4507d44bf64071f39bdf855e5a121ef0526c80200fad48a8a01",
+      "members": {
+        "foundation-results.xml": "0b470b0fddea5941cee26ffd6e6e72eb65c5ff02c98a44a74fa88181e98d0234",
+        "foundation-source.json": "e52096a7988a8840d2867b4dcb0bf607779f2dcbe7e1906388f5aa649945f7dc"
+      },
+      "runtime": {
+        "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+        "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "22",
+        "time": "2.766",
+        "timestamp": "2026-11-01T12:23:22.045401+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_retirement_lifecycle.test_finally_close_failure_overrides_result_but_retires_other_handles",
+          "reason": "POSIX checked-close failure path"
+        },
+        {
+          "case": "tests.test_process.test_output_and_exit_code",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13083149078,
+      "artifact": "validator-retirement-windows-latest-py3.12",
+      "zip_sha256": "772f804d4422d4e2e5b86f8a478b28c05ccf36654f74dba82fbd7855ae26ffdf",
+      "members": {
+        "foundation-results.xml": "cc455ee8ddc4be597a06d8803003799d9c58ac61a5c735fd3c4837f25fdcc529",
+        "foundation-source.json": "5b8d0d33f86294d4855e3120d1eda3770ab8faed13e6c9ee16996a2cedb93cc0"
+      },
+      "runtime": {
+        "source_sha": "7a87baa712ff51df02e22de53d5fcaa43a883a40",
+        "source_tree": "7637a86cdb2ded899c7fdd3ef1cb3d440c6f96f8",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "22",
+        "time": "2.682",
+        "timestamp": "2026-11-01T12:23:23.195570+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_retirement_lifecycle.test_finally_close_failure_overrides_result_but_retires_other_handles",
+          "reason": "POSIX checked-close failure path"
+        },
+        {
+          "case": "tests.test_process.test_output_and_exit_code",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        }
+      ]
+    }
+  ]
+}

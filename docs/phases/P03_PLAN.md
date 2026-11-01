@@ -524,3 +524,26 @@ FFmpeg-support claim—cancel → retirement → acknowledged job → native own
 cleanup. Inject unknown retirement → no native deletion. Preserve existing process
 API/error types, cancellation deadlines and unsafe-PID/global-kill prohibitions.
 No full queue scheduler/UI or renderer acceptance from this slice.
+
+### P03-04 / P03-05 active coordinator command routing
+Next coherent slice: bounded in-process command inbox owned by the existing
+coordinator thread, reusing QueueCommand store-token/version CAS and transaction
+semantics. UI producers must never share SQLite connections or acquire a second
+coordinator lock. Owner drains requests at worker cancellation/progress polling
+boundaries; accepted cancel remains a request until actual process retirement and
+acknowledgment. Queue capacity and per-drain work are bounded. A canceled pending
+future has no effect; once executing, neither interruption nor unknown COMMIT
+permits replay. Owner loss/close fails pending requests permanently. Tests cover
+cross-thread submission with same-thread SQLite, stale/token refusal, capacity,
+pre-admission cancellation, unknown COMMIT, owner loss, and actual owned child
+cancellation. This is routing, not a renderer/provider executor or full scheduler.
+
+Following inbox routing, connect real progress observations without unbounded Qt
+signals: bounded latest-per-job buffer on the coordinator route, drained by UI
+at a fixed cadence. UI must match current store token, job UUID, immutable
+snapshot hash and attempt; only active rows display observation counters. New
+snapshots/retries/final states clear stale progress; progress=end never marks
+success. Expose numeric frame/media-time/bytes only, never stderr/paths/credentials
+or fabricated percent/ETA. Actual runner emits through existing JobProgressObserver
+on its repository thread. This UI transport does not provide a missing renderer,
+provider executor or queue scheduler.
