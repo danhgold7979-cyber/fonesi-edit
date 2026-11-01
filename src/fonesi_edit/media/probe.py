@@ -82,7 +82,8 @@ class ProbeResult:
 
 def inspect_media(path: Path | str, executable: Path | str, *,
                   cancel: Callable[[], bool] = lambda: False,
-                  timeout: float = 30, max_output_bytes: int = 16 * 1024 * 1024) -> ProbeResult:
+                  timeout: float = 30, max_output_bytes: int = 16 * 1024 * 1024,
+                  _lifecycle=None) -> ProbeResult:
     path = Path(path).absolute()
     executable = Path(executable).absolute()
     if (type(timeout) not in (int,float) or not math.isfinite(timeout) or timeout <= 0 or
@@ -98,7 +99,9 @@ def inspect_media(path: Path | str, executable: Path | str, *,
     args = [str(executable), '-v', 'error', '-show_format', '-show_streams',
             '-print_format', 'json', '-protocol_whitelist', 'file,pipe', '-i', str(path)]
     try:
-        result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
+        if _lifecycle is None:
+            result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
+        else:result=_lifecycle.run(run_owned,args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
     except ProcessCanceled as exc:
         raise ProbeCanceled('Media inspection canceled; owned process retired') from exc
     except (ProcessError,OSError) as exc:

@@ -61,3 +61,11 @@ handoff replacement, authority loss at native effect. Previous completed-cleanup
 run41303347554 proves only its earlier sequence. `[cancel-cleanup]` alone selects
 four targets and28 affected cases, omitting unchanged aggregate/frozen/Qt installs.
 No new child/task acceptance until exact required conjunction is reviewed.
+
+## Later typed lifecycle refinement
+
+The unconditional validator-failure retention above describes checkpoint65c622c.
+VALIDATOR_RETIREMENT.md now defines fresh per-invocation finalizer evidence carried
+through the real validator. Only that exact sealed lifecycle can distinguish known
+retirement from UNKNOWN; arbitrary validator failure/success, stale scope or any
+unconfirmed invocation still permanently blocks cleanup. No boolean/string override.

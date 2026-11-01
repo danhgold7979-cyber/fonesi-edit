@@ -505,3 +505,22 @@ flush, parser/validator interruption, original anchors retained despite failure;
 source bytes unchanged; running/publishing/expired/foreign-owner cleanup refused;
 actual Windows canceled-job cleanup removes only exclusive owned stages and leaves
 foreign extra children/finals untouched. No unchanged full aggregate or frozen run.
+
+## Next P03-04 typed validator retirement propagation
+
+Reuse existing owned process adapters, never a new launcher. Per-invocation opaque
+retirement observation defaults UNKNOWN; mark it only after the backend's complete
+retirement path succeeds (Windows owned Job ActiveProcesses0 + checked handle
+retirement; POSIX explicitly its existing group policy, not Windows proof).
+A fresh validation-lifecycle object tracks every probe/decode invocation and seals
+only after actual validator entry/unwind. This side channel preserves lifecycle
+proof through sanitized error wrapping without string matching or caller booleans.
+Unentered/faked validator, any unconfirmed process/handle retirement or reused
+observation remains UNKNOWN. On exception, session may permit canceled-temp cleanup
+only from its fresh sealed confirmed lifecycle; unknown remains sticky forever.
+
+Target actual Python child/descendant standing in for an owned decoder—not a fake
+FFmpeg-support claim—cancel → retirement → acknowledged job → native own-stage
+cleanup. Inject unknown retirement → no native deletion. Preserve existing process
+API/error types, cancellation deadlines and unsafe-PID/global-kill prohibitions.
+No full queue scheduler/UI or renderer acceptance from this slice.

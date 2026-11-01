@@ -102,13 +102,16 @@ class PublicationSession:
             definition,destination=self._definition(role,'media')
             receipt=destination.copy_stage(source,cancel=cancel)
             path=destination.root/receipt.directory/'payload'
+            from fonesi_edit.media.retirement import ValidationLifecycle
+            operation=object();lifecycle=ValidationLifecycle(operation)
             try:
-                validation=validate_media(path,ffprobe,ffmpeg,definition.expected_streams,cancel=cancel,timeout=timeout)
+                validation=validate_media(path,ffprobe,ffmpeg,definition.expected_streams,cancel=cancel,timeout=timeout,_lifecycle=lifecycle)
             except BaseException:
-                # Current validator exceptions do not carry a typed proof that all
-                # owned descendants retired. DB cancel acknowledgment is not one.
-                self._quiescence_unknown=True
+                if not lifecycle.confirmed_for(operation):self._quiescence_unknown=True
                 raise
+            if not lifecycle.confirmed_for(operation):
+                self._quiescence_unknown=True
+                raise PublicationUnknown('Validator returned without confirmed owned retirement')
             if validation.sha256!=receipt.sha256:raise JobConflict('Validated media differs from owned stage')
             self._guard_worker()
             self._staged[role]=(receipt,{'policy':validation.policy,'sha256':validation.sha256})

@@ -62,8 +62,8 @@ def _number(value):
     except (ValueError,ZeroDivisionError):raise MediaValidationError('Missing/invalid rational metadata') from None
 
 
-def validate_media(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple[ExpectedStream,...],*,
-                   cancel:Callable[[],bool]=lambda:False,timeout:float=300)->MediaValidation:
+def _validate_media_impl(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple[ExpectedStream,...],*,
+                   cancel:Callable[[],bool]=lambda:False,timeout:float=300,_lifecycle=None)->MediaValidation:
     if type(expected) is not tuple or not 1<=len(expected)<=32 or any(type(v) is not ExpectedStream for v in expected) or len({s.index for s in expected})!=len(expected):
         raise ValueError('Nonempty bounded unique expected stream tuple required')
     if type(timeout) not in (int,float) or not math.isfinite(timeout) or timeout<=0:raise ValueError('Finite positive timeout required')
@@ -71,7 +71,7 @@ def validate_media(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple
     if not decoder.is_file() or not os.access(decoder,os.X_OK):raise MediaValidationError('Explicit decoder executable unavailable')
     if cancel():raise ProbeCanceled('Media validation canceled')
     try:
-        probe=inspect_media(path,ffprobe,cancel=cancel,timeout=timeout)
+        probe=inspect_media(path,ffprobe,cancel=cancel,timeout=timeout,**({"_lifecycle":_lifecycle} if _lifecycle is not None else {}))
         streams=probe.metadata()['streams']
         if len(streams)!=len(expected) or {s['index'] for s in streams}!={s.index for s in expected}:
             raise MediaValidationError('Output track set mismatch')
@@ -93,7 +93,9 @@ def validate_media(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple
               '-protocol_whitelist','file,pipe','-i',str(path)]
         for item in expected:args+=['-map',f'0:{item.index}']
         args+=['-f','null','-']
-        result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
+        if _lifecycle is None:
+            result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
+        else:result=_lifecycle.run(run_owned,args,cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
         if result.returncode!=0:raise MediaValidationError('Output failed full decode')
         if fingerprint(path,cancel)!=probe.sha256:raise MediaValidationError('Output changed during decode')
         if cancel():raise ProbeCanceled('Media validation canceled')
@@ -103,3 +105,12 @@ def validate_media(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple
     except MediaValidationError:raise
     except (ProcessError,ProbeError,OSError):
         raise MediaValidationError('Media validation failed; output not accepted') from None
+
+
+def validate_media(path:Path|str,ffprobe:Path|str,ffmpeg:Path|str,expected:tuple[ExpectedStream,...],*,
+                   cancel:Callable[[],bool]=lambda:False,timeout:float=300,_lifecycle=None)->MediaValidation:
+    if _lifecycle is None:return _validate_media_impl(path,ffprobe,ffmpeg,expected,cancel=cancel,timeout=timeout)
+    from .retirement import ValidationLifecycle
+    if type(_lifecycle) is not ValidationLifecycle:raise ValueError('Internal validation lifecycle required')
+    with _lifecycle.validation_body():
+        return _validate_media_impl(path,ffprobe,ffmpeg,expected,cancel=cancel,timeout=timeout,_lifecycle=_lifecycle)

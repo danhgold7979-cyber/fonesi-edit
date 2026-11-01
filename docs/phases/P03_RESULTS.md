@@ -982,3 +982,35 @@ run's failure is not relabeled aggregatePASS. Independent final unknown-retireme
 causal regression1PASS. Seven actual Windows cancellation cases remain NOT_RUN;
 source review CLEAR for `[cancel-cleanup]` fourtarget28affectedcases. No unchanged
 aggregate/frozen/Qt install or new criterion closure. Ledger remains5/438,0/9tasks.
+
+## Hosted canceled-stage checkpoint
+
+Run41304594711 public0591bd80/tree2cf936e (local65c622c) terminal4SUCCESS.
+Windows3.12.10/3.13.17 each27PASS1SKIP; Linux3.12.15/3.13.16 each20PASS8SKIP.
+Runtime values from exact source receipts, not carried by assumption from priorruns.
+Four ZIP API digests/eight source+JUnit members independently verified. Seven actual
+Windows canceled-cleanup cases and completed-cleanup carry-forward passed; validator
+retirement-UNKNOWN refusal passed allfour. Windows skip is POSIX-only retention;
+Linux skips are eight actualWindows cleanup cases. No FFmpeg process was launched
+in the interrupted-copy case: cancellation was proved to stop before validation.
+No newchildclosure;5/438 and0/9 P03tasks unchanged. Next meaningful P03-04 gate is
+fresh typed retirement observation through probe/validation so a genuinely confirmed
+validator cancellation can permit own-temp cleanup without overriding UNKNOWN.
+
+## Local typed validator-retirement checkpoint
+
+Owned adapters now emit internal per-invocation retirement observations only after
+all checked finalizer work; Windows ActiveProcesses0 proof distinct from NO_PROCESS
+setup failure and POSIX group-policy observation. Validation tracks probe/decode in
+one fresh operation/thread-bound single-use lifecycle; unknown invocations survive
+sanitized exceptions. Session rejects successful validator return without provenance
+as well as unknown failure; existing sticky UNKNOWN never clears.
+
+13 newly applicable local cases PASS across impact-selected runs, Windows finalizer
+case NOT_RUN locally; old unknown-validator regression1PASS and6affected default API/
+validation casesPASS. Actual Python child+descendant stand-in exercised cancellation
+through validator wrappers onLinux, not FFmpeg support. Reviewer caught pre-job
+failure mislabeled WINDOWS_JOB_EMPTY; fixed NO_PROCESS with new1PASS+independent1PASS.
+Source CLEAR for22affectedcases/fourtargets via `[validator-retirement]`; no unchanged
+aggregate/frozen/Qt install. Actual Windows cancellation→proof→own-temp cleanup and
+native finalizer-unknown test remain target gates. No newchild/task acceptance.

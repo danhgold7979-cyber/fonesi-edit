@@ -13,6 +13,30 @@ class ProcessError(RuntimeError):
 class ProcessCanceled(ProcessError):
     pass
 
+class _RetirementObservation:
+    """Internal, single-invocation receipt; no serialization or caller booleans."""
+    __slots__=('_token','_mechanism')
+    def __init__(self):self._token=None;self._mechanism=None
+    @property
+    def mechanism(self):return self._mechanism
+
+
+def _begin_retirement(observation):
+    if observation is None:return None
+    if type(observation) is not _RetirementObservation or observation._token is not None:
+        raise ValueError('Fresh internal retirement observation required')
+    observation._token=object()
+    return observation._token
+
+
+def _confirm_retirement(observation,token,mechanism):
+    if observation is None:return
+    if (token is None or observation._token is not token or observation._mechanism is not None
+        or mechanism not in {'NO_PROCESS','POSIX_GROUP_RETIRED','WINDOWS_JOB_EMPTY'}):
+        raise ProcessError('Invalid retirement observation provenance')
+    observation._mechanism=mechanism
+
+
 @dataclass(frozen=True)
 class ProcessResult:
     returncode: int
@@ -22,20 +46,23 @@ class ProcessResult:
 
 def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False,
               timeout: float = 300, max_output_bytes: int = 4*1024*1024,
-              grace_seconds: float = .2, on_stdout: Callable[[bytes], None] | None = None) -> ProcessResult:
+              grace_seconds: float = .2, on_stdout: Callable[[bytes], None] | None = None,
+              _retirement: _RetirementObservation | None = None) -> ProcessResult:
     if on_stdout is not None and not callable(on_stdout):
         raise ValueError("stdout observer must be callable")
     if os.name == 'nt':
         from .windows_process import run_windows_owned
         return run_windows_owned(argv,cancel=cancel,timeout=timeout,
-                                 max_output_bytes=max_output_bytes,grace_seconds=grace_seconds,on_stdout=on_stdout)
+                                 max_output_bytes=max_output_bytes,grace_seconds=grace_seconds,on_stdout=on_stdout,_retirement=_retirement)
     if os.name != 'posix' or not hasattr(os, 'WNOWAIT'):
         raise ProcessError('Windows Job Object adapter unavailable; no unsafe parent-only fallback')
     if isinstance(argv, (str, bytes)) or not argv or any(not isinstance(v,str) or '\0' in v for v in argv):
         raise ValueError('Nonempty argv sequence without NUL required')
     if timeout<=0 or max_output_bytes<1 or grace_seconds<0:
         raise ValueError('Invalid execution bounds')
+    retirement_token=_begin_retirement(_retirement)
     if cancel():
+        _confirm_retirement(_retirement,retirement_token,'NO_PROCESS')
         raise ProcessCanceled('Canceled before launch')
     child = subprocess.Popen(list(argv), stdin=subprocess.DEVNULL,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -44,10 +71,11 @@ def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False
     selector = selectors.DefaultSelector()
     started = time.monotonic()
     stopped = False
+    group_retired = False
     def exited():
         return os.waitid(os.P_PID,child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT) is not None
     def stop_group():
-        nonlocal stopped
+        nonlocal stopped,group_retired
         if stopped:return
         stopped=True
         # WNOWAIT retains the leader until group cleanup, preventing PID/PGID reuse.
@@ -60,6 +88,7 @@ def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False
             if delay:
                 time.sleep(delay)
         child.wait()
+        group_retired=True
     try:
         for name,pipe in [('stdout',child.stdout),('stderr',child.stderr)]:
             os.set_blocking(pipe.fileno(),False)
@@ -90,8 +119,12 @@ def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False
         stop_group()
         raise
     finally:
-        selector.close()
-        child.stdout.close()
-        child.stderr.close()
-        # Completed leader can leave silent descendants. The session group remains ours.
-        stop_group()
+        retirement_errors=[]
+        # Attempt every owned resource's retirement even if a prior close failed.
+        for retire in (selector.close,child.stdout.close,child.stderr.close,stop_group):
+            try:retire()
+            except BaseException as exc:retirement_errors.append(exc)
+        if retirement_errors:
+            if not isinstance(retirement_errors[0],Exception):raise retirement_errors[0]
+            raise ProcessError('Owned process retirement unconfirmed') from retirement_errors[0]
+        if group_retired:_confirm_retirement(_retirement,retirement_token,'POSIX_GROUP_RETIRED')

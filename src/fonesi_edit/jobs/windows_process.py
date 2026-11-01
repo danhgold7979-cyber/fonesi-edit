@@ -9,7 +9,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from .process import ProcessError, ProcessCanceled, ProcessResult
+from .process import ProcessError, ProcessCanceled, ProcessResult, _begin_retirement, _confirm_retirement
 
 DWORD=C.c_uint32
 WORD=C.c_uint16
@@ -99,7 +99,7 @@ def _kernel():
 
 
 def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
-                      max_output_bytes=4*1024*1024, grace_seconds=.2, on_stdout=None):
+                      max_output_bytes=4*1024*1024, grace_seconds=.2, on_stdout=None, _retirement=None):
     if on_stdout is not None and not callable(on_stdout):
         raise ValueError("stdout observer must be callable")
     if os.name!='nt':
@@ -111,11 +111,14 @@ def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
         raise ProcessError('Explicit existing absolute executable path required')
     if timeout<=0 or max_output_bytes<1 or grace_seconds<0:
         raise ValueError('Invalid execution bounds')
-    if cancel():raise ProcessCanceled('Canceled before launch')
+    retirement_token=_begin_retirement(_retirement)
+    if cancel():
+        _confirm_retirement(_retirement,retirement_token,'NO_PROCESS')
+        raise ProcessCanceled('Canceled before launch')
     k=_kernel();owned=[];attribute_list=None;initialized=False;job=None;pi=PROCESS_INFORMATION()
     outputs={'stdout':bytearray(),'stderr':bytearray()}
     retirement_errors=[]
-    membership_verified=False
+    membership_verified=False;job_empty=False
     def checked(result,operation):
         if not result:raise ProcessError(f'{operation} failed (Win32 {C.get_last_error()})')
         return result
@@ -218,7 +221,8 @@ def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
             close(pi.hProcess)
         if pi.hThread:close(pi.hThread)
         if job:
-            try:await_job_empty(k,job)
+            try:
+                await_job_empty(k,job);job_empty=True
             except ProcessError as exc:retirement_errors.append(str(exc))
             close(job) # crash/exception fail-safe; handle was never inherited
         if initialized:k.DeleteProcThreadAttributeList(attribute_list)
@@ -226,3 +230,5 @@ def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
         if retirement_errors:
             raise ProcessError('; '.join(retirement_errors))
 
+        if job and job_empty:_confirm_retirement(_retirement,retirement_token,'WINDOWS_JOB_EMPTY')
+        elif not job and not pi.hProcess:_confirm_retirement(_retirement,retirement_token,'NO_PROCESS')

@@ -1,0 +1,191 @@
+{
+  "run_id": 41304594711,
+  "scope": "Affected canceled staging only; validator-unknown retained",
+  "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+  "artifacts": [
+    {
+      "artifact_id": 13083211086,
+      "artifact": "cancel-cleanup-ubuntu-24.04-py3.12",
+      "zip_sha256": "b1d09e4414f1d094a104d2f509d694ff5267434f437933c6ab6aad25e06fccb4",
+      "members": {
+        "foundation-results.xml": "5c7a59a2fd5d0a4a9044284536b93856d224e0b54d006931aacb187ce83b6577",
+        "foundation-source.json": "2ed3cb25b8276cfa8d2c0757c1d8c6d45d1a4be82c731a88f4500aea291e5559"
+      },
+      "runtime": {
+        "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+        "source_tree": "2cf936e76b3bdef243506e6247b6ab583e24f8f0",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "8",
+        "tests": "28",
+        "time": "0.463",
+        "timestamp": "2026-11-01T12:03:02.206657+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[False]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[True]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_postwrite_cancellation_cleans_unvalidated_owned_stage",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_foreign_child_survives_partial_canceled_cleanup",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_epoch_loss_at_native_effect_preserves_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_interrupted_media_copy_keeps_source_and_original_partial[True]",
+          "reason": "Actual Windows canceled-copy cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_handoff_swap_preserves_foreign_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13082827078,
+      "artifact": "cancel-cleanup-windows-latest-py3.13",
+      "zip_sha256": "6f29733732aa7a24f9151ebdaed5424f5c66e5f29c88d79fc44c3b3b167ec701",
+      "members": {
+        "foundation-source.json": "c55b2edaefb24bdf5344a09383f29cfd594f6d7c5743302ad77c7fde3858b94d",
+        "foundation-results.xml": "d359de765e8f305b62775c737dc8291b6691b187fbc116b30c3ecfe2303755d9"
+      },
+      "runtime": {
+        "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+        "source_tree": "2cf936e76b3bdef243506e6247b6ab583e24f8f0",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.17",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "28",
+        "time": "3.023",
+        "timestamp": "2026-11-01T12:03:21.198059+00:00",
+        "hostname": "runnervmhao91"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_nonwindows_cancel_cleanup_retains_without_path_delete",
+          "reason": "Non-Windows unsupported branch"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13082761259,
+      "artifact": "cancel-cleanup-ubuntu-24.04-py3.13",
+      "zip_sha256": "f81d85d965084a504c85124832aa391245ab3f9024548c343a51ec58a96387bc",
+      "members": {
+        "foundation-results.xml": "44a08aa54c05f8f4a060f37510a5dd0573646cf773539b7464981e3eac46e4be",
+        "foundation-source.json": "f35d813c6fc8cbfba4ee784a812b4ff8d79da1d68e38309aa5992561ca80d5b5"
+      },
+      "runtime": {
+        "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+        "source_tree": "2cf936e76b3bdef243506e6247b6ab583e24f8f0",
+        "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+        "python": "3.13.16",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "8",
+        "tests": "28",
+        "time": "0.503",
+        "timestamp": "2026-11-01T12:03:10.498868+00:00",
+        "hostname": "ip-10-0-139-68"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[False]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[True]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_postwrite_cancellation_cleans_unvalidated_owned_stage",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_foreign_child_survives_partial_canceled_cleanup",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_epoch_loss_at_native_effect_preserves_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_interrupted_media_copy_keeps_source_and_original_partial[True]",
+          "reason": "Actual Windows canceled-copy cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_handoff_swap_preserves_foreign_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13082303669,
+      "artifact": "cancel-cleanup-windows-latest-py3.12",
+      "zip_sha256": "41cdcba409c663a671effc61786b6d873609f865b5a4454bfc6b57e6bd62b080",
+      "members": {
+        "foundation-results.xml": "bf7ef476c6deb60cd1d69b7f6ae43c80f3afe4b3ee1b7e7ec87ca26fbed5f678",
+        "foundation-source.json": "4705a983c447fba75bec0efd8524bada774bf2229d0c88dfa7b41308cfc36b2e"
+      },
+      "runtime": {
+        "source_sha": "0591bd8010b63058d7d7d89869a06d8deb8591e5",
+        "source_tree": "2cf936e76b3bdef243506e6247b6ab583e24f8f0",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "28",
+        "time": "2.910",
+        "timestamp": "2026-11-01T12:03:27.405010+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_nonwindows_cancel_cleanup_retains_without_path_delete",
+          "reason": "Non-Windows unsupported branch"
+        }
+      ]
+    }
+  ]
+}
