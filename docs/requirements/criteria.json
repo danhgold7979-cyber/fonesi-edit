@@ -6159,12 +6159,18 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-OPS-03.05"
+    ],
     "planned_case_id": "case_ops_03_05",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L174"
+    ],
+    "implemented_test_cases": [
+      "tests.test_projects::test_newer_database_untouched",
+      "tests.test_projects::test_invalid_project_envelope_rejected[<lambda>0]"
     ]
   },
   {
@@ -6203,12 +6209,21 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-OPS-04.02"
+    ],
     "planned_case_id": "case_ops_04_02",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L173"
+    ],
+    "implemented_test_cases": [
+      "tests.test_composition::test_caller_and_returned_dict_cannot_mutate_snapshot",
+      "tests.test_jobs::test_idempotence_snapshot_conflict_and_reopen",
+      "tests.test_jobs::test_competing_claims",
+      "tests.test_jobs::test_forged_lease_record_rejected",
+      "tests.test_jobs::test_lease_cancel_ack_and_late_events"
     ]
   },
   {

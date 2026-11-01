@@ -1,6 +1,6 @@
 # Current clean rebuild status
 
-P01 ACCEPTED DESIGN ONLY (independent dbc3f30; recorded527a1a8). P02 bounded local experiments complete, external gates OPEN; P03 IN_PROGRESS on phase-03; P04–P12 PLANNED.94tasks/95groups/438runtime criteria/392source records; runtime feature acceptance remains0.
+P01 ACCEPTED DESIGN ONLY (independent dbc3f30; recorded527a1a8). P02 bounded local experiments complete, external gates OPEN; P03 IN_PROGRESS on phase-03; P04–P12 PLANNED.94tasks/95groups/438runtime criteria/392source records; exact child assertions accepted2/438 (OPS-03.05, OPS-04.02); whole runtime requirement groups accepted0/95. This is not a tool-completion percentage.
 
 New P02 codee0cfb14 produced3 scoped experiment evidence records: Qt raster/FFmpeg encode-decode/parity at640 and1080, explicit audio stream/delay, Linux frozen Qt startup. [P02 results](phases/P02_RESULTS.md). Whole P02 OPEN. Default headless Qt audio enumeration crashed; official Pulse fallback returns0devices without crashing, not physical playback evidence.
 
@@ -17,5 +17,5 @@ adapter now passes actual hosted Windows 3.12/3.13 native tests. Run41277250696
 (public source f16dca99, tree b0ade7e3) is green across four matrix jobs:
 Windows 148 PASS/18 SKIP each; Ubuntu 155 PASS/11 SKIP each. Windows 3.12
 onedir build and frozen CLI schema validation pass, not GUI/media acceptance. See
-[P03 scoped results](phases/P03_RESULTS.md). No renderer, provider download,
+[P03 scoped results](phases/P03_RESULTS.md). [Exact acceptance/gap ledger](phases/P03_ACCEPTANCE_LEDGER.md):2/78 P03-mapped child assertions accepted,0/9 whole P03 tasks accepted. No renderer, provider download,
 translation, full editor or durable job-publication success is claimed yet.

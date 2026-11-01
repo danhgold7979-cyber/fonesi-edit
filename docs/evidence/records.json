@@ -148,5 +148,84 @@
       "Linux offscreen startup only",
       "NOT Windows/actual media package/installer/physical PC acceptance"
     ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-03.05",
+    "generation": "clean-2026-11-01",
+    "commit": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+    "local_commit": "a935fccc6746eff726b26dbf352189e0f8f1a30e",
+    "tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+    "task_ids": [
+      "P03-02",
+      "P03-07"
+    ],
+    "criterion_ids": [
+      "OPS-03.05"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "uv run pytest -q --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        "Windows Server2025 Python3.12.10 SQLite3.49.1",
+        "Windows Server2025 Python3.13.16 SQLite3.50.4",
+        "Ubuntu24.04 Python3.12.15 SQLite3.45.1",
+        "Ubuntu24.04 Python3.13.17 SQLite3.45.1"
+      ]
+    },
+    "test_cases": [
+      "tests.test_projects::test_newer_database_untouched",
+      "tests.test_projects::test_invalid_project_envelope_rejected[<lambda>0]"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41277250696/summary.json"
+    ],
+    "run_id": 41277250696,
+    "independent_review": "docs/reviews/P03_HOSTED_EVIDENCE_AND_CRITERIA.md",
+    "limitations": [
+      "Not whole task/group/phase acceptance; full implementation gaps in P03_ACCEPTANCE_LEDGER.md"
+    ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-04.02",
+    "generation": "clean-2026-11-01",
+    "commit": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+    "local_commit": "a935fccc6746eff726b26dbf352189e0f8f1a30e",
+    "tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+    "task_ids": [
+      "P03-05",
+      "P09-06"
+    ],
+    "criterion_ids": [
+      "OPS-04.02"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "uv run pytest -q --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        "Windows Server2025 Python3.12.10 SQLite3.49.1",
+        "Windows Server2025 Python3.13.16 SQLite3.50.4",
+        "Ubuntu24.04 Python3.12.15 SQLite3.45.1",
+        "Ubuntu24.04 Python3.13.17 SQLite3.45.1"
+      ]
+    },
+    "test_cases": [
+      "tests.test_composition::test_caller_and_returned_dict_cannot_mutate_snapshot",
+      "tests.test_jobs::test_idempotence_snapshot_conflict_and_reopen",
+      "tests.test_jobs::test_competing_claims",
+      "tests.test_jobs::test_forged_lease_record_rejected",
+      "tests.test_jobs::test_lease_cancel_ack_and_late_events"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41277250696/summary.json"
+    ],
+    "run_id": 41277250696,
+    "independent_review": "docs/reviews/P03_HOSTED_EVIDENCE_AND_CRITERIA.md",
+    "limitations": [
+      "Not whole task/group/phase acceptance; full implementation gaps in P03_ACCEPTANCE_LEDGER.md"
+    ]
   }
 ]
