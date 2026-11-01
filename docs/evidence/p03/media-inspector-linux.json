@@ -1,0 +1,16 @@
+{
+  "scope": "Actual Linux offscreen UI -> existing trusted ffprobe metadata+VFR frames -> typed retirement; NOT actual Windows codec/desktop/render readiness",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "source_sha256": "baffa313f1d83a78b02cb6483c5956aa1f84257bd0be7f9efab990b6f80d67c7",
+  "ffprobe_sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46",
+  "frame_count": 8,
+  "worker_outcome": "OBSERVED",
+  "process_retirement_confirmed": true,
+  "source_hashes": {
+    "src/fonesi_edit/ui/media_inspection.py": "1ce37bad4595ab23b563e096a6fc7bd6eec515754eb65e264caf0c8ad91c11a5",
+    "src/fonesi_edit/media/frames.py": "3c1b6c6302d548aa1dd5b43015952c1f954c98f3378294f71922e35592f59a93",
+    "src/fonesi_edit/media/probe.py": "463edeb6ab0df6908e8cc1ba53eca9067bd4f5f41d6008db331d73ccfedfd6ef",
+    "src/fonesi_edit/media/observations.py": "ef07a3c8aafbe7c148f088d40a9fbbec70b391cac549a333ee743478ae720455",
+    "src/fonesi_edit/media/retirement.py": "36690874a6691c89c38172270fe4e19a7f6356c122a51e3e41a269f9ff39fd02"
+  }
+}

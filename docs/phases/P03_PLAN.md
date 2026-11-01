@@ -653,3 +653,16 @@ Target tests cover stream/tool/content mismatch, fragmented or malformed output,
 negative/repeated PTS, duration-version fields, caps/cancel/nonzero/stderr and actual
 small Linux VFR fixture. Hosted stand-ins are protocol/owned-process tests, never
 actual Windows FFmpeg evidence. No new dependency or tool download.
+
+## Visible read-only media inspection — P03-03 / P03-07 entry
+Place a bounded observation panel inside the existing Editor area, without changing
+approved area/navigation/branding or implying an editor/render engine exists.
+User explicitly selects local media and a trusted executable, confirms that this
+inspection runs that file; no automatic candidate/tool selection/download. Optional
+frame scan uses a user-selected global index, no auto track0 selection. Worker owns
+all probe/hash/frame I/O; no GUI-store connection or project/media mutation. Show
+all bounded stream facts/unknown diagnostics and a labelled first64-frame view,
+not a synthetic timeline. Reuse typed ValidationLifecycle for up to2owned launches;
+unknown retirement permanently disables repeat in that panel, never authorizes
+cleanup. Close/cancel waits actual QThread retirement; stale results cannot retarget.
+Actual Windows codec remains unavailable until separately reviewed/pinned test tool.

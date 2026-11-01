@@ -8,6 +8,7 @@ from fonesi_edit.storage.autosave import prepare_open
 from fonesi_edit.ui.queue import QueuePage
 from fonesi_edit.ui.project_relink import RelinkPanel
 from fonesi_edit.ui.project_restore import RestorePanel
+from fonesi_edit.ui.media_inspection import InspectionPanel
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -27,6 +28,8 @@ class MainWindow(QMainWindow):
         self.relink_panel.project_changed.connect(self._project_changed)
         self.restore_panel=RestorePanel(self)
         self.restore_panel.idle.connect(self._queue_idle)
+        self.inspection_panel=InspectionPanel(self)
+        self.inspection_panel.idle.connect(self._queue_idle)
         self.setWindowTitle('Fonesi Edit — bản phát triển')
         self.resize(1200, 760)
         root = QWidget()
@@ -56,6 +59,9 @@ class MainWindow(QMainWindow):
                 contents.addWidget(self.relink_panel)
                 contents.addWidget(self.restore_panel)
                 contents.addWidget(QLabel('Chưa có tác vụ được chạy. Không có số liệu hiệu suất.'))
+            elif index == 3:
+                contents.addWidget(self.inspection_panel)
+                contents.addWidget(QLabel('Chưa có timeline, bộ dựng hoặc xuất video.'))
             elif index == 6:
                 contents.addWidget(self.queue_page)
             else:
@@ -137,11 +143,11 @@ class MainWindow(QMainWindow):
         self.relink_panel.update_actions()
 
     @property
-    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy
+    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy
 
     def request_stop(self):
         self._close_requested=True
-        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop()
+        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):

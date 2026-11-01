@@ -34,7 +34,7 @@ class FrameScan:
 
 
 def observe_frames(path,executable,observation:MediaObservation,stream_index:int,*,
-                   cancel=lambda:False,timeout=300,max_frames=100000,max_output_bytes=32*1024*1024):
+                   cancel=lambda:False,timeout=300,max_frames=100000,max_output_bytes=32*1024*1024,_lifecycle=None):
     """Caller authorizes a trusted stable executable; hashes only observe drift.
 
     Process/capture/cancel failures raise: no fabricated parseable partial prefix.
@@ -61,7 +61,9 @@ def observe_frames(path,executable,observation:MediaObservation,stream_index:int
     args=[str(executable),'-v','error','-select_streams',str(stream_index),'-show_streams','-show_frames',
           '-show_entries','stream=index,codec_type,time_base,start_pts:frame=stream_index,pts,best_effort_timestamp,duration,pkt_duration',
           '-print_format','json','-protocol_whitelist','file,pipe','-i',str(path)]
-    try:result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
+    try:
+        if _lifecycle is None:result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
+        else:result=_lifecycle.run(run_owned,args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
     except ProcessCanceled as exc:raise ProbeCanceled('Frame observation canceled; no complete map') from exc
     except (ProcessError,OSError) as exc:raise ProbeError('Frame observation incomplete; process outcome not accepted') from exc
     check()

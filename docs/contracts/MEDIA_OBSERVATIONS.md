@@ -35,3 +35,17 @@ Primary protocol reference (read-only; ffmpeg.org docs fetch timed out):
 Current local executable version/hash and source-file hashes are in the scoped
 Linux receipt, not inferred from the n7.1 documentation reference. No Windows
 FFmpeg or all-version protocol compatibility is claimed.
+
+## Visible Editor-area observation panel (subsequent local slice)
+Explicit absolute media/tool paths and affirmative tool-trust checkbox are required;
+changing tool path resets trust. No auto discovery/download/fallback or project apply.
+Dedicated QThread owns hash/probe/frame work. Optional frame index is container-global;
+result remains unresolved/read-only, not timeline/render success. UI shows bounded
+stream facts and first64retained frame records, never million-frame JSON/asdict.
+Probe+optional frame launch share fresh internal ValidationLifecycle; OBSERVED success
+requires exactly1/2confirmed invocations, not an empty sealed ledger. Failure with
+unknown native retirement permanently disables further inspection in that panel,
+even after path/trust changes. This proof never grants cleanup/publication authority.
+Cancel/close waits actual worker retirement, which alone does not prove child
+retirement; stale captured-worker callbacks are ignored. Unknown state is reported,
+not repaired by global kill/retry. No GUI-store connection crosses worker threads.

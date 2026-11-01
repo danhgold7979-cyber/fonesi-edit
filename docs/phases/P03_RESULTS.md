@@ -1168,3 +1168,25 @@ and2preflight/CLIcap runsPASS. Actual Linux generated VFR fixture yielded exact 
 subsequent delta documented. No synthetic CFR timestamps or actual WindowsFFmpeg
 claim. max_frames limits retained prefix after byte-bounded JSON, not cheap early
 termination. Independent source CLEAR, target CLI/native runtime gate pending.
+
+### Frame observation hosted41316355671
+Frozen09e82b0 publication initially denied; exact user approval resolved same-operation
+retry, publicc6adf209/treec7768733. FourSUCCESS/42PASS0SKIP each, Windows3.12.10/3.13.16,
+Linux3.12.15/3.13.17; independent4ZIP/8member/source/JUnit verification. No actual
+WindowsFFmpeg/framevalidity/extra child; ledger9/438 remains.
+
+### Visible read-only Editor media inspector — local P03-03
+Explicit media/tool paths plus reset-on-tool-change trust checkbox; no fallback,
+registry claim/project apply/timeline/render. Worker-only I/O; optional globalstream
+frames; bounded allstream facts and first64records. Fresh internal lifecycle requires
+1/2confirmed invocations for successful observations; unknown retirement sticky and
+blocks repeat, including after tool/path changes. Close waits actual worker and
+checks native proof separately. Six newUI+two frame lifecycle cases PASS across
+focused runs; cancel regression uses ready-stdout handshake before close to prove
+actual Python stand-in child launched. Stand-ins are not FFmpeg capability evidence.
+Actual existing Linux ffprobe through offscreen UI observed8irregular VFR records,
+confirmed process retirement/source unchanged/cleanexit0; Fontconfig cache warnings
+were present, no desktop/font-readiness claim. Exact source/tool hashes in scoped
+receipt. Independent source CLEAR; scoped Windows UI gate pending, ledger unchanged.
+Affected shared shell/recovery/root-relink/restore UI regression19cases PASS exit0
+after inspector integration; independent reviewer did not duplicate this baseline.

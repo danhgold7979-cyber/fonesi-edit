@@ -103,3 +103,23 @@ def test_cli_incomplete_frame_scan_has_distinct_exit_three(context,monkeypatch,c
     assert main(['--inspect-media',str(source),'--ffprobe',str(tool),'--frame-stream','3','--frame-limit','1'])==3
     result=json.loads(capsys.readouterr().out)
     assert result['frame_scan']['status']=='INCOMPLETE' and len(result['frame_scan']['frames'])==1
+
+
+@pytest.mark.parametrize('unknown',[False,True])
+def test_frame_invocation_records_actual_retirement_or_unknown(context,monkeypatch,unknown):
+    import sys
+    from fonesi_edit.media.retirement import ValidationLifecycle
+    from fonesi_edit.jobs.process import run_owned as actual_runner
+    source,tool,obs,stream=context;operation=object();lifecycle=ValidationLifecycle(operation)
+    def runner(args,**kwargs):
+        if unknown:raise ProcessError('Injected unconfirmed frame retirement')
+        payload=json.dumps({'streams':[stream],'frames':[frame(0)]})
+        return actual_runner([sys.executable,'-c',f'print({payload!r})'],**kwargs)
+    monkeypatch.setattr(module,'run_owned',runner)
+    if unknown:
+        with pytest.raises(ProbeError):
+            with lifecycle.validation_body():module.observe_frames(source,tool,obs,3,_lifecycle=lifecycle)
+        assert not lifecycle.confirmed_for(operation) and lifecycle.mechanisms==(None,)
+    else:
+        with lifecycle.validation_body():result=module.observe_frames(source,tool,obs,3,_lifecycle=lifecycle)
+        assert result.status=='OBSERVED_EOF' and lifecycle.confirmed_for(operation) and len(lifecycle.mechanisms)==1
