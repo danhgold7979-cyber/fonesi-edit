@@ -637,3 +637,19 @@ reference: FFmpeg n7.1 ffprobe.c and libavutil/display.h (official GitHub); no c
 upstream implementation. Current ffmpeg.org documentation fetch timed out, so no
 claim of successful retrieval there. Target corpus: no-audio, delayed multistream,
 SAR/rotation, unknown duration, unsupported layouts, malformed/bounded numbers.
+
+## Bounded decoded-frame observation — next P03-03 dependency
+Use explicit trusted ffprobe and selected container-global video stream only, owned
+process/no shell/file+pipe protocol boundary. Bind observations to source SHA256,
+actual tool hash, stream index/timebase/start ticks; verify selected stream metadata
+from the same scan, with before/after source/tool observations. Request frame pts,
+best_effort_timestamp and duration ticks separately; preserve signed values/order/
+repetitions/discontinuities, never sort/deduplicate or fabricate CFR/last-frame end.
+No CompositionPlan-ready conversion yet. Bounded byte/frame/time budgets; malformed,
+nonzero/decode-error/capped/canceled scans cannot claim full map. Retained bounded
+prefix is explicitly INCOMPLETE where available; unconfirmed process outcome raises
+without any cleanup/job authority. Empty/unknown timestamps remain diagnostic.
+Target tests cover stream/tool/content mismatch, fragmented or malformed output,
+negative/repeated PTS, duration-version fields, caps/cancel/nonzero/stderr and actual
+small Linux VFR fixture. Hosted stand-ins are protocol/owned-process tests, never
+actual Windows FFmpeg evidence. No new dependency or tool download.

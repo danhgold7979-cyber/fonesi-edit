@@ -24,7 +24,13 @@ def main(argv=None):
     parser.add_argument('--restore-timeout',type=float,default=None,help='Cooperative restore deadline in seconds (maximum 3600)')
     modes.add_argument('--inspect-media',type=Path,help='Inspect explicit local media with a caller-authorized ffprobe; not render readiness')
     parser.add_argument('--ffprobe',type=Path,help='Explicit trusted absolute ffprobe executable for --inspect-media')
+    parser.add_argument('--frame-stream',type=int,help='Explicit global video stream index for bounded frame observation')
+    parser.add_argument('--frame-limit',type=int,default=None,help='Maximum retained frame records (1..1000000)')
     args = parser.parse_args(argv)
+    if args.frame_stream is not None and (args.inspect_media is None or args.frame_stream<0):
+        parser.error('--frame-stream requires --inspect-media and a nonnegative global stream index')
+    if args.frame_limit is not None and (args.frame_stream is None or not 1<=args.frame_limit<=1000000):
+        parser.error('--frame-limit requires --frame-stream and a bound from1to1000000')
     if args.inspect_media is not None:
         if (args.ffprobe is None or not args.ffprobe.is_absolute() or not args.inspect_media.is_absolute() or
             args.data_dir is not None or args.tool_path or args.tool_dir or args.exclude_root or
@@ -34,12 +40,20 @@ def main(argv=None):
         from fonesi_edit.media.probe import inspect_media,ProbeError
         from fonesi_edit.media.observations import normalize_probe
         import json
-        try:observation=normalize_probe(inspect_media(args.inspect_media,args.ffprobe))
+        try:
+            observation=normalize_probe(inspect_media(args.inspect_media,args.ffprobe))
+            output=observation.to_dict();exit_code=0
+            if args.frame_stream is not None:
+                from fonesi_edit.media.frames import observe_frames
+                frames=observe_frames(args.inspect_media,args.ffprobe,observation,args.frame_stream,
+                                      max_frames=100000 if args.frame_limit is None else args.frame_limit)
+                output={'media':output,'frame_scan':frames.to_dict()}
+                if frames.status!='OBSERVED_EOF':exit_code=3
         except (ProbeError,OSError,ValueError):
             print('Media inspection not confirmed. Check media and explicitly trusted ffprobe; no fallback or render-ready claim.',file=sys.stderr)
             return 2
-        print(json.dumps(observation.to_dict(),ensure_ascii=True))
-        return 0
+        print(json.dumps(output,ensure_ascii=True))
+        return exit_code
     if args.ffprobe is not None:parser.error('--ffprobe requires --inspect-media')
     if args.restore_project_store is not None:
         if (args.restore_destination is None or args.data_dir is not None or args.tool_path or args.tool_dir or

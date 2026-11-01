@@ -1,0 +1,137 @@
+{
+  "scope": "Actual Linux FFmpeg-generated VFR fixture and explicit CLI frame facts; not full media validity/Windows/frame-map readiness",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "observation": {
+    "media": {
+      "sha256": "baffa313f1d83a78b02cb6483c5956aa1f84257bd0be7f9efab990b6f80d67c7",
+      "container_duration": {
+        "num": 1,
+        "den": 1
+      },
+      "streams": [
+        {
+          "index": 0,
+          "kind": "video",
+          "codec": "mpeg4",
+          "time_base": {
+            "num": 1,
+            "den": 10240
+          },
+          "start_pts": 0,
+          "duration_ts": 10240,
+          "start": {
+            "num": 0,
+            "den": 1
+          },
+          "duration": {
+            "num": 1,
+            "den": 1
+          },
+          "start_basis": "STREAM_TICKS",
+          "duration_basis": "STREAM_TICKS",
+          "width": 48,
+          "height": 32,
+          "sar": {
+            "num": 1,
+            "den": 1
+          },
+          "display_matrix": null,
+          "rotation_degrees": null,
+          "rotation_basis": "UNKNOWN",
+          "sample_rate": null,
+          "channels": null,
+          "channel_layout": null,
+          "attached_picture": false,
+          "diagnostics": [
+            "ORIENTATION_NOT_OBSERVED",
+            "FRAME_PTS_NOT_OBSERVED"
+          ]
+        }
+      ],
+      "diagnostics": [
+        "NO_AUDIO_TRACK"
+      ],
+      "render_ready": false
+    },
+    "frame_scan": {
+      "source_sha256": "baffa313f1d83a78b02cb6483c5956aa1f84257bd0be7f9efab990b6f80d67c7",
+      "tool_sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46",
+      "stream_index": 0,
+      "time_base": {
+        "num": 1,
+        "den": 10240
+      },
+      "start_pts": 0,
+      "status": "OBSERVED_EOF",
+      "frames": [
+        {
+          "pts": 0,
+          "best_effort_timestamp": 0,
+          "duration": 2048,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 2048,
+          "best_effort_timestamp": 2048,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 3072,
+          "best_effort_timestamp": 3072,
+          "duration": 2048,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 5120,
+          "best_effort_timestamp": 5120,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 6144,
+          "best_effort_timestamp": 6144,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 7168,
+          "best_effort_timestamp": 7168,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 8192,
+          "best_effort_timestamp": 8192,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        },
+        {
+          "pts": 9216,
+          "best_effort_timestamp": 9216,
+          "duration": 1024,
+          "packet_duration": null,
+          "diagnostics": []
+        }
+      ],
+      "diagnostics": [
+        "NOT_MEDIA_VALIDITY_OR_RENDER_READINESS"
+      ],
+      "render_ready": false
+    }
+  },
+  "source_hashes": {
+    "src/fonesi_edit/media/frames.py": "02440a0380ab2ffcf0df89af17b8e9189db293286a9f5e93a230c462a76d24cf",
+    "src/fonesi_edit/__main__.py": "5ccd072a3621002839bf5bf670484a742ad0e6e3c13d649ef0bd0bcdfe0efae0",
+    "src/fonesi_edit/media/observations.py": "ef07a3c8aafbe7c148f088d40a9fbbec70b391cac549a333ee743478ae720455"
+  },
+  "source_hashes_note": "Measured source predates only additional regular-file/executable preflight; actual fixture/tool were regular/executable. No actual-tool rerun claimed."
+}

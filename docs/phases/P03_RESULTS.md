@@ -1151,3 +1151,20 @@ rotation-summary provenance, fixed together with3causal regressions. Actual exis
 Linux FFmpeg/ffprobe generated no-audio48x32SAR4:3 fixture and CLI observation passed;
 receipt pins exact measured pre-correction source/tool hashes, not a claimed rerun.
 No actual Windows FFmpeg/full VFR/renderer/newchild acceptance; ledger9/438 unchanged.
+
+### Typed observation hosted41314168015
+Exactpublic68cb784a/tree0cbe4c4b (local281eac3): fourSUCCESS/37PASS0SKIP each;
+Windows3.12.10/3.13.16, Linux3.12.15/3.13.17. Independent API/4ZIP/8member verification.
+No actual hosted FFmpeg/frame-map/render-ready acceptance; ledger9 unchanged.
+
+### Decoded frame observation — local P03-03
+Explicit source/tool/global-stream/timebase/start binding, owned ffprobe frame query,
+raw signed PTS/best-effort/duration fields kept separately and in original order.
+EOF status only command/JSON completion, not trusted full coverage/media validity.
+Nonzero/error-stderr/count cap returns INCOMPLETE; malformed/capture/process/cancel
+failure cannot fabricate partial parseable records.19new focusedcases across17initial
+and2preflight/CLIcap runsPASS. Actual Linux generated VFR fixture yielded exact times
+0,.2,.3,.5,.6,.7,.8,.9 through CLI; receipt exact source/tool binding, preflight-only
+subsequent delta documented. No synthetic CFR timestamps or actual WindowsFFmpeg
+claim. max_frames limits retained prefix after byte-bounded JSON, not cheap early
+termination. Independent source CLEAR, target CLI/native runtime gate pending.

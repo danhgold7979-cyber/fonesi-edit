@@ -1,0 +1,100 @@
+{
+  "run_id": 41314168015,
+  "source_sha": "68cb784ad1f74a1dba234b32b697db8f242d98f0",
+  "source_tree": "0cbe4c4b9a3210f8eef6b8642a6387123cea6eed",
+  "scope": "media-observation affected only; no actual Windows ffprobe/frame-map/aggregate/frozen",
+  "artifacts": [
+    {
+      "id": 13086701258,
+      "name": "media-observation-windows-latest-py3.12",
+      "zip_sha256": "bbc83fb4955ff047a79522f3d5b15ccefa0427920b8a83547b4a9c74f5b36717",
+      "members": {
+        "foundation-source.json": "e228665dceb4e7291ef48cee2bfc333a085ea7fe536ff867c67f9b36c8bc1752",
+        "foundation-results.xml": "1dbec5a789309e09fa6521e8c3b68dc697ce9128a8d41f4d83163a384650cdb1"
+      },
+      "runtime": {
+        "source_sha": "68cb784ad1f74a1dba234b32b697db8f242d98f0",
+        "source_tree": "0cbe4c4b9a3210f8eef6b8642a6387123cea6eed",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 37,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 37
+      }
+    },
+    {
+      "id": 13086289525,
+      "name": "media-observation-ubuntu-24.04-py3.12",
+      "zip_sha256": "b7e451eb64cad7d5111581c0fbbbbe3ccbc625f13452e31a62ec3e12af282bcf",
+      "members": {
+        "foundation-results.xml": "24511e17d5e9c54fd934b2b5773da873e98951b03857b31cf575c675099f3fed",
+        "foundation-source.json": "0014d113c0b7bb2b2a82d4bfe3f2fc26057641d7fa945a7cf43a61130ffc3790"
+      },
+      "runtime": {
+        "source_sha": "68cb784ad1f74a1dba234b32b697db8f242d98f0",
+        "source_tree": "0cbe4c4b9a3210f8eef6b8642a6387123cea6eed",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 37,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 37
+      }
+    },
+    {
+      "id": 13086008440,
+      "name": "media-observation-windows-latest-py3.13",
+      "zip_sha256": "db223907721c691faa500c8f5939b9feeb4fbdfd31769ccf9e0202b9ad798411",
+      "members": {
+        "foundation-results.xml": "9287637c030577e88a2b56ba8365e9ce5c4b386dc512d8a9a92d145f004889f5",
+        "foundation-source.json": "536301f49eddb5bbb8a3e572bba2d10d736673b4e568acbbd87d45c3d8d4e553"
+      },
+      "runtime": {
+        "source_sha": "68cb784ad1f74a1dba234b32b697db8f242d98f0",
+        "source_tree": "0cbe4c4b9a3210f8eef6b8642a6387123cea6eed",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 37,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 37
+      }
+    },
+    {
+      "id": 13085678965,
+      "name": "media-observation-ubuntu-24.04-py3.13",
+      "zip_sha256": "edbe9ae88c305e1df8547c00a4eefe0a1976f5fcf7df45a84836faae1c70f7f5",
+      "members": {
+        "foundation-results.xml": "e0073e1bd3618181acf833f7119eb199ceb55d5d2847249b4f93bdba8d8854f7",
+        "foundation-source.json": "8284887f023ea701920c70ba80834148ad2d7de68471b72c06c1de640242108d"
+      },
+      "runtime": {
+        "source_sha": "68cb784ad1f74a1dba234b32b697db8f242d98f0",
+        "source_tree": "0cbe4c4b9a3210f8eef6b8642a6387123cea6eed",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 37,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 37
+      }
+    }
+  ]
+}
