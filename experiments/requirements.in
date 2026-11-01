@@ -1,0 +1,8 @@
+# Fresh P02 developer experiments only; product manifest is authored in P03.
+PySide6-Essentials==6.12.0
+PySide6-Addons==6.12.0
+pytest==9.2.0
+pyinstaller==6.22.3
+jsonschema==4.26.0
+Pillow==13.0.0
+numpy==2.3.5

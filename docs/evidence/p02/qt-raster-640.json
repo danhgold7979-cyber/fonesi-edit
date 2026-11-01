@@ -1,0 +1,89 @@
+{
+  "generation": "clean-2026-11-01",
+  "kind": "synthetic_toolchain_experiment_NOT_product_acceptance",
+  "code_commit": "e0cfb14acbf390261120306aa68622085159f640",
+  "command": [
+    "experiments/run_local_probe.py",
+    "--output-dir",
+    "runtime/p02-640",
+    "--width",
+    "640",
+    "--height",
+    "360"
+  ],
+  "environment": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "qt": "6.12.0",
+    "cpu_count": 9,
+    "font_family": "Noto Sans CJK HK",
+    "QT_QPA_PLATFORM": "offscreen"
+  },
+  "tool_hashes": {
+    "ffmpeg": {
+      "path": "/usr/bin/ffmpeg",
+      "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a"
+    },
+    "ffprobe": {
+      "path": "/usr/bin/ffprobe",
+      "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+    }
+  },
+  "font_provenance": {
+    "file": "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "sha256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+    "distribution": "system font, not bundled"
+  },
+  "ffmpeg_version": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with gcc 14 (Debian 14.2.0-19)\nconfiguration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\nlibavutil      59. 39.100 / 59. 39.100\nlibavcodec     61. 19.101 / 61. 19.101\nlibavformat    61.  7.103 / 61.  7.103\nlibavdevice    61.  3.100 / 61.  3.100\nlibavfilter    10.  5.100 / 10.  5.100\nlibswscale      8.  3.100 /  8.  3.100\nlibswresample   5.  3.100 /  5.  3.100\nlibpostproc    58.  3.100 / 58.  3.100\n",
+  "ffprobe_version": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers\nbuilt with gcc 14 (Debian 14.2.0-19)\nconfiguration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\nlibavutil      59. 39.100 / 59. 39.100\nlibavcodec     61. 19.101 / 61. 19.101\nlibavformat    61.  7.103 / 61.  7.103\nlibavdevice    61.  3.100 / 61.  3.100\nlibavfilter    10.  5.100 / 10.  5.100\nlibswscale      8.  3.100 /  8.  3.100\nlibswresample   5.  3.100 /  5.  3.100\nlibpostproc    58.  3.100 / 58.  3.100\n",
+  "frame_dimensions": [
+    640,
+    360
+  ],
+  "frame_count": 60,
+  "raster_only_ms": {
+    "p50": 0.4848509997827932,
+    "p95": 0.850927026476711,
+    "max": 7.124775002012029
+  },
+  "parity": {
+    "frame_index": 30,
+    "lossless_exact": true,
+    "h264_mae_255": 1.1877719907407407,
+    "h264_p99_255": 6.0,
+    "shift3px_rejected": true
+  },
+  "media_duration": {
+    "video": "2.000000",
+    "audio": "2.000000"
+  },
+  "stream_selection": {
+    "indices": [
+      1,
+      2
+    ],
+    "frequencies": [
+      440.0,
+      880.0
+    ],
+    "second_start": "0.250000"
+  },
+  "headless_pulse_audio": {
+    "outputs": 0,
+    "inputs": 0
+  },
+  "elapsed_seconds": 2.214447498321533,
+  "outputs": {
+    "raster.mp4": "f0b845259b60b90e711c4ccb48e8cacc7d55b925cb8e395706e37f096c5c8056",
+    "raster-lossless.mkv": "a8fad1447f51c2c1509d082c9a687f45c2c1f222c9ed5aaefbebd31792836785",
+    "two-audio-delayed.mkv": "d0f8590de3646685045f4db61e22b7ba5f8d3b24f92c11a25c6fe8b2f0bee4ae"
+  },
+  "status": "PASS_SCOPED_EXPERIMENT",
+  "limits": [
+    "Not implemented CompositionPlan evaluator or application",
+    "Only synthetic shapes/text selected frame; not full effects or continuous playback",
+    "Rasters timings exclude decoding/PNG IO/encoding",
+    "Linux offscreen only; no Windows/GPU/Chrome/provider/physical audio acceptance",
+    "Pulse backend no-crash may report0devices; not audio playback PASS"
+  ]
+}

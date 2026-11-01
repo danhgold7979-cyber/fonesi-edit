@@ -1,0 +1,9 @@
+{
+  "experiment": "P02 frozen Qt only; not product",
+  "frozen": true,
+  "qt": "6.12.0",
+  "visible": true,
+  "font_family_count": 328,
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "windows_target_acceptance": "NOT_RUN"
+}

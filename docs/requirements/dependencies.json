@@ -4,16 +4,20 @@
     "P01-01.artifact_ready": {
       "dependencies": [],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-01",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-02.artifact_ready": {
       "dependencies": [
         "P01-01.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-02",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-03.artifact_ready": {
       "dependencies": [
@@ -21,8 +25,10 @@
         "P01-07.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-03",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-04.artifact_ready": {
       "dependencies": [
@@ -30,16 +36,20 @@
         "P01-07.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-04",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-05.artifact_ready": {
       "dependencies": [
         "P01-07.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-05",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-06.artifact_ready": {
       "dependencies": [
@@ -47,16 +57,20 @@
         "P01-07.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-06",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-07.artifact_ready": {
       "dependencies": [
         "P01-01.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-07",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-08.artifact_ready": {
       "dependencies": [
@@ -64,8 +78,10 @@
         "P01-07.artifact_ready"
       ],
       "deliverable_ref": "docs/phases/P01_PLAN.md#p01-08",
-      "status": "NOT_ACCEPTED",
-      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance."
+      "status": "ACCEPTED_DESIGN",
+      "meaning": "Task-specific output/interface ready for downstream integration; NOT whole-task acceptance.",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P02-01.artifact_ready": {
       "dependencies": [
@@ -922,21 +938,30 @@
         "P01-07.artifact_ready"
       ],
       "meaning": "Pinned locally launchable Python/Qt and available media-tool capability report; no provider/Windows certification.",
-      "status": "NOT_ACCEPTED"
+      "status": "LOCAL_VERIFIED",
+      "evidence_ids": [
+        "P02-LOCAL-RASTER-640",
+        "P02-LOCAL-RASTER-1080",
+        "P02-LINUX-FROZEN-STARTUP"
+      ]
     },
     "P01-08.tool_contract_ready": {
       "dependencies": [
         "P01-07.artifact_ready"
       ],
       "meaning": "Typed tool manifest/discovery/ownership/lease contract; trusted publisher release still separate acceptance.",
-      "status": "NOT_ACCEPTED"
+      "status": "ACCEPTED_DESIGN",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P01-08.account_schema_ready": {
       "dependencies": [
         "P01-07.artifact_ready"
       ],
       "meaning": "Profile/binding/readiness schemas and no-secret data boundary; live Chrome handoff not prerequisite to schema.",
-      "status": "NOT_ACCEPTED"
+      "status": "ACCEPTED_DESIGN",
+      "review_commit": "dbc3f30ed9122313c6aa7906fde74a5120651b3d",
+      "review": "docs/reviews/P01_DESIGN_ACCEPTANCE.md"
     },
     "P02-04.canonical_preview_candidate": {
       "dependencies": [
@@ -944,7 +969,11 @@
         "P01-07.artifact_ready"
       ],
       "meaning": "Locally runnable shared raster/layout experiment and explicit limitations; full preview/Windows acceptance remains open.",
-      "status": "NOT_ACCEPTED"
+      "status": "LOCAL_VERIFIED",
+      "evidence_ids": [
+        "P02-LOCAL-RASTER-640",
+        "P02-LOCAL-RASTER-1080"
+      ]
     },
     "P06-06.model_ready": {
       "dependencies": [

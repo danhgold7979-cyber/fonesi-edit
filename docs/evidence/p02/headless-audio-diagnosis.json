@@ -1,0 +1,17 @@
+{
+  "import": {
+    "returncode": 0,
+    "stdout": "import ok\n",
+    "stderr": ""
+  },
+  "audio_outputs": {
+    "returncode": -11,
+    "stdout": "",
+    "stderr": "qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version 9.0.1 LGPL version 2.1 or later\n[W][11:19:23.044982] pw.conf      | [          conf.c: 1182 try_load_conf()] can't load config client.conf: No such file or directory\n[E][11:19:23.045006] pw.conf      | [          conf.c: 1215 pw_conf_load_conf_for_context()] can't load config client.conf: No such file or directory\n"
+  },
+  "formats": {
+    "returncode": 0,
+    "stdout": "['WMV', 'AVI', 'Matroska', 'MPEG4', 'Ogg', 'QuickTime', 'Mpeg4Audio', 'AAC', 'WMA', 'FLAC', 'Wave']\n",
+    "stderr": "qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version 9.0.1 LGPL version 2.1 or later\n"
+  }
+}

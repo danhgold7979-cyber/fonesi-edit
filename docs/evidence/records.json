@@ -1,1 +1,152 @@
-[]
+[
+  {
+    "id": "P02-LOCAL-RASTER-640",
+    "generation": "clean-2026-11-01",
+    "commit": "e0cfb14acbf390261120306aa68622085159f640",
+    "task_ids": [
+      "P02-01",
+      "P02-04",
+      "P02-05",
+      "P02-07"
+    ],
+    "criterion_ids": [],
+    "kind": "integration",
+    "acceptance_scope": "synthetic_experiment_only",
+    "command": "experiments/run_local_probe.py --output-dir runtime/p02-640 --width 640 --height 360",
+    "environment": {
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "qt": "6.12.0",
+      "cpu_count": 9,
+      "font_family": "Noto Sans CJK HK",
+      "QT_QPA_PLATFORM": "offscreen"
+    },
+    "tools": {
+      "ffmpeg": {
+        "path": "/usr/bin/ffmpeg",
+        "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a"
+      },
+      "ffprobe": {
+        "path": "/usr/bin/ffprobe",
+        "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+      }
+    },
+    "corpus_hashes": {
+      "raster.mp4": "f0b845259b60b90e711c4ccb48e8cacc7d55b925cb8e395706e37f096c5c8056",
+      "raster-lossless.mkv": "a8fad1447f51c2c1509d082c9a687f45c2c1f222c9ed5aaefbebd31792836785",
+      "two-audio-delayed.mkv": "d0f8590de3646685045f4db61e22b7ba5f8d3b24f92c11a25c6fe8b2f0bee4ae"
+    },
+    "status": "PASS",
+    "observations": {
+      "frame_index": 30,
+      "lossless_exact": true,
+      "h264_mae_255": 1.1877719907407407,
+      "h264_p99_255": 6.0,
+      "shift3px_rejected": true
+    },
+    "artifact_paths": [
+      "docs/evidence/p02/qt-raster-640.json"
+    ],
+    "limitations": [
+      "Not implemented CompositionPlan evaluator or application",
+      "Only synthetic shapes/text selected frame; not full effects or continuous playback",
+      "Rasters timings exclude decoding/PNG IO/encoding",
+      "Linux offscreen only; no Windows/GPU/Chrome/provider/physical audio acceptance",
+      "Pulse backend no-crash may report0devices; not audio playback PASS"
+    ]
+  },
+  {
+    "id": "P02-LOCAL-RASTER-1080",
+    "generation": "clean-2026-11-01",
+    "commit": "e0cfb14acbf390261120306aa68622085159f640",
+    "task_ids": [
+      "P02-01",
+      "P02-04",
+      "P02-05",
+      "P02-07"
+    ],
+    "criterion_ids": [],
+    "kind": "integration",
+    "acceptance_scope": "synthetic_experiment_only",
+    "command": "experiments/run_local_probe.py --output-dir runtime/p02-1080 --width 1920 --height 1080",
+    "environment": {
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "qt": "6.12.0",
+      "cpu_count": 9,
+      "font_family": "Noto Sans CJK HK",
+      "QT_QPA_PLATFORM": "offscreen"
+    },
+    "tools": {
+      "ffmpeg": {
+        "path": "/usr/bin/ffmpeg",
+        "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a"
+      },
+      "ffprobe": {
+        "path": "/usr/bin/ffprobe",
+        "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+      }
+    },
+    "corpus_hashes": {
+      "raster.mp4": "26f531e47e169fbb8c9ea2ca1f2d451411acaccedf13ce3d2ec9978bf157deb8",
+      "raster-lossless.mkv": "72a76667a17df94e66d7efc795d4f6d97a8a6b74148b7bb8328167983535d2ca",
+      "two-audio-delayed.mkv": "8a7db7c72692f22d08d5d35328acce8a590b181d7ba39185ab8c60daaca3250a"
+    },
+    "status": "PASS",
+    "observations": {
+      "frame_index": 30,
+      "lossless_exact": true,
+      "h264_mae_255": 1.079191261574074,
+      "h264_p99_255": 4.0,
+      "shift3px_rejected": true
+    },
+    "artifact_paths": [
+      "docs/evidence/p02/qt-raster-1080.json"
+    ],
+    "limitations": [
+      "Not implemented CompositionPlan evaluator or application",
+      "Only synthetic shapes/text selected frame; not full effects or continuous playback",
+      "Rasters timings exclude decoding/PNG IO/encoding",
+      "Linux offscreen only; no Windows/GPU/Chrome/provider/physical audio acceptance",
+      "Pulse backend no-crash may report0devices; not audio playback PASS"
+    ]
+  },
+  {
+    "id": "P02-LINUX-FROZEN-STARTUP",
+    "generation": "clean-2026-11-01",
+    "commit": "e0cfb14acbf390261120306aa68622085159f640",
+    "task_ids": [
+      "P02-06"
+    ],
+    "criterion_ids": [],
+    "kind": "integration",
+    "acceptance_scope": "synthetic_startup_only",
+    "command": ".venv/bin/python -m PyInstaller --noconfirm --clean --onedir --name edit-p02-qt-probe --distpath runtime/frozen/dist --workpath runtime/frozen/build --specpath runtime/frozen experiments/frozen_probe.py; QT_QPA_PLATFORM=offscreen runtime/frozen/dist/edit-p02-qt-probe/edit-p02-qt-probe --report runtime/frozen/result.json",
+    "environment": {
+      "experiment": "P02 frozen Qt only; not product",
+      "frozen": true,
+      "qt": "6.12.0",
+      "visible": true,
+      "font_family_count": 328,
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+      "windows_target_acceptance": "NOT_RUN"
+    },
+    "tools": {
+      "pyinstaller": "6.22.3",
+      "qt": "6.12.0"
+    },
+    "corpus_hashes": {},
+    "status": "PASS",
+    "observations": {
+      "startup": true,
+      "binary_sha256": "aec5a8b928acaa5da232e9492540683bcc510b80339167182d3049de5f0b8aff"
+    },
+    "artifact_paths": [
+      "docs/evidence/p02/linux-frozen-startup.json"
+    ],
+    "limitations": [
+      "Linux offscreen startup only",
+      "NOT Windows/actual media package/installer/physical PC acceptance"
+    ]
+  }
+]

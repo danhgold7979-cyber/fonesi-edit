@@ -4,7 +4,7 @@ Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented 
 
 ## P03-01 — scaffold module, môi trường tái lập, dependency lock, config và user data tách khỏi thư mục chương trình.
 
-- **Depends on:** P01-07.contract_ready, P02-01.dev_toolchain_ready (not full P02-08 acceptance). Only independent work may proceed while external portions remain blocked.
+- **Depends on:** P01-07.artifact_ready, P02-01.dev_toolchain_ready (not full P02-08 acceptance). Only independent work may proceed while external portions remain blocked.
 - **Input:** Chosen runtime/Qt versions, install/user-data policy.
 - **Output/interface:** Fresh pyproject/lock/src package/entrypoint, eight-area shell, config paths and test runner.
 - **Errors/cancellation:** Missing FFmpeg does not prevent app/settings startup; bad config quarantined with explanation; shutdown cancels owned tasks.

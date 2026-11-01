@@ -1,6 +1,6 @@
 # P02 — Task-specific clean implementation plan
 
-Generation clean-2026-11-01; branch `phase-02`. Status PLANNED, not implemented or accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
+Generation clean-2026-11-01; branch `phase-02`. Status IN_PROGRESS (scoped synthetic experiments), not accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
 
 ## P02-01 — ghi toolchain/máy/OS/codec/filter/encoder/font; lấy công cụ từ nguồn tin cậy, giữ TLS/checksum/chữ ký, pin sau kiểm chứng.
 
@@ -94,3 +94,7 @@ Generation clean-2026-11-01; branch `phase-02`. Status PLANNED, not implemented 
 
 ## Phase gate
 Every task acceptance above and corresponding master gate must pass. Unit/mock evidence does not close live/Windows/GPU/Chrome acceptance. Keep LOCAL_VERIFIED, BLOCKED_EXTERNAL and ACCEPTED distinct. Submit independent review and one aggregate checkpoint after affected tests; do not mark whole phase complete from a working slice.
+
+## First scoped experiment batch — before product source
+
+New `experiments/requirements.in/.lock` pins a fresh Python3.12/PySide6.12 toolchain. `run_local_probe.py` exercises Qt raster text/alpha/rotation→FFmpeg encode/full decode, selected-frame lossless/lossy comparison and negative shifted-frame sentinel, selected audio stream FFT/offset, and isolated headless backend availability. Run640×360 and1920×1080 into new owned directories, recording exact code SHA. `frozen_probe.py` produces a separately labelled Linux Qt startup-only package. These exercise P02-01/04/06/07 locally; none closes whole P02, full media compositor, Windows, live provider/source/Chrome or GPU gates. Default Qt audio-discovery crash and no-device Pulse fallback remain explicit environment results, not hidden PASS.
