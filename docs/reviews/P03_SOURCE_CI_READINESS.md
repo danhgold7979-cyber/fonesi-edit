@@ -11,3 +11,13 @@ Following source review, CI-only tightening pins official Action commit SHAs, ch
 ## Focused quiescence/CI recheck
 
 Independent reviewer inspected `a8d1b31aba890d8a1c339edc235e53480aba25d2`: **CLEAR FOR CI**. Owned-job ActiveProcesses==0 observation after process/thread release closes source-level quiescence gap; query failure/timeout remains explicit. Exact-SHA/source artifact CI changes also clear.6 focused checks PASS;10 actual Windows cases deselected/not executed; aggregate not duplicated. Actual Windows runtime and full P03 remain pending.
+
+## Later independent increments through d501491
+
+- Account pure domain6e96f09 and later `check_auth_rights` boundary/time regressions d0946ce: CLEAR for scoped CI inclusion. No I/O/live auth or permission to acquire locked profile; coordinator lease/capability/rate-limit gates remain separate.
+- Real owned-child project interruption tests support process-kill atomicity, not power-loss or JOBS publication acceptance.
+- Public rational interfaces now reject float/bool/nonfinite values; reviewer9 selected time checks PASS.
+- Adjacent lock foreign-write correctionbe6f869: CLEAR;2 focused foreign/symlink regressions PASS. Final one-line O_BINARY follow-upd501491 independently checked and included in source clearance.
+- Exclusive lock creation interrupted before marker completion may leave an unmarked file. Current behavior is explicit fail-closed diagnostic, not silent repair/deletion; future explicit recovery must establish ownership or select a different save path. Concurrent initialization also fails closed. Actual Windows byte locking still needs target tests.
+
+Final application source `d501491f02686e7434c94ecc98ce487dec2275e6`: **CLEAR FOR CI only**. All later documentation-only commits retain this source qualification. Whole P03 and target runtime remain unaccepted until actual evidence.
