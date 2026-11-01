@@ -22,7 +22,25 @@ def main(argv=None):
     modes.add_argument('--restore-project-store',type=Path,help='Restore an offline project backup to a NEW database; never overwrite')
     parser.add_argument('--restore-destination',type=Path,help='New absolute database path in an existing private directory')
     parser.add_argument('--restore-timeout',type=float,default=None,help='Cooperative restore deadline in seconds (maximum 3600)')
+    modes.add_argument('--inspect-media',type=Path,help='Inspect explicit local media with a caller-authorized ffprobe; not render readiness')
+    parser.add_argument('--ffprobe',type=Path,help='Explicit trusted absolute ffprobe executable for --inspect-media')
     args = parser.parse_args(argv)
+    if args.inspect_media is not None:
+        if (args.ffprobe is None or not args.ffprobe.is_absolute() or not args.inspect_media.is_absolute() or
+            args.data_dir is not None or args.tool_path or args.tool_dir or args.exclude_root or
+            args.subtitle_format is not None or args.subtitle_encoding is not None or
+            args.restore_destination is not None or args.restore_timeout is not None):
+            parser.error('Inspection requires explicit absolute media/ffprobe paths and no unrelated options')
+        from fonesi_edit.media.probe import inspect_media,ProbeError
+        from fonesi_edit.media.observations import normalize_probe
+        import json
+        try:observation=normalize_probe(inspect_media(args.inspect_media,args.ffprobe))
+        except (ProbeError,OSError,ValueError):
+            print('Media inspection not confirmed. Check media and explicitly trusted ffprobe; no fallback or render-ready claim.',file=sys.stderr)
+            return 2
+        print(json.dumps(observation.to_dict(),ensure_ascii=True))
+        return 0
+    if args.ffprobe is not None:parser.error('--ffprobe requires --inspect-media')
     if args.restore_project_store is not None:
         if (args.restore_destination is None or args.data_dir is not None or args.tool_path or args.tool_dir or
             args.exclude_root or args.subtitle_format is not None or args.subtitle_encoding is not None):

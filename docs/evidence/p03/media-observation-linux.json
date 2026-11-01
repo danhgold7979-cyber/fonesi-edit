@@ -1,0 +1,72 @@
+{
+  "scope": "Actual Linux explicit ffprobe to typed observation CLI; not Windows/frame map/render readiness",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "fixture_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+  "observation": {
+    "sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+    "container_duration": {
+      "num": 1,
+      "den": 1
+    },
+    "streams": [
+      {
+        "index": 0,
+        "kind": "video",
+        "codec": "mpeg4",
+        "time_base": {
+          "num": 1,
+          "den": 10240
+        },
+        "start_pts": 0,
+        "duration_ts": 10240,
+        "start": {
+          "num": 0,
+          "den": 1
+        },
+        "duration": {
+          "num": 1,
+          "den": 1
+        },
+        "start_basis": "STREAM_TICKS",
+        "duration_basis": "STREAM_TICKS",
+        "width": 48,
+        "height": 32,
+        "sar": {
+          "num": 4,
+          "den": 3
+        },
+        "display_matrix": null,
+        "rotation_degrees": null,
+        "rotation_basis": "UNKNOWN",
+        "sample_rate": null,
+        "channels": null,
+        "channel_layout": null,
+        "attached_picture": false,
+        "diagnostics": [
+          "ORIENTATION_NOT_OBSERVED",
+          "FRAME_PTS_NOT_OBSERVED"
+        ]
+      }
+    ],
+    "diagnostics": [
+      "NO_AUDIO_TRACK"
+    ],
+    "render_ready": false
+  },
+  "tools": {
+    "ffmpeg": {
+      "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a",
+      "version": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers"
+    },
+    "ffprobe": {
+      "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46",
+      "version": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers"
+    }
+  },
+  "source_hashes": {
+    "src/fonesi_edit/media/observations.py": "1b8b0f719703571f668f7f61e0aaaf60e38df605da45fd49acc16edcedff70e9",
+    "src/fonesi_edit/__main__.py": "ffbed3f396c25ff5efb3abd304e1e84e3229a9a11f93892d4cb8d689196bfb6d"
+  },
+  "source_hashes_note": "Actual fixture run used observations.py hash1b8b0f7. Later rational-summary provenance/type guard, pre-encoding character bound and missing-rotation-summary classification corrections were separately regression-tested; they do not change the measured ordinary tick/decimal/no-matrix fixture. No actual-tool rerun claimed. Exact measured source retained in runtime/media-observation/observations-measured-source.py."
+}

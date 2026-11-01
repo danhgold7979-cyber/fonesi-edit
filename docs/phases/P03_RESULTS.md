@@ -1130,3 +1130,24 @@ creation, unknown/partial retained with no-retry guidance, stale worker signals 
 Four new focused GUI cases PASS exit0 including actual backup restoration and live
 event loop;15 affected existing shell/recovery/root-relink cases PASS exit0. Native
 UI route still pending; no extra child/whole-task acceptance or GUI store switch.
+
+### Restore UI hosted evidence41313112557
+Exactpublicc44a5d3b/tree7ec7498f (local02b25cf): fourSUCCESS, each19PASS0SKIP.
+Windows3.12.10/3.13.16, Linux3.12.15/3.13.17. Independent4ZIP/8member/source/JUnit
+verification confirms actual offscreen UI→worker restore and cancel/close, with
+existing active DB preserved. No new child (9/438), task (0/9), native desktop
+picker interaction/latest-state/WAL/frozen claim. Evidence bundled with next work.
+
+### Typed stream observations and explicit inspection CLI — local P03-03
+Immutable observations preserve every global stream index, signed exact tick timing,
+per-stream SAR/geometry/audio layout and raw matrix/rotation provenance. Unknowns,
+cover art and non-timeline tracks remain visible; no silent stereo/zero/CFR defaults.
+All observations explicitly render_ready=False; no full frame-PTS asset conversion.
+Explicit --inspect-media/--ffprobe runs only caller-authorized tool, with existing
+owned process/fingerprint path, fixed errors and no arbitrary metadata tag export.
+19 new focused cases across initial+causal runs PASS;18 affected existing headless
+CLI regressions PASS, no aggregate. Review found pre-encoding allocation and false
+rotation-summary provenance, fixed together with3causal regressions. Actual existing
+Linux FFmpeg/ffprobe generated no-audio48x32SAR4:3 fixture and CLI observation passed;
+receipt pins exact measured pre-correction source/tool hashes, not a claimed rerun.
+No actual Windows FFmpeg/full VFR/renderer/newchild acceptance; ledger9/438 unchanged.

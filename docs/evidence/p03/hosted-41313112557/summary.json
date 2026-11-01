@@ -1,0 +1,100 @@
+{
+  "run_id": 41313112557,
+  "source_sha": "c44a5d3b7e21c89b5ebaef7e403f1c9339e90fa1",
+  "source_tree": "7ec7498feead0c4d9276589a7274400b0b12608c",
+  "scope": "restore-ui affected only; no aggregate/frozen",
+  "artifacts": [
+    {
+      "id": 13086317711,
+      "name": "restore-ui-windows-latest-py3.13",
+      "zip_sha256": "b2d3a1396f6f51314719abea34114ec3a3de17846a204ae6feab0bee005d26a5",
+      "members": {
+        "foundation-results.xml": "20176d331ec97256fc7a6e09a9ae56773a3e1d4dddd5c54dec3dcb183a2323f8",
+        "foundation-source.json": "5a9a559fa4b1631b7b40f4bde58ec6fec6e074bcad1035b150196c05c5785df3"
+      },
+      "runtime": {
+        "source_sha": "c44a5d3b7e21c89b5ebaef7e403f1c9339e90fa1",
+        "source_tree": "7ec7498feead0c4d9276589a7274400b0b12608c",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 19,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 19
+      }
+    },
+    {
+      "id": 13086057003,
+      "name": "restore-ui-windows-latest-py3.12",
+      "zip_sha256": "5fc86e2376aba5e50d1a5d589e9fb56473ccbfea1c60088acf94c1bd813c97ca",
+      "members": {
+        "foundation-results.xml": "39fe72d6f81f32b940103f3f983235ee6cf97e7ed2c143f8033ab211b4a111f5",
+        "foundation-source.json": "22047b3e81d4203f24d372a81c75b65a785a3abaf3e1fcd9020944cd0b8efbe2"
+      },
+      "runtime": {
+        "source_sha": "c44a5d3b7e21c89b5ebaef7e403f1c9339e90fa1",
+        "source_tree": "7ec7498feead0c4d9276589a7274400b0b12608c",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 19,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 19
+      }
+    },
+    {
+      "id": 13085878537,
+      "name": "restore-ui-ubuntu-24.04-py3.13",
+      "zip_sha256": "9536571f891a563e8f28f00498b0d75b6ae8d7dd493faba62c78d5ecbaef027c",
+      "members": {
+        "foundation-results.xml": "525e3eaa2c06ae8157d5f01048b3473ec3079068cc07cda784f810bf2c26128e",
+        "foundation-source.json": "d70d48bbc9e54fa37554bd2132c3a5518fb266d904d6305329c86bfc791f63cb"
+      },
+      "runtime": {
+        "source_sha": "c44a5d3b7e21c89b5ebaef7e403f1c9339e90fa1",
+        "source_tree": "7ec7498feead0c4d9276589a7274400b0b12608c",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 19,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 19
+      }
+    },
+    {
+      "id": 13085507981,
+      "name": "restore-ui-ubuntu-24.04-py3.12",
+      "zip_sha256": "392c56caf5220d1eec612f42fa50e3c7ab18d5d23352eb59764cf1fcf06d1f66",
+      "members": {
+        "foundation-results.xml": "031cc0891a52fa6f3d7335a697108fa999ee13fe17a14ab1253da491ff830b52",
+        "foundation-source.json": "cf6aaa9ca959d0b40a9e5a5eb806a79e8a432855534894f1e668279a9ff53420"
+      },
+      "runtime": {
+        "source_sha": "c44a5d3b7e21c89b5ebaef7e403f1c9339e90fa1",
+        "source_tree": "7ec7498feead0c4d9276589a7274400b0b12608c",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 19,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 19
+      }
+    }
+  ]
+}

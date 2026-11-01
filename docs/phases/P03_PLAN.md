@@ -620,3 +620,20 @@ as nonexistent. Preserve current project/queue and report retained partial/unkno
 ownership plainly. Tests: actual worker restore while GUI event loop remains live,
 cooperative cancellation/failure, no retry, close wait and no active-store mutation.
 Reuse existing Qt worker ownership pattern; no new dependency or fake executor.
+
+## Real-media typed observation entry — P03-03
+The next dependency slice converts raw ffprobe metadata into immutable per-stream
+observations without claiming render readiness. Preserve exact stream indices,
+unknown timing/layout, attached-picture disposition and unsupported track types;
+never silently select track0 or drop other tracks. Prefer integer PTS/duration ticks
+with the stream's rational timebase over rounded decimal summaries. Geometry/SAR,
+full display matrix and audio layout remain per-stream. Report unavailable fields
+explicitly; do not fabricate zero start/duration, stereo layout, square pixels or
+CFR frame PTS. Frame-index observation and strict CompositionPlan asset conversion
+are separate following gates; avg/r_frame_rate cannot substitute for decoded PTS.
+Use existing bounded numeric parsing/owned process/fingerprint substrate and stdlib
+immutable dataclasses; no new dependency/download/provider operation. Primary source
+reference: FFmpeg n7.1 ffprobe.c and libavutil/display.h (official GitHub); no copied
+upstream implementation. Current ffmpeg.org documentation fetch timed out, so no
+claim of successful retrieval there. Target corpus: no-audio, delayed multistream,
+SAR/rotation, unknown duration, unsupported layouts, malformed/bounded numbers.
