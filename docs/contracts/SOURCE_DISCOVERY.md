@@ -39,3 +39,29 @@ The eventual application/coordinator must supply every configured output/cache r
 and known artifact identity automatically; a caller omitting them cannot claim
 that undeclared output namespaces were excluded. Native Windows junction behavior
 and user-desktop integration remain target gates; no new CI was triggered.
+
+## Live publication admission (new P03-06 slice)
+
+`PublicationSession` now derives source/font references from its immutable job
+composition and binds original read-only file descriptors plus pinned parent
+folders through `NamespaceAdmission`. Absolute snapshot paths are required;
+project-relative references fail closed with a resolver instruction, never resolve
+against cwd. This does not remove project-relative project-file support: execution
+snapshot resolution must be completed before this publication API can use it.
+Source path and descriptor metadata are each compared with their own baseline
+(Windows timestamp precision may differ across APIs); identity/size match across
+APIs. Loss permanently revokes admission. This is continuity observation, NOT SHA
+validation, media decoding, protection against arbitrary same-user edits, or an
+OS-I/O deadline. Final paths that exist, including source hardlink aliases and broken
+symlinks, remain conflicts. Admission is rechecked after slow operations and at
+native link effect boundary. No source is opened for writing.
+
+Explicit configured cache roots are trusted coordinator configuration, pinned for
+this session. Output/cache root overlap and cache/staging inputs are refused.
+Not all application cache paths are yet serialized/resolved into a complete execution
+snapshot, so omitted caches are NOT magically excluded. Manual source selection in
+an output folder is not categorically disallowed; existing-final/source collisions
+remain refused. Recursive `session.scan_sources` automatically supplies every manifest
+output root, configured cache root and durable artifact physical identity to the
+existing scanner. The artifact query is capped100001, refusing above100000 rather
+than silently dropping exclusions. Returned candidates still require validation.

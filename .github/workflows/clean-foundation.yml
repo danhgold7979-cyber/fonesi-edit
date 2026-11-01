@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       # Explicit diagnostic commits preserve prior green matrix evidence; not aggregate acceptance.
       matrix: ${{ fromJSON(github.event_name == 'push' && (contains(github.event.head_commit.message, '[coordinator-diagnostic]') || contains(github.event.head_commit.message, '[windows-boundary]')) && '{"include":[{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"}]}' || '{"os":["windows-latest","ubuntu-24.04"],"python":["3.12","3.13"]}') }}
-    name: "${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') && 'Coordinator diagnostic (not aggregate)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-recovery]') && 'Coordinator recovery (affected tests)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[integration-repair]') && 'Integration repair (affected tests)' || 'Foundation' }} (${{ matrix.os }}, ${{ matrix.python }})"
+    name: "${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') && 'Coordinator diagnostic (not aggregate)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-recovery]') && 'Coordinator recovery (affected tests)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[integration-repair]') && 'Integration repair (affected tests)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[publication-admission]') && 'Publication admission (affected tests)' || 'Foundation' }} (${{ matrix.os }}, ${{ matrix.python }})"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
@@ -20,6 +20,7 @@ jobs:
       COORDINATOR_RECOVERY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-recovery]') }}
       INTEGRATION_REPAIR: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[integration-repair]') }}
       WINDOWS_BOUNDARY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[windows-boundary]') }}
+      PUBLICATION_ADMISSION: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[publication-admission]') }}
       QT_QPA_PLATFORM: offscreen
       PYTHONUTF8: '1'
       EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -41,8 +42,11 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && env.COORDINATOR_RECOVERY != 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
       - name: Source foundation and actual platform process tests
-        if: env.COORDINATOR_DIAGNOSTIC != 'true' && env.COORDINATOR_RECOVERY != 'true' && env.INTEGRATION_REPAIR != 'true'
+        if: env.COORDINATOR_DIAGNOSTIC != 'true' && env.COORDINATOR_RECOVERY != 'true' && env.INTEGRATION_REPAIR != 'true' && env.PUBLICATION_ADMISSION != 'true'
         run: uv run --no-sync python -m pytest -q --junitxml=foundation-results.xml
+      - name: Affected live publication admission (not aggregate acceptance)
+        if: env.PUBLICATION_ADMISSION == 'true'
+        run: uv run --no-sync python -m pytest -q tests/test_publication_admission.py tests/test_publication_session.py tests/test_publication_recovery.py --junitxml=foundation-results.xml
       - name: Affected integration repair (not aggregate acceptance)
         if: env.INTEGRATION_REPAIR == 'true' && env.WINDOWS_BOUNDARY != 'true'
         run: uv run --no-sync python -m pytest -q tests/test_jobs_migration.py tests/test_jobs_open_identity.py tests/test_media_discovery.py tests/test_tool_discovery.py tests/test_frozen_boundary_harness.py --junitxml=foundation-results.xml
@@ -62,16 +66,16 @@ jobs:
         if: env.COORDINATOR_DIAGNOSTIC != 'true' && env.COORDINATOR_RECOVERY != 'true'
         run: uv run --no-sync python scripts/check_schema_design.py
       - name: Build actual Windows development onedir
-        if: matrix.os == 'windows-latest' && matrix.python == '3.12' && env.COORDINATOR_RECOVERY != 'true' && env.COORDINATOR_DIAGNOSTIC != 'true'
+        if: matrix.os == 'windows-latest' && matrix.python == '3.12' && env.COORDINATOR_RECOVERY != 'true' && env.COORDINATOR_DIAGNOSTIC != 'true' && env.PUBLICATION_ADMISSION != 'true'
         run: uv run --no-sync pyinstaller --noconfirm --clean --name FonesiEdit --onedir --paths src --collect-data fonesi_edit src/fonesi_edit/__main__.py
       - name: Frozen schema/subtitle/tool-discovery/license boundaries (not GUI/media acceptance)
-        if: matrix.os == 'windows-latest' && matrix.python == '3.12' && env.COORDINATOR_RECOVERY != 'true' && env.COORDINATOR_DIAGNOSTIC != 'true'
+        if: matrix.os == 'windows-latest' && matrix.python == '3.12' && env.COORDINATOR_RECOVERY != 'true' && env.COORDINATOR_DIAGNOSTIC != 'true' && env.PUBLICATION_ADMISSION != 'true'
         run: uv run --no-sync python scripts/check_frozen_boundaries.py --binary dist/FonesiEdit/FonesiEdit.exe --report frozen-cli-results.json
       - name: Save exact test/skipped evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # verified v4
         with:
-          name: ${{ env.COORDINATOR_DIAGNOSTIC == 'true' && 'coordinator-diagnostic' || env.COORDINATOR_RECOVERY == 'true' && 'coordinator-recovery' || env.INTEGRATION_REPAIR == 'true' && 'integration-repair' || 'foundation' }}-${{ matrix.os }}-py${{ matrix.python }}
+          name: ${{ env.COORDINATOR_DIAGNOSTIC == 'true' && 'coordinator-diagnostic' || env.COORDINATOR_RECOVERY == 'true' && 'coordinator-recovery' || env.INTEGRATION_REPAIR == 'true' && 'integration-repair' || env.PUBLICATION_ADMISSION == 'true' && 'publication-admission' || 'foundation' }}-${{ matrix.os }}-py${{ matrix.python }}
           path: |
             foundation-results.xml
             foundation-source.json

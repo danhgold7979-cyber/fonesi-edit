@@ -253,3 +253,24 @@ A fully committed successful set is refused rather than rewriting its history.
 
 This is a conservative quarantine/diagnostic path, NOT automatic crash resume or
 proof of post-restart file incarnation. Full recovery remains an open gate.
+
+## Completed-stage cleanup: destructive implementation withheld
+
+Independent review reproduced a foreign-object deletion race in an unpublished
+prototype: another actor replaced payload after the last identity stat but before
+pathname unlink; the retained original FD did not make unlink identity-conditional.
+The analogous directory stat/rmdir race also exists. The entire destructive cleanup
+prototype was removed before publication; it is NOT an active API or accepted proof.
+Additional stat checks, retries, directory-relative APIs or retained original FDs do
+not close this race on POSIX. Staging remains retained; no implicit close/cancel/shutdown
+cleanup occurs. No final, foreign child, unknown/restart directory is ever deleted.
+
+A future cleanup adapter must bind deletion to the originally proven file/directory
+object (for example a separately reviewed Windows original handle with appropriate
+access/disposition semantics), or establish an explicitly supported exclusive
+namespace mutation capability. It must keep final hardlinks intact, require exact
+committed required-set/history/current coordinator authority and actual worker
+quiescence, report partial/unknown outcomes without replay, and receive real target
+causal replacement tests. Unsupported platforms retain stage with actionable
+cleanup-pending diagnostics. No native identity-bound cleanup capability currently
+exists; this is a real P03-06 acceptance blocker, not a reason to weaken preservation.

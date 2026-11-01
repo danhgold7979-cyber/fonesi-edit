@@ -13,17 +13,19 @@ from fonesi_edit.subtitles.adapter import MAX_BYTES
 from fonesi_edit.media.validation import validate_media
 from fonesi_edit.domain.composition import canonical
 from .repository import JobConflict
+from .admission import NamespaceAdmission
+from fonesi_edit.media.discovery import scan_media
 
 
 class PublicationSession:
-    def __init__(self,repository,ownership,job):
+    def __init__(self,repository,ownership,job,*,cache_roots=()):
         if ownership.repository is not repository:raise JobConflict('Coordinator belongs to another repository')
         ownership.guard()
         self.repository=repository;self.ownership=ownership;self.job=job
         self.manifest=repository.publication_manifest(job)
         self._stack=ExitStack();self._destinations={};self._staged={}
         self._closed=False;self._set_id=None;self._claimed=False
-        self._linked=set();self._claim_token=None
+        self._linked=set();self._claim_token=None;self._admission=None
         try:
             reservations=set()
             for definition in self.manifest.items:
@@ -35,6 +37,8 @@ class PublicationSession:
                 reservations.add(key)
                 if os.path.lexists(destination.root/definition.final_name):
                     raise PublicationConflict('Existing destination is never adopted')
+            self._admission=self._stack.enter_context(NamespaceAdmission(
+                json.loads(job.snapshot_json)['composition'],self._destinations,self.manifest,cache_roots=cache_roots))
             self._guard_worker()
         except BaseException:self.close();raise
 
@@ -45,6 +49,7 @@ class PublicationSession:
     def _guard_worker(self):
         if self._closed:raise JobConflict('Publication session closed')
         self.ownership.guard()
+        if self._admission is not None:self._admission.guard()
         current=self.repository.get(self.job.id)
         if (current.snapshot_hash!=self.job.snapshot_hash or current.attempt!=self.job.attempt or
             current.lease_token!=self.job.lease_token or current.state!='validating' or
@@ -58,7 +63,18 @@ class PublicationSession:
         if self._set_id is not None or role in self._staged:raise JobConflict('Role already staged or set frozen')
         found=next((item for item in self.manifest.items if item.role==role),None)
         if found is None or found.kind!=kind:raise JobConflict('Unknown or mismatched required role')
+        self._admission.guard_final(found)
         return found,self._destinations[found.destination_root]
+
+    def scan_sources(self,root,*,cancel=lambda:False,**limits):
+        self._guard_worker()
+        rows=self.repository.db.execute('SELECT final_identity_json FROM artifacts LIMIT 100001').fetchall()
+        if len(rows)>100000:raise JobConflict('Artifact exclusion budget exceeded; choose a bounded index scope')
+        identities=tuple(tuple(json.loads(row[0])) for row in rows)
+        result=scan_media(root,excluded_roots=self._admission.excluded_roots,
+                          excluded_file_ids=identities,cancel=cancel,**limits)
+        self._guard_worker()
+        return result
 
     def stage_subtitle(self,role,data,*,cancel=lambda:False):
         definition,destination=self._definition(role,'subtitle')
@@ -151,6 +167,7 @@ class PublicationSession:
     def _guard_claimed(self, *, completed=False):
         if self._closed or not self._claimed:raise JobConflict('Live claimed session required')
         self.ownership.guard()
+        if self._admission is not None:self._admission.guard()
         current=self.repository.get(self.job.id)
         expected_version=self.job.version+(current.state=='succeeded' and self.job.state!='succeeded')
         if (current.snapshot_hash!=self.job.snapshot_hash or current.attempt!=self.job.attempt or
@@ -197,8 +214,10 @@ class PublicationSession:
         if role not in self._linked:
             # Record authority only AFTER no-replace link, flush and live readback
             # returned successfully. Uncertain filesystem errors remain fail-closed.
-            destination.publish(receipt,definition.final_name,
-                                before_link=lambda:self._journal(self._guard_claimed()))
+            def before_link():
+                self._journal(self._guard_claimed())
+                self._admission.guard_final(definition)
+            destination.publish(receipt,definition.final_name,before_link=before_link)
             self._linked.add(role)
         else:destination.verify_published(receipt,definition.final_name)
         db=self.repository.db;db.execute('BEGIN IMMEDIATE')

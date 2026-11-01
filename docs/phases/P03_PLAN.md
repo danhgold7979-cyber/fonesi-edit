@@ -384,3 +384,32 @@ read-only candidate discovery and packaged exact MIT notice. No diagnostic marke
 new binary install or unsupported Windows media/GPU/provider claim. Preserve exact
 source/JUnit/skips/frozen report; inspect terminal failures and fix only affected scope.
 Local scoped source reviews are not replacements for this actual target checkpoint.
+
+## Next coherent P03-06 admission / cleanup batch (2026-11-01)
+
+Entry: reviewed hosted source/native checkpoint6162293 plus exact carry-forward
+receipts, not full P03 acceptance. First implement a live namespace admission bound
+to immutable job composition/output intent: open original source/font descriptors and
+pin their parent directories; reject unresolved project-relative references rather
+than invent cwd, reject final-source aliases/existing finals and cache destinations;
+recheck continuity before staging, after slow I/O and immediately before no-replace
+publication. Source identity observation is not hash/media validation. A scanner
+entry reuses canonical scan_media with ALL manifest output roots plus explicit cache
+roots, preventing outputs re-entering recursive source candidates. Explicit manual
+source selection in an output folder is not silently forbidden; only exact unsafe
+alias/collision and cache/staging inputs are refused.
+
+Then add explicit live-session cleanup after known successful all-required-set commit,
+never arbitrary/restart receipt cleanup: verify exact final+retained staging and current
+coordinator/history, refuse foreign children/replaced objects, unlink only the exact
+owned staging payload and then empty owned directory. No recursive deletion, final
+unlink, lost-anchor adoption, shutdown cleanup or process retirement by PID. Windows
+open-file deletion may remain safely blocked; record native support honestly rather
+than releasing the original anchor before destructive authority is proven. Partial
+writes/canceled/unknown/restart sets remain retained until a separate safe policy.
+
+Affected tests: source/font identity replacement, destination/source/cache overlap,
+manifest-driven scanner exclusions/hardlink aliases, epoch loss after I/O, zero stage
+creation on rejected admission; cleanup foreign child/same-bytes replacement,
+final/history/epoch loss, success final preservation, repeat/partial outcome handling.
+Independent review before coherent checkpoint. No new acceptance count by test volume.

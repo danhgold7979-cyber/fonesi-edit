@@ -828,3 +828,34 @@ proof to9b62a1a7. No blanket final-source full-aggregate PASS. Full run412956421
 coherent causal evidence closes the observed integration failures without repeating
 unchanged tests. Full P03, actual GUI/media/GPU/provider/release gates stay OPEN;
 no extra criterion accepted beyond2/438, whole P03 tasks0/9.
+
+## P03-06 live namespace admission (local, native run pending)
+
+Actual source: jobs/admission.py and jobs/publication.py. Immutable composition
+source/font absolute paths now acquire original read-only descriptors and parent
+pins; unresolved project-relative execution references refuse rather than guessing
+cwd. Source/name continuity loss permanently revokes the session. Recheck before
+staging, after slow readback and immediately before native no-replace link. Existing
+final/source hardlinks remain conflicts. Source continuity is not content-SHA/media
+validation; manual inputs in output folders are not categorically forbidden.
+Configured cache overlap is refused, and session.scan_sources automatically supplies
+manifest output roots, configured cache roots and bounded durable artifact identities.
+Seven new cases cover source/font replacement, unresolved/cache refusal, source-final
+hardlinks, automatic scan exclusions, late collision before stage, source change after
+hash/beforelink, and differing Windows path/FD timestamp precision with true mutation.
+
+Initial affected admission/session/recovery run48 PASS; after independent review found
+cross-API timestamp precision issue, corrected separate per-API baselines and exact
+new regression PASS (also independently1 PASS). No repeated unchanged full aggregate.
+No new accepted criterion or whole P03 task. Planned [publication-admission] native
+four-target affected49-case check skips unchanged frozen build (latest frozen proof
+remains6162293/run41296433758).
+
+Owned cleanup was investigated, NOT shipped: review reproduced foreign replacement
+between last identity stat and pathname unlink, so held FD alone was insufficient.
+The entire unpublished destructive prototype was removed; active filesystem adapter
+is byte-identical to prior reviewed checkpoint. Source staging still remains retained.
+Original local cleanup assertions did not establish race safety and are not acceptance
+evidence. A separately reviewed object-bound deletion capability plus worker quiescence
+is required before cleanup can safely ship. No automatic cleanup/unsafe retry/foreign
+file deletion remains in active source.
