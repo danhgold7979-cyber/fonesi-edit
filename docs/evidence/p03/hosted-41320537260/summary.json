@@ -1,0 +1,54 @@
+{
+  "run_id": 41320537260,
+  "source_sha": "bd7edb58f956af6da899f0a4f58e842f966445db",
+  "source_tree": "7110291ea99abbf21e42e5acd68fc97c166b7651",
+  "scope": "Native FAIL at rotation fixture assertion after two actual Windows FFmpeg groups; later corrupt/cancel not reached",
+  "artifacts": [
+    {
+      "id": 13089441378,
+      "name": "windows-ffmpeg-py3.13",
+      "zip_sha256": "4cf4188e59420a48114f01e0e1ee316ee2f5db060f74dfa0882ade8573bc98d4",
+      "members": {
+        "foundation-source.json": "b61e5279a75e57687e474f64622a426afe998eefd95bc56632670364c823095d",
+        "candidate-harness-results.xml": "8368067bb9488567920bd5cbddbea2a3af5c85116c5efc62bc68b86bfb894dad",
+        "windows-ffmpeg-results.json": "52d1ba9651afeda808faef9205e1cb65004c4d8f99cee63d3aea6e97a497cc4a"
+      },
+      "runtime": {
+        "source_sha": "bd7edb58f956af6da899f0a4f58e842f966445db",
+        "source_tree": "7110291ea99abbf21e42e5acd68fc97c166b7651",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "sentinel_tests_passed": 13,
+      "native_status": "FAIL",
+      "native_completed_groups": [
+        "compatible-pair-full-decode-black-frame-no-audio-SAR",
+        "actual-VFR-ordered-frame-facts-not-validity"
+      ]
+    },
+    {
+      "id": 13089117570,
+      "name": "windows-ffmpeg-py3.12",
+      "zip_sha256": "1fbf26f1197ec9b5ef42ae77fb82664e13240f8fe628f0c7d6668d49a21dc653",
+      "members": {
+        "foundation-source.json": "df022a8b6ef6d0dd988151b14ecf67dfc1f316f596db9b3e0d0486bdc475733f",
+        "candidate-harness-results.xml": "fa88d739c15883c6c8a8726560cd6bc87b9a0ddeadf7b64fd286cb6818b13d25",
+        "windows-ffmpeg-results.json": "6d0e9821236c5d8a46420c031c716432d9336278da0667eb5dd7834edc9d47cb"
+      },
+      "runtime": {
+        "source_sha": "bd7edb58f956af6da899f0a4f58e842f966445db",
+        "source_tree": "7110291ea99abbf21e42e5acd68fc97c166b7651",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "sentinel_tests_passed": 13,
+      "native_status": "FAIL",
+      "native_completed_groups": [
+        "compatible-pair-full-decode-black-frame-no-audio-SAR",
+        "actual-VFR-ordered-frame-facts-not-validity"
+      ]
+    }
+  ]
+}

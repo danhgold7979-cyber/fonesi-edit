@@ -140,9 +140,11 @@ def native_cases(ffmpeg, ffprobe, work, pin, report):
     report['frame_times'] = [str(x) for x in times]
 
     rotated = work / 'owned-rotation.mp4'
-    generate(['-protocol_whitelist', 'file,pipe', '-i', str(cfr), '-c', 'copy',
-              '-metadata:s:v:0', 'rotate=90', str(rotated)])
-    rotation = normalize_probe(inspect_media(rotated, ffprobe)).streams[0]
+    generate(['-protocol_whitelist', 'file,pipe', '-display_rotation:v:0', '90',
+              '-i', str(cfr), '-c', 'copy', str(rotated)])
+    rotation_facts = normalize_probe(inspect_media(rotated, ffprobe))
+    report['rotation_observation'] = rotation_facts.to_dict()
+    rotation = rotation_facts.streams[0]
     assert rotation.display_matrix is not None and abs(rotation.rotation_degrees) == 90
     report['cases'].append('rotation-matrix-and-summary-facts')
 

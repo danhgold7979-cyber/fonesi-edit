@@ -1213,3 +1213,12 @@ download and native execution skipped. Backslash fixture name was normalized by
 Windows ZipInfo construction, so test did not inject the expected invalid raw name.
 Correction preserves raw fixture spelling and rejects orig_filename/filename aliases
 before extraction (including NUL truncation). Actual FFmpeg capability remains NOT_RUN.
+
+### Candidate attempt 41320537260 — partial native evidence, overall FAIL
+Both Windows targets13sentinelPASS; actual pinned8.1.3 pair/full decode/black frame,
+no-audio/SAR and exact VFR observations passed. Rotation fixture assertion then
+failed; corrupt/cancel cases not reached. No final capability PASS. Existing Linux
+causal comparison showed legacy output rotate metadata emits no matrix while explicit
+input display_rotation emits matrix+90summary. Harness switches to official input
+option, keeps original assertion and records typed facts; no app normalization change.
+Primary option reference: https://ffmpeg.org/pipermail/ffmpeg-user/2024-July/058428.html .

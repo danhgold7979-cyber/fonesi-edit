@@ -1,0 +1,136 @@
+{
+  "scope": "Linux-only causal fixture comparison, not Windows result",
+  "tools": {
+    "ffmpeg": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a",
+    "ffprobe": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+  },
+  "source_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+  "outcomes": {
+    "legacy": {
+      "raw_side_data": null,
+      "facts": {
+        "sha256": "1ec437c245f71321cd139077217d074144200ab8d2a2dd4aa1074fe71b847777",
+        "container_duration": {
+          "num": 1,
+          "den": 1
+        },
+        "streams": [
+          {
+            "index": 0,
+            "kind": "video",
+            "codec": "mpeg4",
+            "time_base": {
+              "num": 1,
+              "den": 10240
+            },
+            "start_pts": 0,
+            "duration_ts": 10240,
+            "start": {
+              "num": 0,
+              "den": 1
+            },
+            "duration": {
+              "num": 1,
+              "den": 1
+            },
+            "start_basis": "STREAM_TICKS",
+            "duration_basis": "STREAM_TICKS",
+            "width": 48,
+            "height": 32,
+            "sar": {
+              "num": 4,
+              "den": 3
+            },
+            "display_matrix": null,
+            "rotation_degrees": null,
+            "rotation_basis": "UNKNOWN",
+            "sample_rate": null,
+            "channels": null,
+            "channel_layout": null,
+            "attached_picture": false,
+            "diagnostics": [
+              "ORIENTATION_NOT_OBSERVED",
+              "FRAME_PTS_NOT_OBSERVED"
+            ]
+          }
+        ],
+        "diagnostics": [
+          "NO_AUDIO_TRACK"
+        ],
+        "render_ready": false
+      }
+    },
+    "display": {
+      "raw_side_data": [
+        {
+          "displaymatrix": "\n00000000:            0      -65536           0\n00000001:        65536           0           0\n00000002:            0           0  1073741824\n",
+          "rotation": 90,
+          "side_data_type": "Display Matrix"
+        }
+      ],
+      "facts": {
+        "sha256": "65b79d623852de26d095092af3c058c7a1e617970ea287d69a0db98a36588f0c",
+        "container_duration": {
+          "num": 1,
+          "den": 1
+        },
+        "streams": [
+          {
+            "index": 0,
+            "kind": "video",
+            "codec": "mpeg4",
+            "time_base": {
+              "num": 1,
+              "den": 10240
+            },
+            "start_pts": 0,
+            "duration_ts": 10240,
+            "start": {
+              "num": 0,
+              "den": 1
+            },
+            "duration": {
+              "num": 1,
+              "den": 1
+            },
+            "start_basis": "STREAM_TICKS",
+            "duration_basis": "STREAM_TICKS",
+            "width": 48,
+            "height": 32,
+            "sar": {
+              "num": 4,
+              "den": 3
+            },
+            "display_matrix": [
+              0,
+              -65536,
+              0,
+              65536,
+              0,
+              0,
+              0,
+              0,
+              1073741824
+            ],
+            "rotation_degrees": {
+              "num": 90,
+              "den": 1
+            },
+            "rotation_basis": "DISPLAY_MATRIX_SUMMARY",
+            "sample_rate": null,
+            "channels": null,
+            "channel_layout": null,
+            "attached_picture": false,
+            "diagnostics": [
+              "FRAME_PTS_NOT_OBSERVED"
+            ]
+          }
+        ],
+        "diagnostics": [
+          "NO_AUDIO_TRACK"
+        ],
+        "render_ready": false
+      }
+    }
+  }
+}
