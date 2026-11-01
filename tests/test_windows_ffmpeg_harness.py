@@ -16,7 +16,12 @@ def fixture(tmp_path, extra=None):
     members = {'bin/ffmpeg.exe':b'NOT EXECUTABLE','bin/ffprobe.exe':b'ALSO NOT EXECUTABLE','LICENSE.txt':b'test notice'}
     with zipfile.ZipFile(path,'w') as z:
         for name,data in members.items():z.writestr('candidate/'+name,data)
-        if extra:z.writestr('candidate/'+extra,b'foreign')
+        if extra:
+            entry=zipfile.ZipInfo('placeholder')
+            # Preserve deliberately malformed raw name; ZipInfo's constructor
+            # otherwise normalizes backslashes on Windows before writing.
+            entry.filename=entry.orig_filename='candidate/'+extra
+            z.writestr(entry,b'foreign')
     pin = {'root':'candidate','size':path.stat().st_size,'sha256':h.digest(path),
            'members':{n:{'size':len(b),'sha256':hashlib.sha256(b).hexdigest()} for n,b in members.items()}}
     return path,pin
@@ -34,12 +39,26 @@ def test_exclusive_extraction_hash_and_no_execution(tmp_path,monkeypatch):
     with pytest.raises(ValueError):h.verify_members(target,pin)
 
 
-@pytest.mark.parametrize('name',['../foreign','bin/CON.txt','bin/tool.','bin/tool ','bin/x:ads','bin\\x','BIN/FFMPEG.EXE'])
+@pytest.mark.parametrize('name',['../foreign','bin/CON.txt','bin/tool.','bin/tool ','bin/x:ads','bin\\x','bin/x\0hidden','BIN/FFMPEG.EXE'])
 def test_unsafe_archive_refused_before_target_creation(tmp_path,name):
     archive,pin=fixture(tmp_path,name)
     target=tmp_path/'never'
     with pytest.raises(ValueError):h.extract_candidate(archive,target,pin)
     assert not target.exists()
+
+
+def test_normalized_zipinfo_alias_cannot_hide_raw_backslash(tmp_path,monkeypatch):
+    archive,pin=fixture(tmp_path,'bin\\x')
+    original=zipfile.ZipInfo.__init__
+    def normalized(self,*args,**kwargs):
+        original(self,*args,**kwargs)
+        self.filename=self.filename.replace('\\','/')
+    monkeypatch.setattr(zipfile.ZipInfo,'__init__',normalized)
+    with zipfile.ZipFile(archive) as z:
+        entry=z.infolist()[-1]
+        assert entry.filename=='candidate/bin/x' and entry.orig_filename=='candidate/bin\\x'
+    with pytest.raises(ValueError):h.extract_candidate(archive,tmp_path/'never',pin)
+    assert not (tmp_path/'never').exists()
 
 
 def test_hash_and_member_pin_fail_closed(tmp_path):

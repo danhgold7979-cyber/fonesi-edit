@@ -53,7 +53,9 @@ def extract_candidate(archive, target, pin):
         seen = set()
         for item in entries:
             name = item.filename
-            if (not safe_name(name, pin['root']) or
+            # ZipInfo normalizes OS separators on Windows, and truncates NULs.
+            # Refuse those raw spellings rather than validate only the alias.
+            if (item.orig_filename != name or not safe_name(name, pin['root']) or
                 name.casefold() in seen or item.file_size > 256 * 1024**2 or
                 stat.S_ISLNK(item.external_attr >> 16) or item.flag_bits & 1 or
                 item.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)):

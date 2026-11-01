@@ -1205,3 +1205,11 @@ installation/PATH change, binary redistribution or complete dependency/security 
 Dedicated Windows3.12/3.13 synthetic harness prepared;11sentinel/control unit cases
 PASS locally, independent bounded source review. Actual candidate execution awaits
 specific user scope authorization; no codec/renderer/criterion acceptance implied.
+
+### First candidate target attempt 41320165222 — FAIL before candidate execution
+User authorized exact pinned candidate execution on synthetic Windows media. Source
+publica7ef68d/tree85ff6691: both Windows targets10PASS1FAIL sentinel tests; candidate
+download and native execution skipped. Backslash fixture name was normalized by
+Windows ZipInfo construction, so test did not inject the expected invalid raw name.
+Correction preserves raw fixture spelling and rejects orig_filename/filename aliases
+before extraction (including NUL truncation). Actual FFmpeg capability remains NOT_RUN.

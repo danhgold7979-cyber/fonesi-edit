@@ -23,3 +23,8 @@ Evidence boundaries (nonblocking if labels remain narrow):
 3. No actual Windows FFmpeg, frozen product, full codecs/renderer, security/license/redistribution or new requirement acceptance yet.
 
 No source blocker for the bounded proposed test gate; approval and actual native evidence remain separate.
+
+## Native preflight repair — 2026-11-01 15:17 UTC
+Targeted source CLEAR for script `dc21be87cb333015bf813fdf4cafb8ff6fcd35ce86e7c7ef089842ac29065db6` and test `04e5bf0d44c8c93a116ff7f07739a8b534c057fca5eaf08d435c7802a3fc1e71`. Exact diff adds rejection of `ZipInfo.orig_filename != filename` before validating normalized spelling; fixture deliberately writes raw names after constructor to avoid Windows normalization hiding the negative input. NUL truncation and simulated Windows backslash normalization now fail before target creation. This tightens the boundary rather than weakening the failing test.
+
+Independent two new causal cases: **2 PASS /11 deselected, exit0**. No candidate launch/download or aggregate. Existing manifest/workflow/execution scope unchanged. Author reports initial run41320165222 failed sentinel preflight before download/launch; that report is not native execution success. Root's separately reported new exact candidate authorization governs subsequent execution, not this source clearance. Routine same-scope repair is source-clear; actual Windows repair outcome remains to be measured.

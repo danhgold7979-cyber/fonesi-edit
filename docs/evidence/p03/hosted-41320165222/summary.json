@@ -1,0 +1,54 @@
+{
+  "run_id": 41320165222,
+  "source_sha": "a7ef68d20b19bedafdc4304dd47e2c6aa5b80036",
+  "source_tree": "85ff6691e067462fb705ebe3f700ac90378da3ec",
+  "scope": "FAILED sentinel ZIP preparation; candidate download and execution SKIPPED on both targets",
+  "artifacts": [
+    {
+      "id": 13088722110,
+      "name": "windows-ffmpeg-py3.13",
+      "zip_sha256": "c808fcbae21e3af55ab89fe4c10ee7322cf55c40e71e4e8caa4f8f0d7a1a3739",
+      "members": {
+        "foundation-source.json": "41952c63877a075ccbd20715f42e7e819b903b2bf425e58aebd94a7dcc4cb3d7",
+        "candidate-harness-results.xml": "fcf64e6c81763df78c1f53d393e309c04439c8be6424e5f2d4174d0d28e8440c"
+      },
+      "runtime": {
+        "source_sha": "a7ef68d20b19bedafdc4304dd47e2c6aa5b80036",
+        "source_tree": "85ff6691e067462fb705ebe3f700ac90378da3ec",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 11,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 10
+      }
+    },
+    {
+      "id": 13088653610,
+      "name": "windows-ffmpeg-py3.12",
+      "zip_sha256": "b8e345aa398d76ce9febed08e9bf92a49ada28743cf14192c9b400e4946d6b0f",
+      "members": {
+        "foundation-source.json": "e0ee5b6dc8c145d78718140d50107dd695229988e7043ceb0f961ce349e672ee",
+        "candidate-harness-results.xml": "ecd1258be0a08827021b221e2e206191a0f2f515ee14c3c331fcabea49ede4db"
+      },
+      "runtime": {
+        "source_sha": "a7ef68d20b19bedafdc4304dd47e2c6aa5b80036",
+        "source_tree": "85ff6691e067462fb705ebe3f700ac90378da3ec",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 11,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 10
+      }
+    }
+  ]
+}
