@@ -1,0 +1,12 @@
+{
+  "authoritative_run": 41276112120,
+  "public_sha": "1b0520cd18cf691d32d4b6524502f23afa8bf67b",
+  "source_tree": "56821872fd192abcef550f5461dec75028ecdc3a",
+  "conclusion": "failure",
+  "windows_3_12": {"passed":134,"failed":3,"skipped":18,"failures":["fingerprint renamed source signature","backup fsync read-only descriptor","cold handle baseline +3"]},
+  "windows_3_13": {"passed":134,"failed":3,"skipped":18,"failures":["SQLite post-kill disk I/O","backup fsync read-only descriptor","cold handle baseline +3"]},
+  "ubuntu_3_12_3_13": {"outcome":"collection error","cause":"missing libEGL.so.1"},
+  "frozen_windows": "SKIPPED after failed tests",
+  "earlier_source_identical_run":41276078838,
+  "scope":"Actual failed hosted evidence, not target acceptance. Earlier source-identical run also failed. No rerun of an unchanged PASS."
+}

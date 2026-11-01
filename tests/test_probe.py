@@ -63,3 +63,23 @@ def test_real_audio_probe_source_unchanged(tmp_path):
     assert path.read_bytes() == before
     copied = result.metadata(); copied.clear()
     assert result.metadata()['streams']
+
+def test_descriptor_and_named_timestamp_precision_compared_separately(source,monkeypatch):
+    import fonesi_edit.media.probe as probe
+    from types import SimpleNamespace
+    original=os.fstat
+    def descriptor(fd):
+        value=original(fd)
+        return SimpleNamespace(st_dev=value.st_dev,st_ino=value.st_ino,st_size=value.st_size,
+                               st_mtime_ns=value.st_mtime_ns-1,st_ctime_ns=value.st_ctime_ns-1)
+    monkeypatch.setattr(probe.os,'fstat',descriptor)
+    assert len(fingerprint(source))==64
+
+def test_fingerprint_rejects_source_write_during_read(source):
+    calls=0
+    def mutate():
+        nonlocal calls
+        calls+=1
+        if calls==2:source.write_bytes(b'changed-length')
+        return False
+    with pytest.raises(ProbeError,match='changed'):fingerprint(source,mutate)

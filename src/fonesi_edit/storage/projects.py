@@ -90,7 +90,9 @@ class ProjectStore:
                     self.db.execute(f'PRAGMA application_id={APPLICATION_ID}')
                     self.db.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
             self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc,sqlite3.Error):
+                exc.add_note(f'SQLite {sqlite3.sqlite_version}; extended code={getattr(exc, "sqlite_errorcode", None)} name={getattr(exc, "sqlite_errorname", None)}')
             self.db.close();self._closed=True;raise
 
     def _backup(self):
@@ -101,7 +103,7 @@ class ProjectStore:
             self.db.backup(dest)
             if dest.execute('PRAGMA quick_check').fetchone()[0]!='ok':raise StorageError('Migration backup validation failed')
         finally:dest.close()
-        with target.open('rb') as f:os.fsync(f.fileno())
+        with target.open('r+b') as f:os.fsync(f.fileno())
         self._fault('after_backup')
         return target
 

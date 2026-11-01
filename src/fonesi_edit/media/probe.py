@@ -48,8 +48,11 @@ def _signature(stat):
 
 def fingerprint(path: Path, cancel: Callable[[], bool] = lambda: False) -> str:
     digest = sha256()
+    named_before = _signature(path.stat())
     with path.open('rb') as stream:
         before = _signature(os.fstat(stream.fileno()))
+        if before[:2] != named_before[:2]:
+            raise ProbeError('Source identity changed before fingerprinting')
         while True:
             _check_cancel(cancel)
             chunk = stream.read(1024 * 1024)
@@ -57,8 +60,11 @@ def fingerprint(path: Path, cancel: Callable[[], bool] = lambda: False) -> str:
                 break
             digest.update(chunk)
         after = _signature(os.fstat(stream.fileno()))
-    if before != after or after != _signature(path.stat()):
-        raise ProbeError('Source changed during fingerprinting')
+    named_after = _signature(path.stat())
+    # Windows path-stat and descriptor-stat timestamps can have different precision.
+    # Compare each API against itself; physical identity still matches across APIs.
+    if before != after or named_before != named_after or after[:2] != named_after[:2]:
+        raise ProbeError(f'Source changed during fingerprinting: descriptor={before!r}->{after!r}; named={named_before!r}->{named_after!r}')
     return digest.hexdigest()
 
 

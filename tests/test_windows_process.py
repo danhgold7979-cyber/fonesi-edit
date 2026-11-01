@@ -103,19 +103,25 @@ def count():
  n=c.c_uint32()
  assert k.GetProcessHandleCount(k.GetCurrentProcess(),c.byref(n))
  return n.value
-before=count()
-for i in range(10):
+def cycle():
  assert run_windows_owned([sys.executable,'-c','print("ok")']).returncode==0
  try:run_windows_owned([sys.executable,'-c','import time;time.sleep(10)'],timeout=.02)
  except ProcessError:pass
  else:raise AssertionError('timeout absent')
-after=count()
-print(json.dumps([before,after]))
+cold=count()
+cycle() # initialize Win32/Python lazy runtime handles before measuring per-call leakage
+before=count()
+counts=[]
+for i in range(10):
+ cycle()
+ counts.append(count())
+print(json.dumps({'cold':cold,'warm':before,'counts':counts}))
 '''
     result=run_windows_owned(cmd(script),timeout=30)
     assert result.returncode==0, result.stderr
-    before,after=json.loads(result.stdout)
-    assert after<=before+1
+    measurement=json.loads(result.stdout)
+    assert max(measurement['counts'])<=measurement['warm']+1, measurement
+    assert measurement['counts'][-1]<=measurement['counts'][0], measurement
 
 @windows
 def test_cancel_never_terminates_separate_sibling(tmp_path):
