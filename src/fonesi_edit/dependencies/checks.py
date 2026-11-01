@@ -8,6 +8,7 @@ import re
 import stat
 import time
 from hashlib import sha256
+from contextlib import nullcontext
 from fonesi_edit.jobs.process import run_owned,ProcessError,ProcessCanceled
 from fonesi_edit.media.probe import fingerprint,ProbeError,ProbeCanceled
 from fonesi_edit.media.validation import validate_media,ExpectedStream
@@ -53,9 +54,10 @@ def _check_pin(pin,cancel):
     if fingerprint(pin.path,cancel)!=pin.sha256:raise ToolCheckError('Executable differs from approved integrity pin; no fallback')
 
 
-def _version(pin,cancel,timeout):
+def _version(pin,cancel,timeout,_lifecycle=None):
     _check_pin(pin,cancel)
-    result=run_owned([str(pin.path),'-version'],cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
+    runner=run_owned if _lifecycle is None else lambda argv,**kwargs:_lifecycle.run(run_owned,argv,**kwargs)
+    result=runner([str(pin.path),'-version'],cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
     _check_pin(pin,cancel)
     if result.returncode!=0:raise ToolCheckError('Version check failed')
     try:text=result.stdout.decode('utf-8')
@@ -72,9 +74,9 @@ def _version(pin,cancel,timeout):
     return VersionObservation(match[1],tuple(sorted(libraries)),sha256(result.stdout).hexdigest())
 
 
-def check_pair(ffmpeg:ToolPin,ffprobe:ToolPin,fixture:Path,fixture_sha256:str,
+def _check_pair_impl(ffmpeg:ToolPin,ffprobe:ToolPin,fixture:Path,fixture_sha256:str,
                expected:tuple[ExpectedStream,...],*,cancel:Callable[[],bool]=lambda:False,
-               timeout:float=15)->PairObservation:
+               timeout:float=15,_retirement=None)->PairObservation:
     """Caller must authorize exact tools/fixture. Timeout is per process, not total OS I/O."""
     if not isinstance(ffmpeg,ToolPin) or not isinstance(ffprobe,ToolPin) or (ffmpeg.component,ffprobe.component)!=('ffmpeg','ffprobe'):
         raise ValueError('Explicit FFmpeg and ffprobe pins required')
@@ -90,16 +92,23 @@ def check_pair(ffmpeg:ToolPin,ffprobe:ToolPin,fixture:Path,fixture_sha256:str,
         if fingerprint(fixture,cancel)!=fixture_sha256:raise ToolCheckError('Fixture integrity mismatch; no tool launched')
         # Verify BOTH before launching either, so an invalid explicit member never falls back.
         _check_pin(ffmpeg,cancel);_check_pin(ffprobe,cancel)
-        left=_version(ffmpeg,cancel,timeout);right=_version(ffprobe,cancel,timeout)
+        with (_retirement.stage('versions') if _retirement is not None else nullcontext()) as scope:
+            with (scope.validation_body() if scope is not None else nullcontext()):
+                left=_version(ffmpeg,cancel,timeout,scope);right=_version(ffprobe,cancel,timeout,scope)
         if (left.version,left.libraries)!=(right.version,right.libraries):
             raise ToolCheckError('Pair reported versions/libraries differ; compatibility unverified')
         _check_pin(ffmpeg,cancel);_check_pin(ffprobe,cancel)
-        validation=validate_media(fixture,ffprobe.path,ffmpeg.path,expected,cancel=cancel,timeout=timeout)
+        with (_retirement.stage('media') if _retirement is not None else nullcontext()) as scope:
+            validation=validate_media(fixture,ffprobe.path,ffmpeg.path,expected,cancel=cancel,timeout=timeout,
+                **({'_lifecycle':scope} if scope is not None else {}))
         if validation.sha256!=fixture_sha256:raise ToolCheckError('Fixture changed during functional check')
         _check_pin(ffmpeg,cancel);_check_pin(ffprobe,cancel)
-        frame=run_owned([str(ffmpeg.path),'-nostdin','-hide_banner','-v','error','-f','lavfi','-i',
-                         'color=c=black:s=16x16:r=1:d=1','-frames:v','1','-threads','1','-filter_threads','1',
-                         '-pix_fmt','rgb24','-f','rawvideo','pipe:1'],cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
+        with (_retirement.stage('frame') if _retirement is not None else nullcontext()) as scope:
+            with (scope.validation_body() if scope is not None else nullcontext()):
+                runner=run_owned if scope is None else lambda argv,**kwargs:scope.run(run_owned,argv,**kwargs)
+                frame=runner([str(ffmpeg.path),'-nostdin','-hide_banner','-v','error','-f','lavfi','-i',
+                             'color=c=black:s=16x16:r=1:d=1','-frames:v','1','-threads','1','-filter_threads','1',
+                             '-pix_fmt','rgb24','-f','rawvideo','pipe:1'],cancel=cancel,timeout=timeout,max_output_bytes=256*1024)
         _check_pin(ffmpeg,cancel);_check_pin(ffprobe,cancel)
         if frame.returncode!=0 or frame.stdout!=bytes(16*16*3):raise ToolCheckError('Bounded raw-frame functional check failed')
         if fingerprint(fixture,cancel)!=fixture_sha256:raise ToolCheckError('Fixture changed after functional check')
@@ -108,3 +117,14 @@ def check_pair(ffmpeg:ToolPin,ffprobe:ToolPin,fixture:Path,fixture_sha256:str,
     except (ProcessCanceled,ProbeCanceled):raise ToolCheckCanceled('Tool check canceled; no successful observation') from None
     except ToolCheckError:raise
     except (ProcessError,ProbeError,OSError):raise ToolCheckError('Tool check failed; no successful observation or automatic retry') from None
+
+
+def check_pair(ffmpeg:ToolPin,ffprobe:ToolPin,fixture:Path,fixture_sha256:str,
+               expected:tuple[ExpectedStream,...],*,cancel:Callable[[],bool]=lambda:False,
+               timeout:float=15,_retirement=None)->PairObservation:
+    if _retirement is None:
+        return _check_pair_impl(ffmpeg,ffprobe,fixture,fixture_sha256,expected,cancel=cancel,timeout=timeout)
+    from .retirement import PairRetirement
+    if type(_retirement) is not PairRetirement:raise ValueError('Internal pair receipt required')
+    with _retirement.check_body():
+        return _check_pair_impl(ffmpeg,ffprobe,fixture,fixture_sha256,expected,cancel=cancel,timeout=timeout,_retirement=_retirement)

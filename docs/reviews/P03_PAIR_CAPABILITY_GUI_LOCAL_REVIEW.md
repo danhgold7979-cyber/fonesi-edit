@@ -1,0 +1,19 @@
+# Selected paired-tool Settings self-test — source CLEAR, remote held separately
+
+2026-11-01 15:45 UTC. Reviewed exact11-file frozen runtime/pair-ui-review-manifest.json; all current hashes match. Base local378ae98bf06946ef439e0a11c3891910f2aab7d9 is the separately denied inventory publication. Later dirty pair changes are NOT part of that exact denied payload. No publication/candidate download/execution performed by reviewer.
+
+## Causal source assessment
+No blocking app-source defect found. Explicit separate Settings self-test requires both absolute paths and consent covering companions, resets consent/display on either edit, hashes both regular nonreparse bounded executables off Qt thread before launching either. Existing check_pair preserves pre/post pins, version/library comparison, exact fixture decode and black-frame checks. No discovery-to-execution shortcut, persistence/activation or fake future READY. EXE hashes deliberately do not claim complete DLL binding or hostile timed-swap protection; stable trusted tool namespace remains prerequisite.
+
+PairRetirement registers ordered scopes before delegates: versions2/media2/frame1, reuses original max2 lifecycle. Single-operation/thread/use checks; successful functional result requires exact five actual non-NO_PROCESS confirmations. Failure with no launched process or fully retired partial attempt is safe refusal/cancel, not success. Unentered/mocked success or later unknown cannot be hidden behind earlier retirement. UI applies unknown revocation before stale revision filtering; waits actual worker completion before releasing. Shell shutdown includes pair worker.
+
+Fixed own-generated2478byte base64 fixture has predecode cap, digest/exact expectations, fresh tempfile.mkdtemp plus exclusive file creation and closed writer before probe. No old-file adoption or path deletion. Retained fixture accumulation is explicitly not bounded-total production retention/cleanup; no unknown cleanup assertion.
+
+Independent minimum negatives: **3PASS/7deselected exit0** (unentered/empty/wrong-order, stale-input unknown latch, fake success without receipt). No external tools launched by these selected cases. Author's existing actual LinuxQt pair receipt preserved rather than rerun. Checks15690619…, retirement84ba6eba…, panel a4dada39… match measured receipt. Fixture current27e2eb36… differs measured29275aee… ONLY by added one-line DATA type/4096byte predecode guard: removing that line exactly reconstructs measured hash. Thus valid unchanged payload carryforward is justified; it is not Windows evidence.
+
+## Prepared target harness/workflow
+Harness b13d87d5… uses existing exact candidate extraction+bundle checks and controlled private CWD. Actual Qt selected pair requires exact chosen hashes and five WINDOWS_JOB_EMPTY receipts, then swapped executable roles must refuse after one retired version invocation, no fallback/display. Shutdown cooperatively waits and destroys Qt widgets while application alive. No re-run of unrelated five-group native corpus or sentinels proposed.
+
+Workflow final candidate98355a60… and foundation49e0ab35… reviewed for **combined `[tool-pair-ui] [windows-pair-ui]` only**: four-target affected source/GUI tests plus two actual candidate Qt jobs. Linux Qt retained; aggregate/schema/frozen excluded. Unicode/spaced owned target path is a meaningful native boundary. `[windows-pair-ui]` alone would still trigger unmarked foundation aggregate; do not use that marker alone under current efficiency scope. Source/workflow CLEAR is not permission to bypass denied publication or broaden candidate authorization. Root/author own exact approved publication and native execution decision.
+
+TOL-03.01 closure remains pending actual target GUI receipts and final evidence mapping. No new criterion, full registry/lease/install/update, GPU/full codec or P03 task acceptance inferred.

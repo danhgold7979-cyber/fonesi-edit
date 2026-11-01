@@ -1,0 +1,32 @@
+{
+  "scope": "Actual existing Linux FFmpeg through explicit Qt pair self-test; not Windows/GPU/activation",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "outcome": "OBSERVED",
+  "mechanisms": [
+    "POSIX_GROUP_RETIRED",
+    "POSIX_GROUP_RETIRED",
+    "POSIX_GROUP_RETIRED",
+    "POSIX_GROUP_RETIRED",
+    "POSIX_GROUP_RETIRED"
+  ],
+  "version": "7.1.5-0+deb13u1",
+  "fixture_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+  "tools": {
+    "ffmpeg": {
+      "path": "/usr/bin/ffmpeg",
+      "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a"
+    },
+    "ffprobe": {
+      "path": "/usr/bin/ffprobe",
+      "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+    }
+  },
+  "source_sha256": {
+    "src/fonesi_edit/dependencies/checks.py": "15690619c293bec0d997c1a32a2cad493b39aa18d7ffde8a046c1a0d297a8d8f",
+    "src/fonesi_edit/dependencies/retirement.py": "84ba6eba333c49e91bf1a9f6997d1c1946e87e7815a992c17ee620f99fd48825",
+    "src/fonesi_edit/dependencies/fixture.py": "29275aee3b4f0b11a462bf0fcaa4e888e6221a2e1cf8358e86213de58aad1c0b",
+    "src/fonesi_edit/ui/tool_pair.py": "a4dada39a2b0f796b4bd0fe19dc889c5a53593f35d01cc21463652697b54455f"
+  },
+  "source_hashes_note": "Actual run used recorded fixture source before the later pre-decode DATA length guard; fixed2478-byte payload unchanged and within cap. Later guard has a separate no-decode/no-directory negative test, not a repeated actual-tool run."
+}

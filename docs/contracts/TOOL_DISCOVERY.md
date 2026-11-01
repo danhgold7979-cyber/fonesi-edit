@@ -69,3 +69,62 @@ while checking. Hashing paths before/after launches observes drift; it is not at
 execution identity and cannot exclude swap-and-restore between those observations.
 This limitation applies during this check, not only to future jobs. No observation
 from a concurrently mutable/untrusted tool directory should authorize a workflow.
+
+## Settings inventory UI (P03-08, metadata only)
+Settings now exposes the existing five-executable bounded scanner on explicit click,
+not on startup/navigation. All configured paths/search roots are captured by an owned
+QThread; filesystem reads and PATH parsing stay off the GUI thread. No binary starts,
+no installer/activation/PATH/config/database mutation. Empty tools do not block opening
+Settings. Trial path inputs are session-only, explicitly not persistent configuration.
+Each tool shows static role, observed selected candidate/source, time and exact reason;
+version/architecture stay unknown, even when a filename exists. All candidates remain
+UNCHECKED; source class is not ownership/trust. Invalid explicit path never falls back.
+Font/runtime/model inventory and executable functional-check routing are still open.
+
+Cancel/close requests interruption and waits for worker.wait(0); no force termination
+or hard OS-I/O deadline claim. Partial/limited/error results remain labelled; complete
+empty scan is genuinely complete even if a cancellation arrives after no work remains.
+Captured revision and worker identity discard stale results after input changes. Five
+selected paths remain available in the table; supplemental list renders at most64
+candidates with512-character path previews, explicitly labelled as abbreviated.
+No readiness/installation or pair capability may be inferred from this metadata UI.
+
+## Explicit Settings paired self-test (subsequent local slice)
+The separate self-test tab does not consume discovery selections automatically.
+Both absolute paths require explicit trust confirmation covering companion DLLs;
+changing either clears that consent and invalidates prior displayed observations.
+Worker hashes BOTH regular bounded executables before either launches, then existing
+check_pair verifies pins/versions, own fixed synthetic media probe/full decode, and
+black16×16 output. Existing stable trusted tool-directory prerequisite still applies;
+EXE hashes are not signature/full companion binding or protection against timed swaps.
+No downloaded candidate is silently selected; no install/activation/config/lease occurs.
+
+PairRetirement composes existing max2 ValidationLifecycle scopes in fixed order:
+versions2, media2, frame1. Each scope is registered before delegate entry, single-use,
+thread/operation-bound and sealed only after trusted-body unwind. Success requires
+all five actual non-NO_PROCESS confirmations AND functional success. A known fully
+retired failure/cancel permits only a fresh user action, not READY. Unentered or
+unknown delegate invocation locks repeat permanently for that panel. A stale input
+revision discards only capability display, never unknown-retirement safety state.
+Close waits the worker and wait(0); Qt finished alone does not prove child retirement.
+
+The2478-byte own-generated MPEG4 fixture (48×32,5fps,1s,SAR4:3,noaudio) is packaged as
+bounded base64 source with exact SHA256/fixed expectations. Python tempfile.mkdtemp
+creates a fresh exclusive directory beneath the controller's cooperating app-data
+parent; fixture write/flush/close completes before tools read. No existing path is
+adopted/overwritten, no private user media used, no pathname cleanup fallback. Tiny
+fixtures remain for explicit future ownership-aware cleanup; uncertainty never causes
+replay/delete. This is not a bounded-total disk retention policy or production installer.
+
+Actual paired Qt Windows gate must bind final selected EXE hashes/fixture/result to
+this source and pass a swapped-role no-fallback refusal. Python protocol stand-ins
+prove lifecycle/UI behavior only. Native five-group CPU evidence is carried forward,
+not rerun as GUI proof. Paired observations are timestamped historical facts, not
+persisted capability registry, future tool lease, GPU, all-codec or renderer readiness.
+
+CI marker contract for this paired checkpoint: use `[tool-pair-ui] [windows-pair-ui]`
+TOGETHER and no other diagnostic markers. This selects four source/Qt targets
+(55cases/eight files) plus two actual pinned Windows GUI-pair targets. Do not use
+`[windows-pair-ui]` alone: it does not select the source affected-only profile.
+Normal unmarked aggregate behavior is unchanged. Metadata-only inventory378ae98 is
+an independently held publication payload; do not silently append this paired slice.

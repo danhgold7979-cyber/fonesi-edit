@@ -1222,3 +1222,40 @@ causal comparison showed legacy output rotate metadata emits no matrix while exp
 input display_rotation emits matrix+90summary. Harness switches to official input
 option, keeps original assertion and records typed facts; no app normalization change.
 Primary option reference: https://ffmpeg.org/pipermail/ffmpeg-user/2024-July/058428.html .
+
+### Actual pinned Windows gate 41320954332 — independently verified
+Public31ecf1c2/tree72d11bca, Windows3.12.10/3.13.16: both SUCCESS, all five native
+synthetic groups pass with exact BtbN8.1.3 archive and ten member pins. Independent
+API/2ZIP/4member/source/runtime verification. Thirteen sentinel cases per target
+carry forward from41320537260 unchanged, not rerun. Earlier whole-gate failures remain.
+No GPU/renderer/full-codec/redistribution/GUI-pair result acceptance; TOL-03.01 still
+requires its exact GUI binding. Ledger9/438 unchanged.
+
+### Settings executable inventory UI — local P03-08
+Metadata-only explicit scan off GUI thread, actual candidates/reasons and unknown
+version/capabilities, invalid explicit path no fallback, no startup scan or execution.
+Six new local Qt cases: initial5PASS1FAIL was an empty-queue cancel fixture assumption;
+adding a queued candidate makes the actual cancellation boundary meaningful, exact
+corrected casePASS. No production cancellation predicate weakened. Typed path inputs
+remain session-only; no persistent resolver/activation/installer claim.
+Additional bounded-display casePASS; seven distinct new cases now locally verified.
+Affected shared UI25casesPASS/exit0 after shell integration. Independent source and
+workflow CLEAR; target profile covers six test files/32cases, not the full aggregate.
+
+### Explicit pair Settings self-test — subsequent local slice, publication separate
+Composed existing retirement scopes2+2+1, explicit trust for both paths/companions,
+fixed own encoded MPEG4 fixture, no automatic tool selection/install/activation.
+Ten new focused source/Qt cases PASS; initial6FAIL2PASS came from Linux venv Python
+symlink test input rejected by existing regular-file policy; corrected tests select
+resolved real Python without weakening product checks. Affected existing pair13PASS.
+Actual existing Linux FFmpeg7.1.5 through new Qt path returned5POSIX retirement proofs,
+exact selected hashes and fixture SHA; source-pinned receipt records pre-decode-size
+hardening delta separately. No actual Windows paired GUI claim yet. Prior inventory
+378ae98 publication remains held independently; these source edits are not added to it.
+Shared Settings/shell/recovery/inspection32cases PASS/exit0 after paired-tab integration.
+Prepared future native GUI gate uses a Unicode/spaced owned root and exact unchanged
+candidate pin; no Windows GUI-pair run has been triggered. Review pending slot.
+Independent paired source/workflow CLEAR at frozen manifest; exact combined markers
+are documented. Three causal negatives independently PASS, no actual tool rerun.
+Actual Windows GUI-pair/TOL03.01 remains pending; prior denied inventory payload
+stays independently frozen and is not bypassed by this later local checkpoint.

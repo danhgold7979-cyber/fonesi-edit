@@ -1,0 +1,59 @@
+{
+  "run_id": 41320954332,
+  "source_sha": "31ecf1c2ddbfb8dae5b8c512c7fcb8296aa0d79a",
+  "source_tree": "72d11bcabf2b1643adea872f885d9a8f2e82c229",
+  "scope": "Actual pinned Windows FFmpeg CPU synthetic5groups; not aggregate/GPU/productdistribution/fullcodec/renderer",
+  "sentinel_carryforward": "41320537260 exact unchanged tests13PASS perWindows target; not rerun here",
+  "artifacts": [
+    {
+      "id": 13089586512,
+      "name": "windows-ffmpeg-py3.12",
+      "zip_sha256": "1e725fadd98b20d0ed9c9415652b1c011ff01d9d65a4d36686e8d93df382565d",
+      "members": {
+        "foundation-source.json": "8e13a81083e6df317b147bb39cc1bd9223299f51aef3703deff5812e7134a4f9",
+        "windows-ffmpeg-results.json": "c50928919797dab9622a8dfced302329ed0c9ac65cf93ad8e439727e23284f36"
+      },
+      "runtime": {
+        "source_sha": "31ecf1c2ddbfb8dae5b8c512c7fcb8296aa0d79a",
+        "source_tree": "72d11bcabf2b1643adea872f885d9a8f2e82c229",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "native_status": "PASS",
+      "native_completed_groups": [
+        "compatible-pair-full-decode-black-frame-no-audio-SAR",
+        "actual-VFR-ordered-frame-facts-not-validity",
+        "rotation-matrix-and-summary-facts",
+        "corrupt-media-refused-source-unchanged",
+        "actual-FFmpeg-progress-cancel-job-empty"
+      ],
+      "candidate_version": "n8.1.3-27-g8dca1586f4-20261031"
+    },
+    {
+      "id": 13089511076,
+      "name": "windows-ffmpeg-py3.13",
+      "zip_sha256": "7f6bc4ff2144c60f0aac70cb0ad90bdd7c477a1ccb12e55f086bf20bf3030bef",
+      "members": {
+        "foundation-source.json": "bc8fe50ee564e36f7404d0b8f68d2014c0edcf59318955c8dbb5bc3157efd58e",
+        "windows-ffmpeg-results.json": "30e824b351fffde3bfe8d695454e9abb9c40db8ae71d336d0293e63ad4f8ecfc"
+      },
+      "runtime": {
+        "source_sha": "31ecf1c2ddbfb8dae5b8c512c7fcb8296aa0d79a",
+        "source_tree": "72d11bcabf2b1643adea872f885d9a8f2e82c229",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "native_status": "PASS",
+      "native_completed_groups": [
+        "compatible-pair-full-decode-black-frame-no-audio-SAR",
+        "actual-VFR-ordered-frame-facts-not-validity",
+        "rotation-matrix-and-summary-facts",
+        "corrupt-media-refused-source-unchanged",
+        "actual-FFmpeg-progress-cancel-job-empty"
+      ],
+      "candidate_version": "n8.1.3-27-g8dca1586f4-20261031"
+    }
+  ]
+}

@@ -2,13 +2,15 @@
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QListWidget,
-    QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget)
+    QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget,QTabWidget)
 from fonesi_edit.storage.projects import ProjectStore, StorageError
 from fonesi_edit.storage.autosave import prepare_open
 from fonesi_edit.ui.queue import QueuePage
 from fonesi_edit.ui.project_relink import RelinkPanel
 from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
+from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
+from fonesi_edit.ui.tool_pair import PairCheckPanel
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -30,6 +32,10 @@ class MainWindow(QMainWindow):
         self.restore_panel.idle.connect(self._queue_idle)
         self.inspection_panel=InspectionPanel(self)
         self.inspection_panel.idle.connect(self._queue_idle)
+        self.tool_inventory=ToolInventoryPanel(self)
+        self.tool_inventory.idle.connect(self._queue_idle)
+        self.tool_pair=PairCheckPanel(store.path.parent,self)
+        self.tool_pair.idle.connect(self._queue_idle)
         self.setWindowTitle('Fonesi Edit — bản phát triển')
         self.resize(1200, 760)
         root = QWidget()
@@ -64,6 +70,9 @@ class MainWindow(QMainWindow):
                 contents.addWidget(QLabel('Chưa có timeline, bộ dựng hoặc xuất video.'))
             elif index == 6:
                 contents.addWidget(self.queue_page)
+            elif index == 7:
+                tabs=QTabWidget();tabs.addTab(self.tool_inventory,'Danh sách — chỉ metadata')
+                tabs.addTab(self.tool_pair,'Self-test cặp — chạy công cụ đã chọn');contents.addWidget(tabs)
             else:
                 message = QLabel('Chức năng này đang được xây dựng, chưa khả dụng.\n'
                                  'Đây là khung ứng dụng, không phải bản hoàn thiện.')
@@ -143,11 +152,11 @@ class MainWindow(QMainWindow):
         self.relink_panel.update_actions()
 
     @property
-    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy
+    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy
 
     def request_stop(self):
         self._close_requested=True
-        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop()
+        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
