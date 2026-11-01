@@ -962,3 +962,23 @@ OPS-06.02 and OPS-06.04. Ledger now5/438 exact children,5/78 P03-mapped; whole P
 remains0/9 tasks. Not tool percentage. Source-clause conjunctions, renderer, full
 queue/UIprogress, cancellation temps and restart recovery remain open. Exact links,
 cases and restrictions recorded in records.json and P03_ACCEPTANCE_LEDGER.md.
+
+## Local canceled-owned-stage checkpoint (native target pending)
+
+Original exclusive file descriptor is now retained before a producer/cancel can
+interrupt writing; separate StageOwnership cannot publish or validate. Exact
+acknowledged canceled live attempt/prepared journal may clean only its own original
+Windows stage handles; source/final/foreign children are not targets. No-stage noop
+is safe on allOS; existing stages remain unsupported on POSIX. Active staging cannot
+be cleaned; any validator exception permanently latches quiescenceUNKNOWN, because
+current exception types do not prove descendant retirement. Cancel ack cannot clear
+that state. This closes a real review blocker without pretending failed validators
+are quiescent; typed retirement integration remains future P03-04 work.
+
+12 new locally applicable cases passed in impact-selected runs, plus3affected copy
+cancellation cases and5prepare/validation cases. One media test fixture initially
+contradicted composition geometry; fixed fixture then exactcasePASS. Initial10PASS
+run's failure is not relabeled aggregatePASS. Independent final unknown-retirement
+causal regression1PASS. Seven actual Windows cancellation cases remain NOT_RUN;
+source review CLEAR for `[cancel-cleanup]` fourtarget28affectedcases. No unchanged
+aggregate/frozen/Qt install or new criterion closure. Ledger remains5/438,0/9tasks.

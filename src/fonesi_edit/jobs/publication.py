@@ -1,5 +1,5 @@
 """Live-coordinator required-set publication; restart reconciliation stays UNKNOWN."""
-from contextlib import ExitStack
+from contextlib import ExitStack,contextmanager
 from dataclasses import asdict
 from hashlib import sha256
 import json
@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import uuid
 
-from fonesi_edit.artifacts.filesystem import Destination,PublicationConflict
+from fonesi_edit.artifacts.filesystem import Destination,PublicationConflict,PublicationUnknown
 from fonesi_edit.artifacts.subtitle_stage import stage_subtitles
 from fonesi_edit.subtitles.adapter import MAX_BYTES
 from fonesi_edit.media.validation import validate_media
@@ -25,7 +25,7 @@ class PublicationSession:
         self.manifest=repository.publication_manifest(job)
         self._stack=ExitStack();self._destinations={};self._staged={}
         self._closed=False;self._set_id=None;self._claimed=False
-        self._linked=set();self._claim_token=None;self._admission=None
+        self._linked=set();self._claim_token=None;self._admission=None;self._staging=False;self._quiescence_unknown=False
         try:
             reservations=set()
             for definition in self.manifest.items:
@@ -48,6 +48,7 @@ class PublicationSession:
 
     def _guard_worker(self):
         if self._closed:raise JobConflict('Publication session closed')
+        if self._quiescence_unknown:raise PublicationUnknown('Validator retirement unconfirmed; session cannot resume')
         self.ownership.guard()
         if self._admission is not None:self._admission.guard()
         current=self.repository.get(self.job.id)
@@ -76,26 +77,41 @@ class PublicationSession:
         self._guard_worker()
         return result
 
+    @contextmanager
+    def _staging_operation(self):
+        if self._staging:raise JobConflict('A staging operation is already active')
+        self._guard_worker();self._staging=True
+        try:yield
+        finally:self._staging=False # call unwound; sticky validator uncertainty is separate
+
     def stage_subtitle(self,role,data,*,cancel=lambda:False):
-        definition,destination=self._definition(role,'subtitle')
-        if type(data) is not bytes or len(data)>MAX_BYTES or sha256(data).hexdigest()!=definition.subtitle_sha256:
-            raise JobConflict('Subtitle bytes differ from immutable output policy')
-        staged=stage_subtitles(destination,data,definition.subtitle_format,
-                               encoding=definition.subtitle_encoding,cancel=cancel)
-        self._guard_worker()
-        observation={'policy':staged.policy,'parser_version':staged.parser_version,
-                     'format':staged.format,'encoding':staged.encoding,'cue_count':staged.cue_count,
-                     'diagnostics':list(staged.diagnostics),'sha256':staged.receipt.sha256}
-        self._staged[role]=(staged.receipt,observation)
+        with self._staging_operation():
+            definition,destination=self._definition(role,'subtitle')
+            if type(data) is not bytes or len(data)>MAX_BYTES or sha256(data).hexdigest()!=definition.subtitle_sha256:
+                raise JobConflict('Subtitle bytes differ from immutable output policy')
+            staged=stage_subtitles(destination,data,definition.subtitle_format,
+                                   encoding=definition.subtitle_encoding,cancel=cancel)
+            self._guard_worker()
+            observation={'policy':staged.policy,'parser_version':staged.parser_version,
+                         'format':staged.format,'encoding':staged.encoding,'cue_count':staged.cue_count,
+                         'diagnostics':list(staged.diagnostics),'sha256':staged.receipt.sha256}
+            self._staged[role]=(staged.receipt,observation)
 
     def stage_media(self,role,source,ffprobe,ffmpeg,*,cancel=lambda:False,timeout=300):
-        definition,destination=self._definition(role,'media')
-        receipt=destination.copy_stage(source,cancel=cancel)
-        path=destination.root/receipt.directory/'payload'
-        validation=validate_media(path,ffprobe,ffmpeg,definition.expected_streams,cancel=cancel,timeout=timeout)
-        if validation.sha256!=receipt.sha256:raise JobConflict('Validated media differs from owned stage')
-        self._guard_worker()
-        self._staged[role]=(receipt,{'policy':validation.policy,'sha256':validation.sha256})
+        with self._staging_operation():
+            definition,destination=self._definition(role,'media')
+            receipt=destination.copy_stage(source,cancel=cancel)
+            path=destination.root/receipt.directory/'payload'
+            try:
+                validation=validate_media(path,ffprobe,ffmpeg,definition.expected_streams,cancel=cancel,timeout=timeout)
+            except BaseException:
+                # Current validator exceptions do not carry a typed proof that all
+                # owned descendants retired. DB cancel acknowledgment is not one.
+                self._quiescence_unknown=True
+                raise
+            if validation.sha256!=receipt.sha256:raise JobConflict('Validated media differs from owned stage')
+            self._guard_worker()
+            self._staged[role]=(receipt,{'policy':validation.policy,'sha256':validation.sha256})
 
     def _verify_stages(self):
         if set(self._staged)!={item.role for item in self.manifest.items}:
@@ -166,6 +182,7 @@ class PublicationSession:
 
     def _guard_claimed(self, *, completed=False):
         if self._closed or not self._claimed:raise JobConflict('Live claimed session required')
+        if self._quiescence_unknown:raise PublicationUnknown('Validator retirement unconfirmed')
         self.ownership.guard()
         if self._admission is not None:self._admission.guard()
         current=self.repository.get(self.job.id)
@@ -274,6 +291,8 @@ class PublicationSession:
         """
         from fonesi_edit.artifacts.completed_cleanup import cleanup_completed_stage
         from fonesi_edit.artifacts.filesystem import PublicationError,PublicationUnknown
+        if self._staging:raise JobConflict('Wait for active staging/owned process retirement')
+        if self._quiescence_unknown:raise PublicationUnknown('Validator retirement unconfirmed; retain all staging')
         entered_cleanup=False
         try:
             if os.name!='nt':raise PublicationError('Safe cleanup unavailable on this platform; staging retained')
@@ -303,3 +322,67 @@ class PublicationSession:
             try:self.close()
             except Exception as exc:
                 raise PublicationUnknown('Cleanup handle retirement uncertain; no replay') from exc
+
+    def _guard_canceled_cleanup(self):
+        if self._quiescence_unknown:raise PublicationUnknown('Validator retirement unconfirmed; retain all staging')
+        if self._closed or self._staging or self._claimed or self._linked:
+            raise JobConflict('Canceled cleanup requires an idle never-publishing live session')
+        self.ownership.guard();current=self.repository.get(self.job.id)
+        if (current.state!='canceled' or not current.cancel_requested or current.lease_token is not None
+            or current.snapshot_hash!=self.job.snapshot_hash or current.attempt!=self.job.attempt
+            or current.version<=self.job.version):
+            raise JobConflict('Exact acknowledged canceled attempt required')
+        db=self.repository.db
+        sets=db.execute('SELECT * FROM artifact_sets WHERE job_id=?',(current.id,)).fetchall()
+        if self._set_id is None:
+            if sets:raise JobConflict('Unexpected publication set after cancellation')
+        else:
+            if len(sets)!=1:raise JobConflict('Canceled set identity changed')
+            row=sets[0]
+            if (row['id']!=self._set_id or row['snapshot_hash']!=current.snapshot_hash
+                or row['attempt']!=current.attempt or row['lease_token']!=self.job.lease_token
+                or row['coordinator_epoch']!=self.ownership.epoch or row['state']!='prepared'
+                or row['version']!=1 or row['roles_json']!=canonical(sorted(self._staged))):
+                raise JobConflict('Canceled prepared set differs from live owner')
+            members=db.execute('SELECT * FROM publications WHERE set_id=?',(self._set_id,)).fetchall()
+            if len(members)!=len(self._staged) or {m['role'] for m in members}!=set(self._staged):
+                raise JobConflict('Canceled member set changed')
+            definitions={item.role:item for item in self.manifest.items}
+            for member in members:
+                definition=definitions[member['role']];receipt,validation=self._staged[member['role']]
+                if (member['state']!='prepared' or member['version']!=1
+                    or member['destination_root']!=definition.destination_root or member['final_name']!=definition.final_name
+                    or member['staging_receipt_json']!=canonical(asdict(receipt)) or member['validation_json']!=canonical(validation)):
+                    raise JobConflict('Canceled publication member changed')
+        if (db.execute('SELECT 1 FROM completion_history WHERE job_id=?',(current.id,)).fetchone() is not None
+            or db.execute('SELECT 1 FROM artifacts a JOIN publications p ON a.publication_id=p.id JOIN artifact_sets s ON p.set_id=s.id WHERE s.job_id=?',(current.id,)).fetchone() is not None):
+            raise JobConflict('Canceled cleanup never accepts published history/artifacts')
+        return current
+
+    def cleanup_canceled(self):
+        """One-shot maintenance AFTER cancellation acknowledgment and operation exit."""
+        from fonesi_edit.artifacts.canceled_cleanup import cleanup_canceled_stage
+        from fonesi_edit.artifacts.filesystem import PublicationError,PublicationUnknown
+        if self._staging:raise JobConflict('Wait for active staging/owned process retirement')
+        if self._quiescence_unknown:raise PublicationUnknown('Validator retirement unconfirmed; retain all staging')
+        entered=False
+        try:
+            self._guard_canceled_cleanup()
+            inventory=[]
+            for destination in self._destinations.values():
+                if destination._attempted_directories!=set(destination._created):
+                    raise PublicationUnknown('Incomplete creation ownership; retain unknown stage')
+                inventory.extend((destination,record) for record in destination._created.values())
+            if not inventory:return 0 # Proven no creation attempts: no destructive capability needed.
+            if os.name!='nt':raise PublicationError('Safe canceled cleanup unavailable; staging retained')
+            for destination,record in inventory:
+                entered=True
+                cleanup_canceled_stage(destination,record,before_effect=self._guard_canceled_cleanup)
+            return len(inventory)
+        except Exception as exc:
+            if entered and not isinstance(exc,PublicationUnknown):
+                raise PublicationUnknown('Canceled cleanup partially attempted; no replay') from exc
+            raise
+        finally:
+            try:self.close()
+            except Exception as exc:raise PublicationUnknown('Canceled cleanup retirement uncertain') from exc

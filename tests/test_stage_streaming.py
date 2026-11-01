@@ -66,11 +66,15 @@ def test_source_symlink_is_not_opened(tmp_path):
     assert source.read_bytes()==b'untouched' and not list(out.iterdir())
 
 
-def test_cancel_after_writer_flush_retains_exact_receipt(tmp_path):
+def test_cancel_after_writer_flush_retains_exact_receipt(tmp_path,monkeypatch):
     source=tmp_path/'source';source.write_bytes(b'original');out=tmp_path/'out';out.mkdir()
     with Destination(out) as dest:
+        finished=[];create=dest._create_stage_chunks
+        def flushed(chunks):
+            receipt=create(chunks);finished.append(True);return receipt
+        monkeypatch.setattr(dest,'_create_stage_chunks',flushed)
         with pytest.raises(PublicationCanceled) as error:
-            dest.copy_stage(source,cancel=lambda:bool(dest._anchors))
+            dest.copy_stage(source,cancel=lambda:bool(finished))
         receipt=error.value.receipt
         assert receipt is not None and (out/receipt.directory/'payload').read_bytes()==b'original'
         assert not (out/'final').exists()

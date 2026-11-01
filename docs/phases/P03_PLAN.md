@@ -477,3 +477,31 @@ integration, failure injection, foreign child/handoff and final preservation gat
 are required before reporting production cleanup working. Primitive PASS alone is
 not that evidence. No unchanged full aggregate or frozen build is necessary for
 this narrowly affected subsystem.
+
+## Next P03-06 cancellation-owned temporary cleanup
+
+Current completed cleanup does not satisfy SRC-08.04/OPS-02.02. Interrupted writes
+retain files but currently acquire their live anchor only after successful flush.
+Move original file-anchor retention to immediately after exclusive creation, before
+feeding any chunks. Keep a separate immutable unvalidated ownership record (root,
+stage directory identity, original file identity), never mistake it for a validated
+StageReceipt or permit publication/success from it. Retain original Windows stage
+folder capability as already implemented; no receipt-only restart adoption.
+
+Add an explicit internal staging-operation latch spanning parse/copy/validation and
+owned process retirement; canceled cleanup refuses while that operation is active.
+Only a current exact canceled/cancel-requested same-snapshot/same-attempt job, before
+publication claim and with no committed artifacts/history, may remove its own live
+created stages. Prepared sets must match this exact live owner/session; do not
+accept caller paths, arbitrary receipts or a boolean claiming worker quiescence.
+Use object-bound Windows file/directory disposition, preserve foreign children and
+all source/final paths, fail closed on platform/sharing/identity uncertainty. Any
+entered maintenance error is UNKNOWN, one-shot retires session; no job replay or
+DB success changes. Failed/expired/restarted jobs remain retained pending separate
+recovery policy, not silently treated as canceled.
+
+Affected tests: cancellation before creation/during copied chunks/after staged
+flush, parser/validator interruption, original anchors retained despite failure;
+source bytes unchanged; running/publishing/expired/foreign-owner cleanup refused;
+actual Windows canceled-job cleanup removes only exclusive owned stages and leaves
+foreign extra children/finals untouched. No unchanged full aggregate or frozen run.

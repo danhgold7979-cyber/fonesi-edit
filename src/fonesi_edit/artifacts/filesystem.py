@@ -52,6 +52,15 @@ def safe_name(value):
 
 
 @dataclass(frozen=True)
+class StageOwnership:
+    """Live exclusive-creation provenance only; never validation or publication."""
+    root_identity: tuple[int, int]
+    directory: str
+    directory_identity: tuple[int, int]
+    file_identity: tuple[int, int]
+
+
+@dataclass(frozen=True)
 class StageReceipt:
     root_identity: tuple[int, int]
     directory: str
@@ -96,7 +105,7 @@ class Destination:
         if os.name=='nt' and str(raw).startswith('\\\\'):
             raise PublicationError('Network destination needs separate durability capability')
         self.root=raw
-        self._stack=ExitStack(); self.fd=None; self.closed=True; self._anchors={}; self._directory_anchors={}
+        self._stack=ExitStack(); self.fd=None; self.closed=True; self._anchors={}; self._directory_anchors={}; self._created={}; self._attempted_directories=set()
         try:
             for part in [*reversed(raw.parents),raw]:
                 if os.name=='nt': self._stack.callback(_pin_windows_directory(part))
@@ -113,7 +122,7 @@ class Destination:
     def __enter__(self): return self
     def __exit__(self,*args): self.close()
     def close(self):
-        self.closed=True;self._stack.close();self._anchors.clear();self._directory_anchors.clear()
+        self.closed=True;self._stack.close();self._anchors.clear();self._directory_anchors.clear();self._created.clear();self._attempted_directories.clear()
     def _check(self):
         if self.closed: raise PublicationError('Destination is closed')
         if _plain(self.root.lstat(),True)!=self.identity:
@@ -170,6 +179,7 @@ class Destination:
         self._check();directory='.fonesi-stage-'+str(uuid.uuid4())
         if self.fd is not None:os.mkdir(directory,0o700,dir_fd=self.fd)
         else:os.mkdir(self.root/directory,0o700)
+        self._attempted_directories.add(directory)
         # Retain on any fault: journal-aware cleanup is a separate operation.
         directory_id=_plain(self._stat(directory),True)
         digest=sha256();size=0
@@ -184,16 +194,19 @@ class Destination:
             leaf="payload" if stage_fd is not None else directory+"/payload"
             fd=self._open(leaf,os.O_WRONLY|os.O_CREAT|os.O_EXCL,base_fd=stage_fd)
             with os.fdopen(fd,'wb') as out:
+                # Preserve exclusive creation BEFORE a producer/cancel callback can fail.
+                anchor=_OwnedFD(os.dup(out.fileno()))
+                self._stack.callback(anchor.close)
+                self._anchors[directory]=anchor
+                original_id=_plain(os.fstat(out.fileno()))
+                self._created[directory]=StageOwnership(self.identity,directory,directory_id,original_id)
                 for block in chunks:
                     if type(block) is not bytes:raise PublicationError('Internal stage chunk must be bytes')
                     if out.write(block)!=len(block):raise PublicationError('Incomplete staging write')
                     digest.update(block);size+=len(block)
                 out.flush();os.fsync(out.fileno())
                 info=os.fstat(out.fileno());file_id=_plain(info)
-                # Keep the original object alive before closing its creating writer.
-                anchor=_OwnedFD(os.dup(out.fileno()))
-                self._stack.callback(anchor.close)
-                self._anchors[directory]=anchor
+                if file_id!=original_id:raise PublicationUnknown('Creating writer identity changed')
             if stage_fd is not None:os.fsync(stage_fd)
         self._flush_root();self._check()
         return StageReceipt(self.identity,directory,directory_id,file_id,size,digest.hexdigest())
