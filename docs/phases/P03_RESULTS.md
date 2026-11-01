@@ -104,3 +104,20 @@ Second hosted run41276612605/public1805ae68: Ubuntu3.12/3.13 completed SUCCESS,1
 Iteration2: .gitattributes keeps canonical source/reference bytes exact under autocrlf. Ownership sidecar established only after ID/full schema validation records physical DB identity and schema signature. Startup version read retries Windows1546 only with matching receipt/header/identity, closes each failed connection, admits retries only within3seconds (not a hard OS-I/O wall-clock guarantee); missing ownership/non1546/nonWindows/exhausted errors remain failures. No statement mutation/commit/job replay, journal deletion, SQL error masking or SQLite binary replacement.45 affected local tests PASS including ownership/noownership, bounded deadline, foreign receipt, source writes and simulated CRLF checkout. Actual target result and independent review pending.
 
 Independent reviewec83a07 CLEAR for diagnostic CI,9 focused helper/receipt/autocrlf checks PASS. Tightened follow-up prevents a new attempt after final deadline sleep and caps SQLite busy timeout to remaining budget; ordinary jobs busy timeout restored after validation. OS filesystem calls remain nonpreemptible, so3seconds describes retry/admission budget rather than a false hard total wall-clock guarantee.
+
+## Actual hosted foundation checkpoint — scoped PASS, phase still IN_PROGRESS
+
+2026-11-01: independent review a935fccc cleared the final retry-admission delta;6 focused helper checks PASS. Public source `f16dca9986fd1181363c52580b11d7cef5a8b70c` is tree-equivalent to local `a935fccc6746eff726b26dbf352189e0f8f1a30e`, exact tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`. [Run41277250696](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41277250696) completed SUCCESS across all four jobs.
+
+| Target | Python / SQLite | Passed | Skipped | Failed/errors |
+|---|---|---:|---:|---:|
+| Hosted Windows Server2025 |3.12.10 /3.49.1|148|18|0|
+| Hosted Windows Server2025 |3.13.16 /3.50.4|148|18|0|
+| Ubuntu24.04 |3.12.15 /3.45.1|155|11|0|
+| Ubuntu24.04 |3.13.17 /3.45.1|155|11|0|
+
+Downloaded all four JUnit/source artifacts, verified exact public SHA/tree and counts; byte-preserved files plus SHA256 and skip reasons in `docs/evidence/p03/hosted-41277250696/`. Windows skips are10 POSIX executable fixtures,7 POSIX process tests,1 unavailable developer FFmpeg test. Linux skips are10 actual Windows tests and1 unavailable FFmpeg test. Skips are not passes. Actual Windows tests include owned nested jobs, cancellation/grandchildren, supervisor crash, inherited-handle exclusion, sibling survival, quiescence and warm per-call handle plateau. Cold +3 handle attribution remains unproven. Actual project child-kill/recovery tests pass on both Windows versions, including the previously failing SQLite1546 case; this does not establish power-loss durability or replay safety for arbitrary mutations.
+
+Windows3.12 also successfully builds the actual fresh application onedir and runs frozen CLI multi-stream CompositionPlan validation with packaged schema. This is not a full GUI, rendered-media, physical-audio, GPU, installer-distribution or user-desktop test. Preserved-plan integrity and structural schema checks pass on all targets. No unchanged local aggregate rerun was performed. Earlier failed runs remain recorded above.
+
+Main remains accepted P01 design. P02 external gates and complete P03 tasks remain OPEN; no full runtime feature criterion is marked accepted from this checkpoint. Later docs-only receipt commits use `[skip ci]` and must not be represented as independently executed source. Next source work follows P03-06 publication ownership/recovery and P03-04 coordinator integration contracts, with focused tests and independent review before target verification.

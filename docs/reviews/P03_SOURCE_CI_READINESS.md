@@ -21,3 +21,7 @@ Independent reviewer inspected `a8d1b31aba890d8a1c339edc235e53480aba25d2`: **CLE
 - Exclusive lock creation interrupted before marker completion may leave an unmarked file. Current behavior is explicit fail-closed diagnostic, not silent repair/deletion; future explicit recovery must establish ownership or select a different save path. Concurrent initialization also fails closed. Actual Windows byte locking still needs target tests.
 
 Final application source `d501491f02686e7434c94ecc98ce487dec2275e6`: **CLEAR FOR CI only**. All later documentation-only commits retain this source qualification. Whole P03 and target runtime remain unaccepted until actual evidence.
+
+
+## Target evidence update (2026-11-01)
+Final reviewed source local a935fccc / public f16dca99 / tree b0ade7e3 completed hosted run41277250696 SUCCESS (Windows3.12/3.13 and Ubuntu3.12/3.13). Exact artifacts/counts/skips and frozen Windows CLI boundary are recorded in P03_RESULTS and docs/evidence/p03/hosted-41277250696. Earlier source-only review statements above are historical, not current claims that all Windows execution is pending. Full P03 acceptance remains OPEN; reviewers have not accepted unimplemented coordinator/publication/GUI/provider features.

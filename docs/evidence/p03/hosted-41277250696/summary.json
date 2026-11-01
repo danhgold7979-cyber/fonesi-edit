@@ -1,0 +1,126 @@
+{
+  "run_id": 41277250696,
+  "url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41277250696",
+  "conclusion": "success",
+  "public_source_sha": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+  "local_source_sha": "a935fccc6746eff726b26dbf352189e0f8f1a30e",
+  "source_tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+  "jobs": [
+    {
+      "label": "windows-py312",
+      "artifact_id": 13071493098,
+      "job_id": 124761825443,
+      "source_sha": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+      "source_tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+      "platform": "Windows-2025Server-10.0.26100-SP0",
+      "python": "3.12.10",
+      "sqlite": "3.49.1",
+      "tests": 166,
+      "passed": 148,
+      "skipped": 18,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 11.58,
+      "skip_reasons": {
+        "POSIX executable fixture; Windows real tool suite separate": 10,
+        "Developer FFmpeg tools unavailable": 1,
+        "POSIX owned-group adapter; Windows adapter separate": 7
+      },
+      "files_sha256": {
+        "windows-py312-foundation-source.json": "3719ec91ade48c64f59341a004b4b152e7bd0a660d33385a9f65ffb85dc1c663",
+        "windows-py312-foundation-results.xml": "eb51633215577158dacb28393492946a234eb6463d02c02f0cfd6fe2ca4ce65e"
+      },
+      "download_zip_sha256": "7112ab589f0ab20bddb2013893f265f58330037d8648c4b8c5ccb9ac543e98d1"
+    },
+    {
+      "label": "windows-py313",
+      "artifact_id": 13071906099,
+      "job_id": 124761825574,
+      "source_sha": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+      "source_tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+      "platform": "Windows-2025Server-10.0.26100-SP0",
+      "python": "3.13.16",
+      "sqlite": "3.50.4",
+      "tests": 166,
+      "passed": 148,
+      "skipped": 18,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 8.519,
+      "skip_reasons": {
+        "POSIX executable fixture; Windows real tool suite separate": 10,
+        "Developer FFmpeg tools unavailable": 1,
+        "POSIX owned-group adapter; Windows adapter separate": 7
+      },
+      "files_sha256": {
+        "windows-py313-foundation-source.json": "2f9b9a4962970ba3ab92c07b7af96b400cba07ebea8d95a1b93e6f397cb3073d",
+        "windows-py313-foundation-results.xml": "2489b50871c677d0c7cbb90e84da5ca6ba113992877b71a567459160ed5f320e"
+      },
+      "download_zip_sha256": "9123a9e44f95969160ecd08043ece64b76d630f6fa4b72f15110117c113a7944"
+    },
+    {
+      "label": "ubuntu-py312",
+      "artifact_id": 13071666901,
+      "job_id": 124761825590,
+      "source_sha": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+      "source_tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+      "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+      "python": "3.12.15",
+      "sqlite": "3.45.1",
+      "tests": 166,
+      "passed": 155,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 4.261,
+      "skip_reasons": {
+        "Developer FFmpeg tools unavailable": 1,
+        "Real Windows Job Object test; not simulated": 10
+      },
+      "files_sha256": {
+        "ubuntu-py312-foundation-source.json": "eaaf3f70aefefe158155dba42fa6eba53a004d1dc78227a00bef8e9e109469fa",
+        "ubuntu-py312-foundation-results.xml": "73cd0740c8f8ecf672353ad16dd282826fd30a2a1c8bf8d293af80a47c649ce6"
+      },
+      "download_zip_sha256": "5a3d6647b1c3264dce1e99652c298dd7e307d6cec6aa92aaea0fc318eeed93b6"
+    },
+    {
+      "label": "ubuntu-py313",
+      "artifact_id": 13071970969,
+      "job_id": 124761825689,
+      "source_sha": "f16dca9986fd1181363c52580b11d7cef5a8b70c",
+      "source_tree": "b0ade7e3b53bf551981466f643e3e2fe730ff9dd",
+      "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "python": "3.13.17",
+      "sqlite": "3.45.1",
+      "tests": 166,
+      "passed": 155,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 4.77,
+      "skip_reasons": {
+        "Developer FFmpeg tools unavailable": 1,
+        "Real Windows Job Object test; not simulated": 10
+      },
+      "files_sha256": {
+        "ubuntu-py313-foundation-source.json": "41c7310c91d4dc3b2c8c21954efa4dd6911b4cb38f67909f5fcefd8f1e986b28",
+        "ubuntu-py313-foundation-results.xml": "7845f77c120f1114d77fd27b39ee7489500a13b838abba0500358fecbc1bcfdf"
+      },
+      "download_zip_sha256": "b4fb077db58c9e91044670d4d5d9090da5b66a292a68687b737efec5de5e19d8"
+    }
+  ],
+  "frozen_cli": {
+    "platform": "windows-py312",
+    "status": "PASS",
+    "scope": "PyInstaller onedir build and packaged-schema multi-stream CLI validation only; not GUI/render/provider test"
+  },
+  "scope": "P03 foundation developer correctness and native owned-process/project persistence evidence. No whole P03 or full runtime feature criterion acceptance.",
+  "still_open": [
+    "full GUI and user Windows desktop",
+    "physical audio/GPU",
+    "FFmpeg media on Windows",
+    "providers/Chrome/auth",
+    "job artifact publication/coordinator",
+    "complete P03 task gates"
+  ]
+}
