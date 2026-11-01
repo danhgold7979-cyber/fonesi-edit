@@ -1,0 +1,7 @@
+{
+  "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+  "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+  "platform": "Windows-2025Server-10.0.26100-SP0",
+  "python": "3.13.17",
+  "sqlite": "3.50.4"
+}

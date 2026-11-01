@@ -1,0 +1,100 @@
+{
+  "run_id": 41326388409,
+  "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+  "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+  "scope": "First Settings background inventory + affected Qt; not aggregate/frozen/native FFmpeg",
+  "artifacts": [
+    {
+      "id": 13091780954,
+      "name": "tool-first-open-windows-latest-py3.12",
+      "zip_sha256": "bd654cf3b47c6170ef5595747beef10d8fce4520dc635d1339c10ff7d94553cf",
+      "members": {
+        "foundation-results.xml": "9bf956fa18607245d58cf2b334df503664e97bdeb7d669d73b4f8117e9e86f29",
+        "foundation-source.json": "ba848ec6f26ca0dafb54cb7de03088f0fc11e4cb0ead6b59ea8da0f72dd52820"
+      },
+      "runtime": {
+        "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+        "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 42,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 42
+      }
+    },
+    {
+      "id": 13091641238,
+      "name": "tool-first-open-windows-latest-py3.13",
+      "zip_sha256": "18f007ff11dbabcdc0e94c4cd72d8fc91ea607e12b63c21736353d8014c208a1",
+      "members": {
+        "foundation-results.xml": "b848e233255d7264e504e725e027e57148a6ef501aaffc6894854c2afd5c2c83",
+        "foundation-source.json": "9a9e8a496c7027e97e817748fe104b91c6aaa9cdf4df06f11ef82d28505bcc3a"
+      },
+      "runtime": {
+        "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+        "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.17",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 42,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 42
+      }
+    },
+    {
+      "id": 13091172943,
+      "name": "tool-first-open-ubuntu-24.04-py3.12",
+      "zip_sha256": "0f87076397da27cad55c11021a2d549d63712c9314e444bb89c43bba0833b0fd",
+      "members": {
+        "foundation-results.xml": "aef20f25ad42ec371a788f56480750d1e405874a27788a719ee513b3e825cbf1",
+        "foundation-source.json": "4cc53f197ac0fee2d6322392cf6b93b9fd105645e70789324b1e9194c7f1142d"
+      },
+      "runtime": {
+        "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+        "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+        "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 42,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 42
+      }
+    },
+    {
+      "id": 13090654522,
+      "name": "tool-first-open-ubuntu-24.04-py3.13",
+      "zip_sha256": "a16db5a5afde35c98771bfc467d6a78ebcf5cb0ba3daf59871723d02543e5d7e",
+      "members": {
+        "foundation-results.xml": "2be170ab4c819582ab3a82ed010bf1e687324ab55a8e4f8d3363565155ba94b2",
+        "foundation-source.json": "d81fdbfa51150c8f4fafd920b7874ad4d43b270e9bfbe2ebc5223a70945d7a94"
+      },
+      "runtime": {
+        "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+        "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 42,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 42
+      }
+    }
+  ]
+}

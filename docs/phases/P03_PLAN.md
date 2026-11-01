@@ -695,3 +695,19 @@ become trust/capability or paired-worker inputs. Tests: first-open missing tools
 persisted explicit invalid path/no fallback, corrupt config, edit/cancel/close during
 load, repeated navigation and queued callback supersession. No full registry or
 pre-workflow version lease acceptance follows.
+
+## New project foundation (P03-07; PR §9 / ED project save/open)
+
+Provide a real empty project, not bundled demo media or a fake editor: explicit
+name/output geometry/rational FPS/duration, fresh project/plan identities, no
+assets/layers/audio clips or preset/account provenance. Output settings are intent,
+not verified codec/renderer capability. Existing CompositionPlan validation applies.
+Use existing exclusive no-overwrite project-file writer in a background worker;
+no ProjectStore connection crosses threads. Only confirmed, revalidated creation
+may activate through existing prepare_open/choose; captured old session/revision
+must still match. Existing projects/foreign targets are not overwritten. Any write
+uncertainty retains old active session and blocks automatic replay. Cancel/close
+before work creates nothing; after creation the file is retained, not auto-deleted
+or falsely reported canceled-with-no-effects. Dialog/picker cancel never writes.
+This is project lifecycle foundation, not P04 editor/timeline or renderer acceptance;
+shared writer's cooperating-namespace/owned-staging assumptions remain unchanged.

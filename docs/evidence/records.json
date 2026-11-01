@@ -904,5 +904,90 @@
       "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375838",
       "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375928"
     ]
+  },
+  {
+    "id": "P03-HOSTED-TOL-01.02",
+    "generation": "clean-2026-11-01",
+    "commit": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+    "tree": "538231c134d93e150aa278ac1328297a581b8c67",
+    "task_ids": [
+      "P01-08",
+      "P04-08"
+    ],
+    "criterion_ids": [
+      "TOL-01.02"
+    ],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Bounded metadata background discovery at configured/common roots, with unchanged scanner historical bounds and current first-navigation GUI. Cooperative I/O bounds, not a hard OS deadline. P01/P04 mapping only; no registry/install/readiness or full source-clause acceptance.",
+    "command": "Current [tool-first-open] affected Qt selection; unchanged scanner cases from prior normal pytest full run41307781141, not rerun",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+          "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+          "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+          "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+          "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+          "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_tool_discovery::test_partial_limit_and_cancel_never_report_complete_missing",
+      "tests.test_tool_discovery::test_declared_path_order_and_elapsed_budget",
+      "tests.test_tool_discovery::test_unreadable_is_partial_not_missing",
+      "tests.test_tool_discovery::test_path_discovery_never_adds_cwd_or_changes_environment",
+      "tests.test_tool_inventory_ui::test_settings_opens_without_tools_then_first_open_scans_once_missing_not_ready",
+      "tests.test_tool_first_open::test_saved_explicit_missing_never_falls_back_first_open",
+      "tests.test_tool_first_open::test_cancel_close_first_load_never_rearms_or_launches"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41326388409/summary.json",
+      "docs/evidence/p03/hosted-41307781141/summary.json"
+    ],
+    "run_ids": [
+      41326388409,
+      41307781141
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41326388409",
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41307781141"
+    ],
+    "independent_review": "docs/reviews/TOL_01_02_CARRYFORWARD_REVIEW.md",
+    "carryforward": {
+      "public_source": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+      "local_source": "714bb5012721f3624cd473ce0c659337eec4370c",
+      "unchanged_sha256": {
+        "src/fonesi_edit/dependencies/discovery.py": "f4882459ce0668847622ad6df75afbdf2881954dd70038150f77f99ad121f6d7",
+        "tests/test_tool_discovery.py": "2a9de25bba287fd3ddd627b839a1c91d25a95b639e9c81ae85a55f16fbc508cf"
+      },
+      "runtime": "Exact prior target versions retained in prior source receipts; not relabelled as current Windows3.13.17"
+    },
+    "limitations": [
+      "Metadata scan only, no executable launch/trust/READY.",
+      "No automatic registry/version lease/install or complete tool inventory acceptance.",
+      "Bounded checks and deadlines between IO, not OS-call preemption."
+    ]
   }
 ]

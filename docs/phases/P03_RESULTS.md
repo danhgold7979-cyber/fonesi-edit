@@ -1301,3 +1301,27 @@ as separate explicit-Load/Save/close injections. Close during load has its own c
 Source/workflow CLEAR in P03_FIRST_SETTINGS_SCAN_LOCAL_REVIEW.md. Next scoped
 [tool-first-open] alone runs fourtargets/eightfiles42cases; no unchanged storage,
 FFmpeg download/execution, frozen build or full aggregate rerun.
+
+First-navigation target checkpoint b7dd8bea/tree538231c1: run41326388409 four
+SUCCESS, each42PASS0SKIP independently verified with fourZIP API/local digests and
+eight exact source/JUnit members. Windows3.12.10/3.13.17, Linux3.12.15/3.13.17.
+All six first-open/changed navigation cases ran. No new child closure inferred from
+42cases alone; scanner-specific prior bounds evidence is separately assessed.
+
+## Blank-project creation foundation — local source independently reviewed
+
+Pure empty-plan factory plus existing exclusive writer/readback and authoritative
+session activation; explicit modeless form, no demo assets or simulated renderer.
+Core8casesPASS. Initial four Qt cases3PASS/1FAIL: dialog close after confirmed write
+could still activate because finished QThread interruption state cleared. Added an
+explicit per-attempt UI cancel latch; affected case1PASS cleanexit0, preserving the
+created file without activation. Prior3PASS unchanged. Shared all-area shell3PASS
+was before the form moved to a modeless dialog; do not claim that earlier pass proves
+the final dialog layout. Target shared-shell coverage remains in next scoped batch.
+
+Creation final source/workflow independently CLEAR; reviewer selected3causal cases
+PASS. Added NUL destination preflight in core/UI (known invalid, no writer/worker or
+UNKNOWN panel lock),2newcasesPASS; final target scope56cases. Initial failures stay
+recorded. TOL-01.02 independently accepted with exact unchanged-source historical
+carryforward plus current first-navigation GUI; root concurrence13/438, P03still11/78.
+No creation criterion or whole task is accepted.

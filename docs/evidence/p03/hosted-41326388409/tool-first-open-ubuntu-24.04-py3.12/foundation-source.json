@@ -1,0 +1,7 @@
+{
+  "source_sha": "b7dd8bea5b40095af5400d0fcb369cc97806ad81",
+  "source_tree": "538231c134d93e150aa278ac1328297a581b8c67",
+  "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+  "python": "3.12.15",
+  "sqlite": "3.45.1"
+}

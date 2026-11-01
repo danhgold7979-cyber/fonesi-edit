@@ -11,6 +11,7 @@ from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
+from fonesi_edit.ui.project_creation import NewProjectDialog
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -22,6 +23,9 @@ class MainWindow(QMainWindow):
         self.project = None
         self.session = None
         self._close_requested=False
+        self.new_project_dialog=NewProjectDialog(lambda:self.session,self.activate_created_project,self)
+        self.new_project_panel=self.new_project_dialog.panel
+        self.new_project_panel.idle.connect(self._queue_idle)
         self.queue_page=QueuePage(store.path.parent/'jobs.sqlite3')
         self.queue_page.idle.connect(self._queue_idle)
         self.relink_panel=RelinkPanel(lambda:self.session,self)
@@ -55,6 +59,9 @@ class MainWindow(QMainWindow):
             contents.addWidget(heading)
             if index == 0:
                 contents.addWidget(self.project_label)
+                self.new_button=QPushButton('Tạo dự án trắng…')
+                self.new_button.clicked.connect(self.new_project_dialog.open_panel)
+                contents.addWidget(self.new_button)
                 self.open_button = QPushButton('Mở dự án…')
                 self.open_button.clicked.connect(self.choose_project)
                 contents.addWidget(self.open_button)
@@ -88,6 +95,17 @@ class MainWindow(QMainWindow):
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
+
+    def activate_created_project(self,created,expected_session,expected_revision):
+        if (self._close_requested or self.session is not expected_session or
+            (self.session is not None and self.session.revision!=expected_revision)):
+            raise StorageError('Active project changed during creation')
+        offer=prepare_open(self.store,created.path)
+        if (offer.local is not None or offer.file_digest!=created.digest or
+            offer.file_project.to_json()!=created.project.to_json()):
+            raise StorageError('New project identity/content no longer matches creation')
+        session=offer.choose(self.store,'file')
+        self.session=session;self._project_changed()
 
     def _choose_recovery(self):
         box = QMessageBox(self)
@@ -147,17 +165,18 @@ class MainWindow(QMainWindow):
         self._project_actions()
 
     def _project_actions(self):
+        self.new_button.setEnabled(not self._close_requested)
         self.open_button.setEnabled(not self.relink_panel.busy and not self._close_requested)
         self.save_button.setEnabled(self.session is not None and not self.session.reconciliation_required
                                     and not self.relink_panel.busy and not self._close_requested)
         self.relink_panel.update_actions()
 
     @property
-    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy
+    def background_busy(self):return self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy
 
     def request_stop(self):
         self._close_requested=True
-        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
+        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
