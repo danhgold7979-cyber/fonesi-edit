@@ -804,3 +804,27 @@ Next [integration-repair] [windows-boundary] run covers only these four affected
 checks on both Windows Python versions plus still-unrun Windows3.12 frozen build;
 Linux48 and unaffected Windows47 results are carried forward. No aggregate rerun,
 new criterion closure, permission/security setting change or fake tool readiness.
+
+### Terminal scoped native/frozen evidence
+
+Run41296433758 public61622936684fbbd7faa56eaeb332cc877170b619,
+treec8580226a98f022a2001bf924ed18359a2a71a49: both Windows jobs SUCCESS,
+4 affected tests each,0 skips/failures. Windows3.12.10/SQLite3.49.1 actual onedir
+build and five frozen CLI cases PASS: CompositionPlan, Unicode subtitle, invalid
+timestamp refusal, explicit empty encoding refusal, read-only tool discovery with
+invalid explicit Chrome/no fallback. Exact packaged MIT SHA256
+93d82c4caf14f9ac8845377399860ee8e3628481d8017ebe33febb8bf7236211;
+harness-reported binary SHA256
+f9befc6a9941dc22fed7d8b86bc9c8dfacafea7f83e4aae50d1b21302804f6ef.
+Binary itself was not uploaded/rehashed independently; receipt is exact executed
+harness evidence. Fixture hashes unchanged and app-data directory absent.
+Windows3.13.16/SQLite3.50.4 ran four source/harness checks only, no frozen build.
+
+Both artifact ZIP API hashes and all five source/JUnit/frozen members verified;
+exact bytes preserved under hosted-41296433758. Prior native/GUI/publication tests
+remain attributed to5d8a3389 and corresponding runtimes; affected discovery/ownership
+proof to9b62a1a7. No blanket final-source full-aggregate PASS. Full run41295642110 used Windows3.13.16, intermediate repair41296135792 used
+3.13.17, and final boundary returned to3.13.16; exact source attribution remains. This
+coherent causal evidence closes the observed integration failures without repeating
+unchanged tests. Full P03, actual GUI/media/GPU/provider/release gates stay OPEN;
+no extra criterion accepted beyond2/438, whole P03 tasks0/9.

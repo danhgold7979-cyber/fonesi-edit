@@ -1,0 +1,107 @@
+{
+  "run_id": 41296433758,
+  "public_source": "61622936684fbbd7faa56eaeb332cc877170b619",
+  "status": "SCOPED_PASS_NOT_AGGREGATE",
+  "jobs": [
+    {
+      "name": "integration-repair-windows-latest-py3.12",
+      "zip_sha256": "08aef6ee8d35b715337f49a40cb9e1640ba5f5b78d4a6d22ac95eed039528b5b",
+      "files_sha256": {
+        "foundation-source.json": "e92366d86974821f8fe2ab705d9262fa14eaf569f56b341d99e5d0f4bf57f355",
+        "foundation-results.xml": "e4c162024cb3c0fe6a47ecc94c89348c67f1804c31740b28438860265645bdba",
+        "frozen-cli-results.json": "60bbbf7dd8afb955f2b6bb074cd41f247139289f66c028dbc30bf4292c1d683a"
+      },
+      "source": {
+        "source_sha": "61622936684fbbd7faa56eaeb332cc877170b619",
+        "source_tree": "c8580226a98f022a2001bf924ed18359a2a71a49",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "4",
+        "time": "0.187",
+        "timestamp": "2026-11-01T10:12:47.159404+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "frozen": {
+        "source_sha": "61622936684fbbd7faa56eaeb332cc877170b619",
+        "scope": "Frozen schema/subtitle parser/read-only tool discovery/license only; not GUI/media/Windows release acceptance",
+        "cases": [
+          {
+            "expected_returncode": 0,
+            "actual_returncode": 0,
+            "stdout": "Valid CompositionPlan; 0 diagnostic(s). No media/render verification.\r\n",
+            "stderr": "",
+            "name": "schema"
+          },
+          {
+            "expected_returncode": 0,
+            "actual_returncode": 0,
+            "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\r\n",
+            "stderr": "",
+            "name": "subtitle"
+          },
+          {
+            "expected_returncode": 2,
+            "actual_returncode": 2,
+            "stdout": "",
+            "stderr": "Invalid subtitles: Timestamp precision/range invalid\r\n",
+            "name": "subtitle-invalid"
+          },
+          {
+            "expected_returncode": 2,
+            "actual_returncode": 2,
+            "stdout": "",
+            "stderr": "Invalid subtitles: Explicit supported encoding required\r\n",
+            "name": "subtitle-empty-encoding"
+          },
+          {
+            "expected_returncode": 0,
+            "actual_returncode": 0,
+            "stdout": "{\"status\": \"COMPLETE\", \"examined\": 43, \"candidates\": [{\"tool\": \"chrome\", \"path\": \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\", \"source\": \"system\", \"device\": 7363010505313276667, \"inode\": 281474977739813, \"size\": 4522648, \"modified_ns\": 1792460818004188000, \"link_or_reparse\": false, \"readiness\": \"UNCHECKED\"}], \"selections\": [{\"tool\": \"ffmpeg\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"ffprobe\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"yt-dlp\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"gallery-dl\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"chrome\", \"state\": \"INVALID_EXPLICIT_PATH\", \"candidate\": null}], \"diagnostics\": []}\r\n",
+            "stderr": "",
+            "name": "read-only-tool-discovery"
+          }
+        ],
+        "status": "PASS",
+        "binary_sha256": "f9befc6a9941dc22fed7d8b86bc9c8dfacafea7f83e4aae50d1b21302804f6ef",
+        "license_sha256": "93d82c4caf14f9ac8845377399860ee8e3628481d8017ebe33febb8bf7236211",
+        "fixture_sha256": {
+          "D\u1ef1 \u00e1n \u4e2d\u6587.json": "cd5907679d7cd4ca941e7ede02f7da3dfb90445a963f22d78695da9224b729e9",
+          "Ph\u1ee5 \u0111\u1ec1 \u4e2d\u6587.srt": "277e6d028d7f9a0e3cf66518466b651d74ebe76360014a522da1507dc06d729a",
+          "invalid.srt": "9640a9d3ad243ed5dd97e0e28e708411554b66c41190747de3b721808f9e5a78"
+        }
+      }
+    },
+    {
+      "name": "integration-repair-windows-latest-py3.13",
+      "zip_sha256": "4998de165b326c342a1262342e330dccfbe1a06e396e7eba1fb5a917400ddc52",
+      "files_sha256": {
+        "foundation-source.json": "4142cfed31fe261b8ea940f0d5f8a5dad0f7840352db1cedefda47e6f773a69f",
+        "foundation-results.xml": "8970cf4c114f42d8a6d58fc4656666d86fb64c00c2803751369bf6d313be9bf4"
+      },
+      "source": {
+        "source_sha": "61622936684fbbd7faa56eaeb332cc877170b619",
+        "source_tree": "c8580226a98f022a2001bf924ed18359a2a71a49",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "4",
+        "time": "0.202",
+        "timestamp": "2026-11-01T10:12:45.167464+00:00",
+        "hostname": "runnervmdaln5"
+      }
+    }
+  ]
+}

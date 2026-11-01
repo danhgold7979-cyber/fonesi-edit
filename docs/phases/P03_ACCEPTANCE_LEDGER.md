@@ -36,3 +36,16 @@ these are not newer hosted or accepted-criterion evidence. Historical accepted
 gates remain open, so no new complete criterion or task acceptance follows.
 
 Four OPS-03 test implementation fields now explicitly record PARTIAL_LOCAL_VERIFIED; their full assertion gates are still unaccepted. Source reviews and affected tests are real progress, not additional PASS criteria.
+
+## Later hosted coverage, not extra closures
+
+Reviewed implementation above is now published through6162293. Full505-case
+run41295642110 (5d8a3389), affected48-case repair41296135792 (9b62a1a7), and
+Windows4-case plus five frozen CLI boundary41296433758 (6162293) establish the
+scoped evidence in P03_RESULTS. Initial aggregate failures remain FAIL, then
+causally corrected by affected runs; no blanket final aggregate PASS. Actual
+Windows queue/Qt lifecycle, live journal/publication, quarantine and project
+recovery tests now have hosted evidence, not only local evidence. Still no complete
+worker/progress/cleanup/provider/GUI-display/release gate or extra child closure.
+P03-08 also has pinned-pair functional observation on the recorded Linux FFmpeg
+fixture, not a verified Windows tool registry/installation/lease capability.

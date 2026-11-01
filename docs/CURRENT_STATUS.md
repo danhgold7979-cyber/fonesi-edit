@@ -26,20 +26,33 @@ current publication-feature status.
 
 ## Later checkpoints and current limits
 
-The green foundation receipt above belongs to its exact historical clean source, not
-every later edit. Last verified public phase-03 is c416c60a (main remains accepted P01).
-Its affected run41287172473 passed Windows3.13 and both Linux jobs, but Windows3.12
-failed immediate post-child-exit OS lock acquisition before SQLite. The reviewed local
-test-only bounded lock-retirement observation has NOT run on Windows. All prior runs are terminal. New human steering permits coherent important-checkpoint
-publication and CI before whole-phase completion; no repetitive micro-push loop is
-planned. GitHub status alerts remain canceled.
+The earlier green foundation receipt belongs to its exact source. Latest verified public
+phase-03 is `61622936684fbbd7faa56eaeb332cc877170b619` (main stays accepted P01).
+The coherent full505-case integration run41295642110 on5d8a3389 had Ubuntu491PASS/
+13SKIP/1FAIL and Windows475PASS/22SKIP/8FAIL per Python version. Native owned-process,
+coordinator crash/retirement, publication, queue and Qt lifecycle tests passed individually;
+failures were a stale diagnostic assertion, Windows cached directory identity and an
+invalid empty-host discovery oracle. Do not relabel that aggregate green.
 
-Newer independently reviewed LOCAL work includes retained-anchor publication and
+Affected repair run41296135792 on9b62a1a7: Linux48PASS each; Windows47PASS/1FAIL each,
+closing actual Windows media discovery and ownership regressions. Final test-only
+boundary run41296433758 on61622936: Windows4PASS each; Windows3.12 actual onedir build
+and5 frozen schema/subtitle/read-only no-fallback cases PASS, including exact packaged
+MIT and unchanged fixture/data checks. Windows3.13 frozen is NOT_RUN. Python/SQLite
+versions are recorded per run (Windows3.13 patch versions vary); prior unchanged
+source cases are carried as exact-run evidence, not pretended reruns on final runtime.
+No GUI appearance, real audio/GPU, provider or complete media engine acceptance.
+[Receipts](evidence/p03/hosted-41296433758/summary.json).
+
+New human steering permits coherent important-checkpoint publication/CI before full
+phase completion. GitHub status alerts remain canceled; no repeated unchanged aggregate.
+
+Newer independently reviewed work now published on phase-03 includes retained-anchor publication and
 conservative abandoned-set quarantine; source/output exclusions; actual queue
 observations and selected commands; owned account/profile/source-access metadata;
 project session recovery/Save, original-base migration and background root-folder
-same-content relink. These are real local implementations, not full Windows/phase
-acceptance. Candidate-only --scan-tools is also implemented with no execution/install
+same-content relink. These are real scoped implementations with the exact hosted evidence above, not full
+Windows desktop/phase acceptance. Candidate-only --scan-tools is also implemented with no execution/install
 or readiness grant. Four OPS-03 criteria now explicitly record partial local test
 implementation rather than NOT_IMPLEMENTED; accepted children remain exactly2/438.
 

@@ -16,7 +16,8 @@ Python 3.12/3.13, fresh `uv.lock`: `uv sync --locked`, then `uv run fonesi-edit`
 The local development shell exposes eight areas, explicit project recovery/Save,
 background same-content root-folder relink, and a real durable queue view with guarded
 pause/resume/cancel-request commands. Unimplemented workflows stay unavailable, not
-simulated. These newer local batches are not yet published or Windows-verified. User-data defaults
+simulated. Reviewed source is published on phase-03; hosted source/native and scoped frozen evidence
+now covers the checkpoints described in current status, not full desktop acceptance. User-data defaults
 to the OS user-data directory; `--data-dir PATH` overrides it. Headless plan validation:
 `uv run fonesi-edit --validate-plan docs/schemas/examples/multi-stream-composition.json`.
 
