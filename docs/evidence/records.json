@@ -627,5 +627,71 @@
       "Python process error is actual lifecycle/diagnostic evidence, not FFmpeg/provider capability.",
       "No default executor/provider/retention settings/full task acceptance; DWORD bound is representation not native crash."
     ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-03.04",
+    "generation": "clean-2026-11-01",
+    "commit": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+    "tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+    "task_ids": [
+      "P03-02",
+      "P03-07"
+    ],
+    "criterion_ids": [
+      "OPS-03.04"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "Migration backup restore into a new owned store; exact narrow OPS-03.04 only",
+    "command": "python -m pytest -q tests/test_project_backup_restore.py tests/test_projects.py tests/test_project_store_identity.py tests/test_subtitle_cli.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+          "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+          "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+          "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+          "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_project_backup_restore::test_real_migration_backup_restore_reopens_all_original_rows",
+      "tests.test_project_backup_restore::test_cli_real_backup_headless_fresh_process",
+      "tests.test_project_backup_restore::test_existing_destination_or_companion_never_modified",
+      "tests.test_project_backup_restore::test_fault_retains_destination_without_overwrite_or_retry"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41312580297/summary.json"
+    ],
+    "run_id": 41312580297,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41312580297",
+    "independent_review": "docs/reviews/P03_BACKUP_RESTORE_HOSTED_41312580297.md",
+    "limitations": [
+      "Only explicit offline rollback-format backups; WAL-header/sidecar inputs refused.",
+      "Actual unmodified v1 migration backup verified; v2 positive is separately prepared rollback fixture.",
+      "No live-store overwrite, latest-state inference, GUI switching, frozen restore or full-task acceptance."
+    ]
   }
 ]

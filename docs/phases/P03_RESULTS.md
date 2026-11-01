@@ -1114,3 +1114,19 @@ type gates and full comparisons. Fresh CLI subprocess imports no Qt; errors omit
 private paths/project content. Native Windows gate pending. No new child accepted;
 8/438 and0/9 full P03tasks remain. GUI store switching/latest-backup choice and WAL
 backup recovery are separate open scopes. No unchanged aggregate/frozen rerun.
+
+### Restore native evidence41312580297
+Exactpublicd3cf2b17/tree0abcf2c2 (local968cd74): fourSUCCESS, each72PASS0SKIP.
+Windows3.12.10/3.13.16, Linux3.12.15/3.13.17. Independent API/4ZIP/8member verification
+supports only OPS-03.04; root concurred. Ledger9/438, P03 9/78, tasks0/9. Original
+WAL refusal/current-v2 fixture/GUI/latest/frozen limitations retained. No reruns.
+
+### Overview restore entry — local UI integration
+New dedicated restore panel adds an explicit offline-backup/new-directory action,
+new `projects.sqlite3` only, current store/session preserved. Worker-only SQLite,
+10Hz copied-byte observations labelled not complete; final result after actual thread
+retirement. Cancel/close request stop and wait; late cancel does not erase confirmed
+creation, unknown/partial retained with no-retry guidance, stale worker signals ignored.
+Four new focused GUI cases PASS exit0 including actual backup restoration and live
+event loop;15 affected existing shell/recovery/root-relink cases PASS exit0. Native
+UI route still pending; no extra child/whole-task acceptance or GUI store switch.

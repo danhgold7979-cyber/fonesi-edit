@@ -1,0 +1,100 @@
+{
+  "run_id": 41312580297,
+  "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+  "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+  "scope": "project-restore affected only; no aggregate/frozen",
+  "artifacts": [
+    {
+      "id": 13085786601,
+      "name": "project-restore-ubuntu-24.04-py3.12",
+      "zip_sha256": "f4bf5e3f0e73d0b529da6f4dc689db60b13bacbf7a68b893a6dd7f630cccc6cd",
+      "members": {
+        "foundation-results.xml": "e553b067a376d528d85ca0eddf83e0038b5db2725d86ca99fac372aab464b434",
+        "foundation-source.json": "bbfb1566eec1aa29b275a0942dcf5648e035210c925552db618e6435ac66c8a7"
+      },
+      "runtime": {
+        "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+        "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 72,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 72
+      }
+    },
+    {
+      "id": 13085671995,
+      "name": "project-restore-windows-latest-py3.13",
+      "zip_sha256": "5812c6bd938a242798af33e381192d93ddb4f847a4a8478516e9cc182814f0e6",
+      "members": {
+        "foundation-results.xml": "b1dd5ee3ab8f3aab88fd72360830585fce59e40e17e124de7f1da4b8a1dd2b5e",
+        "foundation-source.json": "d3ee9cc6097f0aca2d36fc7de43cf50f52f93f9b5ce2e39ce941eb8b44e5dd62"
+      },
+      "runtime": {
+        "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+        "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 72,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 72
+      }
+    },
+    {
+      "id": 13085467622,
+      "name": "project-restore-windows-latest-py3.12",
+      "zip_sha256": "4f2472fb794d77213081fadb7575d36e402cf254f1b66f0aa700e352942d4c6f",
+      "members": {
+        "foundation-results.xml": "42c0afe568efe70d4f1e2fa5a3c1baec46b6e391ea9e2e18357d06b55df3fc87",
+        "foundation-source.json": "a8a4b5fb5418be2d5266f3e8fcdb3b3a406d96a4cbb481e8d34fb71493ec7830"
+      },
+      "runtime": {
+        "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+        "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 72,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 72
+      }
+    },
+    {
+      "id": 13085079561,
+      "name": "project-restore-ubuntu-24.04-py3.13",
+      "zip_sha256": "0200cd5f26e75a0bfd7667927cae732aceb6dd1122c09addc68e7e8916ee5b68",
+      "members": {
+        "foundation-results.xml": "ccea6d949630607965ec7986d77eb6a6e5cc1e13fe0286a638db063b263ced8d",
+        "foundation-source.json": "c138e60dc80b9aa6b8e432f9a52bedf3bb56a1a9ec5514bd8949de2a8f154bfa"
+      },
+      "runtime": {
+        "source_sha": "d3cf2b17d2646bb45450523b40546ed94bb4ec53",
+        "source_tree": "0abcf2c2addc646f3029aa9a609da8c3ce8a09d4",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 72,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 72
+      }
+    }
+  ]
+}

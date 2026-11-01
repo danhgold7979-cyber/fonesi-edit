@@ -7,6 +7,7 @@ from fonesi_edit.storage.projects import ProjectStore, StorageError
 from fonesi_edit.storage.autosave import prepare_open
 from fonesi_edit.ui.queue import QueuePage
 from fonesi_edit.ui.project_relink import RelinkPanel
+from fonesi_edit.ui.project_restore import RestorePanel
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -24,6 +25,8 @@ class MainWindow(QMainWindow):
         self.relink_panel.idle.connect(self._queue_idle)
         self.relink_panel.state_changed.connect(self._project_actions)
         self.relink_panel.project_changed.connect(self._project_changed)
+        self.restore_panel=RestorePanel(self)
+        self.restore_panel.idle.connect(self._queue_idle)
         self.setWindowTitle('Fonesi Edit — bản phát triển')
         self.resize(1200, 760)
         root = QWidget()
@@ -51,6 +54,7 @@ class MainWindow(QMainWindow):
                 self.save_button.clicked.connect(self.save_current_project)
                 contents.addWidget(self.save_button)
                 contents.addWidget(self.relink_panel)
+                contents.addWidget(self.restore_panel)
                 contents.addWidget(QLabel('Chưa có tác vụ được chạy. Không có số liệu hiệu suất.'))
             elif index == 6:
                 contents.addWidget(self.queue_page)
@@ -133,11 +137,11 @@ class MainWindow(QMainWindow):
         self.relink_panel.update_actions()
 
     @property
-    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy
+    def background_busy(self):return self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy
 
     def request_stop(self):
         self._close_requested=True
-        self.queue_page.request_stop();self.relink_panel.request_stop()
+        self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):

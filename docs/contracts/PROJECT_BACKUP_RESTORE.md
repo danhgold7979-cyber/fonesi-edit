@@ -47,3 +47,18 @@ Current-schema backup snapshots made from WAL-mode stores may retain WAL headers
 those are intentionally refused here, even without sidecars. The proven unmodified
 migration backup path is rollback-format v1. A separately prepared offline
 rollback-format v2 copy preserves its explicit origin; this is not WAL recovery.
+
+## Overview GUI entry (new local slice)
+The explicit picker selects an offline backup and an existing destination directory;
+output is always that directory's NEW `projects.sqlite3`. It never switches the
+active store/session. A dedicated QThread owns restore I/O/SQLite; no existing GUI
+connection crosses threads. Copied-byte signals are throttled to10Hz plus final
+copy observation and labelled as copying, not successful validation. Cancel/close
+requests interruption and keeps the window alive until the worker actually retires.
+Only the final worker outcome after wait-success determines confirmed/unknown;
+a late cancellation never erases confirmed creation. Partial/uncertain files are
+retained with explicit no-retry/no-delete guidance. Source/current-store unchanged
+claims concern this restore operation, not independent concurrent user edits.
+Old-worker progress/completion cannot retarget a newer operation. Selecting a
+folder that already contains the DB/receipt/sidecars fails closed. GUI does not
+choose a newest backup, recover WAL, or automatically launch another app instance.

@@ -1,6 +1,6 @@
 # P03 evidence and remaining acceptance ledger
 
-Current accepted count: **8/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41308555823 (f40bdf3c), combined UI cancellation/retirement/owned cleanup; earlier accepted children retain their exact historical evidence.
+Current accepted count: **9/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41312580297 (d3cf2b17), explicit migration-backup restore into a new store; earlier accepted children retain their exact historical evidence.
 
 Original evidence checkpoint: public source `f16dca9986fd1181363c52580b11d7cef5a8b70c`, local source `a935fccc6746eff726b26dbf352189e0f8f1a30e`, tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`, hosted run `41277250696`. This ledger does not change the original 94 task / 95 group / 438 child-assertion denominators. Test-case count is not product completion percentage. A task closes only when its complete planned acceptance is satisfied; shared child assertions may close before either owning task.
 
@@ -11,14 +11,14 @@ Independent review accepted these exact two closures on 2026-11-01; see `docs/re
 - **OPS-03.05 — Newer schema never overwritten.** ProjectStore future SQLite version refuses before migration/WAL mutation; hosted `tests.test_projects::test_newer_database_untouched` verifies full file bytes unchanged. Project envelope future schema is rejected by `test_invalid_project_envelope_rejected[<lambda>0]`. Supported JSON saves validate existing ownership/schema before replacement. This is the project compatibility criterion, not a claim that every future repository exists or autosave is implemented.
 - **OPS-04.02 — Canonical snapshot immutable.** Hosted `tests.test_composition::test_caller_and_returned_dict_cannot_mutate_snapshot` proves defensive copies and frozen snapshot. `tests.test_jobs::test_idempotence_snapshot_conflict_and_reopen` proves immutable canonical composition+seed persistence and conflicting submission rejection across reopen. Competing claims, stale versions/leases and forged lease records cannot rewrite it. Complete resolved tool/account/provider snapshot fields and artifact traceability remain P03-05 / OPS-04.01 work; this criterion addresses immutability, not field completeness.
 
-At that original checkpoint all other P03-mapped criteria remained unaccepted; six additional narrow closures are recorded below. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
+At that original checkpoint all other P03-mapped criteria remained unaccepted; seven additional narrow closures are recorded below. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
 
 ## Nine task gates: actual implementation and specific missing cases
 
 | Task | Implemented and exercised | Remaining before task acceptance |
 |---|---|---|
 | P03-01 | Locked install, CLI, truthful eight-area shell, user-data paths; hosted Windows/Linux tests; actual Windows onedir/frozen schema CLI | GUI startup on actual Windows user desktop; read-only install + Unicode user-directory scenario; invalid-config quarantine; orderly owned-task shutdown integrated with shell |
-| P03-02 | Project/job SQLite identity/schema guards, project JSON, CAS, transactional initialization, backups, process-kill rollback | Media/preset/artifact/history/cache repositories and version migrations; verified backup restore path and fault at every migration step; complete repository integrity/corruption integration |
+| P03-02 | Project/job SQLite identity/schema guards, project JSON, CAS, transactional initialization, backups, process-kill rollback, native offline v1 migration-backup restore to a new store | Media/preset/artifact/history/cache repositories and version migrations; WAL/live backup recovery and fault at every migration step; complete repository integrity/corruption integration |
 | P03-03 | Bounded probe/hash, unchanged-source identity checks, exact rational time mapping, selected streams | Normalize real no-audio/rotation/VFR/malformed corpus into complete typed probe; actual Windows FFmpeg/ffprobe corpus; large-media cancellation and stream timing integration |
 | P03-04 | Durable admission/idempotence/lease CAS, native owned Windows jobs and POSIX groups, termination/quiescence/crash tests; local live-owner command inbox and bounded numeric Qt progress | Production scheduler/executor integration, queue-level pause, classified retry/blocked states, startup lease recovery, stale completion integration, UI responsiveness under workload |
 | P03-05 | Immutable composition/seed/required-output policies; pure account references; actual bounded own-thread queue view with no snapshot/credential selection (local5cbb079); later reviewed selected pause/resume/cancel-request CAS and explicit Qt retirement | Fully resolved tools/account/provider/preset/matrix snapshot; complete executor/provider diagnostic integration (local typed bounded store/selected viewer implemented); production scheduler wiring (local owner routing/progress slice implemented); preset-change/secret-sentinel integration |
@@ -27,7 +27,7 @@ At that original checkpoint all other P03-mapped criteria remained unaccepted; s
 | P03-08 | Explicit probe path, bounded named executable candidate CLI and explicit-path no-fallback preference (all unverified); trusted distribution contract | Verified registry/manifests/pair capability/resolver/ownership installation receipts; version leases, staging/self-test/activation/rollback/cleanup; actual Windows trusted installation and UI evidence |
 | P03-09 | Reviewed pure profiles/bindings/access models plus owned metadata persistence, CAS/defaults, one login identity per profile/platform, separately scoped channel rights and unlink-only metadata | Credential-reference/secure-store boundary; job/export/log integration; full cache retention; profile acquisition/lease/version/path checks; actual Windows/live Chrome/provider handoff |
 
-**Child assertions accepted: 8/438 globally; 8/78 P03-mapped, 70 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
+**Child assertions accepted: 9/438 globally; 9/78 P03-mapped, 69 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
 
 **Whole P03 tasks accepted: 0/9.** No main merge or phase-complete claim follows from the foundation checkpoint. P01 accepted design tasks remain separately 8/94; P02 external gates stay open. Next implementation priority is P03-06 publication protocol plus P03-04 coordinator integration, preserving worker quiescence and ownership contracts.
 
@@ -94,3 +94,13 @@ Qt fixed diagnostic passed all4targets, with row caps, foreign/corrupt refusal,
 unknown/no-replay and known command-outcome preservation. Separate logs are not
 job/publication/retry authority; default executor/provider/retention settings and
 physical DB size remain open. Ledger8/438, P03 8/78, tasks0/9.
+
+## Migration backup restore accepted (run41312580297)
+
+**OPS-03.04**: real unmodified rollback-format v1 migration backup restores into
+a NEW exclusive owned store, reopens/migrates with original IDs/content/CAS versions
+and unknown origins, while live DB/backup stay unchanged. Actual CLI and refusal/
+fault cases PASS all4targets (72cases each). Exact source/tree/runtime/receipt
+mapping in records.json and P03_BACKUP_RESTORE_HOSTED_41312580297 review. WAL-header
+inputs remain refused; v2 positive is an explicitly prepared rollback fixture. No
+GUI switching/latest-state/frozen restore/full-task acceptance.

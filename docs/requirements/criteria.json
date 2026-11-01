@@ -6167,10 +6167,12 @@
       "unit",
       "integration"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-OPS-03.04"
+    ],
     "planned_case_id": "case_ops_03_04",
-    "test_implementation_status": "PARTIAL_LOCAL_VERIFIED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L174"
     ],
@@ -6178,7 +6180,13 @@
       "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
       "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
     ],
-    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests."
+    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests.",
+    "implemented_test_cases": [
+      "tests.test_project_backup_restore::test_real_migration_backup_restore_reopens_all_original_rows",
+      "tests.test_project_backup_restore::test_cli_real_backup_headless_fresh_process",
+      "tests.test_project_backup_restore::test_existing_destination_or_companion_never_modified",
+      "tests.test_project_backup_restore::test_fault_retains_destination_without_overwrite_or_retry"
+    ]
   },
   {
     "id": "OPS-03.05",
