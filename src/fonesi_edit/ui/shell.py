@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pages, 1)
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.currentRowChanged.connect(lambda index:self.queue_page.refresh() if index==6 else None)
+        self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')

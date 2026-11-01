@@ -39,6 +39,7 @@ class ToolInventoryPanel(QWidget):
         super().__init__(parent);self.worker=None;self.stopping=False;self.revision=0
         self.preferences_path=preferences_path;self.preference_worker=None
         self.saved_snapshot=None;self.saved_revision=None;self.uncertain_save=None
+        self.first_open_attempted=False;self.navigation_generation=0
         layout=QVBoxLayout(self)
         notice=QLabel('Danh sách 5 công cụ thực thi — chỉ đọc tên/tệp, KHÔNG chạy/cài/cập nhật. '
             'Chỉ Lưu rõ ràng mới ghi đường dẫn; đọc lại không quét/chạy hay cấp tin cậy. Font/runtime/model và registry kích hoạt còn chưa tích hợp.')
@@ -100,6 +101,7 @@ class ToolInventoryPanel(QWidget):
         self.load_button.setEnabled(available and self.preferences_path is not None)
         self.save_button.setEnabled(available and self.preferences_path is not None and self.saved_snapshot is not None and self.uncertain_save is None)
     def start(self):
+        self.navigation_generation+=1
         if self.busy or self.stopping:return
         configured={tool:field.text() for tool,field in self.paths.items() if field.text()}
         extra=self.extra.text()
@@ -133,26 +135,46 @@ class ToolInventoryPanel(QWidget):
                 'Không có công cụ nào được xác nhận READY; nguồn tìm không chứng minh sở hữu/tin cậy. '+', '.join(result.diagnostics))
         self.worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
     def cancel(self):
+        self.navigation_generation+=1
         active=self.worker or self.preference_worker
         if active is not None:
             active.requestInterruption();self.message.setText('Đã yêu cầu dừng; chờ thao tác đọc đang chạy kết thúc.');self.update_actions()
+    def first_open(self):
+        # One attempt per panel, before dispatch: error/cancel never silently rearms.
+        if self.first_open_attempted:return
+        self.first_open_attempted=True;self.navigation_generation+=1
+        if self.busy or self.stopping or self.preferences_path is None or self.uncertain_save is not None:return
+        generation=self.navigation_generation
+        self._preferences_start(PreferenceWorker(self.preferences_path,parent=self),auto_generation=generation)
+    def _first_scan(self,generation,revision,expected):
+        if (self.busy or self.stopping or self.uncertain_save is not None or
+            generation!=self.navigation_generation or revision!=self.revision):return
+        current=(tuple(self.paths[t].text() for t in TOOL_NAMES),self.extra.text(),self.system.isChecked())
+        if current!=(expected.paths,expected.extra,expected.include_system):return
+        self.start() # metadata only; never enters selected-pair execution/trust path
     def load_saved(self):
+        self.navigation_generation+=1
         if self.busy or self.stopping or self.preferences_path is None:return
         self._preferences_start(PreferenceWorker(self.preferences_path,parent=self))
     def save_current(self):
+        self.navigation_generation+=1
         if self.busy or self.stopping or self.saved_snapshot is None or self.uncertain_save is not None:return
         try:value=ToolPreferences(tuple(self.paths[t].text() for t in TOOL_NAMES),self.extra.text(),self.system.isChecked())
         except ValueError:
             self.preference_message.setText('Chỉ lưu đường dẫn tuyệt đối hoặc rỗng, không NUL, tối đa 32768 byte mỗi mục.');return
         self._preferences_start(PreferenceWorker(self.preferences_path,value=value,expected=self.saved_snapshot,parent=self))
-    def _preferences_start(self,worker):
-        revision=self.revision;self.preference_worker=worker
+    def _preferences_start(self,worker,auto_generation=None):
+        revision=self.revision;worker.auto_generation=auto_generation;self.preference_worker=worker
         worker.finished.connect(lambda:self._preferences_finished(worker,revision))
         self.preference_message.setText('Đang đọc/lưu cấu hình trên worker; không chạy công cụ. I/O có thể cần chờ.')
         self.update_actions();worker.start()
     def _preferences_finished(self,worker,revision):
         if self.preference_worker is not worker:return
         if not worker.wait(0):QTimer.singleShot(10,lambda:self._preferences_finished(worker,revision));return
+        auto_generation=worker.auto_generation
+        auto_eligible=(auto_generation is not None and auto_generation==self.navigation_generation and
+            revision==self.revision and not self.stopping and not worker.isInterruptionRequested() and
+            self.uncertain_save is None and worker.value is None and not worker.failed and worker.result is not None)
         # Safety state survives stale input revisions and close/cancel requests.
         if worker.unknown:self.uncertain_save=(worker.expected,worker.value)
         if worker.failed or worker.result is None:
@@ -178,7 +200,11 @@ class ToolInventoryPanel(QWidget):
             else:
                 self.saved_snapshot=result;self.saved_revision=revision
                 self.preference_message.setText(f'Đã lưu phiên bản {result.version}. Không thực thi/READY/kích hoạt, không đổi tác vụ cũ.')
+        applied=worker.result
         self.preference_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+        if auto_eligible and self.saved_snapshot==applied:
+            applied_revision=self.revision;expected=applied.value
+            QTimer.singleShot(0,lambda:self._first_scan(auto_generation,applied_revision,expected))
     def request_stop(self):self.stopping=True;self.cancel();self.update_actions()
     def closeEvent(self,event):
         self.request_stop()

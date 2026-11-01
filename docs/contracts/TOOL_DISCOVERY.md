@@ -140,8 +140,9 @@ never silently replaced. No trust, hashes, READY, capability, lease or credentia
 stored. Existing queued snapshots and paired self-test inputs are not modified.
 
 Settings offers explicit **Read saved configuration** and **Save paths/scope**.
-Opening Settings neither reads this store nor scans/executes programs. This is not
-implementation of the original first-open automatic background scan. Reads/saves
+At the original preference checkpoint, reads were explicit only. The subsequent
+first-navigation slice below loads/scans once when Settings is first selected,
+never on application construction and never executing a program. Reads/saves
 use a worker-owned SQLite connection; no connection crosses threads. Input revision
 and exact worker filtering preserve newer edits. Close waits for actual worker
 retirement, without a claimed hard OS I/O deadline. No automatic write retry.
@@ -170,3 +171,22 @@ backup/retention, Auto resolver/version leases and registry activation remain op
 Reuse decision: use Python's already pinned standard SQLite implementation and
 existing clean-build receipt/physical-identity helpers; no additional package,
 upstream source import, binary or dependency execution introduced.
+
+## First-navigation metadata discovery
+
+On first actual Settings navigation, mark the attempt before dispatching preference
+read. Only a successful current read (including missing/defaults) may chain into
+the existing256-check/3-second-between-I/O metadata scanner. Corrupt/foreign store
+refusal never falls back to PATH/default roots. No tool execution, entire-disk scan,
+trust, pair capability, persistent scan cache or READY is introduced. Later navigation
+reuses only in-session display; manual Scan refreshes. Leaving Settings may let the
+background operation finish, but cancel/error/explicit superseding operation never
+rearms it. Input changes during load preserve new fields and suppress the chain.
+
+Load completion checks exact worker, captured revision and operation generation;
+intentional application of saved fields captures a new revision for the deferred
+scanner callback, which again checks generation/revision/current values, unknown
+save state, stopping and busy. Thus an explicit action or close during the queued
+gap cannot launch a stale scanner. Cancel/close retains standard wait(0) worker
+retirement. Neither worker completion nor visible metadata authorizes actual tool
+execution; selected-pair consent remains separate and unpersisted.

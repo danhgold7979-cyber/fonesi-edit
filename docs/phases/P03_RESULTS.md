@@ -1283,3 +1283,21 @@ preference cases plus seven affected inventory cases12PASS, clean process exit0.
 No actual tools run, no native/full aggregate rerun or child closure for this slice.
 
 Independent review found a post-COMMIT competing writer could be returned as the original save result. Exact intended value/version/token readback now required; divergence is UNKNOWN, never another writer falsely labelled as own. New causal case1PASS, independently repeated1PASS only. Source/workflow CLEAR in P03_TOOL_PREFERENCES_LOCAL_REVIEW.md. Scoped next marker [tool-preferences] alone: four targets/eight affected files58cases, no candidate execution/aggregate/frozen.
+
+## Preference target evidence and next first-navigation slice
+
+Preference run41325878717 independently verified fourSUCCESS at publicd174a247,
+treef0dd567c, each58PASS0SKIP; exact Windows3.12.10/3.13.16 and
+Linux3.12.15/3.13.17. Four ZIP digests/eight source+JUnit members match;26preference
+and32shared cases actually passed. No new child acceptance; ledger12 unchanged.
+
+Next SB-L032 first Settings navigation chains one background preference read into
+bounded metadata scan, once per panel. Missing defaults create no files; corrupt
+preferences refuse without fallback; no automatic executable launch or trust.
+Six new/changed Qt causal tests PASS, plus3affected all-area shell cases PASS,
+clean exits. Independent reviewer selected3corrupt/stale-edit/queued-cancel cases
+PASS. Queued-gap test proves cancel supersession specifically; do not relabel it
+as separate explicit-Load/Save/close injections. Close during load has its own case.
+Source/workflow CLEAR in P03_FIRST_SETTINGS_SCAN_LOCAL_REVIEW.md. Next scoped
+[tool-first-open] alone runs fourtargets/eightfiles42cases; no unchanged storage,
+FFmpeg download/execution, frozen build or full aggregate rerun.

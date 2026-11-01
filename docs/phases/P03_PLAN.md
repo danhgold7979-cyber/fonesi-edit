@@ -681,3 +681,17 @@ files and companions, bounded malformed rows, unknown commit, cancellation/close
 stale UI result and missing/corrupt preferences without preventing Settings startup.
 This advances configured-path persistence only; Auto resolver/version leases,
 installer, automatic first-open scan and readiness persistence remain absent.
+
+## First Settings navigation discovery (P03-08; SB-L032)
+
+Once per panel, first actual Settings navigation starts a background saved-preference
+read then bounded metadata discovery. App construction remains independent of tools.
+Missing preferences use defaults without creating files; corrupt/foreign preferences
+show refusal and do not scan default roots. Explicit cancel/error/operation supersedes
+that one-shot chain, never silently rearms; later navigation keeps in-session facts.
+Exact worker, operation generation, edit revision, unknown-save latch and close state
+must remain current at load completion AND queued scan dispatch. Loaded fields do not
+become trust/capability or paired-worker inputs. Tests: first-open missing tools,
+persisted explicit invalid path/no fallback, corrupt config, edit/cancel/close during
+load, repeated navigation and queued callback supersession. No full registry or
+pre-workflow version lease acceptance follows.

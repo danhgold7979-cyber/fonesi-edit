@@ -17,17 +17,21 @@ def spin(app,predicate,seconds=6):
 def text(panel,row,column):return panel.table.item(row,column).text()
 
 
-def test_settings_startup_never_scans_or_needs_tools_then_missing_is_not_ready(qt_app,tmp_path,monkeypatch):
+def test_settings_opens_without_tools_then_first_open_scans_once_missing_not_ready(qt_app,tmp_path,monkeypatch):
     calls=[];real=ui.discover_tools
     def scan(**kwargs):calls.append(threading.get_ident());return real(**kwargs)
-    monkeypatch.setattr(ui,'discover_tools',scan)
+    monkeypatch.setattr(ui,'discover_tools',scan);monkeypatch.setattr(ui,'system_search_dirs',lambda:())
     with ProjectStore(tmp_path/'active.db') as store:
-        window=MainWindow(store);window.navigation.setCurrentRow(7);panel=window.tool_inventory
-        assert calls==[] and not panel.busy and panel.scan_button.isEnabled()
-        panel.system.setChecked(False);panel.start();spin(qt_app,lambda:not panel.busy)
-        assert calls and calls[0]!=threading.get_ident()
+        window=MainWindow(store);panel=window.tool_inventory
+        assert calls==[] and not panel.busy # constructing app is not blocked by tools/preferences
+        window.navigation.setCurrentRow(7)
+        assert window.pages.currentIndex()==7 and panel.first_open_attempted
+        spin(qt_app,lambda:bool(calls) and not panel.busy)
+        assert len(calls)==1 and calls[0]!=threading.get_ident()
         assert all('Chưa thấy' in text(panel,r,6) for r in range(5))
         assert all(text(panel,r,4)=='Chưa biết' for r in range(5))
+        window.navigation.setCurrentRow(0);window.navigation.setCurrentRow(7);qt_app.processEvents()
+        assert len(calls)==1 and not (tmp_path/'tool-preferences.sqlite3').exists()
         assert 'COMPLETE' in panel.message.text() and window.store is store
         window.close()
 
