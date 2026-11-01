@@ -1,6 +1,6 @@
 # Current clean rebuild status
 
-P01 ACCEPTED DESIGN ONLY (independent dbc3f30; recorded527a1a8). P02 bounded local experiments complete, external gates OPEN; P03 IN_PROGRESS on phase-03; P04–P12 PLANNED.94tasks/95groups/438runtime criteria/392source records; exact child assertions accepted2/438 (OPS-03.05, OPS-04.02); whole runtime requirement groups accepted0/95. This is not a tool-completion percentage.
+P01 ACCEPTED DESIGN ONLY (independent dbc3f30; recorded527a1a8). P02 bounded local experiments complete, external gates OPEN; P03 IN_PROGRESS on phase-03; P04–P12 PLANNED.94tasks/95groups/438runtime criteria/392source records; exact child assertions accepted12/438 (see current child ledger); whole runtime requirement groups accepted0/95. This is not a tool-completion percentage.
 
 New P02 codee0cfb14 produced3 scoped experiment evidence records: Qt raster/FFmpeg encode-decode/parity at640 and1080, explicit audio stream/delay, Linux frozen Qt startup. [P02 results](phases/P02_RESULTS.md). Whole P02 OPEN. Default headless Qt audio enumeration crashed; official Pulse fallback returns0devices without crashing, not physical playback evidence.
 
@@ -63,3 +63,7 @@ registry/leases/install, credential/Chrome integration and actual target evidenc
 No repeated unchanged full aggregate or frozen test is used to inflate progress.
 
 Machine-readable P03 task states are now reconciled from stale PLANNED to IN_PROGRESS for all9 tasks, matching existing partial implementations. None is ACCEPTED; 0/9 whole-task and2/438 child acceptance counts remain unchanged.
+
+## Current Settings checkpoint (supersedes historical counts above)
+
+Public phase-03 `72eb57d6c1da839cc4f9e806769da9eaad1f9166`, tree `1e4dcae6925676e8a49cbe5906a10bb1233d13d2`: four affected source/Qt targets55PASS each and two actual pinned Windows pair GUI targets passed. Independent receipts support exactly12/438 accepted children,11/78 P03-mapped; P03 whole tasks0/9. TOL-01.03 belongs to P01/P04, not P03. Main remains P01. Registry/leases/installer/automatic startup scan/full codecs are not accepted. See current acceptance ledger and hosted41324375838/41324375928 summaries.

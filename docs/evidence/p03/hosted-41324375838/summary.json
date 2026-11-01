@@ -1,0 +1,100 @@
+{
+  "run_id": 41324375838,
+  "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+  "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+  "scope": "Affected source/Qt55cases, not aggregate/frozen",
+  "artifacts": [
+    {
+      "id": 13090960842,
+      "name": "tool-pair-ui-ubuntu-24.04-py3.12",
+      "zip_sha256": "8876b57494ffecedae9ab5aa5762c3c6e48a2c33b41878344383e173fe2fd0a0",
+      "members": {
+        "foundation-results.xml": "2e2322425273835f4c58fdf3647b1a800e405a92302c46c54324f65a66a8750c",
+        "foundation-source.json": "3b577cecdd89d32d47471ac215222472d242ce8ec6635b1efefb4aaa6de044c3"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 55,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 55
+      }
+    },
+    {
+      "id": 13090786539,
+      "name": "tool-pair-ui-ubuntu-24.04-py3.13",
+      "zip_sha256": "0712e5d83c6fec079eaa890a10f38cc4fa497c49462f1c9b9e7959b0d17bdae0",
+      "members": {
+        "foundation-results.xml": "0ba1641e970454e3cc8f9d92f32e77e0c1279a6a16511a144d6175166fa3af91",
+        "foundation-source.json": "c68242f2ab75c03a203c65cee1396abc654ea2e1ea79f15740f7f7bb7d72bad4"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "tests": 55,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 55
+      }
+    },
+    {
+      "id": 13090163986,
+      "name": "tool-pair-ui-windows-latest-py3.12",
+      "zip_sha256": "77a88c51559529ec3f34baa5ef9db4e5077e7ae5511fe3c481024f6afdcfabb3",
+      "members": {
+        "foundation-results.xml": "c3f7c904445c286f8e66abeb65ab09382bcfd31b9210e825dc2f2f87b36f52fe",
+        "foundation-source.json": "1c1450b8e630ed6f34d87c86858609cac58f78dbdc5142b5204a36ce937565af"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "tests": 55,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 55
+      }
+    },
+    {
+      "id": 13089903159,
+      "name": "tool-pair-ui-windows-latest-py3.13",
+      "zip_sha256": "ed09d89e994239d7fccf28d8b88b7802b4551e56aa0c5325b43815371c3aa7a3",
+      "members": {
+        "foundation-results.xml": "98d7512eb889533bd9309e5cf798428dfadfcb0e01ae481c13540eb90ced4f78",
+        "foundation-source.json": "7e2da55e3acc218342bbf1e803be87fe3dc2327b5c8dcaf92276ce51d83d70c5"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "tests": 55,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 55
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "status": "PASS",
+  "scope": "Actual selected pair Qt gate, not installer/lease/fullcodec/GPU",
+  "platform": "Windows-2025Server-10.0.26100-SP0",
+  "python": "3.12.10",
+  "archive_sha256": "5cef7bc48e513f3cee7c881e8b2999d835541edb1846c3e89443a67f8f8556ab",
+  "cases": [
+    {
+      "name": "actual-selected-pair-through-Qt",
+      "version": "n8.1.3-27-g8dca1586f4-20261031",
+      "fixture_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+      "mechanisms": [
+        "WINDOWS_JOB_EMPTY",
+        "WINDOWS_JOB_EMPTY",
+        "WINDOWS_JOB_EMPTY",
+        "WINDOWS_JOB_EMPTY",
+        "WINDOWS_JOB_EMPTY"
+      ],
+      "ffmpeg_sha256": "9f3683fc0480bd4b54d42ae44702f6ac6320b3d4a12a36f3a70bfe37d02fd861",
+      "ffprobe_sha256": "d93588787cb39d4ea2e74cf9b88998a95d2706add6c1de94a3b021e588cd6bea"
+    },
+    {
+      "name": "actual-wrong-selected-role-refused-no-fallback",
+      "mechanisms": [
+        "WINDOWS_JOB_EMPTY"
+      ]
+    }
+  ],
+  "members": {
+    "bin/ffprobe.exe": {
+      "size": 265216,
+      "sha256": "d93588787cb39d4ea2e74cf9b88998a95d2706add6c1de94a3b021e588cd6bea"
+    },
+    "bin/swresample-6.dll": {
+      "size": 747008,
+      "sha256": "790d6feb953be3118560afe6f5faafc1e254f947229699f40f95d70034eecf62"
+    },
+    "bin/avfilter-11.dll": {
+      "size": 31893504,
+      "sha256": "3049fb1350d4c851f4fd844b2afc913427eba1b936fe3887d74ad6e11b31fe1f"
+    },
+    "bin/avutil-60.dll": {
+      "size": 3021824,
+      "sha256": "46ad06470515bf0f9a0f8f560470c725002c22decc6d7c2ae7ea836b5d941950"
+    },
+    "bin/avformat-62.dll": {
+      "size": 19846144,
+      "sha256": "56bbe329fb585b673cebf3d8859a963ec26f1057afd27fbf07b8871d59600001"
+    },
+    "bin/ffmpeg.exe": {
+      "size": 552960,
+      "sha256": "9f3683fc0480bd4b54d42ae44702f6ac6320b3d4a12a36f3a70bfe37d02fd861"
+    },
+    "bin/swscale-9.dll": {
+      "size": 12972544,
+      "sha256": "2cc756f813f2ec5ebd6f67f7c019dfb5ff66b015cbdf0c1c313fec19feb93507"
+    },
+    "bin/avdevice-62.dll": {
+      "size": 5008384,
+      "sha256": "d5597695134cd684b33229fa62485e8a5b504c30243d8a6c7000e62ec18fb5be"
+    },
+    "bin/avcodec-62.dll": {
+      "size": 91620864,
+      "sha256": "71ad4d3a1b158d88b4c00e8c2e1eded880e9a8a791a3bf9ba65fd053120470d9"
+    },
+    "LICENSE.txt": {
+      "size": 7651,
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+    }
+  }
+}

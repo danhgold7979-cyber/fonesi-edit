@@ -1,6 +1,6 @@
 # P03 evidence and remaining acceptance ledger
 
-Current accepted count: **9/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41312580297 (d3cf2b17), explicit migration-backup restore into a new store; earlier accepted children retain their exact historical evidence.
+Current accepted count: **12/438 child assertions; 0/9 P03 tasks**. Latest independently verified Settings evidence: runs41324375838/41324375928 at72eb57d6; earlier accepted children retain their exact historical evidence.
 
 Original evidence checkpoint: public source `f16dca9986fd1181363c52580b11d7cef5a8b70c`, local source `a935fccc6746eff726b26dbf352189e0f8f1a30e`, tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`, hosted run `41277250696`. This ledger does not change the original 94 task / 95 group / 438 child-assertion denominators. Test-case count is not product completion percentage. A task closes only when its complete planned acceptance is satisfied; shared child assertions may close before either owning task.
 
@@ -24,10 +24,10 @@ At that original checkpoint all other P03-mapped criteria remained unaccepted; s
 | P03-05 | Immutable composition/seed/required-output policies; pure account references; actual bounded own-thread queue view with no snapshot/credential selection (local5cbb079); later reviewed selected pause/resume/cancel-request CAS and explicit Qt retirement | Fully resolved tools/account/provider/preset/matrix snapshot; complete executor/provider diagnostic integration (local typed bounded store/selected viewer implemented); production scheduler wiring (local owner routing/progress slice implemented); preset-change/secret-sentinel integration |
 | P03-06 | Same-DB journal, semantic media/subtitle validation, streaming retained staging, live-anchor per-member publication and exact-set job/history commit; conservative new-owner quarantine with4real child kills; bounded exclusion-aware candidate CLI; actual Windows live-session completed/canceled owned cleanup and typed retirement | Incarnation-safe automatic restart recovery; automatic restart-safe staging cleanup; complete exclusion/source-overlap policy integration; remaining disk-full/permission/native Windows crash and lifecycle gates |
 | P03-07 | Explicit atomic file save/open and process-kill evidence; local typed completed-command session CAS, explicit recovery choice/shell Save, atomic original-base metadata, same-content asset/font relink and actual background root-folder picker | Actual editor commands/timer autosave; unknown-origin recovery/latest-state ordering; cache and explicit different-content replacement; end-to-end crash/identity/invalidation and native GUI tests; unmarked DB/lock recovery diagnostics |
-| P03-08 | Explicit probe path, bounded named executable candidate CLI and explicit-path no-fallback preference (all unverified); trusted distribution contract | Verified registry/manifests/pair capability/resolver/ownership installation receipts; version leases, staging/self-test/activation/rollback/cleanup; actual Windows trusted installation and UI evidence |
+| P03-08 | Metadata-only inventory UI, explicit-path no-fallback, actual pinned Windows FFmpeg/ffprobe functional pair through Qt, trust-reset/retirement gates; local durable explicit preferences | Verified registry/resolver/ownership installation receipts; persisted preference native verification; version leases, staging/self-test/activation/rollback/cleanup; actual Windows trusted installation, automatic startup scan |
 | P03-09 | Reviewed pure profiles/bindings/access models plus owned metadata persistence, CAS/defaults, one login identity per profile/platform, separately scoped channel rights and unlink-only metadata | Credential-reference/secure-store boundary; job/export/log integration; full cache retention; profile acquisition/lease/version/path checks; actual Windows/live Chrome/provider handoff |
 
-**Child assertions accepted: 9/438 globally; 9/78 P03-mapped, 69 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
+**Child assertions accepted: 12/438 globally; 11/78 P03-mapped, 67 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
 
 **Whole P03 tasks accepted: 0/9.** No main merge or phase-complete claim follows from the foundation checkpoint. P01 accepted design tasks remain separately 8/94; P02 external gates stay open. Next implementation priority is P03-06 publication protocol plus P03-04 coordinator integration, preserving worker quiescence and ownership contracts.
 
@@ -104,3 +104,9 @@ fault cases PASS all4targets (72cases each). Exact source/tree/runtime/receipt
 mapping in records.json and P03_BACKUP_RESTORE_HOSTED_41312580297 review. WAL-header
 inputs remain refused; v2 positive is an explicitly prepared rollback fixture. No
 GUI switching/latest-state/frozen restore/full-task acceptance.
+
+## Settings inventory and selected pair (41324375838 / 41324375928)
+
+Accepted exact TOL-01.03 missing-tool Settings startup, TOL-02.01 explicit-path priority/no fallback, and TOL-03.01 compatible pair tested through actual Windows Qt. Four source targets each55PASS0SKIP; two native Windows targets each selected-pair success plus swapped-role refusal, with5+1 owned retirement receipts. Exact cases, source/tree/runtime and artifact hashes are in records.json and the independent P03_PAIR_SETTINGS_HOSTED_41324375838_41324375928.md review.
+
+TOL-01.03 maps P01-08/P04-08, so P03 rises only9→11/78; global9→12/438. All P03 tasks remain0/9. Automatic startup scan, persisted selection, verified registry/version leases, installer/update, GPU/full codecs, frozen pair and renderer remain open. No broader source-clause/group acceptance.

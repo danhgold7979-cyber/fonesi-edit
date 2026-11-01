@@ -1259,3 +1259,27 @@ Independent paired source/workflow CLEAR at frozen manifest; exact combined mark
 are documented. Three causal negatives independently PASS, no actual tool rerun.
 Actual Windows GUI-pair/TOL03.01 remains pending; prior denied inventory payload
 stays independently frozen and is not bypassed by this later local checkpoint.
+
+## Selected Settings pair and inventory — hosted checkpoint72eb57d6
+
+Independent API/artifact review confirms four source/Qt targets55PASS0SKIP each in
+41324375838 and two actual Windows selected-pair GUI targets in41324375928, each
+positive fixed synthetic pair plus swapped-role refusal (5+1 owned retirement
+proofs). Exact source tree1e4dcae6, runtime versions and all six ZIP/twelve member
+hashes are retained under docs/evidence/p03/hosted-* and the paired hosted review.
+No aggregate/frozen/old native-five-group rerun. Accepted precise children:
+TOL-03.01, TOL-02.01, TOL-01.03. Global12/438; P03-mapped11/78; tasks0/9. The last
+child maps P01/P04, not P03. No startup scan/registry/install/GPU/fullcodec claim.
+
+## Durable explicit tool preferences — local implementation, native pending
+
+New separate owned SQLite preference snapshot with original identity/receipt/schema,
+CAS and conservative unknown-write reconciliation; Settings explicit read/save
+worker, stale edits preserved and no execution/trust/activation persistence.
+Initial17storage cases:12PASS/5FAIL (SQLite substr of empty BLOB yielded NULL, so
+empty path readback rejected); strict type-preserving coalesce correction followed
+by only affected5PASS. Added interruption/pre-COMMIT/schema cases3PASS. Five new Qt
+preference cases plus seven affected inventory cases12PASS, clean process exit0.
+No actual tools run, no native/full aggregate rerun or child closure for this slice.
+
+Independent review found a post-COMMIT competing writer could be returned as the original save result. Exact intended value/version/token readback now required; divergence is UNKNOWN, never another writer falsely labelled as own. New causal case1PASS, independently repeated1PASS only. Source/workflow CLEAR in P03_TOOL_PREFERENCES_LOCAL_REVIEW.md. Scoped next marker [tool-preferences] alone: four targets/eight affected files58cases, no candidate execution/aggregate/frozen.

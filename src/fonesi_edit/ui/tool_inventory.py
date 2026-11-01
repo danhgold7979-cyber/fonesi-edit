@@ -7,6 +7,9 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QFormLayout,QLineEdit,QLabel,
     QAbstractItemView)
 from fonesi_edit.dependencies.discovery import discover_tools,system_search_dirs,TOOL_NAMES
 
+from fonesi_edit.dependencies.preferences import ToolPreferences
+from .tool_preferences import PreferenceWorker,reconciles
+
 ROLES = {'ffmpeg':'Dựng/chuyển đổi media','ffprobe':'Đọc thông tin media',
          'yt-dlp':'Tải theo connector hỗ trợ','gallery-dl':'Tải theo connector hỗ trợ',
          'chrome':'Phiên trình duyệt nếu workflow cần'}
@@ -32,11 +35,13 @@ class InventoryWorker(QThread):
 
 class ToolInventoryPanel(QWidget):
     idle=Signal()
-    def __init__(self,parent=None):
+    def __init__(self,parent=None,*,preferences_path=None):
         super().__init__(parent);self.worker=None;self.stopping=False;self.revision=0
+        self.preferences_path=preferences_path;self.preference_worker=None
+        self.saved_snapshot=None;self.saved_revision=None;self.uncertain_save=None
         layout=QVBoxLayout(self)
         notice=QLabel('Danh sách 5 công cụ thực thi — chỉ đọc tên/tệp, KHÔNG chạy/cài/cập nhật. '
-            'Đường dẫn thử trong phiên này chưa lưu thành cấu hình. Font/runtime/model và registry kích hoạt còn chưa tích hợp.')
+            'Chỉ Lưu rõ ràng mới ghi đường dẫn; đọc lại không quét/chạy hay cấp tin cậy. Font/runtime/model và registry kích hoạt còn chưa tích hợp.')
         notice.setWordWrap(True);notice.setTextFormat(Qt.PlainText);layout.addWidget(notice)
         form=QFormLayout();self.paths={}
         for tool in TOOL_NAMES:
@@ -63,9 +68,16 @@ class ToolInventoryPanel(QWidget):
         self.table.setMinimumHeight(180);layout.addWidget(self.table)
         self.candidates=QPlainTextEdit();self.candidates.setReadOnly(True)
         self.candidates.document().setMaximumBlockCount(1024);self.candidates.setMaximumHeight(110)
-        layout.addWidget(self.candidates);self.clear_rows();self.update_actions()
+        layout.addWidget(self.candidates)
+        preferences=QHBoxLayout();self.load_button=QPushButton('Đọc cấu hình đã lưu')
+        self.save_button=QPushButton('Lưu đường dẫn / phạm vi quét')
+        self.load_button.clicked.connect(self.load_saved);self.save_button.clicked.connect(self.save_current)
+        preferences.addWidget(self.load_button);preferences.addWidget(self.save_button);layout.addLayout(preferences)
+        self.preference_message=QLabel('Chưa đọc cấu hình; đường dẫn đang sửa chỉ thuộc phiên này.')
+        self.preference_message.setWordWrap(True);self.preference_message.setTextFormat(Qt.PlainText)
+        layout.addWidget(self.preference_message);self.clear_rows();self.update_actions()
     @property
-    def busy(self):return self.worker is not None
+    def busy(self):return self.worker is not None or self.preference_worker is not None
     def clear_rows(self):
         for row,tool in enumerate(TOOL_NAMES):
             self._row(row,[tool,ROLES[tool],'—','—','Chưa biết','Chưa biết',REASONS['NOT_EXAMINED'],'—'])
@@ -77,10 +89,16 @@ class ToolInventoryPanel(QWidget):
         self.revision+=1
         if hasattr(self,'table'):
             self.clear_rows();self.message.setText('Đầu vào thay đổi; kết quả trước không áp dụng. Quét lại khi sẵn sàng.')
+        if hasattr(self,'preference_message'):
+            self.preference_message.setText('Đường dẫn đã sửa; chưa lưu. Không đổi snapshot của tác vụ đã xếp hàng.')
+            self.update_actions()
     def update_actions(self):
         available=not self.busy and not self.stopping
         for field in (*self.paths.values(),self.extra,self.system,self.scan_button):field.setEnabled(available)
-        self.cancel_button.setEnabled(self.busy and not self.stopping and not self.worker.isInterruptionRequested())
+        active=self.worker or self.preference_worker
+        self.cancel_button.setEnabled(bool(active) and not self.stopping and not active.isInterruptionRequested())
+        self.load_button.setEnabled(available and self.preferences_path is not None)
+        self.save_button.setEnabled(available and self.preferences_path is not None and self.saved_snapshot is not None and self.uncertain_save is None)
     def start(self):
         if self.busy or self.stopping:return
         configured={tool:field.text() for tool,field in self.paths.items() if field.text()}
@@ -115,8 +133,52 @@ class ToolInventoryPanel(QWidget):
                 'Không có công cụ nào được xác nhận READY; nguồn tìm không chứng minh sở hữu/tin cậy. '+', '.join(result.diagnostics))
         self.worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
     def cancel(self):
-        if self.worker is not None:
-            self.worker.requestInterruption();self.message.setText('Đã yêu cầu dừng; chờ thao tác đọc đang chạy kết thúc.');self.update_actions()
+        active=self.worker or self.preference_worker
+        if active is not None:
+            active.requestInterruption();self.message.setText('Đã yêu cầu dừng; chờ thao tác đọc đang chạy kết thúc.');self.update_actions()
+    def load_saved(self):
+        if self.busy or self.stopping or self.preferences_path is None:return
+        self._preferences_start(PreferenceWorker(self.preferences_path,parent=self))
+    def save_current(self):
+        if self.busy or self.stopping or self.saved_snapshot is None or self.uncertain_save is not None:return
+        try:value=ToolPreferences(tuple(self.paths[t].text() for t in TOOL_NAMES),self.extra.text(),self.system.isChecked())
+        except ValueError:
+            self.preference_message.setText('Chỉ lưu đường dẫn tuyệt đối hoặc rỗng, không NUL, tối đa 32768 byte mỗi mục.');return
+        self._preferences_start(PreferenceWorker(self.preferences_path,value=value,expected=self.saved_snapshot,parent=self))
+    def _preferences_start(self,worker):
+        revision=self.revision;self.preference_worker=worker
+        worker.finished.connect(lambda:self._preferences_finished(worker,revision))
+        self.preference_message.setText('Đang đọc/lưu cấu hình trên worker; không chạy công cụ. I/O có thể cần chờ.')
+        self.update_actions();worker.start()
+    def _preferences_finished(self,worker,revision):
+        if self.preference_worker is not worker:return
+        if not worker.wait(0):QTimer.singleShot(10,lambda:self._preferences_finished(worker,revision));return
+        # Safety state survives stale input revisions and close/cancel requests.
+        if worker.unknown:self.uncertain_save=(worker.expected,worker.value)
+        if worker.failed or worker.result is None:
+            self.preference_message.setText('Chưa xác nhận lưu; KHÔNG thử ghi lại. Đọc lại để đối chiếu.' if self.uncertain_save else
+                'Không đọc/lưu được cấu hình; không thay thế tệp. Đọc lại trước khi lưu; quét thủ công vẫn dùng được.')
+            self.saved_snapshot=None
+        else:
+            result=worker.result
+            if self.uncertain_save is not None:
+                if worker.value is None and reconciles(result,*self.uncertain_save):self.uncertain_save=None
+            if self.uncertain_save is not None:
+                self.saved_snapshot=None
+                self.preference_message.setText('Chưa đối chiếu được lần ghi không rõ kết quả với cùng store; giữ khóa ghi, không tự nhận store khác.')
+            elif revision!=self.revision:
+                self.saved_snapshot=result
+                self.preference_message.setText('Đọc/lưu xong bản đã chụp; giữ nguyên các sửa mới chưa lưu, không thay trường đang hiển thị.')
+            elif worker.value is None:
+                self.saved_snapshot=result
+                for key,value in zip(TOOL_NAMES,result.value.paths):self.paths[key].setText(value)
+                self.extra.setText(result.value.extra);self.system.setChecked(result.value.include_system)
+                self.saved_revision=self.revision
+                self.preference_message.setText(f'Đã đọc phiên bản {result.version}; chưa quét/xác minh/tin cậy. Lưu mới thay đổi cấu hình.')
+            else:
+                self.saved_snapshot=result;self.saved_revision=revision
+                self.preference_message.setText(f'Đã lưu phiên bản {result.version}. Không thực thi/READY/kích hoạt, không đổi tác vụ cũ.')
+        self.preference_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
     def request_stop(self):self.stopping=True;self.cancel();self.update_actions()
     def closeEvent(self,event):
         self.request_stop()

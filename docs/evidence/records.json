@@ -693,5 +693,216 @@
       "Actual unmodified v1 migration backup verified; v2 positive is separately prepared rollback fixture.",
       "No live-store overwrite, latest-state inference, GUI switching, frozen restore or full-task acceptance."
     ]
+  },
+  {
+    "id": "P03-HOSTED-TOL-01.03",
+    "generation": "clean-2026-11-01",
+    "commit": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+    "tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+    "task_ids": [
+      "P01-08",
+      "P04-08"
+    ],
+    "criterion_ids": [
+      "TOL-01.03"
+    ],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Missing-tool Settings startup only; automatic first-open background discovery remains open. Maps P01-08/P04-08, not P03.",
+    "command": "Reviewed [tool-pair-ui] [windows-pair-ui] workflow: affected pytest selection and scripts/check_windows_pair_ui.py",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_tool_inventory_ui::test_settings_startup_never_scans_or_needs_tools_then_missing_is_not_ready"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41324375838/summary.json",
+      "docs/evidence/p03/hosted-41324375928/summary.json"
+    ],
+    "run_ids": [
+      41324375838,
+      41324375928
+    ],
+    "independent_review": "docs/reviews/P03_PAIR_SETTINGS_HOSTED_41324375838_41324375928.md",
+    "limitations": [
+      "Missing-tool Settings startup only; automatic first-open background discovery remains open. Maps P01-08/P04-08, not P03.",
+      "No aggregate/frozen rerun, no installation/PATH changes, no product redistribution or whole-task acceptance."
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375838",
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375928"
+    ]
+  },
+  {
+    "id": "P03-HOSTED-TOL-02.01",
+    "generation": "clean-2026-11-01",
+    "commit": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+    "tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+    "task_ids": [
+      "P02-09",
+      "P03-08"
+    ],
+    "criterion_ids": [
+      "TOL-02.01"
+    ],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Explicit-path priority/refusal only; verified Auto registry, job version leases, installer and persisted selection remain open.",
+    "command": "Reviewed [tool-pair-ui] [windows-pair-ui] workflow: affected pytest selection and scripts/check_windows_pair_ui.py",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_tool_inventory_ui::test_actual_unicode_candidate_and_invalid_explicit_no_fallback_read_only",
+      "tests.test_tool_checks::test_bad_explicit_pin_refuses_before_any_launch",
+      "scripts/check_windows_pair_ui.py::actual-wrong-selected-role-refused-no-fallback"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41324375838/summary.json",
+      "docs/evidence/p03/hosted-41324375928/summary.json"
+    ],
+    "run_ids": [
+      41324375838,
+      41324375928
+    ],
+    "independent_review": "docs/reviews/P03_PAIR_SETTINGS_HOSTED_41324375838_41324375928.md",
+    "limitations": [
+      "Explicit-path priority/refusal only; verified Auto registry, job version leases, installer and persisted selection remain open.",
+      "No aggregate/frozen rerun, no installation/PATH changes, no product redistribution or whole-task acceptance."
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375838",
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375928"
+    ]
+  },
+  {
+    "id": "P03-HOSTED-TOL-03.01",
+    "generation": "clean-2026-11-01",
+    "commit": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+    "tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+    "task_ids": [
+      "P02-09",
+      "P03-08"
+    ],
+    "criterion_ids": [
+      "TOL-03.01"
+    ],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Actual selected pinned pair through Windows Qt with fixed synthetic MPEG4/black-frame fixture. Historical functional observation, not activation, lease, GPU or all-codec readiness.",
+    "command": "Reviewed [tool-pair-ui] [windows-pair-ui] workflow: affected pytest selection and scripts/check_windows_pair_ui.py",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+          "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_tool_checks::test_pinned_pair_returns_only_scoped_observation_without_writes",
+      "tests.test_tool_checks::test_versions_differ_no_functional_fallback",
+      "scripts/check_windows_pair_ui.py::actual-selected-pair-through-Qt"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41324375838/summary.json",
+      "docs/evidence/p03/hosted-41324375928/summary.json"
+    ],
+    "run_ids": [
+      41324375838,
+      41324375928
+    ],
+    "independent_review": "docs/reviews/P03_PAIR_SETTINGS_HOSTED_41324375838_41324375928.md",
+    "limitations": [
+      "Actual selected pinned pair through Windows Qt with fixed synthetic MPEG4/black-frame fixture. Historical functional observation, not activation, lease, GPU or all-codec readiness.",
+      "No aggregate/frozen rerun, no installation/PATH changes, no product redistribution or whole-task acceptance."
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375838",
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41324375928"
+    ]
   }
 ]

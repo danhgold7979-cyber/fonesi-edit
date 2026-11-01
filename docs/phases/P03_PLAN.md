@@ -666,3 +666,18 @@ not a synthetic timeline. Reuse typed ValidationLifecycle for up to2owned launch
 unknown retirement permanently disables repeat in that panel, never authorizes
 cleanup. Close/cancel waits actual QThread retirement; stale results cannot retarget.
 Actual Windows codec remains unavailable until separately reviewed/pinned test tool.
+
+## Durable explicit tool preferences (P03-08, SB §2.1)
+
+Persist only the five explicit executable paths and bounded scan scope in a separate
+owned SQLite store, never trust, READY, self-test receipts or job snapshots. Read and
+save run on the Settings worker thread. Missing configuration reads as defaults
+without creating files; explicit Save creates a new exclusive store. Existing
+unmarked/foreign/newer/schema/receipt mismatches fail closed, not reset/adopted.
+CAS binds a read version and store token; unknown save outcome requires explicit
+reload, not mutation replay. Reopening does not execute tools or scan automatically.
+Targets: roundtrip/Unicode, stale multi-window edit, store replacement, foreign empty
+files and companions, bounded malformed rows, unknown commit, cancellation/close,
+stale UI result and missing/corrupt preferences without preventing Settings startup.
+This advances configured-path persistence only; Auto resolver/version leases,
+installer, automatic first-open scan and readiness persistence remain absent.

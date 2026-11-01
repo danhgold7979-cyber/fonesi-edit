@@ -1,0 +1,86 @@
+{
+  "run_id": 41324375928,
+  "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+  "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+  "scope": "Actual selected pair + swapped-role GUI gate, exact pinned FFmpeg, Unicode owned root; no installer/activation/GPU",
+  "artifacts": [
+    {
+      "id": 13090892056,
+      "name": "windows-pair-ui-py3.13",
+      "zip_sha256": "5a130d66ad2654febae63afb6fd61e180eafdc696eb83e7d09b75c3a617e76c9",
+      "members": {
+        "foundation-source.json": "7e2da55e3acc218342bbf1e803be87fe3dc2327b5c8dcaf92276ce51d83d70c5",
+        "windows-pair-ui-results.json": "5ecad9a87704ee77614606daf044d80c6a30d0be891f7e2ab5891d19e7933526"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "native_status": "PASS",
+      "native_cases": [
+        {
+          "name": "actual-selected-pair-through-Qt",
+          "version": "n8.1.3-27-g8dca1586f4-20261031",
+          "fixture_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+          "mechanisms": [
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY"
+          ],
+          "ffmpeg_sha256": "9f3683fc0480bd4b54d42ae44702f6ac6320b3d4a12a36f3a70bfe37d02fd861",
+          "ffprobe_sha256": "d93588787cb39d4ea2e74cf9b88998a95d2706add6c1de94a3b021e588cd6bea"
+        },
+        {
+          "name": "actual-wrong-selected-role-refused-no-fallback",
+          "mechanisms": [
+            "WINDOWS_JOB_EMPTY"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13090443666,
+      "name": "windows-pair-ui-py3.12",
+      "zip_sha256": "27f4fffaf8ff932cac5fd23788e770d39cab82fcec9ba5919dd250738248d673",
+      "members": {
+        "foundation-source.json": "1c1450b8e630ed6f34d87c86858609cac58f78dbdc5142b5204a36ce937565af",
+        "windows-pair-ui-results.json": "e0363c9a2e1fed105728498bea546cac9ae7a98dd678522e4a0af5574c4c638b"
+      },
+      "runtime": {
+        "source_sha": "72eb57d6c1da839cc4f9e806769da9eaad1f9166",
+        "source_tree": "1e4dcae6925676e8a49cbe5906a10bb1233d13d2",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "native_status": "PASS",
+      "native_cases": [
+        {
+          "name": "actual-selected-pair-through-Qt",
+          "version": "n8.1.3-27-g8dca1586f4-20261031",
+          "fixture_sha256": "f643fb7c7f55b4d53d1cfe88c6aebee4b4c5b1d2c13185415662344ff4552ad8",
+          "mechanisms": [
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY",
+            "WINDOWS_JOB_EMPTY"
+          ],
+          "ffmpeg_sha256": "9f3683fc0480bd4b54d42ae44702f6ac6320b3d4a12a36f3a70bfe37d02fd861",
+          "ffprobe_sha256": "d93588787cb39d4ea2e74cf9b88998a95d2706add6c1de94a3b021e588cd6bea"
+        },
+        {
+          "name": "actual-wrong-selected-role-refused-no-fallback",
+          "mechanisms": [
+            "WINDOWS_JOB_EMPTY"
+          ]
+        }
+      ]
+    }
+  ]
+}

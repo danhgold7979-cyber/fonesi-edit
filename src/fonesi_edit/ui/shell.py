@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
         self.restore_panel.idle.connect(self._queue_idle)
         self.inspection_panel=InspectionPanel(self)
         self.inspection_panel.idle.connect(self._queue_idle)
-        self.tool_inventory=ToolInventoryPanel(self)
+        self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
         self.tool_pair.idle.connect(self._queue_idle)

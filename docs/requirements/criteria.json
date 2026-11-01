@@ -6180,7 +6180,7 @@
       "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
       "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
     ],
-    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests.",
+    "acceptance_note": "Accepted narrow migration-backup restore into a new store; WAL/live/latest-state recovery remains open. See exact hosted record and acceptance ledger.",
     "implemented_test_cases": [
       "tests.test_project_backup_restore::test_real_migration_backup_restore_reopens_all_original_rows",
       "tests.test_project_backup_restore::test_cli_real_backup_headless_fresh_process",
@@ -7192,13 +7192,19 @@
       "integration",
       "gui"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-TOL-01.03"
+    ],
     "planned_case_id": "case_tol_01_03",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "SB-L032"
-    ]
+    ],
+    "implemented_test_cases": [
+      "tests.test_tool_inventory_ui::test_settings_startup_never_scans_or_needs_tools_then_missing_is_not_ready"
+    ],
+    "acceptance_note": "Missing-tool Settings startup only; automatic first-open background discovery remains open. Maps P01-08/P04-08, not P03."
   },
   {
     "id": "TOL-01.04",
@@ -7238,16 +7244,24 @@
       "integration",
       "gui"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-TOL-02.01"
+    ],
     "planned_case_id": "case_tol_02_01",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "SB-L007",
       "SB-L024",
       "SB-L034",
       "SB-L161"
-    ]
+    ],
+    "implemented_test_cases": [
+      "tests.test_tool_inventory_ui::test_actual_unicode_candidate_and_invalid_explicit_no_fallback_read_only",
+      "tests.test_tool_checks::test_bad_explicit_pin_refuses_before_any_launch",
+      "scripts/check_windows_pair_ui.py::actual-wrong-selected-role-refused-no-fallback"
+    ],
+    "acceptance_note": "Explicit-path priority/refusal only; verified Auto registry, job version leases, installer and persisted selection remain open."
   },
   {
     "id": "TOL-02.02",
@@ -7341,15 +7355,23 @@
       "integration",
       "gui"
     ],
-    "status": "NOT_RUN",
-    "evidence": [],
+    "status": "PASS",
+    "evidence": [
+      "P03-HOSTED-TOL-03.01"
+    ],
     "planned_case_id": "case_tol_03_01",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "IMPLEMENTED_AND_HOSTED_VERIFIED",
     "source_clause_ids": [
       "PR-L215",
       "SB-L036",
       "SB-L042"
-    ]
+    ],
+    "implemented_test_cases": [
+      "tests.test_tool_checks::test_pinned_pair_returns_only_scoped_observation_without_writes",
+      "tests.test_tool_checks::test_versions_differ_no_functional_fallback",
+      "scripts/check_windows_pair_ui.py::actual-selected-pair-through-Qt"
+    ],
+    "acceptance_note": "Actual selected pinned pair through Windows Qt with fixed synthetic MPEG4/black-frame fixture. Historical functional observation, not activation, lease, GPU or all-codec readiness."
   },
   {
     "id": "TOL-03.02",

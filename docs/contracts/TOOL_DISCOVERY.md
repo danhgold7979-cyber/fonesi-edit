@@ -128,3 +128,45 @@ TOGETHER and no other diagnostic markers. This selects four source/Qt targets
 `[windows-pair-ui]` alone: it does not select the source affected-only profile.
 Normal unmarked aggregate behavior is unchanged. Metadata-only inventory378ae98 is
 an independently held publication payload; do not silently append this paired slice.
+
+## Durable explicit preferences (separate store; not activation)
+
+`dependencies.preferences` stores one bounded snapshot of five explicit executable
+paths (TOOL_NAMES order), one additional nonrecursive scan root and include-system
+boolean. Empty explicitly clears a path. Nonempty values must be native absolute
+paths, no NUL and at most32768 UTF-8 bytes each. File existence is deliberately NOT
+a save prerequisite: a missing explicitly chosen tool remains visible for repair,
+never silently replaced. No trust, hashes, READY, capability, lease or credential is
+stored. Existing queued snapshots and paired self-test inputs are not modified.
+
+Settings offers explicit **Read saved configuration** and **Save paths/scope**.
+Opening Settings neither reads this store nor scans/executes programs. This is not
+implementation of the original first-open automatic background scan. Reads/saves
+use a worker-owned SQLite connection; no connection crosses threads. Input revision
+and exact worker filtering preserve newer edits. Close waits for actual worker
+retirement, without a claimed hard OS I/O deadline. No automatic write retry.
+
+Missing reads return defaults without mkdir/file/receipt creation. Save creates an
+exclusive regular file only after checking orphan receipt/journal companions.
+Existing unmarked/zero/future/foreign/unsupported-schema inputs are refused, not
+adopted or reset. Read-only opens require original-FD rollback-header preflight
+before SQLite, exact application/schema/receipt, non-reparse identity checks and a
+bounded one-row projection. This assumes a cooperating private application namespace
+and no concurrent external journal-mode changes; it is not a hostile same-user
+filesystem sandbox. Existing rollback journals/WAL/SHM require explicit recovery;
+this slice never deletes them or switches modes.
+
+CAS binds creation-receipt token, version and complete prior snapshot, then rechecks
+inside the transaction. Initialization/data commit precede ownership registration;
+any failed own initialization is retained unmarked for explicit recovery, never
+silently adopted. After transaction entry any failure is conservatively UNKNOWN,
+including known rollback, COMMIT ambiguity, receipt/readback/close uncertainty.
+Explicit reload clears a UI unknown only for the SAME known receipt token and either
+exact old version/value or exact next intended version/value. A replacement store,
+additional concurrent edit, or unknown first creation stays blocked in that session.
+Reload is observation, never replay. Persistent startup quarantine/recovery UX,
+backup/retention, Auto resolver/version leases and registry activation remain open.
+
+Reuse decision: use Python's already pinned standard SQLite implementation and
+existing clean-build receipt/physical-identity helpers; no additional package,
+upstream source import, binary or dependency execution introduced.
