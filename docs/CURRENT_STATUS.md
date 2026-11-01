@@ -18,4 +18,35 @@ adapter now passes actual hosted Windows 3.12/3.13 native tests. Run41277250696
 Windows 148 PASS/18 SKIP each; Ubuntu 155 PASS/11 SKIP each. Windows 3.12
 onedir build and frozen CLI schema validation pass, not GUI/media acceptance. See
 [P03 scoped results](phases/P03_RESULTS.md). [Exact acceptance/gap ledger](phases/P03_ACCEPTANCE_LEDGER.md):2/78 P03-mapped child assertions accepted,0/9 whole P03 tasks accepted. No renderer, provider download,
-translation, full editor or durable job-publication success is claimed yet.
+translation or full editor is claimed. Later local code does implement scoped live
+all-required-artifact publication/history success, but automatic restart adoption and
+full native publication acceptance remain open; the old foundation sentence is not
+current publication-feature status.
+
+
+## Later checkpoints and current limits
+
+The green foundation receipt above belongs to its exact historical clean source, not
+every later edit. Last verified public phase-03 is c416c60a (main remains accepted P01).
+Its affected run41287172473 passed Windows3.13 and both Linux jobs, but Windows3.12
+failed immediate post-child-exit OS lock acquisition before SQLite. The reviewed local
+test-only bounded lock-retirement observation has NOT run on Windows. All prior runs are terminal. New human steering permits coherent important-checkpoint
+publication and CI before whole-phase completion; no repetitive micro-push loop is
+planned. GitHub status alerts remain canceled.
+
+Newer independently reviewed LOCAL work includes retained-anchor publication and
+conservative abandoned-set quarantine; source/output exclusions; actual queue
+observations and selected commands; owned account/profile/source-access metadata;
+project session recovery/Save, original-base migration and background root-folder
+same-content relink. These are real local implementations, not full Windows/phase
+acceptance. Candidate-only --scan-tools is also implemented with no execution/install
+or readiness grant. Four OPS-03 criteria now explicitly record partial local test
+implementation rather than NOT_IMPLEMENTED; accepted children remain exactly2/438.
+
+Full P03 gaps remain detailed in the acceptance ledger: integrated workers/progress/
+classified retry, complete snapshot/log and repository coverage, automatic safe restart
+reconciliation/cleanup, cache/latest recovery/editor commands, verified dependency
+registry/leases/install, credential/Chrome integration and actual target evidence.
+No repeated unchanged full aggregate or frozen test is used to inflate progress.
+
+Machine-readable P03 task states are now reconciled from stale PLANNED to IN_PROGRESS for all9 tasks, matching existing partial implementations. None is ACCEPTED; 0/9 whole-task and2/438 child acceptance counts remain unchanged.

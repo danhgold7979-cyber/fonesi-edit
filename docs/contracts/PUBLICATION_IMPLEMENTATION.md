@@ -174,8 +174,10 @@ clean is a warning and cannot roll back a valid completed job.
   object + content and use journal CAS to continue, without relinking over a path.
 - After coordinator/process restart: current substrate cannot prove incarnation
   from persisted dev/inode/hash alone. Classify affected uncommitted publications as state `unknown`
-  and job `blocked_configuration`/manual reconciliation; artifact_sets keeps its
-  prior `claimed` state (UNKNOWN is a derived recovery classification, not an
+  and expose `OWNERSHIP_UNKNOWN` manual-reconciliation hold while keeping the job
+  `publishing` (or `validating` for an abandoned prepared set); never use ordinary
+  `blocked_configuration` resume to requeue unresolved output. artifact_sets keeps its
+  prior `claimed`/`prepared` state (UNKNOWN is a derived recovery classification, not an
   unsupported artifact_sets SQL enum); preserve both staging and final. Do not
   auto-adopt, delete, overwrite, retry billed provider operation, or report success.
 - Future supported incarnation capability/protected owned-namespace recovery needs
@@ -204,3 +206,50 @@ never adopted; corrupt or deleted staging/final; live post-link error reconcilia
 real child kill before link/after each member/before final commit yields UNKNOWN on
 restart until the supported recovery capability exists. No such UNKNOWN is PASS for
 the full durable-recovery criterion. Source/root sentinel bytes remain unchanged.
+
+### Local live-session completion implementation (unpublished working batch)
+
+`PublicationSession.publish_member` and `finish` implement the above live-session
+member and exact-set transactions without a new schema or dependency. Member
+publication records in-memory linkage only after the no-replace operation, root
+flush and retained-anchor readback all return successfully. A subsequent SQLite
+error preserves that live proof; a later explicit call re-verifies the same final
+and stage, then reconciles the exact journal without linking again. Both a rolled
+back COMMIT and an error reported after an actually successful COMMIT are checked
+by reading the exact durable state; mutation is never blindly replayed.
+
+Filesystem errors after linking but before `Destination.publish` returns do NOT
+currently establish session linkage. The final/stage remain untouched and a repeat
+call conflicts rather than adopting the existing output. This narrower fail-closed
+case still needs explicit reconciliation; no automatic restart reconciliation,
+cleanup, power-loss durability, or whole P03-06 acceptance is claimed.
+
+Success uses one transaction for job/set/history, only after every required final
+has been re-read against its still-held original stage anchor and all member
+artifact rows match their immutable observations. Duplicate finish verifies the
+same content and durable identity before returning one history entry. Worker lease
+expiry after claim does not substitute for, or revoke, the continuously held
+coordinator OS lock and epoch. External epoch/identity changes fail closed.
+
+The session supplies a `before_link` authority check executed by `Destination`
+after slow staged-content verification, immediately before the no-replace native
+link. Loss of coordinator epoch/lock or journal identity during readback therefore
+prevents the filesystem effect, not merely its later SQLite record. This remains
+the cooperating single-coordinator/private-namespace model, not an atomic
+transaction spanning an adversarial filesystem and SQLite.
+
+
+### Local abandoned-set quarantine
+
+`quarantine_abandoned` requires a currently owned OS lock/epoch newer than the
+set's original epoch and exact immutable job/set/manifest identity. It atomically
+marks only old prepared/claimed publications `unknown`; committed member evidence
+and the set/job states are retained. Even if all members committed before a crash,
+no final-set success is inferred. The returned immutable `RecoveryHold` carries
+only set/job UUIDs, required roles and `OWNERSHIP_UNKNOWN`. Repeated classification
+does not increment already-unknown rows. No artifact file is opened, hashed, adopted,
+overwritten or removed; no worker is admitted and no billing operation replayed.
+A fully committed successful set is refused rather than rewriting its history.
+
+This is a conservative quarantine/diagnostic path, NOT automatic crash resume or
+proof of post-restart file incarnation. Full recovery remains an open gate.

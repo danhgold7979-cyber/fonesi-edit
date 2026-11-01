@@ -455,3 +455,297 @@ Known matching upstream report: https://sqlite.org/forum/info/ba7afbd0e815011185
 [coordinator-recovery] CI runs affected DB/coordinator/journal tests on all4 OS/Python
 targets; unchanged parser/UI/frozen suites retain prior exact evidence rather than rerun.
 Independent repair review and native corrected-source evidence pending; no new criteria.
+
+## Scoped native recovery result and later LOCAL integration checkpoints
+
+Public `c416c60a5b70409df587c670d3215348378bd33e`, tree
+`0bd033794bb6a7ba84fada901808b7bbbf3d775e`, run **41287172473**:
+Windows3.13.17/SQLite3.50.4 **70 PASS/1 SKIP**, Ubuntu3.12/3.13 each
+**70 PASS/1 SKIP**. Windows3.12.10/SQLite3.49.1 **69 PASS/1 SKIP/1 FAIL**:
+test assumed immediate OS byte-lock release after killed child; failed before any
+SQLite recovery statement. Microsoft LockFileEx documents asynchronous OS lock
+cleanup. Local test now bounds observation after confirmed exit, but still requires
+actual lock acquisition and propagates SQLite/identity errors. This correction is
+not yet verified on Windows. All four artifact ZIP hashes match GitHub and their
+source receipts pin the public SHA/tree; see `docs/evidence/p03/hosted-41287172473/summary.json`.
+No frozen/GUI suite reran in this affected-only run; original frozen evidence remains
+301934ae CompositionPlan-only, not Windows subtitle packaging.
+
+User subsequently requested phase-batched remote publication rather than frequent
+pushes. No new remote commit/ref/CI trigger follows from the LOCAL commits below.
+Main stays accepted P01. Local checkpoints preserve work on the existing phase-03
+branch and do not imply remote ancestry equivalence or phase readiness.
+
+- **5535e56421360b85f5a15d9a0c8cdfcdf9781f77**, tree
+  `ae6bc9c73ea69d4cfb3dfaa126d8d7fed0bf97cf`: reviewed 12-path P03-06 batch.
+  Live `publish_member` records only its artifact; `finish` verifies every required
+  retained anchor/final and atomically commits set/job/history. Before/after-COMMIT
+  uncertainty reconciles only from the same live proof; foreign identical files
+  never adopted. Epoch is checked after slow readback immediately before native
+  link. Filesystem post-link uncertainty remains fail-closed. Author:32 affected
+  session cases before correction,9 selected corrected cases; independent5 COMMIT
+  cases and7 corrected authority/completion cases, not an aggregate count.
+  New-owner quarantine retains files and non-resumable validating/publishing jobs;
+  7 initial tests include4 real child kills (prepared/claimed/one/all members),2 new
+  rollback/snapshot negatives; independent5 in-process cases, no repeated kills.
+  Source discovery excludes configured output/cache/staging/link loops and known
+  artifact identities; actual `--scan-media` CLI returns bounded candidate counts/
+  paths and explicit partial status, never a decode/render claim.9 author cases,
+  independent6 focused cases. Automatic configured-policy wiring remains open.
+- **5cbb079499c4f205683dba6833a8b63b373ec571**, tree
+  `767a0972600fd62bf42fd0eae02b5fa15f7735ff`: actual read-only desktop queue view.
+  Bounded own-thread SQLite observations omit snapshots/request keys/secrets;
+  truthful missing store and unknown progress, stale-on-error labeling, cooperative
+  close.7 affected tests (including existing shell navigation), then targeted visual
+  fixes; independent4 boundary/lifecycle cases. Existing app branding preserved;
+  red-circle chat identification was not treated as an app-icon requirement.
+
+Reviews: `P03_LIVE_FINISH_LOCAL_REVIEW.md`, `P03_QUARANTINE_LOCAL_CLEAR.md`,
+`P03_DISCOVERY_LOCAL_CLEAR.md`, `P03_QUEUE_LOCAL_CLEAR.md` under docs/reviews.
+Linux offscreen queue image was inspected, not actual Windows desktop evidence.
+No unchanged full aggregate or frozen bundle was rerun. Automatic restart recovery,
+owned staging cleanup, complete source-overlap admission, queue commands/progress,
+other P03 task gates and actual Windows verification remain open. Exact acceptance
+counts remain **2/438 children,0/9 P03 tasks**; test counts are not tool completion.
+
+### Selected-job commands and Qt shutdown correction (LOCAL, later than5cbb079)
+
+Queue buttons now capture one actually selected UUID/version and owned-store receipt
+token, not a merely focused/deselected row. Refresh clears old selection. Existing-only
+`mode=rw` opening refuses missing/foreign/old-schema stores without creating/migrating
+or adopting them. Under the existing nonblocking coordinator lock, one CAS transaction
+pauses pending jobs, resumes only explicitly paused jobs, or records cancellation.
+Running/validating cancellation is only a request, never a process-stopped claim.
+Publishing/configuration holds are not bypassed; a live coordinator causes refusal
+until a real command-routing integration exists. Errors/unknown COMMIT are not replayed.
+Persistent command notices survive refresh; no snapshots/credentials are emitted.
+
+Author16 affected backend/view cases then2 targeted old-schema/late-selection cases;
+independent6 backend stale/store-token/busy/unknown-outcome cases. Review caught the
+visibly deselected/current-row mismatch, now causally covered. A later UI test process
+segfaulted after passing assertions; independent no-worker tests reproduced exit135,
+author reproduced exit134/pure-virtual and isolated snapshot-only exit-7. These runs
+are FAILED, not silently counted as PASS or explained away as worker TLS.
+
+Qt's documented application-outlives-QObjects ordering was enforced in fixture and
+actual GUI entry point: retire/join workers, delete owned widgets while QApplication
+still exists, drain deferred deletion. Nonblocking wait(0) confirms full thread
+retirement rather than assuming finished signal means all cleanup completed. The
+original failing3-case subset then exited0; independently3PASS/14deselected exit0.
+Actual GUI-entrypoint close-during-read subprocess independently1PASS/16deselected
+exit0; author real-process3command/window cycles also exit0. Exact original native
+C++ fault attribution remains limited; the observed lifecycle risk is addressed,
+not an assertion that every platform shutdown is proven.
+
+Final scoped local review CLEAR: `docs/reviews/P03_QUEUE_COMMAND_LOCAL_REVIEW.md`.
+No Windows/GUI/frozen CI was triggered for these newer local commits. Full live queue
+routing/admission/worker progress and all remaining phase gates remain OPEN. Original
+accepted child count2/438 and whole P03 task count0/9 remain unchanged.
+
+### Owned account/profile metadata repository — LOCAL P03-09/P03-02
+
+`accounts/store.py` persists reviewed profile/login-binding/SourceAccess models with
+strict bounded field allowlists, distinct exact schema/application identity, original
+DB anchor, CAS and observation timestamps. Reuses existing SQLite/ownership helpers.
+Review caught and corrected two pre-commit defects: login identities must be unique
+per profile/platform (channels/pages are separate scoped access objects), and a
+preexisting unmarked empty/v0 DB must never be silently initialized. Corrected SQL
+UNIQUE covers insert and update; initialization now requires actual exclusive creation.
+
+One login binding can retain multiple channel/source access observations without a
+new Chrome profile. Changed identity/generation cannot reuse old-scope rights.
+Defaults CAS-match previous selection and current binding version. Unlink removes
+only DB mappings/default/access rows; foreign Chrome sentinel files remain unchanged.
+Reopened auth/browser/rights states retain their original timestamps and are explicitly
+last-known observations, not fresh browser permission. No cookies/passwords, browser
+launch, credential-vault access or network/provider action occurred.
+
+Corrected schema affected16 account cases PASS; independent5 causal correction cases
+PASS/11deselected. Review `docs/reviews/P03_ACCOUNT_STORE_LOCAL_REVIEW.md` scoped CLEAR.
+The initial unpublished prototype is not adopted/migrated; exact signature mismatch
+fails closed. Native Windows, credential refs/secure store, path/version persistence,
+full cache retention, job/export/live Chrome integration remain OPEN. No new task or
+child assertion acceptance and no remote publication/CI follows from this local batch.
+
+### Local project session/recovery and actual shell save — P03-07
+
+New `storage/autosave.py` reuses typed Project/CompositionPlan, SQLite CAS and atomic
+file saves. Explicit file/local-observation/cancel choices revalidate both observed
+values. Completed typed commands advance revision and persist before model replacement;
+stale versions refuse. Unknown DB/file write outcomes latch reconciliation and prevent
+replay. Project-relative recovery/Save As refuses when original base is unproven; it
+never silently rebases media/fonts. This is not latest-state ordering, relink/cache or
+automatic crash recovery acceptance.
+
+The actual Overview UI offers the choice (cancel default) and an explicit Save button.
+Canceled/failed opens retain the current model; recovered content is not written to the
+file until Save. Stale saves preserve external changes; unknown saves disable repeat.
+There is no editor producing completed commands or timer autosave yet. Existing
+ProjectStore unmarked-v0/receipt limitations are explicitly documented, not repaired
+or inherited as ownership acceptance by this slice.
+
+Initial12 new core tests PASS. Independent review found a real shared writer defect:
+the advisory-lock context caught permission/blocking errors across the entire writer,
+misclassifying post-publication failure as a known pre-write conflict. Catching now
+covers only native lock acquisition; yield/body errors propagate as uncertainty.
+Two new actual after_publish fault regressions PASS, showing changed disk bytes,
+latched reconciliation and no second write. Five new UI cases plus two affected prior
+open/model-preservation cases PASS, process exit0 with faulthandler. No unchanged
+aggregate, frozen build, Windows or remote CI was rerun. Final independent review
+is recorded separately before local checkpoint; no additional child/task acceptance.
+
+### Windows FFmpeg reuse evaluation — P02-09/P03-08, read-only
+
+`docs/dependencies/WINDOWS_FFMPEG_CANDIDATE.md` records official vendor linkage,
+versioned Gyan9.0.2 ZIP/digest metadata, community-package adoption, publisher bug
+signals and incomplete advisory/build provenance. Candidate only: no binary obtained,
+installed, executed or redistributed; no system PATH changed. Actual Windows
+capability/negative corpus, verified archive and complete licenses/source remain gates.
+
+Final scoped review CLEAR: `docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md`;
+independent5 postpublish-permission/blocking/UI-choice/save/unknown-retry cases PASS,
+14deselected, exit0. No new phase/criterion/native acceptance.
+
+### ProjectStore ownership dependency correction — LOCAL P03-02/P03-07
+
+The session work exposed an inherited constructor gap. Existing unmarked empty/v0
+DBs are no longer initialized implicitly; new initialization requires exclusive
+creation, while existing stores require valid ownership before SQLite opens. The
+connection uses mode=rw, retained original descriptor and permanent continuity-loss
+revocation. Exact schema/extra-object validation precedes WAL; guards run again before
+WAL/receipt updates. Existing valid ownership receipts stay compatible. Failed new
+initialization leaves an unmarked diagnostic/recovery artifact, not an auto-adoption
+path. Automatic backup restore/legacy import is still OPEN, not removed from scope.
+
+COMMIT errors no longer get hidden by an unconditional ROLLBACK after commit already
+completed. Initial16 new/affected persistence tests PASS. Reviewer then identified
+KeyboardInterrupt initialization leaking the newly retained descriptor; outer cleanup
+now handles BaseException. Two new interruption/pre-WAL identity-change cases PASS.
+The first zero-identity test had an incomplete fstat proxy causing pytest-capture
+teardown failure; corrected proxy retains all unrelated attributes, exact test PASS.
+No app runtime PASS is inferred from that failed harness run. No unchanged full suite,
+Windows or hosted CI repeated; independent final pin review recorded separately.
+
+Final scoped review CLEAR: `docs/reviews/P03_PROJECT_STORE_HARDENING_LOCAL_REVIEW.md`;
+independent3 interruption/zero-identity/pre-WAL replacement cases PASS,6deselected.
+No additional accepted criterion/task. Existing unmarked DB import/restore still needs
+an explicit future recovery workflow; foreign bytes are not modified as a shortcut.
+
+### Original-base persistence and same-content relink — LOCAL P03-02/P03-07
+
+Projects DBv2 retains nullable original directory metadata atomically with completed
+commands, outside exported Project JSON. Owned v1 migration validates old schema and
+receipt, creates/validates a SQLite backup and transactionally adds the field. Legacy
+rows remain unknown, never guessed. Recovery resolves relative asset/font paths
+against a known saved origin even if the selected project file moved; rendering still
+must verify actual file identity. Different known bases trigger a choice even when
+Project JSON matches. Unknown origins remain a relink requirement.
+
+`storage/relink.py` reuses the existing fingerprint helper: explicitly selected asset
+or font must match its full stored SHA256; different content is a replacement, refused
+by this operation. Returns a typed completed command; source bytes remain unchanged,
+probe/timing semantics and render-content digest remain equal. Integration exercises
+relink→session CAS autosave→explicit file save. No picker/background hashing, root-folder
+batch mapping, media replacement/reprobe or cache invalidation UI is claimed.
+
+24 new/affected origin+autosave cases PASS, plus1 later relink/session/file case and
+3 affected initialization/CAS cases. Self-review found ambiguous project-relative
+syntax could discard the known base during join; absolute/Windows-drive/root/NUL
+forms now refuse before model mutation. Five new causal cases PASS; legitimate '..'
+relative paths are not arbitrarily forbidden. Independent review5 migration/base/
+samecontent cases and5 ambiguity cases PASS, final source CLEAR in
+`docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md`. A mistyped reviewer test filter selected
+no tests before the corrected exact run; it contributes no PASS. No aggregate,
+Windows/hosted or full child/task acceptance; 2/438 accepted count unchanged.
+
+### Local root-folder relink with responsive actual shell — P03-07 / ED-L142
+
+The user selects original media root and replacement root; mapping uses the separate
+known project base, so choosing a media subfolder does not reinterpret every relative
+path. All mapped SHA256 checks finish before one completed command is applied; outside
+references stay unchanged. Hashing uses an owned QThread, real verified/total counts,
+cooperative cancellation and GUI-owner SQLite commit. Captured session/revision must
+still match; Open/Save are disabled during verification. Close waits for both queue
+and relink threads to retire, without forced termination or fake progress.
+
+Initial8 targeted cases yielded7PASS/1FAIL: cancellation could race a finished thread's
+queued result because Qt's interruption flag was no longer set when delivered. A
+separate GUI cancellation latch now suppresses that late result; the2 exact cancel/
+close cases PASS exit0. Affected unknown-save UI test also PASS: neither save nor relink
+can retry an uncertain session. Existing real GUI-entrypoint subprocess passed among
+the initial7; no duplicate frozen/aggregate run. Actual empty-state offscreen screenshot
+`runtime/project-relink-empty-offscreen.png` inspected: truthful unavailable actions,
+eight areas and no fabricated data; process exit0, Fontconfig cache warnings remain.
+No claim of Windows GUI acceptance or exact native font behavior.
+
+Final independent scoped review CLEAR: `docs/reviews/P03_ROOT_RELINK_UI_LOCAL_CLEAR.md`;
+5 selected root/subroot/cancel/close/stale-session cases PASS exit0; final shutdown-only
+latch inspected without repeating unchanged tests. Public/native acceptance remains
+unchanged. Local work now includes the actual root picker and background verification;
+full editor, replacement/reprobe, cache and Windows targets remain open.
+
+### Bounded executable candidates and no-fallback preference — LOCAL P03-08
+
+New stdlib-only `dependencies/discovery.py` and headless `--scan-tools` enumerate only
+named candidates in explicit/PATH/common Chrome/extra directories, never recursively
+scan drives or execute candidates. Explicit invalid path never silently falls back;
+Auto class preference and declared PATH order are retained. Every candidate remains
+UNCHECKED/NEEDS_CHECK, not READY or ownership/trust proof. Permission errors and limits
+remain partial rather than false complete-missing; oversized PATH roots refuse rather
+than silently truncate. No installs, profile access, PATH edits or user-data writes.
+
+9 initial focused cases PASS plus2 final order/deadline/fresh-process tests PASS;
+fresh process forbids Qt/storage imports and still enumerates successfully. Independent
+4 no-fallback/partial/order/headless cases PASS, scoped review CLEAR:
+`docs/reviews/P03_TOOL_DISCOVERY_LOCAL_CLEAR.md`. No unchanged actual FFmpeg, native
+Windows or aggregate rerun. Verified registry, tool functional/pair tests, manifests,
+leases, installation, automatic settings UI and other original dependency types remain
+open. Source discovery alone does not close any tool-readiness criterion.
+
+### Explicit pinned FFmpeg pair functional observation — LOCAL P03-08
+
+`dependencies/checks.py` requires explicit caller-authorized executable pins and a
+known-hash fixture with exact expected streams. Both pins are checked before launch;
+there is no discovered-candidate execution shortcut. Reported versions/library tuples
+must match; existing media validation provides full fixture probe/decode, followed by
+one exact bounded black RGB16 frame to stdout. No output/staging files or source writes
+are introduced. Errors suppress arbitrary stderr and never automatically retry.
+
+13 targeted unit cases PASS. One actual new-wrapper integration PASS in1.37s reuses
+unchanged approved Linux FFmpeg/ffprobe7.1.5 binaries and retained synthetic H264 fixture
+c374672f…; exact source/tool/fixture/harness hashes and observations are preserved at
+`docs/evidence/p03/tool-pair-local/`. No binary acquisition, fixture regeneration or
+unchanged corrupt-payload baseline rerun. Scope is that fixture/raw-frame observation,
+not all codecs/GPU/subtitles/Windows, publisher provenance or a production version lease.
+
+Independent6 pin-before-launch/drift/version/policy/cancel cases PASS,7deselected;
+actual FFmpeg receipt reviewed without duplicate execution. Caller must provide a
+trusted stable tool namespace during this check: before/after path hashes are drift
+observations, not atomic executable identity or protection against swap-and-restore.
+No extra task/criterion acceptance or remote publication follows.
+
+### Final jobs-opening repair and coherent hosted checkpoint preparation
+
+Disposable repro confirmed default JobRepository silently adopted a preexisting
+unmarked empty DB (bytes changed,v0→v2). Default opening now refuses before SQLite;
+exclusive new creation or valid ownership is required. Explicit adoption is separately
+opt-in and cannot override a foreign receipt. Leaf symlinks are not resolved away,
+connections/reopens use mode=rw, identity loss permanently revokes the instance, and
+pre-WAL/receipt/submission-COMMIT guards prevent known discontinuity. Post-COMMIT errors
+are preserved without invalid rollback or replay. No jobs schema version, native
+1546 retry conditions or process security policy changed.
+
+10 new/affected identity/adoption/migration cases PASS plus1 explicit-adoption/foreign-
+receipt negative; exact owned1546 reopen regression PASS with mode=rw. Discovery fixture
+names and isolated PATH/common-directory inputs now support the Windows test target;
+4 selected portable-discovery cases PASS locally, not native proof. Frozen harness3
+unit cases PASS; its actual Windows run is still pending. Independent final scoped
+review7 jobs identity cases PASS exit0 and source/harness/workflow hashes checked:
+`docs/reviews/P03_INTEGRATION_CHECKPOINT_CLEAR.md`.
+
+New human authorization permits important coherent checkpoint publication before a
+whole phase finishes. Planned one ordinary4-target source/native aggregate plus
+Windows3.12 onedir/frozen schema/subtitle/empty-encoding/tool-discovery/exact-MIT tests.
+No diagnostic marker or new binary acquisition. Main stays accepted P01; phase03 is
+IN_PROGRESS. Reconciled all9 machine-readable P03 states from stale PLANNED to
+IN_PROGRESS, never ACCEPTED. Accepted children remain2/438 and whole tasks0/9.

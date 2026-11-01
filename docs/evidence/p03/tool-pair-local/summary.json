@@ -1,0 +1,120 @@
+{
+  "scope": "Actual Linux pair wrapper integration only; no Windows/codec/GPU/subtitle/full readiness",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "observation": {
+    "ffmpeg": {
+      "component": "ffmpeg",
+      "path": "/usr/bin/ffmpeg",
+      "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a"
+    },
+    "ffprobe": {
+      "component": "ffprobe",
+      "path": "/usr/bin/ffprobe",
+      "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46"
+    },
+    "ffmpeg_version": {
+      "version": "7.1.5-0+deb13u1",
+      "libraries": [
+        [
+          "libavcodec",
+          "61.19.101",
+          "61.19.101"
+        ],
+        [
+          "libavdevice",
+          "61.3.100",
+          "61.3.100"
+        ],
+        [
+          "libavfilter",
+          "10.5.100",
+          "10.5.100"
+        ],
+        [
+          "libavformat",
+          "61.7.103",
+          "61.7.103"
+        ],
+        [
+          "libavutil",
+          "59.39.100",
+          "59.39.100"
+        ],
+        [
+          "libswresample",
+          "5.3.100",
+          "5.3.100"
+        ],
+        [
+          "libswscale",
+          "8.3.100",
+          "8.3.100"
+        ]
+      ],
+      "response_sha256": "b241942a091ee91966e5b04017a34f1f2a3bcfb1cf80a195e274db03874459d9"
+    },
+    "ffprobe_version": {
+      "version": "7.1.5-0+deb13u1",
+      "libraries": [
+        [
+          "libavcodec",
+          "61.19.101",
+          "61.19.101"
+        ],
+        [
+          "libavdevice",
+          "61.3.100",
+          "61.3.100"
+        ],
+        [
+          "libavfilter",
+          "10.5.100",
+          "10.5.100"
+        ],
+        [
+          "libavformat",
+          "61.7.103",
+          "61.7.103"
+        ],
+        [
+          "libavutil",
+          "59.39.100",
+          "59.39.100"
+        ],
+        [
+          "libswresample",
+          "5.3.100",
+          "5.3.100"
+        ],
+        [
+          "libswscale",
+          "8.3.100",
+          "8.3.100"
+        ]
+      ],
+      "response_sha256": "02412fef1eca820a65af53c5fa03b637f92ef643783005ccf9c4b4e3a31fb699"
+    },
+    "fixture_sha256": "c374672fd3188ba261043f82d93097e566bd3f64c5325af3c2c1e58e42f853a6",
+    "streams": [
+      {
+        "index": 0,
+        "kind": "video",
+        "codec": "h264",
+        "start": "0",
+        "duration": "1",
+        "tolerance": "1/25",
+        "width": 64,
+        "height": 48,
+        "frame_rate": "25",
+        "sample_rate": null,
+        "channels": null
+      }
+    ],
+    "observed_at": 1793526255.0814354,
+    "scope": "known-fixture-probe-full-decode-and-black-rgb16-only",
+    "raw_frame_sha256": "ef115a0e0c15cdc41958ca46b5b14b456115f4baec5e3ca68599d2a8f435e3b8"
+  },
+  "checks_source_sha256": "4e1bb005c76733d66f7ec46486f7279a6523966145ec147be080cdf0314fffc1",
+  "harness_sha256": "e282288aeecc35d2bfa4221c7a0835622c03f5b1223a0d39f281fdaae741b4c9"
+}

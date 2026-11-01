@@ -1,8 +1,31 @@
 import os,subprocess,sys,time,sqlite3
 from pathlib import Path
+from contextlib import contextmanager
 import pytest
 from fonesi_edit.jobs.repository import JobRepository
 from fonesi_edit.jobs.ownership import CoordinatorOwnership,CoordinatorError,CoordinatorBusy,CoordinatorLost,MARKER
+
+@contextmanager
+def _post_exit_owner(repo,child,*,clock=time.monotonic,sleep=time.sleep,wait_seconds=3):
+    """Observe documented asynchronous OS unlock; never infer ownership from exit.
+
+    Only this test's confirmed exited child qualifies. BUSY may be observed until
+    the bounded admission deadline; SQLite/identity/epoch errors are not retried.
+    https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
+    """
+    assert child.poll() is not None, 'Owned child must be confirmed exited first'
+    deadline=clock()+wait_seconds;last_busy=None
+    while True:
+        if last_busy is not None and clock()>=deadline:raise last_busy
+        candidate=CoordinatorOwnership(repo)
+        try:candidate.__enter__()
+        except CoordinatorBusy as exc:
+            candidate.close();last_busy=exc
+            sleep(min(.01,max(0,deadline-clock())))
+            continue
+        break
+    try:yield candidate
+    finally:candidate.close()
 
 @pytest.fixture
 def repo(tmp_path):
@@ -82,7 +105,7 @@ with CoordinatorOwnership(r) as owner:
             with CoordinatorOwnership(repo):pass
         child.kill();child.wait(timeout=5)
         try:
-            with CoordinatorOwnership(repo) as owner:assert owner.guard()==2
+            with _post_exit_owner(repo,child) as owner:assert owner.guard()==2
         except sqlite3.Error as exc:
             # Diagnostic only: no query/reopen/retry before collecting the failure.
             pytest.fail(f'Post-child-exit coordinator acquisition failed: '
@@ -120,3 +143,54 @@ def test_epoch_loss_permanently_revokes_even_after_restoration(repo):
     with pytest.raises(CoordinatorLost,match='Revoked'):
         with owner:pass
     with CoordinatorOwnership(repo) as fresh:assert fresh.guard()>owner.epoch
+
+
+class _ExitedChild:
+    def poll(self):return 1
+
+
+def test_post_exit_wait_requires_actual_lock_after_busy(repo,monkeypatch):
+    factory=CoordinatorOwnership;attempts=[];now=[0.]
+    class Busy:
+        def __enter__(self):raise CoordinatorBusy('still retiring')
+        def close(self):pass
+    def delayed(value):
+        attempts.append(value)
+        return Busy() if len(attempts)<3 else factory(value)
+    monkeypatch.setattr(sys.modules[__name__],'CoordinatorOwnership',delayed)
+    def sleep(delay):now[0]+=delay
+    with _post_exit_owner(repo,_ExitedChild(),clock=lambda:now[0],sleep=sleep) as owner:
+        assert owner.guard()==1
+    assert len(attempts)==3 and repo.db.execute('SELECT count(*) FROM coordinator_epochs').fetchone()[0]==1
+
+
+def test_post_exit_busy_deadline_fails_without_epoch(repo,monkeypatch):
+    now=[0.];attempts=[]
+    class Busy:
+        def __enter__(self):raise CoordinatorBusy('still locked')
+        def close(self):pass
+    def factory(value):attempts.append(value);return Busy()
+    monkeypatch.setattr(sys.modules[__name__],'CoordinatorOwnership',factory)
+    def sleep(delay):now[0]+=delay
+    with pytest.raises(CoordinatorBusy):
+        with _post_exit_owner(repo,_ExitedChild(),clock=lambda:now[0],sleep=sleep,wait_seconds=.02):pass
+    assert len(attempts)==2 and repo.db.execute('SELECT count(*) FROM coordinator_epochs').fetchone()[0]==0
+
+
+def test_post_exit_sqlite_error_is_not_retried(repo,monkeypatch):
+    attempts=[]
+    class Failed:
+        def __enter__(self):
+            attempts.append(1);raise sqlite3.OperationalError('not a busy lock')
+    monkeypatch.setattr(sys.modules[__name__],'CoordinatorOwnership',lambda repo:Failed())
+    with pytest.raises(sqlite3.OperationalError):
+        with _post_exit_owner(repo,_ExitedChild()):pass
+    assert len(attempts)==1
+
+
+def test_post_exit_live_child_never_attempts_acquisition(repo,monkeypatch):
+    class Live:
+        def poll(self):return None
+    monkeypatch.setattr(sys.modules[__name__],'CoordinatorOwnership',lambda repo:pytest.fail('Live child is not retirement proof'))
+    with pytest.raises(AssertionError,match='confirmed exited'):
+        with _post_exit_owner(repo,Live()):pass

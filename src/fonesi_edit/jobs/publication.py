@@ -1,4 +1,4 @@
-"""Owned required-set staging and atomic prepare/claim; no job-success API yet."""
+"""Live-coordinator required-set publication; restart reconciliation stays UNKNOWN."""
 from contextlib import ExitStack
 from dataclasses import asdict
 from hashlib import sha256
@@ -23,6 +23,7 @@ class PublicationSession:
         self.manifest=repository.publication_manifest(job)
         self._stack=ExitStack();self._destinations={};self._staged={}
         self._closed=False;self._set_id=None;self._claimed=False
+        self._linked=set();self._claim_token=None
         try:
             reservations=set()
             for definition in self.manifest.items:
@@ -144,4 +145,101 @@ class PublicationSession:
             raise
         self.job=claimed_job
         self._claimed=True
+        self._claim_token=claimed_job.lease_token
         return self.job
+
+    def _guard_claimed(self, *, completed=False):
+        if self._closed or not self._claimed:raise JobConflict('Live claimed session required')
+        self.ownership.guard()
+        current=self.repository.get(self.job.id)
+        expected_version=self.job.version+(current.state=='succeeded' and self.job.state!='succeeded')
+        if (current.snapshot_hash!=self.job.snapshot_hash or current.attempt!=self.job.attempt or
+            current.version!=expected_version or current.cancel_requested or
+            current.state not in ({'publishing','succeeded'} if completed else {'publishing'}) or
+            (current.state=='publishing' and current.lease_token!=self.job.lease_token)):
+            raise JobConflict('Claimed job identity changed')
+        # Worker deadline no longer grants authority after the atomic claim.
+        return current
+
+    def _journal(self,current):
+        db=self.repository.db
+        row=db.execute('SELECT * FROM artifact_sets WHERE id=?',(self._set_id,)).fetchone()
+        done=current.state=='succeeded'
+        if (row is None or row['job_id']!=current.id or row['snapshot_hash']!=current.snapshot_hash or
+            row['attempt']!=current.attempt or row['lease_token']!=self._claim_token or
+            row['coordinator_epoch']!=self.ownership.epoch or
+            row['roles_json']!=canonical(sorted(self._staged)) or
+            row['state']!=('committed' if done else 'claimed') or row['version']!=(3 if done else 2)):
+            raise JobConflict('Claimed required-set identity changed')
+        members=db.execute('SELECT * FROM publications WHERE set_id=?',(self._set_id,)).fetchall()
+        if len(members)!=len(self._staged) or {m['role'] for m in members}!=set(self._staged):
+            raise JobConflict('Required member set changed')
+        definitions={item.role:item for item in self.manifest.items}
+        for member in members:
+            definition=definitions[member['role']];receipt,validation=self._staged[member['role']]
+            if (member['destination_root']!=definition.destination_root or member['final_name']!=definition.final_name or
+                member['staging_receipt_json']!=canonical(asdict(receipt)) or member['validation_json']!=canonical(validation) or
+                member['state'] not in {'claimed','committed'} or member['version']!=(3 if member['state']=='committed' else 2)):
+                raise JobConflict('Claimed member differs from retained observation')
+            artifact=db.execute('SELECT * FROM artifacts WHERE publication_id=?',(member['id'],)).fetchone()
+            if member['state']=='committed':
+                if (artifact is None or artifact['final_identity_json']!=canonical(list(receipt.file_identity)) or
+                    artifact['sha256']!=receipt.sha256 or artifact['size']!=receipt.size):
+                    raise JobConflict('Committed artifact differs from retained observation')
+            elif artifact is not None:raise JobConflict('Uncommitted member has artifact record')
+        return {member['role']:member for member in members}
+
+    def publish_member(self,role):
+        current=self._guard_claimed();members=self._journal(current)
+        if type(role) is not str or role not in members:raise JobConflict('Unknown required role')
+        definition=next(item for item in self.manifest.items if item.role==role)
+        destination=self._destinations[definition.destination_root];receipt,_=self._staged[role]
+        if role not in self._linked:
+            # Record authority only AFTER no-replace link, flush and live readback
+            # returned successfully. Uncertain filesystem errors remain fail-closed.
+            destination.publish(receipt,definition.final_name,
+                                before_link=lambda:self._journal(self._guard_claimed()))
+            self._linked.add(role)
+        else:destination.verify_published(receipt,definition.final_name)
+        db=self.repository.db;db.execute('BEGIN IMMEDIATE')
+        try:
+            current=self._guard_claimed();member=self._journal(current)[role]
+            if member['state']=='claimed':
+                db.execute('INSERT INTO artifacts VALUES(?,?,?,?,?)',
+                           (member['id'],canonical(list(receipt.file_identity)),receipt.sha256,receipt.size,self.repository.clock()))
+                db.execute("UPDATE publications SET state='committed',version=version+1 WHERE id=?",(member['id'],))
+            db.execute('COMMIT')
+        except BaseException:
+            if db.in_transaction:db.execute('ROLLBACK')
+            raise
+        return destination.root/definition.final_name
+
+    def finish(self):
+        current=self._guard_claimed(completed=True);members=self._journal(current)
+        if any(member['state']!='committed' for member in members.values()) or self._linked!=set(members):
+            raise JobConflict('Every required artifact must be committed by this live session')
+        # Slow content readback stays outside the SQLite write transaction.
+        for definition in self.manifest.items:
+            receipt,_=self._staged[definition.role]
+            self._destinations[definition.destination_root].verify_published(receipt,definition.final_name)
+        db=self.repository.db;db.execute('BEGIN IMMEDIATE')
+        try:
+            current=self._guard_claimed(completed=True);members=self._journal(current)
+            if any(member['state']!='committed' for member in members.values()):raise JobConflict('Required artifact no longer committed')
+            history=db.execute('SELECT * FROM completion_history WHERE set_id=?',(self._set_id,)).fetchone()
+            if current.state=='succeeded':
+                if history is None or history['job_id']!=current.id or history['snapshot_hash']!=current.snapshot_hash:
+                    raise JobConflict('Completion identity changed')
+                finished=current
+            else:
+                if history is not None:raise JobConflict('Unexpected completion history')
+                finished=self.repository._update(current,'succeeded')
+                db.execute("UPDATE artifact_sets SET state='committed',version=version+1 WHERE id=?",(self._set_id,))
+                db.execute('INSERT INTO completion_history VALUES(?,?,?,?)',
+                           (self._set_id,current.id,current.snapshot_hash,self.repository.clock()))
+            db.execute('COMMIT')
+        except BaseException:
+            if db.in_transaction:db.execute('ROLLBACK')
+            raise
+        self.job=finished
+        return finished

@@ -9,8 +9,8 @@ from fonesi_edit.__main__ import main
 import uuid
 
 @pytest.fixture(scope='module')
-def app():
-    return QApplication.instance() or QApplication([])
+def app(qt_app):
+    return qt_app
 
 def test_eight_real_empty_areas_and_shared_project(app, tmp_path, empty_plan):
     with ProjectStore(tmp_path/'user'/'projects.sqlite3') as store:
@@ -29,6 +29,12 @@ def test_eight_real_empty_areas_and_shared_project(app, tmp_path, empty_plan):
         with pytest.raises(RuntimeError): window.open_project(broken)
         assert window.project == project
         window.close()
+        import time
+        deadline=time.monotonic()+5
+        while window.queue_page.busy and time.monotonic()<deadline:
+            app.processEvents();time.sleep(.005)
+        assert not window.queue_page.busy
+        app.processEvents()
 
 def test_headless_validation(tmp_path, empty_plan, capsys):
     import json

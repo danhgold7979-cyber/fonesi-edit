@@ -134,56 +134,74 @@
   {
     "id": "P03-01",
     "scope": "scaffold module, môi trường tái lập, dependency lock, config và user data tách khỏi thư mục chương trình.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-02",
     "scope": "schema/version/migration cho project/media/preset/job/artifact/history/cache; backup và phục hồi khi migration lỗi.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-03",
     "scope": "probe, ID/fingerprint, rational timestamp/time map; media không audio hoặc metadata lỗi.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-04",
     "scope": "scheduler/worker process, công đoạn/progress/cancel/pause/retry, quản lý tiến trình con trên Windows và lease phục hồi sau crash.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-05",
     "scope": "snapshot cấu hình/seed, log lọc bí mật, phân loại lỗi và UI hàng đợi đầu tiên.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-06",
     "scope": "output tạm → kiểm tra → tên cuối an toàn, không đè; truy vết nguồn; bỏ output/cache khi quét.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-07",
     "scope": "save/autosave/recovery, relink media, cache theo fingerprint/phiên bản; thử đóng bất thường có kiểm soát.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-08",
     "scope": "dependency registry/resolver, tool ownership/version/path/capabilities, trusted manifests, cài per-user, staging/self-test/activation/lease/rollback, không đè tool ngoài.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P03-09",
     "scope": "schema BrowserProfile/PlatformAccountBinding, profile ownership/browser state/auth state, credential refs và account-scoped cache; không lưu cookie/mật khẩu trong project.",
-    "status": "PLANNED",
-    "plan": "docs/phases/P03_PLAN.md"
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P03_PLAN.md",
+    "current_evidence_ledger": "docs/phases/P03_ACCEPTANCE_LEDGER.md",
+    "acceptance_kind": "PARTIAL_IMPLEMENTATION_NOT_ACCEPTED"
   },
   {
     "id": "P04-01",

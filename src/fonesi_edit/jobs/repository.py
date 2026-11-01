@@ -34,16 +34,21 @@ class Job:
     cancel_requested: bool
 
 class JobRepository:
-    def __init__(self, path: Path | str, *, clock=time.time, migration_fault=lambda stage:None, adopt_unmarked=False):
+    def __init__(self, path: Path | str, *, clock=time.time, migration_fault=lambda stage:None, adopt_unmarked=False, existing_only=False):
+        if type(existing_only) is not bool or type(adopt_unmarked) is not bool or (existing_only and adopt_unmarked):raise JobConflict('Invalid existing-store open policy')
+        self._existing_only=existing_only
         self.clock = clock
-        path = Path(path).resolve()
+        path = Path(path).absolute()
         self.path=path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if not existing_only:path.parent.mkdir(parents=True, exist_ok=True)
         self.db = None
-        self._file_anchor=None
+        self._file_anchor=None;self._database_revoked=False
+        created=False
         try:
             flags=os.O_RDONLY|getattr(os,"O_BINARY",0)|getattr(os,"O_NOFOLLOW",0)
-            try:self._file_anchor=os.open(path,flags|os.O_CREAT|os.O_EXCL,0o600)
+            try:
+                if existing_only:raise FileExistsError
+                self._file_anchor=os.open(path,flags|os.O_CREAT|os.O_EXCL,0o600);created=True
             except FileExistsError:
                 info=path.lstat()
                 if not stat.S_ISREG(info.st_mode) or getattr(info,"st_file_attributes",0)&0x400:
@@ -52,9 +57,14 @@ class JobRepository:
             info=os.fstat(self._file_anchor)
             self._database_identity=(info.st_dev,info.st_ino)
             self.guard_database()
-            self.db, version = open_versioned(path,owned=lambda:owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES))
+            marker=receipt_path(path)
+            if ((not created and not adopt_unmarked) or marker.exists() or marker.is_symlink()) and not owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES):
+                raise JobConflict('Unmarked/foreign existing jobs schema; explicit adoption required before SQLite')
+            options={'connect':self._connect_existing}
+            self.db, version = open_versioned(path,**options,owned=lambda:owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES))
             self.guard_database() # SQLite opened while original file anchor stayed live
             self.db.row_factory = sqlite3.Row
+            if existing_only and version!=VERSION:raise JobConflict('Queue commands require existing current schema; no migration')
             application_id = self.db.execute('PRAGMA application_id').fetchone()[0]
             if version not in (0,1,VERSION):
                 raise JobConflict('Unsupported jobs schema; left untouched')
@@ -74,26 +84,41 @@ class JobRepository:
                 migrate(self.db,path,version,fault=migration_fault)
             if not matches(self.db,VERSION):
                 raise JobConflict('Jobs migration schema verification failed')
-            self.db.execute('PRAGMA journal_mode=WAL')
+            self.guard_database()
+            if existing_only:
+                if self.db.execute('PRAGMA journal_mode').fetchone()[0]!='wal':raise JobConflict('Existing queue WAL mode required')
+            else:self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
             self.db.execute('PRAGMA busy_timeout=5000')
-            register_database(path,APPLICATION_ID,V2_HASH,legacy_hashes=KNOWN_LINEAGE_HASHES)
+            self.guard_database()
+            if existing_only:
+                if not owns_database(path,APPLICATION_ID,KNOWN_LINEAGE_HASHES):raise JobConflict('Existing queue ownership changed')
+            else:register_database(path,APPLICATION_ID,V2_HASH,legacy_hashes=KNOWN_LINEAGE_HASHES)
         except BaseException:
             self.close()
             raise
+
+    @staticmethod
+    def _connect_existing(path,**kwargs):
+        return sqlite3.connect(Path(path).as_uri()+'?mode=rw',uri=True,**kwargs)
 
     @property
     def database_identity(self):return self._database_identity
 
     def guard_database(self):
-        if self._file_anchor is None:raise JobConflict('Jobs database anchor is closed')
-        opened=os.fstat(self._file_anchor);named=self.path.lstat()
-        if (not stat.S_ISREG(opened.st_mode) or not stat.S_ISREG(named.st_mode) or
-            getattr(named,'st_file_attributes',0)&0x400 or
-            not opened.st_ino or (opened.st_dev,opened.st_ino)!=self._database_identity or
-            (named.st_dev,named.st_ino)!=self._database_identity):
-            raise JobConflict('Jobs database physical identity changed')
+        if self._file_anchor is None or self._database_revoked:
+            raise JobConflict('Jobs database anchor closed or continuity revoked')
+        try:
+            opened=os.fstat(self._file_anchor);named=self.path.lstat()
+            if (not stat.S_ISREG(opened.st_mode) or not stat.S_ISREG(named.st_mode) or
+                getattr(named,'st_file_attributes',0)&0x400 or
+                not opened.st_ino or (opened.st_dev,opened.st_ino)!=self._database_identity or
+                (named.st_dev,named.st_ino)!=self._database_identity):
+                raise JobConflict('Jobs database physical identity changed')
+        except BaseException:
+            self._database_revoked=True
+            raise
 
     def duplicate_database_anchor(self):
         self.guard_database()
@@ -126,7 +151,8 @@ class JobRepository:
             self.guard_database()
             return owns_database(self.path,APPLICATION_ID,KNOWN_LINEAGE_HASHES)
         try:
-            connection,version=open_versioned(self.path,windows=windows,owned=owned)
+            options={'connect':self._connect_existing}
+            connection,version=open_versioned(self.path,windows=windows,owned=owned,**options)
             self.guard_database()
             if (version!=VERSION or connection.execute('PRAGMA application_id').fetchone()[0]!=APPLICATION_ID or
                 not matches(connection,VERSION) or connection.execute('PRAGMA journal_mode').fetchone()[0]!='wal'):
@@ -188,10 +214,11 @@ class JobRepository:
                 self.db.execute('INSERT INTO jobs VALUES(?,?,?,?,?,1,0,NULL,NULL,0)',
                                 (job_id, request_key, snapshot, digest, 'pending'))
                 job = self.get(job_id)
+            self.guard_database()
             self.db.execute('COMMIT')
             return job
         except BaseException:
-            self.db.execute('ROLLBACK')
+            if self.db.in_transaction:self.db.execute('ROLLBACK')
             raise
 
     def publication_manifest(self, job: Job) -> RequiredOutputs:

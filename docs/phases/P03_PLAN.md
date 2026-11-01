@@ -267,3 +267,120 @@ its retained in-memory observations. Missing/failed member or canceled/expired w
 before claim cannot publish. No finish/success API until complete artifact readback and
 all-member transaction are integrated. Test policy drift, malformed/legacy snapshots,
 wrong role/content/type, cancellation, stale attempts and atomic all-role preparation.
+
+## Local P03-07 session/recovery integration
+
+Consume the existing typed Project/CompositionPlan, SQLite CAS and atomic explicit-file
+save primitives. Opening a file inspects its matching last-known local project observation;
+if different, offer explicit file/recovery/cancel, without calling the observation newer
+merely because it exists. Recheck both observations before adopting a choice. Completed
+typed edits persist before replacing the session model; stale revision/version refuses,
+and uncertain writes stop further writes pending explicit reconciliation, never replay.
+The shell exposes the actual recovery choice and explicit save of the current session;
+no editor/render capability or timer autosave is fabricated. A canceled picker/choice or
+failed open retains the previous model. Save uses the opened digest and existing backup
+contract; Save As never silently changes project-relative media/font bases. Recovery with
+unproven original relative base requires relink rather than guessing. Cache/relink and
+complete persistence-ownership hardening remain separate open gates. Focused tests cover
+choice/cancellation/stale observations/completed-command CAS/unknown outcomes and GUI
+model preservation with clean process exit, not another unchanged aggregate.
+
+Project-session dependency hardening: align ProjectStore initialization with the
+already reviewed account-store exclusive-creation policy, require existing ownership
+before SQLite/WAL, retain original identity for session reads/writes, reject extra
+schema objects, and preserve unknown COMMIT errors. Failed unmarked initialization
+requires explicit recovery, not silent adoption. Verify foreign-empty/receipt/trigger
+byte preservation, stale-instance revocation and existing CAS behavior; backup restore
+and authenticated legacy-import UI remain open.
+
+## Local P03-07 original-base recovery and verified relink batch
+
+Persist optional original project-directory metadata beside each autosaved Project,
+not inside exported project JSON. Add an owned v1→v2 SQLite migration: validate exact
+old schema/receipt before backup, validate backup, transactional column addition and
+version change, preserve old receipt lineage, recheck ownership/identity and fail
+closed on any unknown mutation outcome. Legacy rows retain unknown origin (NULL),
+never infer it from a newly opened file. New completed session commands atomically
+save their known base. Recovery of relative references with a known origin resolves
+their execution paths against that origin; legacy unknown bases still require relink.
+File Save As retains current no-silent-rebase rule.
+
+A separate relink command verifies the explicitly selected regular candidate's full
+SHA256 using the existing bounded-growth/cancel-aware fingerprint helper. Match only
+against the chosen existing asset/font identity, retain probe/stream/timing semantics,
+change path+revision only, and return a completed typed command. Different bytes are
+a replacement requiring a future explicit re-import decision, not a relink. Cancellation,
+unknown IDs or mismatch changes no model/DB/source. This proof is an observation, not
+permanent authority: actual rendering must revalidate source identity. Tests cover
+owned migration rollback/backup, legacy unknown origin, moved-file recovery, export
+metadata exclusion, correct/mismatching/canceled relink and render digest parity.
+
+## Local P03-07 root-folder relink and responsive shell
+
+Implement the original ED-L142 root-folder workflow over the reviewed same-content
+primitive: user explicitly supplies old root and chooses new root; map only references
+under the old root, verify every mapped candidate before returning one completed
+command, no partial model/DB update on mismatch/missing/cancel. Out-of-root references
+retain meaning. Hash work runs on an owned QThread with cooperative cancellation;
+SQLite/model commit stays on the GUI owner thread and applies only to the captured
+still-current session/revision. No candidate authority survives to render admission.
+Close/cancel discards late results and waits for actual worker retirement, reusing
+Qt's established wait(0)/deferred-deletion pattern. Source and foreign files remain
+read-only. Target tests cover full mapping, mismatch rollback, cancel/no commit, stale
+session/result, close-during-hash and clean process exit. No Windows parity claim.
+
+## Independent P03-08 candidate discovery / explicit preference slice
+
+Reuse Python pathlib/stat and bounded iteration, not a new package or recursive drive
+scanner. Read configured executable paths, caller-declared managed/bundled directories,
+PATH and extra search directories for ffmpeg/ffprobe/yt-dlp/gallery-dl/Chrome only.
+This is candidate metadata, never publisher trust, executable self-test or readiness.
+Explicit invalid selection refuses without fallback; Auto lists managed/bundled before
+system/extra candidates. Cancellation/check-count/time observation limits produce
+partial results, never a complete-missing verdict. Symlink/reparse candidates are
+reported as unverified, not adopted as managed files. No execution, downloads, installs,
+PATH modification or SQLite/user-data creation. Headless --scan-tools exposes this
+useful read-only result; functional checks/version leases/trusted installation remain
+separate gates. Tests cover preference/no-fallback, limits, Unicode, source unchanged,
+headless behavior and source-label-not-ownership semantics.
+
+## Independent P03-08 pinned pair functional observation
+
+Consume explicit caller-authorized FFmpeg/ffprobe paths and expected executable hashes,
+plus an explicit known-hash test fixture and exact expected streams. Pins are integrity
+inputs, not self-authenticating publisher trust; discovered candidates never authorize
+execution. Reuse owned process retirement, fingerprint and media probe/full-decode
+validation. Check reported versions/library tuples match, validate the known fixture,
+and generate one bounded black RGB frame to stdout. No temporary output files, source
+writes, installs or cleanup authority are needed. Return only fixture/raw-frame scoped
+functional evidence, not full codec/GPU/subtitle/Windows readiness or a version lease.
+Tests cover no-execution on pin mismatch, incompatible metadata, drift, cancellation,
+malformed/oversized output and sanitized errors. One actual Linux integration uses the
+unchanged previously approved system binaries and retained synthetic fixture; no
+re-generation or repetition of the unchanged corrupt-media baseline.
+
+## Jobs-store ownership consistency before further registry integration
+
+A disposable reproduction showed default JobRepository initialized a preexisting
+unmarked empty SQLite file. Align default opening with reviewed account/project stores:
+track exclusive creation, require existing ownership before SQLite unless the caller
+explicitly requests known-schema adoption, reject leaf links without resolving them
+away, and use mode=rw after original descriptor acquisition. Permanently revoke an
+instance on identity loss, guard again before WAL/receipt and submission COMMIT, and
+preserve post-COMMIT errors rather than masking them with invalid ROLLBACK. Keep exact
+known-schema adoption a separate explicit opt-in, not a fallback or automatic restore.
+Tests cover no-open/no-write foreign-empty cases, link refusal, restore-after-loss,
+known adoption, and unknown submission outcomes; no schema-version or native retry
+policy expansion is intended.
+
+## Coherent hosted integration checkpoint (new user publication authority)
+
+Freeze all independently reviewed local P03 work since public c416c60a, including the
+jobs opening repair and portable fixtures. Publish one normal phase-03 descendant
+with exact tree/lease readback; main stays accepted P01. Ordinary workflow runs one
+four-target Windows/Linux3.12/3.13 source/native aggregate. Windows3.12 additionally
+builds onedir and tests frozen schema, Unicode subtitle parsing/invalid encoding,
+read-only candidate discovery and packaged exact MIT notice. No diagnostic marker,
+new binary install or unsupported Windows media/GPU/provider claim. Preserve exact
+source/JUnit/skips/frozen report; inspect terminal failures and fix only affected scope.
+Local scoped source reviews are not replacements for this actual target checkpoint.

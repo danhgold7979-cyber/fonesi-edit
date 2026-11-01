@@ -1,6 +1,7 @@
 from dataclasses import replace
 from hashlib import sha256
 import json
+import os
 import sqlite3
 import pytest
 from fonesi_edit.domain.composition import CompositionPlan
@@ -217,3 +218,139 @@ def test_typed_rational_policy_bounds_before_job_insert_and_exact_roundtrip(tmp_
         job=repo.submit('bounded',plan,42,outputs=outputs)
         assert repo.publication_manifest(job).to_dict()==outputs.to_dict()
     finally:repo.close()
+
+
+def claimed_session(prepared):
+    repo,owner,job,*_=prepared
+    session=PublicationSession(repo,owner,job)
+    session.stage_subtitle('original',RAW);session.stage_subtitle('translated',RAW)
+    session.prepare();session.claim()
+    return session
+
+
+def test_required_outputs_complete_only_after_all_members_and_final_transaction(prepared):
+    repo,owner,job,root,clock,_=prepared
+    with claimed_session(prepared) as session:
+        clock[0]=10000 # worker lease expiration cannot revoke coordinator claim
+        session.publish_member('original')
+        assert (root/'original.srt').read_bytes()==RAW
+        assert repo.get(job.id).state=='publishing'
+        with pytest.raises(JobConflict,match='Every required'):session.finish()
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==0
+        session.publish_member('translated')
+        result=session.finish()
+        assert result.state=='succeeded' and result.lease_token is None
+        assert session.finish()==result
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==1
+        assert {r[0] for r in repo.db.execute('SELECT state FROM publications')}=={'committed'}
+        assert repo.db.execute('SELECT state FROM artifact_sets').fetchone()[0]=='committed'
+
+
+class FaultConnection:
+    def __init__(self,db,needle,after=False):self.db=db;self.needle=needle;self.after=after;self.fired=False
+    def __getattr__(self,name):return getattr(self.db,name)
+    def execute(self,sql,*args):
+        if not self.fired and self.needle in sql:
+            self.fired=True
+            if self.after:self.db.execute(sql,*args)
+            raise sqlite3.OperationalError('injected transaction boundary failure')
+        return self.db.execute(sql,*args)
+
+
+@pytest.mark.parametrize('after_commit',[False,True])
+def test_member_database_failure_retains_live_link_and_reconciles_without_relink(prepared,after_commit,monkeypatch):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        db=repo.db;repo.db=FaultConnection(db,'COMMIT',after_commit)
+        try:
+            with pytest.raises(sqlite3.OperationalError):session.publish_member('original')
+        finally:repo.db=db
+        assert (root/'original.srt').read_bytes()==RAW
+        assert repo.get(job.id).state=='publishing'
+        destination=session._destinations[str(root)]
+        monkeypatch.setattr(destination,'publish',lambda *a:pytest.fail('must not link twice'))
+        session.publish_member('original')
+        assert repo.db.execute('SELECT count(*) FROM artifacts').fetchone()[0]==1
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==0
+
+
+@pytest.mark.parametrize('after_commit',[False,True])
+def test_final_transaction_failure_atomic_or_reconciled_once(prepared,after_commit):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        session.publish_member('original');session.publish_member('translated')
+        db=repo.db;repo.db=FaultConnection(db,'COMMIT',after_commit)
+        try:
+            with pytest.raises(sqlite3.OperationalError):session.finish()
+        finally:repo.db=db
+        assert repo.get(job.id).state==('succeeded' if after_commit else 'publishing')
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==int(after_commit)
+        assert session.finish().state=='succeeded'
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==1
+
+
+def test_late_foreign_identical_output_never_adopted(prepared):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        foreign=root/'original.srt';foreign.write_bytes(RAW);identity=foreign.stat().st_ino
+        with pytest.raises(PublicationConflict):session.publish_member('original')
+        assert foreign.stat().st_ino==identity and foreign.read_bytes()==RAW
+        assert repo.db.execute('SELECT count(*) FROM artifacts').fetchone()[0]==0
+        assert repo.get(job.id).state=='publishing'
+
+
+@pytest.mark.parametrize('mutation',['final','stage','journal','artifact','epoch'])
+def test_final_success_refuses_changed_owned_evidence(prepared,mutation):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        session.publish_member('original');session.publish_member('translated')
+        if mutation=='final':
+            try:(root/'original.srt').rename(root/'retained-original')
+            except PermissionError:
+                assert os.name=='nt' # live Windows pin prevented this mutation
+                assert (root/'original.srt').read_bytes()==RAW
+                assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==0
+                return
+            (root/'original.srt').write_bytes(RAW)
+        elif mutation=='stage':
+            receipt,_=session._staged['original']
+            try:(root/receipt.directory/'payload').unlink()
+            except PermissionError:
+                assert os.name=='nt' # prevented deletion is not injected corruption
+                assert (root/receipt.directory/'payload').read_bytes()==RAW
+                assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==0
+                return
+        elif mutation=='journal':repo.db.execute("UPDATE publications SET validation_json='{}' WHERE role='original'")
+        elif mutation=='artifact':repo.db.execute("UPDATE artifacts SET size=size+1")
+        else:repo.db.execute("INSERT INTO coordinator_epochs(owner_uuid) VALUES('another-owner')")
+        with pytest.raises((JobConflict,PublicationUnknown,RuntimeError)):session.finish()
+        assert repo.get(job.id).state=='publishing'
+        assert repo.db.execute('SELECT count(*) FROM completion_history').fetchone()[0]==0
+
+
+def test_filesystem_postlink_uncertainty_not_adopted_by_retry(prepared,monkeypatch):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        destination=session._destinations[str(root)]
+        def fail_flush():raise OSError('injected flush uncertainty')
+        monkeypatch.setattr(destination,'_flush_root',fail_flush)
+        with pytest.raises(OSError):session.publish_member('original')
+        assert (root/'original.srt').read_bytes()==RAW
+        with pytest.raises(PublicationConflict):session.publish_member('original')
+        assert repo.db.execute('SELECT count(*) FROM artifacts').fetchone()[0]==0
+        assert repo.get(job.id).state=='publishing'
+
+
+def test_epoch_loss_during_slow_stage_readback_prevents_native_link(prepared,monkeypatch):
+    repo,owner,job,root,_,_=prepared
+    with claimed_session(prepared) as session:
+        destination=session._destinations[str(root)];verify=destination._verify
+        def lose_epoch_after_read(*args,**kwargs):
+            result=verify(*args,**kwargs)
+            repo.db.execute("INSERT INTO coordinator_epochs(owner_uuid) VALUES('lost-during-read')")
+            return result
+        monkeypatch.setattr(destination,'_verify',lose_epoch_after_read)
+        with pytest.raises(RuntimeError):session.publish_member('original')
+        assert not (root/'original.srt').exists()
+        assert repo.db.execute('SELECT count(*) FROM artifacts').fetchone()[0]==0
+        assert repo.get(job.id).state=='publishing'

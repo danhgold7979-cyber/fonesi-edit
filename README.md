@@ -13,11 +13,17 @@ Personal Windows desktop media tool, rebuilt independently from preserved requir
 ## Development foundation
 
 Python 3.12/3.13, fresh `uv.lock`: `uv sync --locked`, then `uv run fonesi-edit`.
-The current shell exposes eight navigation areas and validated project open only;
-unimplemented workflows are explicitly unavailable, not simulated. User-data defaults
+The local development shell exposes eight areas, explicit project recovery/Save,
+background same-content root-folder relink, and a real durable queue view with guarded
+pause/resume/cancel-request commands. Unimplemented workflows stay unavailable, not
+simulated. These newer local batches are not yet published or Windows-verified. User-data defaults
 to the OS user-data directory; `--data-dir PATH` overrides it. Headless plan validation:
 `uv run fonesi-edit --validate-plan docs/schemas/examples/multi-stream-composition.json`.
 
-`uv run python -m pytest -q` runs source tests. Platform-specific skips are not PASS.
+Read-only tool candidates: `uv run fonesi-edit --scan-tools` (UNCHECKED is not ready).
+Read-only source candidates: `uv run fonesi-edit --scan-media SOURCE --exclude-root OUTPUT`.
+Neither discovery command executes media tools or creates application data. For normal
+work, run affected tests; reserve `uv run python -m pytest -q` for a meaningful integration
+checkpoint rather than repeating unchanged passes. Platform-specific skips are not PASS.
 The clean-foundation workflow targets actual Windows/Linux, Python3.12/3.13; pending
 runs do not establish Windows support. See [P03 evidence and limits](docs/phases/P03_RESULTS.md).

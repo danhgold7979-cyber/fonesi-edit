@@ -42,3 +42,16 @@ Publication(id,job,attempt,lease,artifact_role,required_set_id,staging,staging_f
 Tests inject crashes after EACH numbered boundary and SQLite operation; external destination collision races; cancel-before/after-claim; stale heartbeat and duplicate result; disk full/permissions, corrupted staging/final; symlink escape, concurrent reservations; matrix history committed once; incomplete multi-artifact set never success. Run both process-kill and simulated failures: monkeypatch-only tests do not certify OS durability.
 
 Required regression: precreate a foreign destination with byte-identical output, crash after CLAIMED but before hard-link; restart must report conflict/unknown and keep foreign bytes/identity, never adopt. Also kill after video commit before subtitle publication and before final-set transaction: job/history cannot be succeeded until complete set readback. Filesystem identity reuse/unsupported-volume tests fail closed.
+
+### Default jobs-store ownership consistency
+
+Default opening now requires either this call's exclusive new-file creation or a
+valid existing ownership receipt before SQLite opens. Preexisting unmarked empty/v0
+files are not silently initialized. `adopt_unmarked=True` remains a separate explicit
+known-schema adoption policy, not a fallback; it cannot override an invalid existing
+receipt. Leaf links are rejected instead of resolving them away. SQLite opens mode=rw
+only after acquiring the original file descriptor; continuity loss permanently revokes
+the repository, including after the old path is restored. Guard again before WAL/
+receipt and submission COMMIT. A post-COMMIT error stays unknown, never masked by an
+invalid unconditional rollback or automatically replayed. Existing narrow Windows1546
+read-only recovery conditions are unchanged; its reopen also cannot recreate a missing DB.

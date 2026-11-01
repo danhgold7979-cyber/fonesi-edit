@@ -42,8 +42,10 @@ def test_migration_failure_is_transactional(tmp_path):
     with sqlite3.connect(db) as c:
         assert c.execute('PRAGMA user_version').fetchone()==(0,)
         assert c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()==[]
-    with ProjectStore(db) as s:assert s.list_projects()==()
-    assert list(tmp_path.glob('db.backup-*'))
+    before=db.read_bytes()
+    with pytest.raises(StorageError,match='explicit recovery'):ProjectStore(db)
+    assert db.read_bytes()==before
+    assert not list(tmp_path.glob('db.backup-*'))
 
 def test_newer_database_untouched(tmp_path):
     db=tmp_path/'future.sqlite'

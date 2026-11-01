@@ -1,0 +1,114 @@
+[
+  {
+    "artifact": 13076070175,
+    "name": "coordinator-recovery-ubuntu-24.04-py3.12",
+    "zip_sha256": "1e5214511116c93ee4b2c983742cedb21517dd5af012cfc4bbde80ab1bbe4b42",
+    "source": {
+      "source_sha": "c416c60a5b70409df587c670d3215348378bd33e",
+      "source_tree": "0bd033794bb6a7ba84fada901808b7bbbf3d775e",
+      "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "python": "3.12.15",
+      "sqlite": "3.45.1"
+    },
+    "suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "71",
+        "time": "0.914",
+        "timestamp": "2026-11-01T08:02:52.668576+00:00",
+        "hostname": "runnervm48cm3"
+      }
+    ],
+    "files": {
+      "foundation-results.xml": "61976e6d68d8ad9878cf2f748e166efacf8aa206ba3b38ee46616e322a1d1020",
+      "foundation-source.json": "16c1b1c78ccc6a7ffc5276e1fe46cc290bc74048869e0ea20949abf2f605ee64"
+    }
+  },
+  {
+    "artifact": 13075364232,
+    "name": "coordinator-recovery-windows-latest-py3.12",
+    "zip_sha256": "5f1a8b286747f1274ffe0c2cb50edcb2c7b19ebe59e7ee3a2433249aec5edac7",
+    "source": {
+      "source_sha": "c416c60a5b70409df587c670d3215348378bd33e",
+      "source_tree": "0bd033794bb6a7ba84fada901808b7bbbf3d775e",
+      "platform": "Windows-2025Server-10.0.26100-SP0",
+      "python": "3.12.10",
+      "sqlite": "3.49.1"
+    },
+    "suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "1",
+        "tests": "71",
+        "time": "10.276",
+        "timestamp": "2026-11-01T08:03:18.560731+00:00",
+        "hostname": "runnervmdaln5"
+      }
+    ],
+    "files": {
+      "foundation-results.xml": "18aeca7639995e8174288a8c9172ce131c7dff0426a858826619003a0e642b80",
+      "foundation-source.json": "5b46f84222870d752c058647514e016be70287e6b33b079cbb963d4849c7a8b5"
+    }
+  },
+  {
+    "artifact": 13075247846,
+    "name": "coordinator-recovery-windows-latest-py3.13",
+    "zip_sha256": "120b4fb2f6b8b410147d52f0690d91ab6ce6925f3db2f2c4d25cad7373073ce4",
+    "source": {
+      "source_sha": "c416c60a5b70409df587c670d3215348378bd33e",
+      "source_tree": "0bd033794bb6a7ba84fada901808b7bbbf3d775e",
+      "platform": "Windows-2025Server-10.0.26100-SP0",
+      "python": "3.13.17",
+      "sqlite": "3.50.4"
+    },
+    "suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "71",
+        "time": "7.293",
+        "timestamp": "2026-11-01T08:03:13.763771+00:00",
+        "hostname": "runnervmhao91"
+      }
+    ],
+    "files": {
+      "foundation-results.xml": "c5bd2f7541bd3ea0a18539a64a60342583f7958f4b3f6567c942d434831f8b34",
+      "foundation-source.json": "0de8ac81d4af2221447e1059748e37778e552b156d5dfb106e7bf259cf4a14a9"
+    }
+  },
+  {
+    "artifact": 13075247800,
+    "name": "coordinator-recovery-ubuntu-24.04-py3.13",
+    "zip_sha256": "1adbe7072804aa2dc04d40a69479aadf4afd0171c21f59c0b30bef133a7c73a2",
+    "source": {
+      "source_sha": "c416c60a5b70409df587c670d3215348378bd33e",
+      "source_tree": "0bd033794bb6a7ba84fada901808b7bbbf3d775e",
+      "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "python": "3.13.17",
+      "sqlite": "3.45.1"
+    },
+    "suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "71",
+        "time": "1.114",
+        "timestamp": "2026-11-01T08:02:50.078886+00:00",
+        "hostname": "runnervm48cm3"
+      }
+    ],
+    "files": {
+      "foundation-results.xml": "b61a434b1e9da80cbb758dc4ede24c61e680aff5427953c6d3a38ab9fcceb578",
+      "foundation-source.json": "1bd5313dd9449de908fce81fbacbf2ed14f4486c50b451785609c2be6a18ab2e"
+    }
+  }
+]

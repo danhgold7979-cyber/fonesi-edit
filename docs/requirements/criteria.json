@@ -6067,11 +6067,16 @@
     "status": "NOT_RUN",
     "evidence": [],
     "planned_case_id": "case_ops_03_01",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "PARTIAL_LOCAL_VERIFIED",
     "source_clause_ids": [
       "PR-L174",
       "ED-L142"
-    ]
+    ],
+    "local_evidence_paths": [
+      "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
+      "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
+    ],
+    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests."
   },
   {
     "id": "OPS-03.02",
@@ -6090,7 +6095,7 @@
     "status": "NOT_RUN",
     "evidence": [],
     "planned_case_id": "case_ops_03_02",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "PARTIAL_LOCAL_VERIFIED",
     "source_clause_ids": [
       "PR-L009",
       "PR-L170",
@@ -6098,7 +6103,12 @@
       "PR-L199",
       "ED-L142",
       "ED-L204"
-    ]
+    ],
+    "local_evidence_paths": [
+      "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
+      "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
+    ],
+    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests."
   },
   {
     "id": "OPS-03.03",
@@ -6117,11 +6127,16 @@
     "status": "NOT_RUN",
     "evidence": [],
     "planned_case_id": "case_ops_03_03",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "PARTIAL_LOCAL_VERIFIED",
     "source_clause_ids": [
       "PR-L174",
       "ED-L142"
-    ]
+    ],
+    "local_evidence_paths": [
+      "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
+      "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
+    ],
+    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests."
   },
   {
     "id": "OPS-03.04",
@@ -6140,10 +6155,15 @@
     "status": "NOT_RUN",
     "evidence": [],
     "planned_case_id": "case_ops_03_04",
-    "test_implementation_status": "NOT_IMPLEMENTED",
+    "test_implementation_status": "PARTIAL_LOCAL_VERIFIED",
     "source_clause_ids": [
       "PR-L174"
-    ]
+    ],
+    "local_evidence_paths": [
+      "docs/reviews/P03_AUTOSAVE_LOCAL_REVIEW.md",
+      "docs/reviews/P03_ORIGIN_RELINK_LOCAL_CLEAR.md"
+    ],
+    "acceptance_note": "Full assertion remains unaccepted; see P03 acceptance ledger for editor/timer, latest recovery, root-folder relink, restore and native gaps. Local targeted tests exist; NOT_RUN is the full-criterion gate, not a claim of no tests."
   },
   {
     "id": "OPS-03.05",

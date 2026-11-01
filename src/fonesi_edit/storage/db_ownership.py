@@ -55,3 +55,14 @@ def register_database(path:Path,application_id:int,schema_hash:str,*,legacy_hash
             raise DatabaseOwnershipError('Concurrent/foreign ownership receipt; retry safely')
     if not owns_database(path,application_id,allowed):
         raise DatabaseOwnershipError('DB identity changed during ownership registration')
+
+
+def ownership_token(path:Path,application_id:int,schema_hash:str|tuple[str,...])->str:
+    """Stable creation-receipt token for stale UI commands, not file adoption proof."""
+    from hashlib import sha256
+    before=read_bounded(receipt_path(path),4096)
+    if not owns_database(path,application_id,schema_hash):
+        raise DatabaseOwnershipError('Database ownership unverified')
+    after=read_bounded(receipt_path(path),4096)
+    if before!=after:raise DatabaseOwnershipError('Database ownership changed')
+    return sha256(before).hexdigest()

@@ -240,12 +240,14 @@ class Destination:
         except FileNotFoundError as e:
             raise PublicationUnknown('Retained staging/final missing; publication ownership unproven') from e
 
-    def publish(self,receipt,name):
+    def publish(self,receipt,name,*,before_link=lambda:None):
         """Call only after durable publication claim. Collision never means success."""
         self._receipt(receipt);safe_name(name)
         with self._stage_directory(receipt.directory,receipt.directory_identity) as stage_fd:
             source='payload' if stage_fd is not None else receipt.directory+'/payload'
             self._verify(receipt,source,stage_fd)
+            self._check()
+            before_link() # coordinator authority rechecked after slow readback
             try:
                 if self.fd is not None:
                     os.link(source,name,src_dir_fd=stage_fd,dst_dir_fd=self.fd,follow_symlinks=False)
