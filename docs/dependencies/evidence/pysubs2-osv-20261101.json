@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-11-01T06:19:23.507941+00:00",
+  "endpoint": "https://api.osv.dev/v1/query",
+  "query": {
+    "package": {
+      "name": "pysubs2",
+      "ecosystem": "PyPI"
+    },
+    "version": "1.9.1"
+  },
+  "response": {},
+  "interpretation": "Known database records only; not a proof of absence of vulnerabilities."
+}

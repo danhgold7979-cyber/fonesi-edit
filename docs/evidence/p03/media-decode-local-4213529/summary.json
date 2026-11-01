@@ -1,0 +1,26 @@
+{
+  "source_commit": "4213529bacdaa6b81d604ef536bbb987d434d531",
+  "environment": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "scope": "Actual local FFmpeg decode negative, not Windows/parity/publication acceptance",
+  "case": "Generated H264 MP4; zero only mdat box payload, retain metadata boxes",
+  "observed": [
+    "ffprobe returned h264 stream metadata",
+    "validate_media raised Output failed full decode",
+    "damaged file bytes unchanged"
+  ],
+  "fixture_hashes": {
+    "generated.mp4": "c374672fd3188ba261043f82d93097e566bd3f64c5325af3c2c1e58e42f853a6",
+    "damaged-payload.mp4": "620b2f4a01797046b61163d8f89272b3525376de571c2e751142c5d8934c749a"
+  },
+  "harness_sha256": "95125db06514a44653ccc437c7d2663f4c236a779de9b0707171c5d4fc027207",
+  "tools": {
+    "ffmpeg": {
+      "sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a",
+      "version": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers"
+    },
+    "ffprobe": {
+      "sha256": "cefc5f81c0b18429cdbf8fa5a89e1e9c759235e10f93f9b329ff1b2fdff26f46",
+      "version": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers"
+    }
+  }
+}

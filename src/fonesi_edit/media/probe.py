@@ -5,10 +5,8 @@ import json
 import math
 import os
 from pathlib import Path
-import subprocess
-import tempfile
-import time
 from typing import Callable
+from fonesi_edit.jobs.process import run_owned,ProcessError,ProcessCanceled
 
 class ProbeError(RuntimeError):
     pass
@@ -53,11 +51,14 @@ def fingerprint(path: Path, cancel: Callable[[], bool] = lambda: False) -> str:
         before = _signature(os.fstat(stream.fileno()))
         if before[:2] != named_before[:2]:
             raise ProbeError('Source identity changed before fingerprinting')
+        total=0
         while True:
             _check_cancel(cancel)
-            chunk = stream.read(1024 * 1024)
+            chunk = stream.read(min(1024 * 1024,before[2]+1-total))
             if not chunk:
                 break
+            total+=len(chunk)
+            if total>before[2]:raise ProbeError('Source changed: grew during fingerprinting')
             digest.update(chunk)
         after = _signature(os.fstat(stream.fileno()))
     named_after = _signature(path.stat())
@@ -84,7 +85,8 @@ def inspect_media(path: Path | str, executable: Path | str, *,
                   timeout: float = 30, max_output_bytes: int = 16 * 1024 * 1024) -> ProbeResult:
     path = Path(path).absolute()
     executable = Path(executable).absolute()
-    if timeout <= 0 or max_output_bytes < 1:
+    if (type(timeout) not in (int,float) or not math.isfinite(timeout) or timeout <= 0 or
+        type(max_output_bytes) is not int or max_output_bytes < 1):
         raise ValueError('Positive timeout and output limit required')
     if not path.is_file():
         raise ProbeError('Media path is not a regular file')
@@ -95,34 +97,17 @@ def inspect_media(path: Path | str, executable: Path | str, *,
     digest = fingerprint(path, cancel)
     args = [str(executable), '-v', 'error', '-show_format', '-show_streams',
             '-print_format', 'json', '-protocol_whitelist', 'file,pipe', '-i', str(path)]
-    # Files rather than pipes avoid pipe backpressure and bound memory capture.
-    with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
-        try:
-            child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=output,
-                                     stderr=errors, shell=False)
-        except OSError as exc:
-            raise ProbeError(f'Unable to launch explicit ffprobe: {exc}') from exc
-        started = time.monotonic()
-        try:
-            while child.poll() is None:
-                _check_cancel(cancel)
-                if time.monotonic() - started > timeout:
-                    raise ProbeError('ffprobe timed out')
-                if os.fstat(output.fileno()).st_size + os.fstat(errors.fileno()).st_size > max_output_bytes:
-                    raise ProbeError('ffprobe output exceeds limit')
-                time.sleep(0.01)
-            _check_cancel(cancel)
-            if os.fstat(output.fileno()).st_size + os.fstat(errors.fileno()).st_size > max_output_bytes:
-                raise ProbeError('ffprobe output exceeds limit')
-            if child.returncode != 0:
-                # Do not leak arbitrary tool stderr (may contain paths/credentials).
-                raise ProbeError(f'ffprobe exited with code {child.returncode}')
-            output.seek(0)
-            raw = output.read(max_output_bytes + 1)
-        finally:
-            if child.poll() is None:
-                child.kill()
-            child.wait()
+    try:
+        result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=max_output_bytes)
+    except ProcessCanceled as exc:
+        raise ProbeCanceled('Media inspection canceled; owned process retired') from exc
+    except (ProcessError,OSError) as exc:
+        raise ProbeError(str(exc)) from exc
+    _check_cancel(cancel)
+    if result.returncode!=0:
+        # Do not expose arbitrary stderr, paths or provider response text.
+        raise ProbeError(f'ffprobe exited with code {result.returncode}')
+    raw=result.stdout
     if before != _signature(path.stat()):
         raise ProbeError('Source changed during inspection')
     try:

@@ -13,7 +13,7 @@ def receipt_path(path:Path)->Path:
     return path.with_name(path.name+'.fonesi-owner')
 
 
-def owns_database(path:Path,application_id:int,schema_hash:str)->bool:
+def owns_database(path:Path,application_id:int,schema_hash:str|tuple[str,...])->bool:
     receipt=receipt_path(path)
     try:
         info=receipt.lstat()
@@ -24,7 +24,9 @@ def owns_database(path:Path,application_id:int,schema_hash:str)->bool:
         if set(data)!={'format','nonce','application_id','schema_hash','device','inode'}:return False
         if data['format']!='fonesi-db-owner-1' or str(uuid.UUID(data['nonce']))!=data['nonce']:return False
         current=path.stat()
-        if (data['application_id'],data['schema_hash'],data['device'],data['inode'])!=(application_id,schema_hash,current.st_dev,current.st_ino):return False
+        allowed=(schema_hash,) if isinstance(schema_hash,str) else schema_hash
+        if data['schema_hash'] not in allowed:return False
+        if (data['application_id'],data['device'],data['inode'])!=(application_id,current.st_dev,current.st_ino):return False
         with path.open('rb') as stream:header=stream.read(100)
         return (len(header)==100 and header[:16]==b'SQLite format 3\x00' and
                 int.from_bytes(header[68:72],'big')==application_id)
@@ -32,11 +34,14 @@ def owns_database(path:Path,application_id:int,schema_hash:str)->bool:
         return False
 
 
-def register_database(path:Path,application_id:int,schema_hash:str):
+def register_database(path:Path,application_id:int,schema_hash:str,*,legacy_hashes:tuple[str,...]=()):
     """Call ONLY after application ID + complete expected schema validation/migration."""
     receipt=receipt_path(path)
+    # Receipt records reviewed creation lineage, not current schema validity.
+    # Caller must independently validate the complete current schema first.
+    allowed=(schema_hash,*legacy_hashes)
     if receipt.exists() or receipt.is_symlink():
-        if not owns_database(path,application_id,schema_hash):
+        if not owns_database(path,application_id,allowed):
             raise DatabaseOwnershipError('Existing DB ownership receipt is invalid/foreign; left untouched')
         return
     current=path.stat()
@@ -46,7 +51,7 @@ def register_database(path:Path,application_id:int,schema_hash:str):
         with receipt.open('x',encoding='utf-8',newline='\n') as stream:
             json.dump(data,stream,sort_keys=True);stream.flush();os.fsync(stream.fileno())
     except FileExistsError:
-        if not owns_database(path,application_id,schema_hash):
+        if not owns_database(path,application_id,allowed):
             raise DatabaseOwnershipError('Concurrent/foreign ownership receipt; retry safely')
-    if not owns_database(path,application_id,schema_hash):
+    if not owns_database(path,application_id,allowed):
         raise DatabaseOwnershipError('DB identity changed during ownership registration')

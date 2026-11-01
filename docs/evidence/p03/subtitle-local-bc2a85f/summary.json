@@ -1,0 +1,48 @@
+{
+  "source_commit": "bc2a85f2fa27fcaa98e9eb6be66b5ac978b9a748",
+  "scope": "Local Linux frozen CLI only; not Windows/GUI/render fidelity",
+  "binary_sha256": "d68d871df51eaf2e082a793cff1c526f58f89f99ccafecc1d66c63b13117e887",
+  "license_sha256": "93d82c4caf14f9ac8845377399860ee8e3628481d8017ebe33febb8bf7236211",
+  "cases": [
+    {
+      "format": "srt",
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "fixture_sha256": "b8e95e1d9441191bc2b0b93ac8b7618c572d7fee781dbc7dd3add1865d106e17",
+      "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\n",
+      "stderr": ""
+    },
+    {
+      "format": "vtt",
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "fixture_sha256": "e96ad347be476ee30e0ec3f90f81b4b2910d62c03baac4dc8c51bab3f6b1262b",
+      "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\n",
+      "stderr": ""
+    },
+    {
+      "format": "ass",
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "fixture_sha256": "7484f46ca8ee0e4aba3b0d38cf03a636cc07b6906715c0d79e5e721a13ed80ef",
+      "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\nASS_STYLE_MAPPING_PENDING_ORIGINAL_PRESERVED\n",
+      "stderr": ""
+    },
+    {
+      "format": "ssa",
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "fixture_sha256": "aa30707805340dd69d5cf1f9bcf8eccb973efda3fcc69c8666d13c127514a190",
+      "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\nASS_STYLE_MAPPING_PENDING_ORIGINAL_PRESERVED\n",
+      "stderr": ""
+    },
+    {
+      "format": "srt",
+      "expected_returncode": 2,
+      "actual_returncode": 2,
+      "fixture_sha256": "8d107120597fc22248a01f1a2c8b78a286ed35b8bd2dc5a64766fed7f577922b",
+      "stdout": "",
+      "stderr": "Invalid subtitles: Timestamp precision/range invalid\n"
+    }
+  ]
+}

@@ -133,3 +133,137 @@ Exact-source hosted runs41276078838/41276112120 failed, so no target gate closes
 ## Hosted repair iteration 2 — observed SQLite1546 and exact checkout bytes
 
 Run41276612605: Ubuntu bothgreen146PASS/11SKIP; Windows3.12 source139PASS/18SKIP then canonical-spec bytehash fails due checkout line endings; Windows3.13 only post-kill failure, exact SQLite3.50.4/SQLITE_IOERR_TRUNCATE1546. Preserve strict hashes, add .gitattributes exact canonical/reference bytes (no normalization workaround). Initial-open helper may reopen ONLY Windows+exact1546+verified app-owned DB receipt (application ID/header, schema signature, same physical file), within a3-second retry/backoff window, closing every failed connection. No new retry starts after deadline; SQLite busy wait uses remaining budget, but OS filesystem calls are not preemptible. Receipt established only after full schema validation/migration; absent/foreign receipt means no retry. No COMMIT/mutation/job replay or WAL/SHM deletion. Primary upstream reproduction/fix: https://sqlite.org/forum/info/ba7afbd0e81501118563617430fe06d0aca052e55ece2b0d457f8e16fcf85bba and https://sqlite.org/src/info/7c103a0b7d . This addresses the evidenced mapped-view retirement gap, not general I/O corruption.
+
+## Fresh slice G — owned filesystem publication substrate (P03-06)
+
+After the independently reviewed hosted foundation checkpoint, implement the actual
+filesystem half of JOBS step3 before any job-success API. Input: explicit existing
+local destination root, exclusive UUID staging directory/file, closed writer and
+validator-produced SHA256/size. Output: retained staging plus atomic hard-link final,
+with physical identity/hash readback; no overwrite, no deletion of final paths.
+Pin directory identity/handles through operations; reject symlink/reparse paths,
+invalid Windows filenames, foreign collisions (including identical bytes), changed
+staging and unsupported hard-link filesystems. Return explicit conflict/unknown rather
+than adopt a planned pathname. Cancellation before claim leaves staging owned; after
+claim belongs to future journal reconciliation, not arbitrary worker cleanup.
+
+Tests: actual filesystem no-replace race, foreign-identical destination, changed
+staging, Unicode names, symlink/reparse refusal, retained link identity, reopened
+receipt recovery with/without staging. Run relevant Linux tests then actual Windows
+CI after source review. Directory durability limitations remain explicit. This slice
+must NOT mark job success, delete retained staging, or close OPS-06.03: durable SQLite
+journal, required-artifact set and final all-member transaction follow separately.
+
+## Fresh slice H — same-database publication records and migration (P03-02/06)
+
+Keep publication sets/artifacts/history in the jobs SQLite database so future final
+success can commit atomically with job state. Introduce exact schema-v2 signatures,
+transactional v1→v2 upgrade and verified pre-upgrade backup. Existing ownership
+receipts retain their creation-schema lineage; only explicitly known lineage hashes
+are accepted, and current full table signatures are independently checked before
+mutation/WAL. Never rewrite a foreign receipt or accept its hash as schema validity.
+Test fresh/reopen, populated v1 preservation, rollback at each migration boundary,
+restoreable backup, malformed/future schema unchanged. This slice adds records only;
+no artifact-set success API until filesystem/validation/journal protocol is integrated.
+
+## Fresh slice I — probe routes through owned process adapter (P03-03/04)
+
+Replace the early ffprobe-only direct Popen loop with the already reviewed owned
+process adapter. Keep explicit executable/no fallback, local protocol whitelist,
+strict JSON and unchanged-source fingerprints. Bounds and cancellation now retire
+owned descendants too. Test real local audio probe and fake executable timeout,
+overflow, cancellation, descendant retirement; Windows real-tool case stays OPEN
+when FFmpeg is absent, not replaced by POSIX fixture results. No new UI-thread work.
+
+## Fresh slice J — reuse mature subtitle parser at bounded sidecar boundary
+
+Under the user's reuse/quality gate, source/adoption/quality/license evidence is in
+`docs/dependencies/UPSTREAM_REUSE.md`. Provisionally integrate the exact official
+pysubs2 1.9.1 wheel/hash, not a custom subtitle parser or third-party fork. Adapter
+accepts explicit SRT/VTT/ASS/SSA and encoding, bounds bytes/lines/cues, converts library
+millisecond times to exact Fractions, retains immutable original bytes and stable
+internal cue IDs plus source labels. Reject malformed timestamp/default warnings,
+unsupported VTT metadata/layout and embedded ASS attachments; no silent fidelity loss,
+zero-time invention, word alignment or network/provider call. Preserve raw ASS styles
+with an explicit mapping-pending diagnostic, not a full-render/roundtrip claim.
+Test Unicode/overlap/labels/empty/corrupt/range/resource guards and known upstream
+malformed-ASS issue. Actual Windows/frozen package and P04 editor workflows remain gates.
+
+### Slice J filesystem-path entry
+Reuse existing `fileio.read_bounded` (limit+1 actual read) for explicit regular filesystem
+subtitle files, then the reviewed pure adapter. Return a new immutable document only
+after successful parse and final cancellation check; caller owns atomic current-track
+replacement. Typed cancellation and sanitized I/O/size errors do not expose raw paths
+or file contents. No directory scanning, network URLs, auto-encoding, provider effects
+or source mutation. A bounded byte read is not a hard OS I/O time guarantee; invoke on
+the worker path, never synchronously in the UI. Tests prove Unicode paths, unchanged
+source/current document on failure/cancel, oversized read rejection and redacted errors.
+
+### Slice J headless packaging entry
+Add --validate-subtitles PATH with required explicit --subtitle-format and optional
+allowlisted --subtitle-encoding, mutually exclusive with --validate-plan. Delegate to
+reviewed file adapter; no Qt/user-data creation, source/output writes or provider calls.
+Filesystem paths may resolve through network mounts; do not claim network isolation.
+Report only cue count and bounded fixed diagnostics, never source text/raw paths. This
+is parsing validation, not full style/render fidelity. Test argument errors/redaction/
+Unicode/headless behavior, then frozen dependency/license inclusion and fixture execution;
+local Linux frozen proof is not Windows acceptance.
+
+### Slice K — typed subtitle staging observation (not job acceptance)
+For already-produced subtitle bytes, parse with pinned upstream before creating any
+stage; reuse Destination.create_stage for exclusive same-filesystem retained-anchor
+storage. Return immutable parse-policy/version/hash/size/cue-count/diagnostic observation
+bound to that exact StageReceipt. This observation is not publication authority or a
+caller-supplied validation boolean: coordinator must later bind required roles/snapshot
+and retain live capabilities. No final path/link/job mutation, cleanup, rendered-video
+validation, subtitle-to-snapshot content assertion or restart recovery in this slice.
+Malformed data/cancel before write leaves no stage; cancel after write preserves owned
+staging (explicit receipt on cancellation), never deletes unknown files. Tests prove
+validation precedes writing, exact byte/hash binding, cancellation retention, no final
+output and existing source/sentinels unchanged. No additional package is needed.
+
+### Slice L — actual media validation, SRC-08.02 / OPS-06.01 (partial until publication integration)
+Reuse explicit ffprobe and owned FFmpeg null-output decode, not a custom decoder. A
+closed expectation describes exact video/audio stream indices, codecs, video geometry/
+frame rate or audio sample rate/channel count, start and duration with rational bounded
+tolerance. Reject missing/extra tracks, metadata mismatch, absent duration, decode error/
+empty stream, changed bytes, cancellation and timeout. Decode all selected streams with
+-xerror/-abort_on empty_output+empty_output_stream/-max_error_rate 0, no stream-copy or
+skip based on extension. Return observation only; no success/publication authority.
+References: https://ffmpeg.org/ffmpeg.html and installed explicit-tool help. Tests use
+small locally generated fixtures plus targeted negative metadata/process cases; distinguish
+actual Linux FFmpeg from mocks and unavailable Windows FFmpeg. Full renderer parity,
+all-format corpus, tool registry and durable publication binding remain required/open.
+
+### Slice M — immutable required-output manifest before journal admission
+Current v1 job snapshot has composition+seed only; it must not invent required roles
+from caller publication events. Add a closed immutable manifest for new v2 snapshots:
+nonempty unique role IDs, media/subtitle kind, explicit absolute destination roots and
+safe final leaf names. Preserve exact v1 serialization when manifest absent. Existing
+request key with changed manifest conflicts; reopening cannot mutate required roles.
+No filesystem reservation/validation authority or publish/success state added here.
+Native root identity/case collisions and source overlap remain admission checks, not
+claims from path spelling. Tests cover immutable manifest, duplicate roles/paths, unsafe
+names/relative roots, exact old snapshots, new reopen/idempotence and manifest drift.
+
+### Slice N — stream real media into existing owned staging
+Remove the sidecar writer's 32MiB limitation from the separate media-copy path without
+changing existing create_stage(bytes) limits. Reuse one internal exclusive writer/live
+anchor routine; read regular source in ≤1MiB chunks, bound total by opened size+1, compare
+source identity/size/timestamps per-API before/after. Never open source for write; retain
+partial staging on cancel/I/O/source-change failure, no final path or cleanup. Chunk
+cancellation is not an OS I/O deadline. Verify >32MiB copy/hash/retained hardlink, canceled/
+growing/changed source, symlink rejection and regression coverage of affected writer.
+
+### Slice O — bind semantic validation and required-set admission together
+Extend new output manifests with optional versioned validation policy; intent-only
+v1 manifests remain readable but non-publishable. Media policy binds exact ExpectedStream
+records; subtitle policy binds explicit format/encoding and expected produced-byte hash.
+Changing policy changes immutable job snapshot/idempotence identity. Stored readback
+checks digest, closed keys/versions and typed values; no worker validation boolean.
+Coordinator session holds native ownership and live Destinations, stages/copies and
+actually validates every required role, then prepare/claim CAS transactions use only
+its retained in-memory observations. Missing/failed member or canceled/expired worker
+before claim cannot publish. No finish/success API until complete artifact readback and
+all-member transaction are integrated. Test policy drift, malformed/legacy snapshots,
+wrong role/content/type, cancellation, stale attempts and atomic all-role preparation.

@@ -1,0 +1,9 @@
+# Subtitle canonical-layout correction — CLEAR for scoped target testing
+
+Pind5ba647412ae4b93a2a79bb0e35e315924715531, exactdelta frombf818ed. Independently3focusedsubstationtestcasesPASS(ASS/SSApairedcounterexamples+styles),20deselected; noaggregate.
+
+Previoussemanticlayout/data-loss andignoredgarbage/timestamprange findingsclosed: guard accepts onlyexplicitcanonical sections, importedupstreamEvents/Styles fieldorder, exactfieldcardinality (Textlast maycontaincommas), canonicalcentisecondtime/minute/secondranges; recordswrongsection/missingformat/garbage rejectedbeforeupstream. Upstreamstillperformstext/timestampconversion. No replacementparsercopied. Unsupportedformatvariants rejectedexplicitly ratherthansilentlyreinterpreted; fullASSstylefidelity remainsdiagnosedpending/originalbytesretained.
+
+No additionalblockingdata-loss case foundintargeteddelta. Originalbyte/label/encoding/time/word-timing/resourceboundary remainsunchanged. Dependencypin/license/package filesunchanged: previousindependentwheelhash4210ebed…/exactMITnotice/appwheelRequires-Dist+noticechecks remainvalid; no repeatdownloadneeded. FinalfrozenWindowslicenseinclusion andactualWindowsadaptercorpus stillneedtargetevidence.
+
+CLEAR tointegrateandtargettest boundedpysubs2adapter; notcompleteP06subtitles/UI/style/render/exportacceptance and no extra438-assertionclosure. Existingremotepublicationdenial remainsparenthandled, not overridden. Reviewer changednotrackedsource/remotestate.

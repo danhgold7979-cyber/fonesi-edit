@@ -8,9 +8,30 @@ from fonesi_edit import __version__
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='fonesi-edit')
     parser.add_argument('--version', action='version', version=__version__)
-    parser.add_argument('--validate-plan', type=Path, help='Validate a CompositionPlan without GUI or user-data writes')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--validate-plan', type=Path, help='Validate a CompositionPlan without GUI or user-data writes')
+    modes.add_argument('--validate-subtitles', type=Path, help='Parse subtitle input without GUI or user-data writes')
+    parser.add_argument('--subtitle-format', choices=('srt','vtt','ass','ssa'))
+    parser.add_argument('--subtitle-encoding', default=None)
     parser.add_argument('--data-dir', type=Path, help='Explicit user-data directory (never installation directory by default)')
     args = parser.parse_args(argv)
+    if args.validate_subtitles:
+        if args.subtitle_format is None:
+            parser.error('--validate-subtitles requires --subtitle-format')
+        from fonesi_edit.subtitles.files import load_subtitles
+        from fonesi_edit.subtitles.adapter import SubtitleError
+        try:
+            document=load_subtitles(args.validate_subtitles,args.subtitle_format,
+                                    encoding='utf-8-sig' if args.subtitle_encoding is None else args.subtitle_encoding)
+        except SubtitleError as exc:
+            print(f'Invalid subtitles: {exc}',file=sys.stderr)
+            return 2
+        print(f'Parsed subtitles; {len(document.cues)} cue(s). No style/render fidelity verification.')
+        for diagnostic in document.diagnostics:
+            print(diagnostic)
+        return 0
+    if args.subtitle_format is not None or args.subtitle_encoding is not None:
+        parser.error('Subtitle options require --validate-subtitles')
     if args.validate_plan:
         from fonesi_edit.domain.composition import CompositionPlan, MAX_PLAN_BYTES
         from fonesi_edit.fileio import read_bounded

@@ -121,3 +121,318 @@ Downloaded all four JUnit/source artifacts, verified exact public SHA/tree and c
 Windows3.12 also successfully builds the actual fresh application onedir and runs frozen CLI multi-stream CompositionPlan validation with packaged schema. This is not a full GUI, rendered-media, physical-audio, GPU, installer-distribution or user-desktop test. Preserved-plan integrity and structural schema checks pass on all targets. No unchanged local aggregate rerun was performed. Earlier failed runs remain recorded above.
 
 Main remains accepted P01 design. P02 external gates and complete P03 tasks remain OPEN; initial receipt did not close criteria; subsequent independent evidence assessment accepts exactly OPS-03.05 and OPS-04.02 (2/438 children, not whole tasks/groups). See P03_ACCEPTANCE_LEDGER.md for the remaining cases in all9 P03 tasks. Later docs-only receipt commits use `[skip ci]` and must not be represented as independently executed source. Next source work follows P03-06 publication ownership/recovery and P03-04 coordinator integration contracts, with focused tests and independent review before target verification.
+
+## P03-06 filesystem substrate (later source, not in hosted f16dca99)
+
+Fresh `artifacts/filesystem.py`: existing explicit local destination, no-delete Windows
+ancestor/directory handles or POSIX dirfd operations, exclusive UUID staging, bounded
+small-sidecar writer, physical identity/hash receipt, atomic hardlink no-replace with
+retained staging, recovery refusal for foreign identical bytes/missing or changed
+staging. No final-file deletion, cleanup shortcut, job success API or weaker fallback.
+Trusted coordinator-only receipt input; not authority from imported project JSON.
+Windows directory fsync/power-loss durability is not claimed. Streaming media writer,
+durable journal and required-artifact final transaction remain unimplemented.
+
+24 focused Linux filesystem tests PASS, including two real owned-child kill/reopen
+cases (after retained publication vs before link with foreign-identical final),
+Unicode names, destination race, unsupported hardlink, changed staging, symlink and
+root replacement refusal. This source has not run Windows CI yet; existing hosted
+foundation evidence does not cover it. Independent source review precedes publication.
+
+Independent review identified persisted dev/inode recycling ambiguity. The current
+substrate now duplicates the exclusive-created file descriptor before writer close
+and retains it for the Destination lifetime. Publish/verify require that live anchor;
+reopening after process death is always UNKNOWN, even if receipt/path/hash match.
+No inode-only resurrection is accepted.28 affected Linux tests PASS; after tightening
+anchor acquisition to eliminate the close/reopen gap,5 relevant retained/replaced/
+missing/child-kill cases PASS. Crash tests now prove fail-closed UNKNOWN and preserved
+output, not durable recovery success. Incarnation-safe restart proof remains a required
+future P03-06 gate, not removed scope. No Windows result for this increment yet.
+
+Independent review ac4f063: CLEAR for scoped target testing,5 selected Linux checks
+PASS/23 deselected; uninterrupted original descriptor closes live inode-reuse gap.
+Namespace review found no additional blocker within that boundary. Restart remains
+UNKNOWN and full journal/cleanup/P03-06 remains OPEN, no additional child closure.
+See `docs/reviews/P03_PUBLICATION_LIVE_ANCHOR_CLEAR.md`. Target CI publication is
+pending specific external-publication approval after the ledger commit action was
+rejected; technical review is not authorization to bypass that block.
+
+## Same-DB journal design and schema-v2 prototype (not published/accepted)
+
+`docs/contracts/PUBLICATION_IMPLEMENTATION.md` specifies exact migration, records,
+claim/cancel/member/final-set transactions and current restart UNKNOWN boundary.
+Fresh schema-v2 prototype adds required-set/publication/artifact/history tables in
+same jobs DB; no publication/success methods implemented yet. Exact v1 table SQL
+signature preserved; populated migration keeps snapshots and known creation-lineage
+ownership receipt, with independent full-schema check before writes. Unknown/future,
+foreign and extra-trigger schemas rejected. Verified SQLite backup and transactional
+DDL rollback with explicit fault points; mutation outcomes are never auto-replayed.
+
+28 affected jobs/migration/ownership/startup-read checks PASS;27 affected project/
+actual child-kill persistence regressions PASS after shared ownership-lineage helper
+change. Initial new migration fixture used11placeholders for10columns and was fixed
+before these passes. No full unchanged aggregate rerun. This is local Linux evidence,
+not target Windows migration/recovery proof. Design/prototype independent review
+pending; coordinator APIs follow only after that review. Public ledger/descendants
+remain held by publication authorization block.
+
+Independent design/prototype review e534771 found two real issues: foreign existing
+ownership receipt was checked after migration, and whitespace/lowercase SQL
+normalization could accept changed CHECK literal semantics. Both corrected before
+publication: receipt preflight precedes backup/mutation/WAL; absent versioned receipt
+requires explicit adoption; SQL signatures compare exact stored statements, preserving
+literal case. Concurrent migration guard now rechecks application ID. Added coordinator
+epoch schema and precise live OS-lock authority/post-claim lease policy to design;
+coordinator implementation still pending review.33 affected schema/jobs/ownership/open
+checks PASS including foreign-receipt unchanged bytes, changed literal rejection,
+explicit missing-receipt adoption and concurrent app-ID mutation refusal.
+
+Independent targeted review01abeaa CLEAR for next implementation slice:4 precise
+regressions PASS; foreign receipt ordering, literal semantics and app-ID race closed.
+The concrete OS-lock/epoch/post-claim policy permits coordinator implementation entry,
+not full publication acceptance. Nonblocking design clarification: UNKNOWN on restart
+is derived from publications unknown/job blocked while set stays claimed; earlier
+unpublished v2 prototype signatures remain unsupported and fail closed.
+
+2026-11-01 06:05 UTC: new explicit user approval resolved the ledger publication block.
+Exact local743b27f ledger published as `ded362aac99d4f01dbb026c4c7ad85eb1059fa78`,
+tree `0e0744366dff7fc4289b5114c4e898dc6049b95f`, normal leased fast-forward and `[skip ci]`.
+Main remains e514b51. This docs HEAD is not the executed foundation source f16dca99.
+Later reviewed publication/schema source is scheduled for target CI separately;
+ongoing unreviewed local coordinator work is excluded from that publication.
+
+## Live coordinator ownership substrate (later than reviewed schema01abeaa)
+
+Fresh `jobs/ownership.py` holds a marked nonblocking native byte-range/flock lock for
+its lifetime, pins DB incarnation, and allocates a never-reused coordinator epoch in
+SQLite. Guards verify live lock identity/marker, pinned DB identity and current epoch;
+caller epoch/PID/file existence alone is not authority. Foreign markers are not written,
+lock files are never deleted, and process death releases OS ownership but not history.
+Marker content is read only after acquisition, avoiding reading another Windows owner's
+locked byte. No publication claim/member/final success methods exist yet.
+
+16 affected coordinator/jobs checks PASS; after the Windows lock-read ordering fix,
+7 coordinator checks PASS, including actual owned-child kill, contender rejection,
+new epoch after death, foreign/symlink/changed lock and out-of-band epoch refusal.
+Actual Windows target evidence remains pending. Public source6729ef7 publication was
+separately rejected as outside the specifically approved ledger; no tree/ref update
+or alternate route was used. Approved ledger remains publicded362.
+
+Independent review e69eae8 reproduced a connection/anchor split: replacing the DB
+pathname after repository open could make ownership pin a different file than the
+SQLite connection. Fixed by pinning the repository's original file before SQLite
+open, checking identity immediately after open/before mutations, retaining that anchor
+for repository lifetime, and duplicating THAT anchor into coordinator ownership.
+Replacement before owner acquisition now fails before any epoch write (Windows may
+prevent replacement itself). Detected continuity/epoch loss is permanently latched;
+restoring the old name/epoch cannot silently reactivate the same ownership instance.
+34 affected coordinator/jobs/migration checks PASS, including both causal negatives.
+Target execution and independent targeted recheck remain pending.
+
+Independent targeted review dc11978 CLEAR:2 causal tests PASS; original DB anchor
+and permanent revocation fixes accepted for the cooperating private-namespace scope.
+No malicious same-user timed ABA guarantee or new full criterion acceptance claimed.
+
+Probe now uses the reviewed owned-process runner instead of its early direct-Popen
+loop, so cancellation/timeout/normal leader exit retires descendants as well. Explicit
+path/no fallback/local protocols, strict finite JSON and source fingerprints retained.
+21 affected probe tests PASS including actual local FFmpeg audio probe, finite bounds
+and Linux descendant retirement;2 targeted descendant/secret-stderr regressions PASS
+after process-state race-safe check refinement. This later probe increment is not in
+hosted f16 or reviewed public-source candidate6729; independent review pending and
+actual Windows FFmpeg remains unavailable/unverified. No provider calls or source writes.
+
+Independent probe integration review6c94e1e CLEAR for scoped target testing;7 selected
+bounds/descendant/stderr checks PASS. Raw OSError messages can still contain local tool
+paths, so complete sanitized-log acceptance remains OPEN. Self-audit follow-up bounds
+fingerprint reads by opened file size+1: a continuously growing file now fails changed
+rather than following EOF indefinitely.3 existing affected fingerprint checks plus
+1 separately selected new producer regression PASS, including a
+producer that appends on every read (fails after2reads). This is a source-level bound,
+not a hard OS-I/O wall-clock promise; cancellation remains checked per chunk.
+
+## Reuse-first bounded subtitle boundary — provisional source adoption
+
+After meaningful-use/quality/provenance review, installed only official pysubs21.9.1
+pure wheel with verified SHA2564210ebed… and exact public-index lock. MIT notice is
+preserved in docs and packaged application resources. No fork/random GitHub code,
+ASR, live provider/network download workflow or browser credential operation added.
+Thin adapter delegates timestamp/text parsing to upstream; bounds bytes/lines/cues,
+validates explicit formats/encoding and framing, preserves raw source/labels/stable
+internal IDs/exact rational milliseconds, rejects malformed ASS timestamps and all
+upstream default/clamp warnings. VTT unsupported metadata/layout and ASS attachments/
+drawings fail clearly; ASS style mapping explicitly pending, no lossless roundtrip or
+word-timing invention.20 focused Linux tests PASS. Built wheel verified adapter,
+exact dependency declaration and byte-identical MIT notice inclusion. This is not an
+actual Windows/frozen renderer test; independent adapter review and target gates OPEN.
+
+Independent review of bf818ed found upstream ignores ASS/SSA Format declarations and
+normalizes out-of-range timestamp components. Corrected boundary requires upstream's
+canonical event/style layouts, proper sections and exact field counts; rejects ignored
+garbage and noncanonical timestamp precision/ranges before conversion. Conversion still
+uses pysubs2; unsupported reordered layouts fail explicitly rather than importing the
+wrong caption.23 affected subtitle tests PASS on local Linux, including both ASS/SSA
+field-order corruption, extra garbage, missing fields, misplaced records and style
+layout mismatch. Earlier built wheel is bf818ed only, not this correction; target
+Windows/frozen and independent corrected-source review remain pending.
+
+Independent corrected-source review d5ba647: CLEAR for scoped target testing;
+3 new ASS/SSA/style regression cases independently PASS (20 deselected). Pin/license/
+package checks remain valid for unchanged dependency and license files; report
+`docs/reviews/P03_SUBTITLE_ADAPTER_CLEAR.md`. No additional child criterion accepted;
+actual Windows adapter corpus and frozen dependency/license gates remain OPEN.
+
+## Explicit subtitle file entry (local only)
+
+Reuses existing actual-read limit+1 helper and independently reviewed parser; returns
+an immutable document only after final cancellation check, with no source/current-track
+mutation. Seven focused Linux tests PASS: Unicode paths, pre-read/pre-parse/post-parse
+cancel, oversized actual read before parser, redacted I/O error and malformed/missing/
+directory input preserving the caller's prior value. This is not UI/worker wiring or
+an OS I/O deadline; cancellation cannot interrupt a blocking filesystem read. Local
+regular-file preflight is not a hostile concurrent namespace guarantee. Windows and
+independent source review remain pending; no new criterion closure.
+
+Independent file-entry review 9d01a94 CLEAR; seven affected tests independently PASS.
+Wording corrected: these are filesystem-path reads (links/mounts/UNC can resolve to
+network storage), not a network-isolation claim. The helper performs no provider API.
+Added mutually exclusive headless --validate-subtitles with explicit format/encoding:
+only cue count/fixed diagnostics, no caption/path disclosure, Qt/user-data writes or
+fidelity claims. Ten affected CLI/shell checks PASS on local Linux. Frozen packaging
+and independent CLI-delta review are pending; no new criterion closure.
+
+Independent CLI source review bc2a85f CLEAR; seven focused CLI tests independently PASS.
+Local frozen Linux CLI at **bc2a85f** passed four valid format fixtures and malformed
+SRT rejection; Unicode paths/source preservation checked, packaged MIT byte-equal.
+Binary/license/fixture hashes and outputs: `docs/evidence/p03/subtitle-local-bc2a85f/summary.json`.
+Reviewer independently verified binary/license hashes and inspected harness (did not
+repeat unchanged executions). This is not Windows/GUI/render evidence. CLI source now
+uses None-only default encoding: explicitly empty encoding is rejected (one new focused
+negative PASS), rather than silently substituting UTF-8. Frozen evidence remains anchored
+to bc2a85f, not this subsequent strictness correction. Argparse usage errors can echo
+user-supplied argument values; content redaction claim applies to loaded subtitles/I/O
+errors, not arbitrary command-line text. No additional child assertion accepted.
+
+## Typed subtitle staging observation
+
+Five focused Linux tests PASS for parsing before any stage write, exact immutable
+bytes/hash/size binding, source/sentinel preservation and three cancellation points.
+Post-write cancellation carries retained stage receipt; no final link, job transition,
+cleanup or auto-recovery occurs. Policy explicitly `subtitle-parse-only-v1`: not media
+validation, snapshot-content matching, authorization, full style fidelity or success.
+Uses existing live-anchor Destination and pinned pysubs2, no new package/infrastructure.
+This source slice requires independent review and actual Windows target verification.
+Final CLI strictness pin 8fa8182 independently CLEAR with one focused negative PASS;
+unchanged frozen evidence still anchored to bc2a85f. Accepted child count remains 2/438.
+
+## P03-06 actual media validation slice — SRC-08.02 / OPS-06.01 partial
+
+Uses existing owned-process FFmpeg/ffprobe machinery: exact expected stream set/type/
+codec/start/duration and video coded geometry/frame rate or audio sample rate/channels,
+then full mapped decode to null with fatal decode/empty-stream policy. Source hash is
+rechecked after decode. No extension-only success, stream-copy bypass, raw stderr log,
+publication/job transition or new dependency. Timeout applies separately to probe and
+decode (not a total filesystem I/O deadline); metadata without explicit per-stream
+start/duration fails closed pending supported format-specific resolution. This is not
+visual parity, subtitle rendering, tool-registry attestation or durable journal authority.
+
+14 focused checks initially PASS on Linux, including actual locally generated H.264/AAC
+MP4 probe+decode, wrong geometry and truncated-file rejection with original bytes intact.
+After stricter integer metadata checks, seven affected metadata negative cases PASS
+(including one new float-width case); unchanged actual FFmpeg execution was not repeated.
+Five earlier subtitle-stage tests remain valid evidence for unchanged staging source.
+Canonical coverage: SRC-08.01/OPS-06.04 staging and SRC-08.02/OPS-06.01 decode are partial
+until coordinator-required-set publication and supported target corpus integration.
+SUB-02.01/.02/.04 adapter support is partial until editor track/style attachment workflow.
+No child criteria newly accepted; actual Windows FFmpeg and independent combined review OPEN.
+
+Independent combined review caught a rational-metadata resource hole: an 80-character
+string can still contain an enormous scientific exponent before Fraction conversion.
+Now accept bounded ASCII fixed decimal/integer/numerator-denominator syntax only;
+reject exponent/NaN/bool/float before Fraction is called. Eleven new focused cases PASS
+(seven resource/type negatives, four exact decimal/rational positives). Unchanged
+actual FFmpeg test evidence is reused, not rerun. Corrected-source review pending.
+
+Combined staging/media corrected source **4213529** independently CLEAR for scoped
+verification; reviewer ran only eleven new rational-resource cases (15 deselected).
+Actual additional Linux negative: intact H264 MP4 metadata with zeroed mdat payload
+passed probe, then failed full decode; bytes stayed unchanged. Author executed once,
+reviewer inspected harness without duplicate execution. Exact tool/version/fixture/
+harness hashes and reproducible script: `docs/evidence/p03/media-decode-local-4213529/`.
+Review: `docs/reviews/P03_MEDIA_STAGE_REVIEW.md`. No Windows/visual parity/publication/
+phase acceptance or child assertion closure. Next integration must bind these observations
+to coordinator-owned immutable expected snapshots and all-required-artifact journal,
+not accept serialized receipts or caller-provided `validated=True` as authority.
+
+## Immutable required-output intent before journal APIs — P03-05/06
+
+New v2 job snapshots optionally bind a closed immutable required-output manifest (roles,
+media/subtitle kind, explicit root and safe final leaf). Omitting a previously required
+subtitle or changing destination under the same request key now conflicts. Canonical
+role ordering is idempotent; input DTO/serialized-copy mutation cannot change stored
+intent. Existing no-manifest v1 snapshots remain byte-identical and reopen unchanged;
+no automatic migration invents roles. Nineteen affected manifest/job tests PASS locally.
+Exact-name duplicate rejection is not native case/alias reservation proof; live root
+identity/source-overlap/capability checks still belong to publication admission.
+No prepare/claim/success API or new criterion acceptance yet. Independent review OPEN.
+
+## Streaming owned staging — real media larger than sidecar cap
+
+Shared exclusive writer retains original live anchor before closing creation descriptor;
+new copy_stage reads regular source in ≤1MiB chunks, bounded by opened size+1, detects
+identity/size/timestamp changes, never opens source for writing. Existing byte API keeps
+its 32MiB sidecar limit; streaming receipt supports native signed-64-bit size and still
+checks actual size/hash/held identity. Partial failures retain stage; final cancellation
+returns exact completed receipt on the cancellation exception, never publishes output.
+
+Affected first run:37 PASS/1 FAIL (new33MiB copy hit old receipt32MiB guard). Fixed the
+receipt-size gate without weakening actual identity/size/hash checks; failed33MiB case
+alone rerun PASS. Added four causal receipt/cancel checks; six affected cancel/forged-size
+checks PASS (three deselected). The original37 unchanged PASS were not rerun. This proves
+local33MiB streaming/copy/hardlink/readback, not arbitrary-scale/Windows durability or
+journal cleanup. Independent lifecycle review remains OPEN; no new child closure.
+
+## Coherent required-set journal admission — P03-05/06
+
+New immutable output policy binds exact media stream expectations (cross-checked with
+composition output) or subtitle format/encoding/produced-byte hash. Strict persisted
+readback verifies canonical snapshot/hash/closed policy; legacy/intent-only snapshots
+cannot infer publish roles. Coordinator session owns live destination anchors and
+actually parses/stages subtitles or streams/probes/decodes media. It accepts no worker
+`validated=True` receipt. Complete role set required before atomic prepare; atomic claim
+rechecks fresh lease/cancel/epoch/job/set/member identity and marks all publishing/claimed.
+No publish_member/finish/success/cleanup/restart-adoption API is implemented yet.
+
+Thirty affected manifest/job/session tests PASS initially. Stronger claim-row identity
+checks: seven targeted PASS/one new integration test-only failure (comparing tuple order
+rather than canonical manifest); fixed assertion, actual media+subtitle required-set
+integration alone PASS. Three additional fault/cancel/policy cases PASS: mid-claim denied
+member UPDATE rolls back job/set/members, cancellation before prepare inserts no journal,
+unknown policy/noninteger version refused. No unchanged aggregate or frozen tests rerun.
+Actual local FFmpeg pipeline reaches publishing only after video plus subtitle pass;
+source unchanged, no final files or success/history. Native Windows/hosted verification
+for all these newer changes remains pending denied source publication. Independent
+combined admission review OPEN; no new child criterion closure.
+
+Previous streaming source fba4159 independently CLEAR (five focused growth/cancel/forged
+size cases PASS, no33MiB repeat); output-intent a863713 independently CLEAR. Reports
+recorded alongside this coherent batch, not separate cosmetic review cycles.
+
+Independent admission review found typed expected-stream policy allowed rational values
+larger than its persisted reader's128-bit bound. Unified typed/serialized bounds before
+job insertion; boundary policy round-trips, oversized policy inserts no job. Also reject
+oversized subtitle bytes before hashing (not only before parser), and assign in-memory
+claimed job only after successful COMMIT. Four affected causal checks PASS,16 deselected;
+no baseline/actual FFmpeg rerun. Reviewer previously checked nine rollback/cancel/corrupt/
+member-mutation/legacy cases PASS. Final combined correction review pending. After it,
+checkpoint waits for exact-source Windows/hosted verification under unresolved public
+upload approval, before adding final publication/success/cleanup/recovery behavior.
+
+**Final bounded checkpoint b086ccccb94a6d2eff8bd09610c8cdc1273fb0de independently CLEAR**
+for owned staging/atomic required-set prepare+claim and target testing. Four exact
+correction regressions independently PASS (16 deselected), no broader rerun. Report
+`docs/reviews/P03_REQUIRED_SET_REVIEW.md`. No identified source blocker remains within
+this scope. Further final-publication/success/cleanup/recovery expansion is held for
+actual newer-source Windows/hosted verification, which depends on resolving the denied
+public-source upload. Main remains accepted P01; P03 remains IN_PROGRESS,0/9 tasks
+accepted and2/438 overall child assertions accepted. This checkpoint is not app completion.

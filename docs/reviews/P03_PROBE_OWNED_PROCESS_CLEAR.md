@@ -1,0 +1,9 @@
+# Probe integration review — CLEAR for scoped target testing
+
+Pin6c94e1e97349613dc80a5f3538856faed011ffba, diffdc11978. Nativeowned-processadapter unchanged. Noaggregate rerun.
+
+Explicitffprobe path, file/pipe protocolallowlist, strictJSON/finite parsing, sourcefingerprint/mutation checks andnonzeroexit handling preserved. Replacesdiskcapture/directparentkill with reviewedownedgroup/job execution, boundedcombinedoutput anddescendantretirement. ProcessCanceled mappedtoProbeCanceled; retirementerrors remainerrors, notcancellation-success. Arbitrarytoolstderr isnotusedinProbeError. Invalidnan/inf/booltimeout andnonintegerbudget rejectedbeforelaunch.
+
+Independently7selectedtestsPASS:5invalidbounds + realLinuxowneddescendantretirement + secretstderrnonleak;15deselected. Linux/proc test distinguishes exited/zombiefromrunning andnever killsarbitraryPID. ActualWindowsFFmpeg integration remainsunverified; nativeWindowsadapterpreviousCI doesnotprove newprobe/mediaworkflow itself.
+
+No blockingdefect foundinthistargeteddelta. Low-level OSError text maystillinclude localexecutablepath; do notdescribe allerrors asfullyredacted exportlogs—futurelogging policy mustsanitize appropriately. This doesnotaffect tested rawstderr suppression. No extraassertionclosure/wholeP03acceptance. Technicalclearance grantsnoremotepermission; parenthandlespendingpublicationauthorization. Reviewer changednotrackedsource.

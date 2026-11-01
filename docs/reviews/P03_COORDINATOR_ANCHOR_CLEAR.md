@@ -1,0 +1,11 @@
+# Coordinator anchor/revocation fixes — CLEAR for scoped target testing
+
+Pindc1197854bcd4f0202492cce6f623e3b290d52ef/tree2edbaae7. Exactdelta reviewed. Independently2newcausalregressionsPASS,7deselected; noaggregate.
+
+PreviousHIGH reproduced pathreplacement afterrepositoryopen isclosed: repository obtainsoriginalFDbeforeSQLiteopen, recordsidentity, checksnamedidentity before/afteropen, retainsuntilclose. Coordinator duplicatesrepositoryoriginalFD and identity ratherthan openingwhatever currentlyoccupiespath; replacementrefusedbeforeepochINSERT. Repositoryget/submit/expired andCASthroughget also checkcontinuity. Windowsanchor may denyrename outright; targettestbranch correctly distinguishes thatbehavior.
+
+PreviousMEDIUM resurrectionclosed: guardfailure permanentlymarksinstance_revoked andinactive, wrapsunexpectedcontinuityerrors asCoordinatorLost, and rejectsreentry. Restoringepoch/pathcannotreactivateoldinstance; newinstance requiresnewlock/epoch. Freshownerafterrevocation remains separateauthority.
+
+No newblockingfinding in targetedchanges understated cooperatingprocess/privateapp-ownednamespace trustboundary. Before/afterpathname checks are not a security guarantee against malicioussameuser actively swappingDBpaths aroundSQLiteopen; contract already excludes compromisedprivateDB/files. No such adversarial-proof claim shouldbeadded. No publicationclaim/member/finish APIs or fullrecoveryevidence yet.
+
+CLEAR to target-test thissubstrate and proceedreviewedcoordinatorimplementation. Noadditionalassertionclosure; prior2/438 unchanged. Technicalclearance doesnotoverride pendingremoteapprovaldenial. Reviewer changednotrackedsource/remotestate.

@@ -11,6 +11,7 @@ dependencies = [
   "PySide6-Essentials==6.12.0",
   "PySide6-Addons==6.12.0",
   "jsonschema==4.26.0",
+  "pysubs2==1.9.1",
 ]
 
 [dependency-groups]
@@ -19,10 +20,15 @@ dev = ["pytest==9.2.0", "pyinstaller==6.22.3", "Pillow==13.0.0", "numpy==2.3.5"]
 [project.scripts]
 fonesi-edit = "fonesi_edit.__main__:main"
 
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
+"fonesi_edit" = ["licenses/*.txt"]
 "fonesi_edit.domain" = ["composition-v1.schema.json"]
 
 [tool.pytest.ini_options]

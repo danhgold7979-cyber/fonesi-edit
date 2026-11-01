@@ -83,3 +83,57 @@ def test_fingerprint_rejects_source_write_during_read(source):
         if calls==2:source.write_bytes(b'changed-length')
         return False
     with pytest.raises(ProbeError,match='changed'):fingerprint(source,mutate)
+
+
+@pytest.mark.parametrize('timeout,budget',[(float('nan'),1000),(float('inf'),1000),(True,1000),(1,True),(1,1.5)])
+def test_invalid_bounds_rejected_before_launch(source,timeout,budget):
+    with pytest.raises(ValueError):inspect_media(source,'/not-used',timeout=timeout,max_output_bytes=budget)
+
+
+def test_probe_retires_owned_descendant(tmp_path,source):
+    import json,time
+    if not Path('/proc').is_dir():pytest.skip('Linux process-state proof; target-native tests separate')
+    executable=fake(tmp_path,"""import subprocess,sys,json
+child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+print(json.dumps({'streams':[{'index':0,'codec_type':'video'}],'test_child_pid':child.pid}))
+""")
+    result=inspect_media(source,executable,timeout=2)
+    pid=result.metadata()['test_child_pid']
+    deadline=time.monotonic()+2
+    while time.monotonic()<deadline:
+        status=Path(f'/proc/{pid}/stat')
+        try:state=status.read_text().rpartition(') ')[2].split()[0]
+        except FileNotFoundError:break
+        if state=='Z':break
+        time.sleep(.01)
+    else:pytest.fail('Probe-owned descendant remained running')
+    assert source.read_bytes()==b'untouched'
+
+
+def test_tool_stderr_secret_not_in_probe_error(tmp_path,source):
+    executable=fake(tmp_path,"import sys; sys.stderr.write('SECRET_SENTINEL'); raise SystemExit(7)")
+    with pytest.raises(ProbeError) as caught:inspect_media(source,executable)
+    assert 'SECRET_SENTINEL' not in str(caught.value) and 'code 7' in str(caught.value)
+
+
+
+def test_continuously_growing_source_read_is_bounded(source,monkeypatch):
+    original=Path.open;reads=0
+    class GrowingReader:
+        def __init__(self,stream):self.stream=stream
+        def __enter__(self):return self
+        def __exit__(self,*args):self.stream.close()
+        def fileno(self):return self.stream.fileno()
+        def read(self,size):
+            nonlocal reads
+            reads+=1
+            assert reads<=3,'Fingerprint continued following a growing input'
+            block=self.stream.read(size)
+            with original(source,'ab') as other:other.write(b'x')
+            return block
+    def opened(path,mode='r',*args,**kwargs):
+        stream=original(path,mode,*args,**kwargs)
+        return GrowingReader(stream) if path==source and mode=='rb' else stream
+    monkeypatch.setattr(Path,'open',opened)
+    with pytest.raises(ProbeError,match='changed'):fingerprint(source)
+    assert reads==2
