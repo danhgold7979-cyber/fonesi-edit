@@ -227,5 +227,199 @@
     "limitations": [
       "Not whole task/group/phase acceptance; full implementation gaps in P03_ACCEPTANCE_LEDGER.md"
     ]
+  },
+  {
+    "id": "P03-HOSTED-BAT-03.04",
+    "generation": "clean-2026-11-01",
+    "commit": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+    "tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+    "task_ids": [
+      "P03-06",
+      "P08-02"
+    ],
+    "criterion_ids": [
+      "BAT-03.04"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "pytest tests/test_publication_admission.py tests/test_publication_session.py tests/test_publication_recovery.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+          "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.16",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+          "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+          "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+          "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_publication_admission::test_manifest_and_configured_cache_are_automatic_scan_exclusions"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41300558073/summary.json"
+    ],
+    "run_id": 41300558073,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41300558073",
+    "independent_review": "docs/reviews/P03_HOSTED_WORKER_CLEANUP_AND_CRITERIA_41303347554.md",
+    "limitations": [
+      "Exact child only; not entire source clause, task, phase or renderer acceptance.",
+      "Actual target FFmpeg unavailable/skipped; no Windows FFmpeg proof.",
+      "Restart reconciliation remains UNKNOWN and cancellation temporary cleanup remains open.",
+      "Prior run has unrelated Win313 precision-test FAIL, corrected separately; this exact exclusion case passed on all4 targets. scan_sources/exclusion logic unchanged."
+    ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-06.02",
+    "generation": "clean-2026-11-01",
+    "commit": "341d304e1fd446cd25775fade395da393e52b457",
+    "tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+    "task_ids": [
+      "P03-06",
+      "P07-08"
+    ],
+    "criterion_ids": [
+      "OPS-06.02"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "pytest tests/test_progress.py tests/test_completed_cleanup.py tests/test_publication_filesystem.py tests/test_stage_streaming.py tests/test_publication_session.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_publication_filesystem::test_collision_between_validation_and_link",
+      "tests.test_publication_session::test_late_foreign_identical_output_never_adopted"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41303347554/summary.json"
+    ],
+    "run_id": 41303347554,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41303347554",
+    "independent_review": "docs/reviews/P03_HOSTED_WORKER_CLEANUP_AND_CRITERIA_41303347554.md",
+    "limitations": [
+      "Exact child only; not entire source clause, task, phase or renderer acceptance.",
+      "Actual target FFmpeg unavailable/skipped; no Windows FFmpeg proof.",
+      "Restart reconciliation remains UNKNOWN and cancellation temporary cleanup remains open."
+    ]
+  },
+  {
+    "id": "P03-HOSTED-OPS-06.04",
+    "generation": "clean-2026-11-01",
+    "commit": "341d304e1fd446cd25775fade395da393e52b457",
+    "tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+    "task_ids": [
+      "P03-06",
+      "P07-08"
+    ],
+    "criterion_ids": [
+      "OPS-06.04"
+    ],
+    "kind": "unit_and_integration",
+    "acceptance_scope": "exact_child_assertion_only",
+    "command": "pytest tests/test_progress.py tests/test_completed_cleanup.py tests/test_publication_filesystem.py tests/test_stage_streaming.py tests/test_publication_session.py --junitxml=foundation-results.xml",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1"
+        },
+        {
+          "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+          "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_publication_filesystem::test_foreign_identical_never_adopted",
+      "tests.test_publication_filesystem::test_corrupt_staging_not_published",
+      "tests.test_publication_session::test_existing_foreign_identical_output_not_adopted",
+      "tests.test_publication_session::test_prepared_set_never_claims_after_cancel_expiry_or_corruption[corrupt]"
+    ],
+    "status": "PASS",
+    "artifact_paths": [
+      "docs/evidence/p03/hosted-41303347554/summary.json"
+    ],
+    "run_id": 41303347554,
+    "run_url": "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41303347554",
+    "independent_review": "docs/reviews/P03_HOSTED_WORKER_CLEANUP_AND_CRITERIA_41303347554.md",
+    "limitations": [
+      "Exact child only; not entire source clause, task, phase or renderer acceptance.",
+      "Actual target FFmpeg unavailable/skipped; no Windows FFmpeg proof.",
+      "Restart reconciliation remains UNKNOWN and cancellation temporary cleanup remains open."
+    ]
   }
 ]

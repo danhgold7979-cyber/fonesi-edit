@@ -1,6 +1,8 @@
 # P03 evidence and remaining acceptance ledger
 
-Evidence checkpoint: public source `f16dca9986fd1181363c52580b11d7cef5a8b70c`, local source `a935fccc6746eff726b26dbf352189e0f8f1a30e`, tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`, hosted run `41277250696`. This ledger does not change the original 94 task / 95 group / 438 child-assertion denominators. Test-case count is not product completion percentage. A task closes only when its complete planned acceptance is satisfied; shared child assertions may close before either owning task.
+Current accepted count: **5/438 child assertions; 0/9 P03 tasks**. Latest scoped evidence run41303347554 (341d304e), with BAT-03.04 carried from run41300558073 exact unchanged scanner logic.
+
+Original evidence checkpoint: public source `f16dca9986fd1181363c52580b11d7cef5a8b70c`, local source `a935fccc6746eff726b26dbf352189e0f8f1a30e`, tree `b0ade7e3b53bf551981466f643e3e2fe730ff9dd`, hosted run `41277250696`. This ledger does not change the original 94 task / 95 group / 438 child-assertion denominators. Test-case count is not product completion percentage. A task closes only when its complete planned acceptance is satisfied; shared child assertions may close before either owning task.
 
 ## Child evidence assessment
 
@@ -9,7 +11,7 @@ Independent review accepted these exact two closures on 2026-11-01; see `docs/re
 - **OPS-03.05 — Newer schema never overwritten.** ProjectStore future SQLite version refuses before migration/WAL mutation; hosted `tests.test_projects::test_newer_database_untouched` verifies full file bytes unchanged. Project envelope future schema is rejected by `test_invalid_project_envelope_rejected[<lambda>0]`. Supported JSON saves validate existing ownership/schema before replacement. This is the project compatibility criterion, not a claim that every future repository exists or autosave is implemented.
 - **OPS-04.02 — Canonical snapshot immutable.** Hosted `tests.test_composition::test_caller_and_returned_dict_cannot_mutate_snapshot` proves defensive copies and frozen snapshot. `tests.test_jobs::test_idempotence_snapshot_conflict_and_reopen` proves immutable canonical composition+seed persistence and conflicting submission rejection across reopen. Competing claims, stale versions/leases and forged lease records cannot rewrite it. Complete resolved tool/account/provider snapshot fields and artifact traceability remain P03-05 / OPS-04.01 work; this criterion addresses immutability, not field completeness.
 
-All other P03-mapped criteria remain unaccepted until their full conjunction is proved. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
+At that original checkpoint all other P03-mapped criteria remained unaccepted; three additional narrow closures are recorded below. Native child termination alone does not close OPS-02.02, which also requires safe temporary cleanup. Pure account reference allowlists alone do not close actual job/export lifecycle criteria. Save/kill tests do not close autosave/latest-state/relink or migration-backup restore. An unavailable feature is not evidence that its failure cannot occur.
 
 ## Nine task gates: actual implementation and specific missing cases
 
@@ -25,7 +27,7 @@ All other P03-mapped criteria remain unaccepted until their full conjunction is 
 | P03-08 | Explicit probe path, bounded named executable candidate CLI and explicit-path no-fallback preference (all unverified); trusted distribution contract | Verified registry/manifests/pair capability/resolver/ownership installation receipts; version leases, staging/self-test/activation/rollback/cleanup; actual Windows trusted installation and UI evidence |
 | P03-09 | Reviewed pure profiles/bindings/access models plus owned metadata persistence, CAS/defaults, one login identity per profile/platform, separately scoped channel rights and unlink-only metadata | Credential-reference/secure-store boundary; job/export/log integration; full cache retention; profile acquisition/lease/version/path checks; actual Windows/live Chrome/provider handoff |
 
-**Child assertions accepted: 2/438 globally; 2/78 P03-mapped, 76 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
+**Child assertions accepted: 5/438 globally; 5/78 P03-mapped, 73 P03-mapped remain open/partial.** These are exact assertion counts, not a tool-completion percentage.
 
 **Whole P03 tasks accepted: 0/9.** No main merge or phase-complete claim follows from the foundation checkpoint. P01 accepted design tasks remain separately 8/94; P02 external gates stay open. Next implementation priority is P03-06 publication protocol plus P03-04 coordinator integration, preserving worker quiescence and ownership contracts.
 
@@ -49,3 +51,21 @@ recovery tests now have hosted evidence, not only local evidence. Still no compl
 worker/progress/cleanup/provider/GUI-display/release gate or extra child closure.
 P03-08 also has pinned-pair functional observation on the recorded Linux FFmpeg
 fixture, not a verified Windows tool registry/installation/lease capability.
+
+## Additional independently accepted child assertions (run41303347554)
+
+- **BAT-03.04:** session-derived nested output/cache roots excluded from real recursive
+  scanner; exact case passed all4targets in41300558073. That run's unrelated precision
+  failure remains recorded; scan_sources/exclusion logic unchanged. Not full batchUI.
+- **OPS-06.02:** native no-replace collision inserted between validation/link and late
+  foreign-identical destination remain unchanged; no false artifact/success row.
+- **OPS-06.04:** foreign identical final and corrupt stage cannot become success;
+  original live anchors + current validation/journal required. Restart staysUNKNOWN.
+
+Exact testcase/source/runtime/hash mappings are in records.json and independent
+P03_HOSTED_WORKER_CLEANUP_AND_CRITERIA_41303347554.md. Current run4SUCCESS:
+Linux3.12.15/3.13.17 each100PASS10SKIP; Windows3.12.10/3.13.17 each108PASS2SKIP.
+Actual Windows9completed-cleanup integration cases and27progress cases passed;
+actual FFmpeg media/subtitle integration skipped on allhosted targets. No frozen
+rerun or whole aggregate claim. Cancel-temp cleanup, fullworker/UI routing, renderer,
+restart and provider gates remain OPEN; completed cleanup does not close them.

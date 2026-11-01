@@ -1,0 +1,215 @@
+{
+  "run_id": 41303347554,
+  "scope": "Affected progress/completed-cleanup integration only",
+  "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+  "artifacts": [
+    {
+      "artifact_id": 13082430499,
+      "artifact": "worker-cleanup-ubuntu-24.04-py3.13",
+      "zip_sha256": "63831fb0470478900651b8aa6d4d0f88437ea96fc7544bd3a7ed70d7186b75e1",
+      "members": {
+        "foundation-results.xml": "45838f7225f37a32feddcaf825ac9ccbfcb0d338d34a463bb5ff898be004f644",
+        "foundation-source.json": "38f6d225c6fdca258f846cfff35488d311668f59b92f47b248b816bfb886f738"
+      },
+      "runtime": {
+        "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+        "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "10",
+        "tests": "110",
+        "time": "2.193",
+        "timestamp": "2026-11-01T11:46:20.849008+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[history]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[epoch]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[not_finished]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_foreign_child_retained_after_owned_payload_cleanup",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_authority_loss_after_readback_never_marks",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_partial_cleanup_failure_never_replays_or_undoes_completed_job",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_corrupt_final_hash_refuses_destructive_effect",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_authority_refusal_after_first_member_is_unknown_not_preflight",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13082173339,
+      "artifact": "worker-cleanup-windows-latest-py3.12",
+      "zip_sha256": "07c5f51d30d1b021f159dc84855baf934b73e73b73e7bb5b3a5464546a36cfe6",
+      "members": {
+        "foundation-results.xml": "143c6664b85a8a4db96add12f3b1fce8047f9bc4ef4c6a3bd740e385438ce6be",
+        "foundation-source.json": "f4dd0368c7069bd7b37e50985c565f170d39fb6a019cf5a1b262919de656456e"
+      },
+      "runtime": {
+        "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+        "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "110",
+        "time": "13.569",
+        "timestamp": "2026-11-01T11:46:55.622346+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_completed_cleanup.test_unsupported_retains_stage_and_completed_history",
+          "reason": "Unsupported-platform branch"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13082137256,
+      "artifact": "worker-cleanup-windows-latest-py3.13",
+      "zip_sha256": "08a2464986c5f334a01dd1b4f6160ff77e7207d6d9f2912765ee3082858ef5ca",
+      "members": {
+        "foundation-results.xml": "c42dc4891360a3a00e36332bf241ac8a72e5e29b8f0170f0f762896fde8d85c5",
+        "foundation-source.json": "0705f3cf79a3eeaf223a35c8d4f8ab74659703633490ae30af8ecf50c9992a3f"
+      },
+      "runtime": {
+        "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+        "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.17",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "110",
+        "time": "10.291",
+        "timestamp": "2026-11-01T11:46:41.954099+00:00",
+        "hostname": "runnervmhao91"
+      },
+      "skips": [
+        {
+          "case": "tests.test_completed_cleanup.test_unsupported_retains_stage_and_completed_history",
+          "reason": "Unsupported-platform branch"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        }
+      ]
+    },
+    {
+      "artifact_id": 13081593695,
+      "artifact": "worker-cleanup-ubuntu-24.04-py3.12",
+      "zip_sha256": "c00c82801f12a48fe82dbad7e6b44affff65ec32605d77973feef0c4224a415a",
+      "members": {
+        "foundation-results.xml": "5db64e80732c436545bbbe2b78518ed61c050ab279c05e2d0306dc95860d29a0",
+        "foundation-source.json": "eb60ab791b16602b28e3f4e2e2ba17968b8b6b850390e1107686d12e227dbee8"
+      },
+      "runtime": {
+        "source_sha": "341d304e1fd446cd25775fade395da393e52b457",
+        "source_tree": "29c537839dffdfa79c40cd7add4608b8ce339207",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "10",
+        "tests": "110",
+        "time": "2.525",
+        "timestamp": "2026-11-01T11:46:21.761574+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[history]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[epoch]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[not_finished]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_foreign_child_retained_after_owned_payload_cleanup",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_authority_loss_after_readback_never_marks",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_partial_cleanup_failure_never_replays_or_undoes_completed_job",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_corrupt_final_hash_refuses_destructive_effect",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_authority_refusal_after_first_member_is_unknown_not_preflight",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        }
+      ]
+    }
+  ]
+}

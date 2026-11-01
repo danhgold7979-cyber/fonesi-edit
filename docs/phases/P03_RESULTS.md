@@ -945,3 +945,20 @@ Nine actual Windows integration cases remain NOT_RUN locally. Reviewed workflow
 `[worker-cleanup]` alone selects four runtimes/five affected files; skips unchanged
 full aggregate, frozen build and unused LinuxQt package installation. Normal workflow
 behavior is unchanged. Exact combined review: P03_CLEANUP_INTEGRATION_REVIEW.md.
+
+## Hosted worker/completed-cleanup checkpoint and exact child closures
+
+Run41303347554, public341d304e/tree29c5378 (localec38f59):4SUCCESS.
+Linux3.12.15/3.13.17 each100PASS10SKIP; Windows3.12.10/3.13.17 each108PASS2SKIP.
+Windows9cleanup integration cases prove final bridge/classic disposition sequence
+and failure retirement;27progress cases pass everytarget. All4 ZIP API digests and
+8source/JUnit members verified independently. Actual FFmpeg media+subtitle case is
+SKIPPED everywhere hosted (unavailable), not fake target proof. Linux9nativecleanup
+skips and Windows1unsupported-platform skip are explicitly recorded. No aggregate
+or frozen rerun; earlier exact evidence retains its own source/runtime.
+
+Independent review and root accept exactly BAT-03.04 (prior unchanged scanner case),
+OPS-06.02 and OPS-06.04. Ledger now5/438 exact children,5/78 P03-mapped; whole P03
+remains0/9 tasks. Not tool percentage. Source-clause conjunctions, renderer, full
+queue/UIprogress, cancellation temps and restart recovery remain open. Exact links,
+cases and restrictions recorded in records.json and P03_ACCEPTANCE_LEDGER.md.
