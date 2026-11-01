@@ -1,0 +1,6 @@
+# Predictable new-source checkouts; canonical requirements/reference bytes are exact.
+* text=auto eol=lf
+docs/PRODUCT_REQUIREMENTS.md -text
+docs/EDITOR_SPEC.md -text
+docs/SETTINGS_AND_BROWSER_SPEC.md -text
+docs/reference/** -text

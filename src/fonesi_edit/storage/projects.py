@@ -7,6 +7,8 @@ import json,os,sqlite3,time,uuid,stat
 from pathlib import Path
 from typing import Callable
 from ..fileio import read_bounded
+from .sqlite_open import open_versioned
+from .db_ownership import owns_database,register_database
 from ..domain.composition import CompositionPlan,canonical,PlanError
 
 SCHEMA_VERSION=1
@@ -67,9 +69,10 @@ class ProjectStore:
     def __init__(self,path:Path|str,*,fault:Callable[[str],None]|None=None):
         self.path=Path(path).resolve();self.path.parent.mkdir(parents=True,exist_ok=True)
         existed=self.path.exists();self._fault=fault or (lambda _:None);self._closed=False
-        self.db=sqlite3.connect(self.path,timeout=5,isolation_level=None)
+        self.db=None
         try:
-            version=self.db.execute('PRAGMA user_version').fetchone()[0]
+            schema_hash=sha256(''.join(PROJECTS_SQL.lower().split()).encode()).hexdigest()
+            self.db,version=open_versioned(self.path,owned=lambda:owns_database(self.path,APPLICATION_ID,schema_hash))
             if version>SCHEMA_VERSION:raise NewerSchemaError(f'Database schema{version} newer than{SCHEMA_VERSION}; no write performed')
             application_id=self.db.execute('PRAGMA application_id').fetchone()[0]
             if version==SCHEMA_VERSION and application_id!=APPLICATION_ID:raise StorageError('Foreign database identity; left unchanged')
@@ -90,10 +93,12 @@ class ProjectStore:
                     self.db.execute(f'PRAGMA application_id={APPLICATION_ID}')
                     self.db.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
             self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
+            register_database(self.path,APPLICATION_ID,schema_hash)
         except Exception as exc:
             if isinstance(exc,sqlite3.Error):
                 exc.add_note(f'SQLite {sqlite3.sqlite_version}; extended code={getattr(exc, "sqlite_errorcode", None)} name={getattr(exc, "sqlite_errorname", None)}')
-            self.db.close();self._closed=True;raise
+            if self.db is not None:self.db.close()
+            self._closed=True;raise
 
     def _backup(self):
         target=self.path.with_name(self.path.name+'.backup-'+uuid.uuid4().hex)

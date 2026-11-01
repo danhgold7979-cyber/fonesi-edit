@@ -6,6 +6,8 @@ import sqlite3
 import time
 import uuid
 from fonesi_edit.domain.composition import CompositionPlan, canonical
+from fonesi_edit.storage.sqlite_open import open_versioned
+from fonesi_edit.storage.db_ownership import owns_database,register_database
 
 JOBS_SQL='CREATE TABLE jobs(\n                        id TEXT PRIMARY KEY, request_key TEXT UNIQUE NOT NULL,\n                        snapshot_json TEXT NOT NULL, snapshot_hash TEXT NOT NULL,\n                        state TEXT NOT NULL, version INTEGER NOT NULL,\n                        attempt INTEGER NOT NULL, lease_token TEXT,\n                        lease_deadline REAL, cancel_requested INTEGER NOT NULL)'
 
@@ -28,12 +30,13 @@ class Job:
 class JobRepository:
     def __init__(self, path: Path | str, *, clock=time.time):
         self.clock = clock
-        path = Path(path)
+        path = Path(path).resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(path, isolation_level=None, timeout=5)
-        self.db.row_factory = sqlite3.Row
+        self.db = None
         try:
-            version = self.db.execute('PRAGMA user_version').fetchone()[0]
+            schema_hash=sha256(''.join(JOBS_SQL.lower().split()).encode()).hexdigest()
+            self.db, version = open_versioned(path,owned=lambda:owns_database(path,1178946122,schema_hash))
+            self.db.row_factory = sqlite3.Row
             application_id = self.db.execute('PRAGMA application_id').fetchone()[0]
             if version == 1 and application_id != 1178946122:
                 raise JobConflict('Database is not a Fonesi jobs store; left untouched')
@@ -59,8 +62,10 @@ class JobRepository:
             self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
+            self.db.execute('PRAGMA busy_timeout=5000')
+            register_database(path,1178946122,schema_hash)
         except BaseException:
-            self.db.close()
+            if self.db is not None:self.db.close()
             raise
 
     def close(self):
