@@ -22,7 +22,22 @@ class CoordinatorInbox:
         self._pending = deque()
         self._lock = Lock()
         self._closed = False
+        self._revision = 0
+        self._running = 0
         self.progress = LatestProgress(ownership_token(owner.repository.path, APPLICATION_ID, KNOWN_LINEAGE_HASHES))
+
+    def state(self):
+        """Coalesced read-refresh hint, never a durable job-state payload."""
+        with self._lock:
+            return self._revision, self._closed and self._running == 0
+
+    def notify_changed(self):
+        if get_ident() != self._thread:
+            raise JobConflict('State notifications belong to the coordinator thread')
+        self._owner.guard()
+        with self._lock:
+            if self._closed:raise JobConflict('Coordinator inbox retired')
+            self._revision += 1
 
     def progress_observer(self, job):
         if get_ident() != self._thread:
@@ -48,6 +63,7 @@ class CoordinatorInbox:
     def close(self):
         """Refuse queued work; an already executing transaction is not undone."""
         with self._lock:
+            if not self._closed:self._revision += 1
             self._closed = True
             pending = list(self._pending)
             self._pending.clear()
@@ -73,6 +89,7 @@ class CoordinatorInbox:
                     # transition invokes no done callbacks (completion is outside).
                     if not future.set_running_or_notify_cancel():
                         continue
+                    self._running += 1
                 try:
                     result = _apply_owned(self._owner.repository, self._owner, command)
                 except BaseException as exc:
@@ -83,6 +100,10 @@ class CoordinatorInbox:
                         raise
                 else:
                     future.set_result(result)
+                finally:
+                    with self._lock:
+                        self._running -= 1
+                        self._revision += 1
                 processed += 1
             return processed
         except BaseException:

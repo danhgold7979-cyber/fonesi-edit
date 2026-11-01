@@ -1,0 +1,49 @@
+{
+  "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+  "scope": "Frozen schema/subtitle parser/read-only tool discovery/license only; not GUI/media/Windows release acceptance",
+  "cases": [
+    {
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "stdout": "Valid CompositionPlan; 0 diagnostic(s). No media/render verification.\r\n",
+      "stderr": "",
+      "name": "schema"
+    },
+    {
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "stdout": "Parsed subtitles; 1 cue(s). No style/render fidelity verification.\r\n",
+      "stderr": "",
+      "name": "subtitle"
+    },
+    {
+      "expected_returncode": 2,
+      "actual_returncode": 2,
+      "stdout": "",
+      "stderr": "Invalid subtitles: Timestamp precision/range invalid\r\n",
+      "name": "subtitle-invalid"
+    },
+    {
+      "expected_returncode": 2,
+      "actual_returncode": 2,
+      "stdout": "",
+      "stderr": "Invalid subtitles: Explicit supported encoding required\r\n",
+      "name": "subtitle-empty-encoding"
+    },
+    {
+      "expected_returncode": 0,
+      "actual_returncode": 0,
+      "stdout": "{\"status\": \"COMPLETE\", \"examined\": 43, \"candidates\": [{\"tool\": \"chrome\", \"path\": \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\", \"source\": \"system\", \"device\": 7363010505313276667, \"inode\": 281474977739813, \"size\": 4522648, \"modified_ns\": 1792460818004188000, \"link_or_reparse\": false, \"readiness\": \"UNCHECKED\"}], \"selections\": [{\"tool\": \"ffmpeg\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"ffprobe\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"yt-dlp\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"gallery-dl\", \"state\": \"MISSING\", \"candidate\": null}, {\"tool\": \"chrome\", \"state\": \"INVALID_EXPLICIT_PATH\", \"candidate\": null}], \"diagnostics\": []}\r\n",
+      "stderr": "",
+      "name": "read-only-tool-discovery"
+    }
+  ],
+  "status": "PASS",
+  "binary_sha256": "7497abe463885ae8aa3f281d6f17b97394e85461176a0d5afe8377c34186ed57",
+  "license_sha256": "93d82c4caf14f9ac8845377399860ee8e3628481d8017ebe33febb8bf7236211",
+  "fixture_sha256": {
+    "D\u1ef1 \u00e1n \u4e2d\u6587.json": "cd5907679d7cd4ca941e7ede02f7da3dfb90445a963f22d78695da9224b729e9",
+    "Ph\u1ee5 \u0111\u1ec1 \u4e2d\u6587.srt": "277e6d028d7f9a0e3cf66518466b651d74ebe76360014a522da1507dc06d729a",
+    "invalid.srt": "9640a9d3ad243ed5dd97e0e28e708411554b66c41190747de3b721808f9e5a78"
+  }
+}

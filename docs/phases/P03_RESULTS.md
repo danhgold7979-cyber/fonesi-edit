@@ -1041,3 +1041,25 @@ rejected intended snapshot_hash field). Exact field-allowlist/full-body exclusio
 test corrected, focused1PASS exit0; no unchanged aggregate rerun. Failed original
 JUnit and source hashes preserved under docs/evidence/p03/inbox-progress-local/.
 Normal four-target checkpoint will establish native integration afresh.
+
+### Normal integration checkpoint41307781141 — independent verification
+Public1835c790/treeaf55e0ee, local714bb50. FourSUCCESS; Windows3.12.10/3.13.16
+each584PASS26SKIP, Linux3.12.15/3.13.17 each571PASS39SKIP. All13new inbox/progress
+cases non-skippedPASS on all4. Windows312 actual onedir build and5frozen CLI
+schema/subtitle/discovery/license casesPASS; binaryhash is harness-reported, not a
+separately downloaded release artifact. API4ZIP digests and9members independently
+verified in P03_NORMAL_INTEGRATION_HOSTED_41307781141.md. Actual FFmpeg unavailable
+remains skipped; physical GUI/default scheduler/provider/fulltask gates open.
+Ledger6/438 and0/9P03tasks unchanged.
+
+### Transition refresh and combined selected cancellation — local
+P03-04/06: owner revisions coalesce durable state refresh; busy UI cannot lose
+latest revision; closed route is not terminal until admitted commands finish.
+Final durable read attempted, error remains visible/manual-refresh, no command
+replay. Three newcasesPASS across affected runs; prior13affected inbox/progress
+casesPASS once. Combined real Qt selected cancellation to owned Python
+probe/decoder/descendant, typed retirement, acknowledgment and safe POSIX retention
+PASS locally; actual Windows object-bound stage removal in this combinedcase
+awaits scoped16-case4targetCI. No FFmpeg simulation passed as codec evidence.
+Initial test referenced nonexistent job_history, corrected to completion_history;
+not an application failure. No new criterion accepted before native proof.

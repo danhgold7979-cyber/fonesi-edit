@@ -547,3 +547,16 @@ success. Expose numeric frame/media-time/bytes only, never stderr/paths/credenti
 or fabricated percent/ETA. Actual runner emits through existing JobProgressObserver
 on its repository thread. This UI transport does not provide a missing renderer,
 provider executor or queue scheduler.
+
+### Owner transition refresh and end-to-end cancellation boundary
+After the native inbox/progress checkpoint, add a coalesced owner-route revision
+for committed commands and explicit worker state changes/route closure. UI reads
+actual durable rows once per observed revision, never paints an invented terminal
+state from a progress event. Busy readers/commands must not lose a later revision;
+unknown COMMIT/closed route forces one durable refresh, no mutation replay. Include
+a single actual UI selected cancellation→owner inbox→owned Python validator child
+and descendant→typed retirement→DB cancel acknowledgment→owned-stage cleanup case.
+The Python media decoder remains labelled a lifecycle stand-in. Windows removes
+only its owned stage; POSIX retains without a pathname-delete fallback. Native
+session cleanup proof and UI final-state refresh are separate from production
+renderer/provider/scheduler acceptance.

@@ -42,3 +42,16 @@ stops on page retirement. Read-only queue query adds only immutable snapshot has
 never snapshot body, request key or paths. The default shell still has no running
 scheduler/executor; a supplied actual owner route is required. The real-owned
 Python stdout/Qt selected-cancel test proves this path, not FFmpeg capabilities.
+
+## Durable transition refresh
+The route supplies a monotonically increasing in-memory revision, not a job-state
+payload. Completed command attempts increment it (including unknown outcome);
+workers call notify_changed after actual state transactions, and close increments
+once. UI coalesces revisions into the existing read-only SQLite reader; a busy
+reader/commander cannot consume a revision without scheduling its read. Route
+close is terminal for observation only after any already-admitted command exits;
+its completion increments revision again. UI attempts the final durable read
+before stopping its timer, never equating route closure with job success/cancel.
+Default scheduler must still call notifications for its own transitions. No
+external DB mutations are inferred; manual refresh remains available after read
+failure. No retry of a command follows from a refresh hint.

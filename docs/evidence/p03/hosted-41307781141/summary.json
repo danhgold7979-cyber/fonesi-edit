@@ -1,0 +1,636 @@
+{
+  "run_id": 41307781141,
+  "scope": "Normal source integration aggregate and Windows312 frozen CLI boundaries; not full task/product acceptance",
+  "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+  "artifacts": [
+    {
+      "artifact": "foundation-windows-latest-py3.12",
+      "zip_sha256": "ec226a819cd6b97af3c192ee95a06b460c271ceb0e7257428b56225268841047",
+      "members": {
+        "foundation-source.json": "aaa7ab67c3081878a1176cb4e7a42716c7282aa1f1ea43ea1870e99d7970ea96",
+        "foundation-results.xml": "cec2b6512457297964d845fb53a3cef9d5d14e7ce699c855d57e7d38bee4c75e",
+        "frozen-cli-results.json": "7f6a67223ee2506d3cd5f21ed11be9b7601971308258971991f2cf9af5bdfc21"
+      },
+      "runtime": {
+        "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+        "source_tree": "af55e0ee9e767363b6d962e0c30a56ce8340a7c8",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "26",
+        "tests": "610",
+        "time": "55.874",
+        "timestamp": "2026-11-01T12:43:14.249076+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_nonwindows_cancel_cleanup_retains_without_path_delete",
+          "reason": "Non-Windows unsupported branch"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_unsupported_retains_stage_and_completed_history",
+          "reason": "Unsupported-platform branch"
+        },
+        {
+          "case": "tests.test_media_validation.test_actual_local_ffmpeg_probe_full_decode_and_corrupt_rejection",
+          "reason": "Explicit FFmpeg/ffprobe unavailable; actual target gate open"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"bad\")-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[],\"streams\":[]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[],\"x\":NaN}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"{}\")-No usable]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[import time; time.sleep(10)-timed out]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"x\"*10000)-exceeds limit]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[raise SystemExit(7)-code 7]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[{\"index\":0,\"codec_type\":\"video\",\"nested\":{\"duration\":1e999}}]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[{\"index\":0,\"codec_type\":\"video\",\"nested\":{\"duration\":-1e999}}]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_mid_process_cancel_reaped",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_real_audio_probe_source_unchanged",
+          "reason": "Developer FFmpeg tools unavailable"
+        },
+        {
+          "case": "tests.test_probe.test_probe_retires_owned_descendant",
+          "reason": "Linux process-state proof; target-native tests separate"
+        },
+        {
+          "case": "tests.test_probe.test_tool_stderr_secret_not_in_probe_error",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_process.test_output_and_exit_code",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_argv_not_shell",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[import time;time.sleep(10)-kwargs0-timed out]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[print(\"x\"*100000)-kwargs1-exceeds limit]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[import os,time;os.close(1);os.close(2);time.sleep(10)-kwargs2-timed out]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_cancel_removes_owned_grandchild",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_successful_leader_cleans_silent_descendant",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        },
+        {
+          "case": "tests.test_retirement_lifecycle.test_finally_close_failure_overrides_result_but_retires_other_handles",
+          "reason": "POSIX checked-close failure path"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_nonwindows_cleanup_fails_closed",
+          "reason": "Non-Windows unsupported-capability branch"
+        }
+      ]
+    },
+    {
+      "artifact": "foundation-windows-latest-py3.13",
+      "zip_sha256": "8235e992d3ecafa6521b33b15b0863add9eea2a6357ff192ee83de1a9f1f11c0",
+      "members": {
+        "foundation-results.xml": "28fcb4ee41040560d11092f071455ed76e877a9f4a26efe27ddac0cec5d9a08d",
+        "foundation-source.json": "4dffbe00b050c6f764e0d85d07d059abecdeb9f6061d4ebadd079ea1df954466"
+      },
+      "runtime": {
+        "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+        "source_tree": "af55e0ee9e767363b6d962e0c30a56ce8340a7c8",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "26",
+        "tests": "610",
+        "time": "38.155",
+        "timestamp": "2026-11-01T12:43:15.951644+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_nonwindows_cancel_cleanup_retains_without_path_delete",
+          "reason": "Non-Windows unsupported branch"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_unsupported_retains_stage_and_completed_history",
+          "reason": "Unsupported-platform branch"
+        },
+        {
+          "case": "tests.test_media_validation.test_actual_local_ffmpeg_probe_full_decode_and_corrupt_rejection",
+          "reason": "Explicit FFmpeg/ffprobe unavailable; actual target gate open"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"bad\")-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[],\"streams\":[]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[],\"x\":NaN}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"{}\")-No usable]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[import time; time.sleep(10)-timed out]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print(\"x\"*10000)-exceeds limit]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[raise SystemExit(7)-code 7]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[{\"index\":0,\"codec_type\":\"video\",\"nested\":{\"duration\":1e999}}]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_bounded_failures[print('{\"streams\":[{\"index\":0,\"codec_type\":\"video\",\"nested\":{\"duration\":-1e999}}]}')-invalid JSON]",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_mid_process_cancel_reaped",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_probe.test_real_audio_probe_source_unchanged",
+          "reason": "Developer FFmpeg tools unavailable"
+        },
+        {
+          "case": "tests.test_probe.test_probe_retires_owned_descendant",
+          "reason": "Linux process-state proof; target-native tests separate"
+        },
+        {
+          "case": "tests.test_probe.test_tool_stderr_secret_not_in_probe_error",
+          "reason": "POSIX executable fixture; Windows real tool suite separate"
+        },
+        {
+          "case": "tests.test_process.test_output_and_exit_code",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_argv_not_shell",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[import time;time.sleep(10)-kwargs0-timed out]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[print(\"x\"*100000)-kwargs1-exceeds limit]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_execution_bounds[import os,time;os.close(1);os.close(2);time.sleep(10)-kwargs2-timed out]",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_cancel_removes_owned_grandchild",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_process.test_successful_leader_cleans_silent_descendant",
+          "reason": "POSIX owned-group adapter; Windows adapter separate"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        },
+        {
+          "case": "tests.test_retirement_lifecycle.test_finally_close_failure_overrides_result_but_retires_other_handles",
+          "reason": "POSIX checked-close failure path"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_nonwindows_cleanup_fails_closed",
+          "reason": "Non-Windows unsupported-capability branch"
+        }
+      ]
+    },
+    {
+      "artifact": "foundation-ubuntu-24.04-py3.12",
+      "zip_sha256": "85004e3e5cc01639af9c2c3dd4f4eac56f68ceb6b98e7cb4ddc5aab17031411b",
+      "members": {
+        "foundation-results.xml": "ab279d6729e6813d4de5096cb814ee612fb70446d8092574e98f4b1011a8146e",
+        "foundation-source.json": "358f1f0538b8fbd1d991778a775b640596cee548c43bc50091fc91edaec51e28"
+      },
+      "runtime": {
+        "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+        "source_tree": "af55e0ee9e767363b6d962e0c30a56ce8340a7c8",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "39",
+        "tests": "610",
+        "time": "18.613",
+        "timestamp": "2026-11-01T12:43:02.059250+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[False]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[True]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_postwrite_cancellation_cleans_unvalidated_owned_stage",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_foreign_child_survives_partial_canceled_cleanup",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_epoch_loss_at_native_effect_preserves_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_interrupted_media_copy_keeps_source_and_original_partial[True]",
+          "reason": "Actual Windows canceled-copy cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_handoff_swap_preserves_foreign_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[history]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[epoch]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[not_finished]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_foreign_child_retained_after_owned_payload_cleanup",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_authority_loss_after_readback_never_marks",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_partial_cleanup_failure_never_replays_or_undoes_completed_job",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_corrupt_final_hash_refuses_destructive_effect",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_authority_refusal_after_first_member_is_unknown_not_preflight",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_media_validation.test_actual_local_ffmpeg_probe_full_decode_and_corrupt_rejection",
+          "reason": "Explicit FFmpeg/ffprobe unavailable; actual target gate open"
+        },
+        {
+          "case": "tests.test_probe.test_real_audio_probe_source_unchanged",
+          "reason": "Developer FFmpeg tools unavailable"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        },
+        {
+          "case": "tests.test_retirement_lifecycle.test_windows_failed_empty_observation_never_confirms",
+          "reason": "Actual Windows finalizer observation failure required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_stage_link_only_removed_final_same_bytes_survives",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_file_handoff_replacement_never_deletes_foreign",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_directory_handoff_replacement_never_deletes_foreign",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_empty_directory_removal_and_nonempty_foreign_preserved",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_late_foreign_directory_child_prevents_removal",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_authority_loss_before_disposition_has_no_delete",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_conflicting_delete_handle_fails_without_unlink",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_unmarked_capability_retirement_never_deletes",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_capability_handle_count_plateau",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_output_unicode_argument_and_exit",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_limits[import time;time.sleep(10)-kwargs0-timed out]",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_limits[print(\"x\"*100000)-kwargs1-exceeds limit]",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_cancel_owned_grandchild",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_supervisor_crash_kills_job",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_unlisted_inheritable_handle_not_leaked",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_dispatch_uses_windows_job",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_native_handles_retired_across_success_and_failure",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_cancel_never_terminates_separate_sibling",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_native_quiescence_observed_before_return",
+          "reason": "Real Windows Job Object test; not simulated"
+        }
+      ]
+    },
+    {
+      "artifact": "foundation-ubuntu-24.04-py3.13",
+      "zip_sha256": "ea8bc50891d8d72f83e9a2eb9a9c6adad74a86a39a644da9caa06d112c39591d",
+      "members": {
+        "foundation-results.xml": "c1afb3c076dbde6cfec35ad1cf405d80a878b60c5b719f9ce639c93c3a319d5a",
+        "foundation-source.json": "071b7b06a3aa521cff42a913f3c09e9779a5020e15189d72ab0ee2d4ad587401"
+      },
+      "runtime": {
+        "source_sha": "1835c790d18aeff79a6abaee4f6b985fd7058ea0",
+        "source_tree": "af55e0ee9e767363b6d962e0c30a56ce8340a7c8",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "39",
+        "tests": "610",
+        "time": "18.764",
+        "timestamp": "2026-11-01T12:43:01.469501+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "skips": [
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[False]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_exact_stages_removed_sources_foreign_final_preserved[True]",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_postwrite_cancellation_cleans_unvalidated_owned_stage",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_foreign_child_survives_partial_canceled_cleanup",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_epoch_loss_at_native_effect_preserves_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_interrupted_media_copy_keeps_source_and_original_partial[True]",
+          "reason": "Actual Windows canceled-copy cleanup required"
+        },
+        {
+          "case": "tests.test_canceled_cleanup.test_canceled_handoff_swap_preserves_foreign_payload",
+          "reason": "Actual Windows canceled cleanup required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_completed_exact_set_preserves_all_finals_history",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[history]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[epoch]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_rejects_missing_live_completion_authority[not_finished]",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_foreign_child_retained_after_owned_payload_cleanup",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_cleanup_authority_loss_after_readback_never_marks",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_partial_cleanup_failure_never_replays_or_undoes_completed_job",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_corrupt_final_hash_refuses_destructive_effect",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_completed_cleanup.test_authority_refusal_after_first_member_is_unknown_not_preflight",
+          "reason": "Actual Windows completed-cleanup integration required"
+        },
+        {
+          "case": "tests.test_media_validation.test_actual_local_ffmpeg_probe_full_decode_and_corrupt_rejection",
+          "reason": "Explicit FFmpeg/ffprobe unavailable; actual target gate open"
+        },
+        {
+          "case": "tests.test_probe.test_real_audio_probe_source_unchanged",
+          "reason": "Developer FFmpeg tools unavailable"
+        },
+        {
+          "case": "tests.test_publication_session.test_actual_media_and_subtitle_required_set_integration",
+          "reason": "Actual target FFmpeg unavailable"
+        },
+        {
+          "case": "tests.test_retirement_lifecycle.test_windows_failed_empty_observation_never_confirms",
+          "reason": "Actual Windows finalizer observation failure required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_stage_link_only_removed_final_same_bytes_survives",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_file_handoff_replacement_never_deletes_foreign",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_directory_handoff_replacement_never_deletes_foreign",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_empty_directory_removal_and_nonempty_foreign_preserved",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_late_foreign_directory_child_prevents_removal",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_authority_loss_before_disposition_has_no_delete",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_conflicting_delete_handle_fails_without_unlink",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_unmarked_capability_retirement_never_deletes",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_cleanup.test_native_capability_handle_count_plateau",
+          "reason": "Actual Windows object-bound deletion capability required"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_output_unicode_argument_and_exit",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_limits[import time;time.sleep(10)-kwargs0-timed out]",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_real_limits[print(\"x\"*100000)-kwargs1-exceeds limit]",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_cancel_owned_grandchild",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_supervisor_crash_kills_job",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_unlisted_inheritable_handle_not_leaked",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_dispatch_uses_windows_job",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_native_handles_retired_across_success_and_failure",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_cancel_never_terminates_separate_sibling",
+          "reason": "Real Windows Job Object test; not simulated"
+        },
+        {
+          "case": "tests.test_windows_process.test_native_quiescence_observed_before_return",
+          "reason": "Real Windows Job Object test; not simulated"
+        }
+      ]
+    }
+  ]
+}

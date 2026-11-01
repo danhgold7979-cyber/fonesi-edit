@@ -43,6 +43,7 @@ class QueuePage(QWidget):
     idle=Signal()
     def __init__(self,path,parent=None,*,inbox=None):
         super().__init__(parent);self.inbox=inbox;self.path=path;self.reader=None;self.commander=None;self.stopping=False;self.store_token=None;self._snapshot_valid=False
+        self._route_revision=inbox.state()[0] if inbox is not None else 0
         layout=QVBoxLayout(self)
         self.message=QLabel('Chưa đọc dữ liệu hàng đợi. Không có số liệu giả lập.')
         self.message.setTextFormat(Qt.PlainText);layout.addWidget(self.message)
@@ -68,7 +69,15 @@ class QueuePage(QWidget):
         self.progress_timer.timeout.connect(self.poll_progress)
         if self.inbox is not None:self.progress_timer.start()
     def poll_progress(self):
-        if self.stopping or self.inbox is None or not self._snapshot_valid or self.reader is not None:return
+        if self.stopping or self.inbox is None:return
+        revision,closed=self.inbox.state()
+        if revision!=self._route_revision:
+            if not self.busy:
+                self._route_revision=revision;self.refresh()
+            return
+        if closed and not self.busy:
+            self.progress_timer.stop();return
+        if not self._snapshot_valid or self.reader is not None:return
         batch=self.inbox.progress.drain()
         if batch.store_token!=self.store_token:return
         events={event.job_id:event for event in batch.events}
