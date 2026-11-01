@@ -1190,3 +1190,18 @@ were present, no desktop/font-readiness claim. Exact source/tool hashes in scope
 receipt. Independent source CLEAR; scoped Windows UI gate pending, ledger unchanged.
 Affected shared shell/recovery/root-relink/restore UI regression19cases PASS exit0
 after inspector integration; independent reviewer did not duplicate this baseline.
+
+### Media inspector hosted 41317345741
+Public 3ce071c5/tree5939a550 (local58969dd): four SUCCESS, each27PASS0SKIP.
+Windows3.12.10/3.13.16, Linux3.12.15/3.13.17. Independent API/4ZIP/8member
+verification includes all six inspector and two frame-lifecycle cases. This proves
+scoped Qt/owned-process protocol integration, not actual hosted FFmpeg, frozen GUI,
+editor import/frame-map validity or another child criterion. Ledger9/438 unchanged.
+
+### Prepared Windows FFmpeg candidate gate — NOT RUN
+Exact official-referral BtbN dated asset695397553 downloaded and inspected read-only:
+archive/member hashes, LGPLv3 notice and static DLL imports recorded. No PE execution,
+installation/PATH change, binary redistribution or complete dependency/security audit.
+Dedicated Windows3.12/3.13 synthetic harness prepared;11sentinel/control unit cases
+PASS locally, independent bounded source review. Actual candidate execution awaits
+specific user scope authorization; no codec/renderer/criterion acceptance implied.
