@@ -1,6 +1,6 @@
 # P03 — Task-specific clean implementation plan
 
-Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented or accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
+Generation clean-2026-11-01; branch `phase-03`. Status IN_PROGRESS; fresh slice A locally verified, not phase accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
 
 ## P03-01 — scaffold module, môi trường tái lập, dependency lock, config và user data tách khỏi thư mục chương trình.
 
@@ -85,3 +85,43 @@ Generation clean-2026-11-01; branch `phase-03`. Status PLANNED, not implemented 
 
 ## Phase gate
 Every task acceptance above and corresponding master gate must pass. Unit/mock evidence does not close live/Windows/GPU/Chrome acceptance. Keep LOCAL_VERIFIED, BLOCKED_EXTERNAL and ACCEPTED distinct. Submit independent review and one aggregate checkpoint after affected tests; do not mark whole phase complete from a working slice.
+
+## Fresh slice A — domain/schema/time and durable project entry
+
+Entry evidence: independent P01 design accepted; P02 developer-toolchain/shared-raster milestones locally verified with codee0cfb14, scoped evidence review (not wholeP02 acceptance). Start P03-01/02/03/05 pure interfaces without authenticated provider/Chrome/GPU dependency.
+
+Artifacts: fresh pyproject/lock; immutable CompositionPlan parser with structural+semantic validation; rational stream/cue/keyframe evaluator; distinct execution/render digests; transactional SQLite project repository/migration/atomic project-file persistence. No inherited source/tests. Runtime schema packaged with module from new P01 schema, not loaded from current-working-directory docs.
+
+Focused tests: `tests/test_timebase.py` rational/bounds/rounding/easing/selected-stream and repeated-segment cue mapping; `tests/test_composition.py` strict JSON/refs/stream types/timing/layer/audio/ducking/immutable snapshot/path-vs-content digests; `tests/test_projects.py` save/open, invalid input, migration/backup/crash staging/readonly version/Unicode. UI/worker/publication integration follows its own affected tests. Pure domain tests are not full P03, compositor or runtime-feature-group acceptance.
+
+Slice A extension: native eight-area shell with shared validated project open and explicit unavailable states; `tests/test_shell.py` covers navigation/open failure preservation and headless CLI. Fresh `uv.lock` owns reproducible installation. No production controls imply unimplemented workflows are available.
+
+## Fresh slice B — local media probe and fingerprint
+
+P03-03 independent entry consumes explicit ffprobe path and local source path; never discovers/downloads or falls back from an invalid explicit executable. Output is immutable raw stream/container metadata plus SHA-256 stable-content identity, stat-change guard and diagnostics; conversion to full selected-stream CompositionPlan snapshots follows separately. Hash and process waits support cancellation; wall-time and captured-output size bounded; argv list/no shell. Owned direct ffprobe child terminated/reaped on every exit; arbitrary descendant process-tree support remains P03-04 Windows gate. Tests use real generated tiny fixture plus fake executables for timeout/invalid/oversize/cancel and assert source unchanged. No source copied into repository.
+
+## Fresh slice C — durable admission/lease state substrate
+
+Independent P03-04 foundation after project SQLite transaction patterns. Dedicated jobs DB (not silently upgrading project DB) stores canonical plan-only snapshot plus seed; full tool/account/provider snapshot expansion remains future contract. Request-key idempotence rejects same key/different snapshot. Coordinator-only transitions enforce expected state/version and lease token; pause holds pending admission, cancel running records request and requires worker acknowledgment, publication is deliberately unavailable until validated artifact-set protocol exists. Expired leases are identified, never blindly succeeded/retried. Focused tests: duplicate submit, two coordinator connections competing claim, stale versions/tokens, cancel/paused transitions, reopen persistence. This substrate is not Windows worker/process/publication acceptance.
+
+## Fresh slice D — owned process execution (POSIX developer adapter)
+
+P03-04 execution adapter launches argv without shell in its own session/process group; drains bounded stdout/stderr via selectors; cancels/times out/output-overflows by terminating only its owned group then reaping. Input validation rejects implicit string/shell commands. Windows adapter deliberately raises unavailable until Job Object implementation and real tests; no parent-only-kill fallback. Focused real subprocess tests include grandchild cleanup, ordinary output, nonzero result, timeout, output cap and cancel. This is an internal worker building block, not UI responsiveness/full durable worker acceptance.
+
+## Fresh slice E — Windows owned Job Object execution
+
+User-authorized target priority: actual native Windows implementation, then source review and hosted Windows tests. CreateProcessW uses STARTUPINFOEX with explicit inherited stdin/stdout/stderr HANDLE_LIST and atomic JOB_LIST assignment, suspended launch, verified job membership, ResumeThread only after setup. Own unnamed nested job has KILL_ON_JOB_CLOSE and no breakaway flags. Parent crash closes sole job handle. Bounded anonymous-pipe capture, timeout/cancel terminate owned job, handles/attribute list retired on all failures; no global PID killing or security changes. Microsoft documents atomic JOB_LIST as closing the suspended-create/Assign orphan gap: https://devblogs.microsoft.com/oldnewthing/20230209-00/?p=107812 and HANDLE_LIST semantics: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute . Real target tests include grandchild cancel, parent crash, output bound, Unicode/space argv, unexpected inherited-handle sentinel. Linux structural ABI checks do not count as Windows runtime verification.
+
+## Post-review quiescence increment (separate from 3c222a9 CI candidate)
+
+Before publishing/cleaning worker resources, Windows retirement must observe owned job ActiveProcesses==0 via QueryInformationJobObject, after terminating owned job and releasing waited leader/thread handles. Bound query wait; failure/timeout remains unconfirmed retirement, not canceled-success. No output/resource reuse until this gate. Official accounting semantics: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information . Pure sequence tests cover pending→zero, query error and timeout; native Windows tests observe actual query path. Current reviewed CI candidate remains3c222a9, this later increment needs focused review/target execution.
+
+## Independent slice F — account/profile domain without live browser effects
+
+P03-09 pure model entry consumes reviewed account contract, not unavailable live Chrome gate. Browser ownership/state, website auth, connector bridge and source rights remain separate axes. One auth identity per platform/profile; multiple source pages/channels share that binding, alternate identity requires separate profile. Closed snapshot/reference allowlist excludes profile paths/session material. Account-scoped cache includes binding+identity+generation; identity mismatch blocks old job rather than public/account fallback. No browser launch, cookie read, credential entry, network or profile-folder mutation in this slice. Tests cover A/B isolation, source-vs-auth identity, stale snapshots and default/unlink semantics; persistence/live integration remain separate future work.
+
+## Real process interruption checks for project durability
+
+Use child processes paused at named save/SQLite boundaries, then terminate only their owned subprocess handles. Test before publish (old complete file), after publish (new complete file despite missing acknowledgment), before SQLite commit (old transaction survives), advisory lock release and subsequent save. Child markers contain only fixture readiness. Windows target runs same tests via CI; local Linux evidence never substituted. Orphan owned staging quarantine/autosave recovery remains separate implementation, no broad cleanup.
+
+Direct rational API hardening: reject float/bool/nonfinite values not only at JSON parser but also TimeSegment construction, frame/sample/rounding and keyframe-evaluator entry points; normalize exact integers to Fraction. Regressions exercise public pure interfaces so later UI/worker callers cannot accidentally bypass exact-time contract.

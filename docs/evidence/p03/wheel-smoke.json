@@ -1,0 +1,12 @@
+{
+  "code_commit": "a5e169550331ba55f30d4918e3587a89fa042122",
+  "platform": "Linux Python3.12.14",
+  "artifact": "fonesi_edit-0.0.1.dev0-py3-none-any.whl",
+  "sha256": "cea8ae2ee3297323a982d5ab1183c708cdc3de0f49a916a78a4a9be04ef863d8",
+  "size_bytes": 34028,
+  "members": 22,
+  "schema_packaged": true,
+  "cache_or_tests_packaged": false,
+  "isolated_wheel_cli_from_tmp": "PASS",
+  "scope": "wheel/CLI resource boundary only; not frozen Windows or runtime feature acceptance"
+}

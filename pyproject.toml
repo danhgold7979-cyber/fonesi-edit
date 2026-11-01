@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fonesi-edit"
+version = "0.0.1.dev0"
+description = "Clean-rebuild personal Windows media application; development foundation"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "PySide6-Essentials==6.12.0",
+  "PySide6-Addons==6.12.0",
+  "jsonschema==4.26.0",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0", "pyinstaller==6.22.3", "Pillow==13.0.0", "numpy==2.3.5"]
+
+[project.scripts]
+fonesi-edit = "fonesi_edit.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"fonesi_edit.domain" = ["composition-v1.schema.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

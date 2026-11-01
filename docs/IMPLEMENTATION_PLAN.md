@@ -1,6 +1,6 @@
 # Fonesi Edit — Master clean rebuild
 
-Revision: clean-2026-11-01. **P01 ACCEPTED (design only); P02 experiments next; P03–P12 PLANNED. Không kế thừa PASS cũ.**
+Revision: clean-2026-11-01. **P01 ACCEPTED (design only); P02 bounded experiments locally verified (external gates open); P03 foundation IN_PROGRESS; P04–P12 PLANNED. Không kế thừa PASS cũ.**
 
 ## Baseline và quy tắc
 

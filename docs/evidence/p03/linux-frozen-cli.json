@@ -1,0 +1,10 @@
+{
+  "code_commit": "a5e169550331ba55f30d4918e3587a89fa042122",
+  "platform": "Linux Python3.12.14",
+  "build_tool": "PyInstaller6.22.3",
+  "executable_sha256": "42718809bf9b673fb0f2f6e2c905ec5dd95bbb2af0b3d404988d64a0355083a6",
+  "executable_size_bytes": 2502864,
+  "bundle_regular_file_bytes": 190985337,
+  "frozen_cli_multistream_validation": "PASS",
+  "scope": "actual fresh application frozen CLI/schema boundary only; GUI/media/Windows NOT_RUN"
+}
