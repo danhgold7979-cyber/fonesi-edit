@@ -10,12 +10,13 @@ jobs:
   foundation:
     strategy:
       fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-24.04]
-        python: ['3.12', '3.13']
+      # Explicit diagnostic commits preserve prior green matrix evidence; not aggregate acceptance.
+      matrix: ${{ fromJSON(github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') && '{"include":[{"os":"windows-latest","python":"3.13"}]}' || '{"os":["windows-latest","ubuntu-24.04"],"python":["3.12","3.13"]}') }}
+    name: "${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') && 'Coordinator diagnostic (not aggregate)' || 'Foundation' }} (${{ matrix.os }}, ${{ matrix.python }})"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
+      COORDINATOR_DIAGNOSTIC: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') }}
       QT_QPA_PLATFORM: offscreen
       PYTHONUTF8: '1'
       EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -37,10 +38,16 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
       - name: Source foundation and actual platform process tests
+        if: env.COORDINATOR_DIAGNOSTIC != 'true'
         run: uv run --no-sync python -m pytest -q --junitxml=foundation-results.xml
+      - name: Targeted coordinator crash diagnostic (not aggregate acceptance)
+        if: env.COORDINATOR_DIAGNOSTIC == 'true'
+        run: uv run --no-sync python -m pytest -q tests/test_coordinator_ownership.py::test_owned_child_death_releases_os_lock_not_epoch --junitxml=foundation-results.xml
       - name: Preserved plan integrity
+        if: env.COORDINATOR_DIAGNOSTIC != 'true'
         run: uv run --no-sync python scripts/check_plan.py
       - name: Structural schema fixtures
+        if: env.COORDINATOR_DIAGNOSTIC != 'true'
         run: uv run --no-sync python scripts/check_schema_design.py
       - name: Build actual Windows development onedir
         if: matrix.os == 'windows-latest' && matrix.python == '3.12'
@@ -53,7 +60,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # verified v4
         with:
-          name: foundation-${{ matrix.os }}-py${{ matrix.python }}
+          name: ${{ env.COORDINATOR_DIAGNOSTIC == 'true' && 'coordinator-diagnostic' || 'foundation' }}-${{ matrix.os }}-py${{ matrix.python }}
           path: |
             foundation-results.xml
             foundation-source.json

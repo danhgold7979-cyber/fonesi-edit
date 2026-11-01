@@ -1,4 +1,4 @@
-import os,subprocess,sys,time
+import os,subprocess,sys,time,sqlite3
 from pathlib import Path
 import pytest
 from fonesi_edit.jobs.repository import JobRepository
@@ -81,7 +81,15 @@ with CoordinatorOwnership(r) as owner:
         with pytest.raises(CoordinatorBusy):
             with CoordinatorOwnership(repo):pass
         child.kill();child.wait(timeout=5)
-        with CoordinatorOwnership(repo) as owner:assert owner.guard()==2
+        try:
+            with CoordinatorOwnership(repo) as owner:assert owner.guard()==2
+        except sqlite3.Error as exc:
+            # Diagnostic only: no query/reopen/retry before collecting the failure.
+            pytest.fail(f'Post-child-exit coordinator acquisition failed: '
+                        f'sqlite={sqlite3.sqlite_version} '
+                        f'code={getattr(exc,"sqlite_errorcode",None)} '
+                        f'name={getattr(exc,"sqlite_errorname",None)} '
+                        f'in_transaction={repo.db.in_transaction} child_exit={child.returncode}; {exc}')
     finally:
         if child.poll() is None:child.kill();child.wait(timeout=5)
         child.stdout.close();child.stderr.close()
