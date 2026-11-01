@@ -262,3 +262,44 @@ class PublicationSession:
             raise
         self.job=finished
         return finished
+
+    def cleanup_completed(self):
+        """One-shot cleanup of this synchronous live session; always retire it.
+
+        Staging/validation APIs return only after their writers and owned process
+        adapters retire. No external producer or caller quiescence flag is accepted.
+        A future asynchronous worker must supply an equally strong lifecycle proof;
+        this method must not be reused while that worker owns any output handle.
+        Completed job/history stay completed even if maintenance is UNKNOWN.
+        """
+        from fonesi_edit.artifacts.completed_cleanup import cleanup_completed_stage
+        from fonesi_edit.artifacts.filesystem import PublicationError,PublicationUnknown
+        entered_cleanup=False
+        try:
+            if os.name!='nt':raise PublicationError('Safe cleanup unavailable on this platform; staging retained')
+            def completed_authority():
+                current=self._guard_claimed(completed=True)
+                members=self._journal(current)
+                history=self.repository.db.execute('SELECT * FROM completion_history WHERE set_id=?',(self._set_id,)).fetchone()
+                if (current.state!='succeeded' or self._linked!=set(members)
+                    or any(member['state']!='committed' for member in members.values())
+                    or history is None or history['job_id']!=current.id or history['snapshot_hash']!=current.snapshot_hash):
+                    raise JobConflict('Cleanup requires exact completed required set and history')
+            completed_authority()
+            outputs=[]
+            for definition in self.manifest.items:
+                receipt,_=self._staged[definition.role]
+                entered_cleanup=True # Transfer/effect may occur; later refusal is not known-no-effect.
+                outputs.append(cleanup_completed_stage(self._destinations[definition.destination_root],receipt,
+                                                       definition.final_name,before_effect=completed_authority))
+            return tuple(outputs)
+        except (JobConflict,PublicationError) as exc:
+            if entered_cleanup and not isinstance(exc,PublicationUnknown):
+                raise PublicationUnknown('Cleanup partially attempted; authority/effect outcome requires reconciliation') from exc
+            raise
+        except Exception as exc:
+            raise PublicationUnknown('Cleanup outcome uncertain; session retired, no replay') from exc
+        finally:
+            try:self.close()
+            except Exception as exc:
+                raise PublicationUnknown('Cleanup handle retirement uncertain; no replay') from exc

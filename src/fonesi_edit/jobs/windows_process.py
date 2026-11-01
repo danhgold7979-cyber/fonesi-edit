@@ -99,7 +99,9 @@ def _kernel():
 
 
 def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
-                      max_output_bytes=4*1024*1024, grace_seconds=.2):
+                      max_output_bytes=4*1024*1024, grace_seconds=.2, on_stdout=None):
+    if on_stdout is not None and not callable(on_stdout):
+        raise ValueError("stdout observer must be callable")
     if os.name!='nt':
         raise ProcessError('Windows Job Object adapter requires Windows')
     if isinstance(argv,(str,bytes)) or not argv or any(not isinstance(v,str) or '\0' in v for v in argv):
@@ -141,6 +143,8 @@ def run_windows_owned(argv, *, cancel=lambda:False, timeout=300,
                 outputs[name].extend(buffer.raw[:read.value])
                 if sum(map(len,outputs.values()))>max_output_bytes:
                     raise ProcessError('Owned process output exceeds limit')
+                if name == 'stdout' and on_stdout is not None and read.value:
+                    on_stdout(buffer.raw[:read.value])
     try:
         job=own(k.CreateJobObjectW(None,None))
         limits=EXTENDED_LIMIT();limits.BasicLimitInformation.LimitFlags=0x2000 # KILL_ON_JOB_CLOSE only

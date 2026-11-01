@@ -1,0 +1,25 @@
+{
+  "scope": "Linux actual FFmpeg stdout observer integration; no render/publication/Windows acceptance",
+  "runtime": "3.12.14",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "input_sha256": "c374672fd3188ba261043f82d93097e566bd3f64c5325af3c2c1e58e42f853a6",
+  "tool_sha256": "e8a8d46f5225f3062cec7c07fb145d58ae73c603cb740dcd5bad34bfb54e455a",
+  "returncode": 0,
+  "stdout_bytes": 180,
+  "stderr_bytes": 0,
+  "observations": [
+    {
+      "frame": 25,
+      "out_time_us": 1000000,
+      "total_size": null,
+      "ended": true
+    }
+  ],
+  "inputs_unchanged": true,
+  "base_commit": "b32795afbf66726748f385b2d9998e392b781745",
+  "source_sha256": {
+    "src/fonesi_edit/jobs/process.py": "d4eed1fd8d1cc0184e9f79bcefcd0b233200d7b13194aba2cdf691fd9300dc3e",
+    "src/fonesi_edit/jobs/windows_process.py": "a8db33482ccc6555eb7331ca8479247e4e027d621a8ad98304538dbdcdc66a63",
+    "src/fonesi_edit/jobs/progress.py": "ade69280d69028d4d281e67330e08b91919cf3f6ebea1c43e48d40263f302c82"
+  }
+}

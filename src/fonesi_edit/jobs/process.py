@@ -22,11 +22,13 @@ class ProcessResult:
 
 def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False,
               timeout: float = 300, max_output_bytes: int = 4*1024*1024,
-              grace_seconds: float = .2) -> ProcessResult:
+              grace_seconds: float = .2, on_stdout: Callable[[bytes], None] | None = None) -> ProcessResult:
+    if on_stdout is not None and not callable(on_stdout):
+        raise ValueError("stdout observer must be callable")
     if os.name == 'nt':
         from .windows_process import run_windows_owned
         return run_windows_owned(argv,cancel=cancel,timeout=timeout,
-                                 max_output_bytes=max_output_bytes,grace_seconds=grace_seconds)
+                                 max_output_bytes=max_output_bytes,grace_seconds=grace_seconds,on_stdout=on_stdout)
     if os.name != 'posix' or not hasattr(os, 'WNOWAIT'):
         raise ProcessError('Windows Job Object adapter unavailable; no unsafe parent-only fallback')
     if isinstance(argv, (str, bytes)) or not argv or any(not isinstance(v,str) or '\0' in v for v in argv):
@@ -75,6 +77,8 @@ def run_owned(argv: Sequence[str], *, cancel: Callable[[], bool] = lambda: False
                 buffers[key.data].extend(chunk)
                 if sum(map(len,buffers.values()))>max_output_bytes:
                     raise ProcessError('Owned process output exceeds limit')
+                if key.data == 'stdout' and on_stdout is not None:
+                    on_stdout(chunk)
         # A child may close streams and continue running. Keep ownership until exit.
         while not exited():
             if cancel():raise ProcessCanceled('Canceled during execution')

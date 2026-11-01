@@ -78,6 +78,15 @@ def _pin_windows_directory(path):
     return close
 
 
+class _OwnedFD:
+    """Close-once transferable descriptor; no raw close callback survives handoff."""
+    def __init__(self,fd):self.fd=fd
+    def close(self):
+        if self.fd is not None:
+            fd=self.fd;self.fd=None
+            os.close(fd)
+
+
 class Destination:
     """One existing explicit local root. Use as a context manager, coordinator only."""
     def __init__(self, root):
@@ -87,7 +96,7 @@ class Destination:
         if os.name=='nt' and str(raw).startswith('\\\\'):
             raise PublicationError('Network destination needs separate durability capability')
         self.root=raw
-        self._stack=ExitStack(); self.fd=None; self.closed=True; self._anchors={}
+        self._stack=ExitStack(); self.fd=None; self.closed=True; self._anchors={}; self._directory_anchors={}
         try:
             for part in [*reversed(raw.parents),raw]:
                 if os.name=='nt': self._stack.callback(_pin_windows_directory(part))
@@ -104,7 +113,7 @@ class Destination:
     def __enter__(self): return self
     def __exit__(self,*args): self.close()
     def close(self):
-        self.closed=True;self._stack.close();self._anchors.clear()
+        self.closed=True;self._stack.close();self._anchors.clear();self._directory_anchors.clear()
     def _check(self):
         if self.closed: raise PublicationError('Destination is closed')
         if _plain(self.root.lstat(),True)!=self.identity:
@@ -165,6 +174,13 @@ class Destination:
         directory_id=_plain(self._stat(directory),True)
         digest=sha256();size=0
         with self._stage_directory(directory,directory_id) as stage_fd:
+            if os.name=='nt':
+                from .windows_cleanup import NativeObject
+                directory_anchor=NativeObject(self.root/directory,directory=True)
+                self._stack.callback(directory_anchor.close)
+                if directory_anchor.identity!=directory_id:
+                    raise PublicationUnknown('Original stage directory changed before retention')
+                self._directory_anchors[directory]=directory_anchor
             leaf="payload" if stage_fd is not None else directory+"/payload"
             fd=self._open(leaf,os.O_WRONLY|os.O_CREAT|os.O_EXCL,base_fd=stage_fd)
             with os.fdopen(fd,'wb') as out:
@@ -175,8 +191,8 @@ class Destination:
                 out.flush();os.fsync(out.fileno())
                 info=os.fstat(out.fileno());file_id=_plain(info)
                 # Keep the original object alive before closing its creating writer.
-                anchor=os.dup(out.fileno())
-                self._stack.callback(os.close,anchor)
+                anchor=_OwnedFD(os.dup(out.fileno()))
+                self._stack.callback(anchor.close)
                 self._anchors[directory]=anchor
             if stage_fd is not None:os.fsync(stage_fd)
         self._flush_root();self._check()
@@ -226,7 +242,7 @@ class Destination:
             type(r.size) is not int or not 0<=r.size<=2**63-1 or not re.fullmatch('[0-9a-f]{64}',r.sha256)):
             raise PublicationError('Invalid internal staging receipt')
         anchor=self._anchors.get(r.directory)
-        if anchor is None or _plain(os.fstat(anchor))!=r.file_identity:
+        if anchor is None or anchor.fd is None or _plain(os.fstat(anchor.fd))!=r.file_identity:
             raise PublicationUnknown('No surviving live owned anchor; persisted inode may be recycled. Restart reconciliation requires an incarnation-safe capability not yet implemented')
 
     def verify_published(self,receipt,name):

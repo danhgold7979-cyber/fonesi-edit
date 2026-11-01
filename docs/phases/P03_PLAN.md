@@ -433,3 +433,47 @@ sharing-conflict, unmarked close and handle-plateau tests establish the primitiv
 Then integrate exact completed journal/history/quiescence/final readback as one
 subsequent coherent slice. No generic process/worker abstraction invented while
 this critical safe-deletion primitive remains unverified.
+
+## Independent P03-04 actual progress slice while native cleanup CI is blocked
+
+Keep reviewed cleanup checkpointb32795a and exact remote payload frozen. Independent
+local work adds bounded stdout observations to the existing owned process adapters
+(no alternate launch/retirement path), and a specific FFmpeg `-progress pipe:1`
+key/value parser. Only allowlisted numeric frame/out_time_us/total_size plus explicit
+progress boundary are exposed; raw stderr/unknown fields never become UI events.
+Unknown totals remain unknown; protocol `end` is not job/artifact success.
+
+Bind observations to current immutable snapshot/attempt/lease and running state,
+ignore stale/canceled/expired observations; no state transition or success from
+progress. Callbacks execute on coordinator/runner thread and must be bounded, never
+update Qt directly. Callback failure/cancel must still retire owned descendants.
+Real Linux FFmpeg observation on the already approved pinned fixture is one affected
+integration check, not rerun of unrelated media validation. Actual Windows observer
+behavior awaits its own target evidence; native cleanup authorization does not
+silently cover an expanded descendant publication payload.
+
+## Next P03-06 native integration boundary (after primitive target proof)
+
+Use verified Windows handle disposition only; POSIX keeps stage. Completion cleanup
+must require this live session's exact all-required committed set, artifacts and
+completion history/current owner epoch, and only synchronously staged/validated
+roles after owned process retirement. No caller boolean may assert quiescence.
+Transfer original staged descriptor through a continuously live bridge, using a
+close-once mutable owner rather than a raw ExitStack os.close callback.
+
+Pin original stage directory; acquire file DELETE/read capability; read/hash through
+that deny-write handle; check final name and physical identity. Keep a compatible
+read-only final bridge alive before staged disposition/close, then acquire a strong
+read-only final pin denying write/delete while bridge still preserves incarnation.
+Only after physical/name proof release bridge. Strong final pin survives through
+object-bound empty-directory disposition. Recheck exact journal/epoch/history at
+each native effect boundary. No pathname unlink/rmdir fallback, no foreign child
+removal, no inode/hash-only re-adoption after original handles close.
+
+Cleanup is one-shot and always retires session. Any partial/close/observation error
+is UNKNOWN, never retries, reverses successful job/history or deletes final output.
+Focused local refusal/ownership-transfer tests plus actual Windows journal→file→dir
+integration, failure injection, foreign child/handoff and final preservation gates
+are required before reporting production cleanup working. Primitive PASS alone is
+not that evidence. No unchanged full aggregate or frozen build is necessary for
+this narrowly affected subsystem.

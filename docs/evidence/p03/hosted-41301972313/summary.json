@@ -1,0 +1,23 @@
+{
+  "run_id": 41301972313,
+  "source_sha": "ccfa0b1de7b6929c9909b0dc1b498b65ef5b00f1",
+  "scope": "Windows primitive, production cleanup unintegrated",
+  "artifacts": [
+    {
+      "artifact": "windows-cleanup-windows-latest-py3.13",
+      "zip_sha256": "4826c48f51fd574af8515dd32e0fb6a6535437ae42814fdcd300445d5e20246c",
+      "members": {
+        "foundation-results.xml": "85b2156afed8e791194597c4e5770e7b16881de7a5e163f00d2adec07cac7133",
+        "foundation-source.json": "20d56d45d8081f80501245bd4e43146dacc2b810f5ecc6ae5a440d6899947048"
+      }
+    },
+    {
+      "artifact": "windows-cleanup-windows-latest-py3.12",
+      "zip_sha256": "41f6eebf534ab0d1f3dfe8c88c1ac6af297c57d7cacdbb3c094ec3e259ae9d32",
+      "members": {
+        "foundation-results.xml": "590dac702a7eaaa88ee6d777b4ec3f3983858b4411a0d7b02452ed566e22239f",
+        "foundation-source.json": "534cb8b703d80eeaaad59b4b36c07f13e457d8e0e2fb69f3903b7fb244eb0307"
+      }
+    }
+  ]
+}

@@ -904,3 +904,44 @@ Independent prototype review caught authority failure allowing another mark atte
 fixed one-shot latch before all guards/callbacks and permanent revoke. New platform-
 neutral causal regression PASS (also independently1PASS), actual native remains pending.
 Final scoped source/workflow CLEAR in P03_NATIVE_CLEANUP_PRIMITIVE_REVIEW.md.
+
+## Local P03-04 incremental progress observation (after b32795a)
+
+26 new affected tests PASS (exit0); actual pinned Linux FFmpeg emitted25frames,
+1000000us/end through new owned stdout observer, exit0, unchanged tool/input hashes.
+See WORKER_PROGRESS contract and progress-local receipt. No job state mutation,
+percent/ETA, renderer/queue completion, Windows or additional criterion acceptance.
+Meaningful independent work continued while exact native cleanup publication was
+blocked; b32795a approval payload was not expanded or retried.
+
+## Windows object-bound cleanup primitive — hosted evidence
+
+Exact authorized localb32795a published tree-equivalent as ccfa0b1d after one
+same-operation retry on new explicit user approval. Run41301972313 terminalSUCCESS:
+Windows3.12.10 and3.13.16 each10PASS/1SKIP (non-Windows-only branch). Both ZIP API
+digests and all4members verified; evidence under hosted-41301972313. Only native
+primitive, not production cleanup/phase completion. Later progress code excluded.
+
+Progress follow-on: one real SQLite+owned subprocess callback test PASS/26deselected;
+initial test-only context-manager assumption failed, corrected to explicit closing.
+No app source change or unchanged26case repeat. Thread affinity documented; queued
+UI consumer and active worker coordinator remain open.
+
+## Local completed-publication cleanup integration prototype
+
+Changed shared anchor ownership to close-once descriptors and retained original
+Windows stage-directory handles. Added completed-journal/history guarded Windows
+cleanup with continuous final bridge/pin; no POSIX deletion or restart adoption.
+Affected local39PASS/6WindowsSKIP plus33publication-sessionPASS; two further native
+fault/hash cases authored but not executed locally. Windows bridge/delete-pending
+integration remains unverified; prior primitive10PASS pertarget is not reused as
+proof of this new sequence. Source review pending. No criterion closure.
+
+Independent integration source review CLEAR for affected CI after correcting
+post-entry failure classification: once native maintenance begins, later known
+JobConflict/PublicationError is conservatively UNKNOWN with original cause. Pure
+classification regression1PASS plus independent1PASS; close-uncertainty1PASS.
+Nine actual Windows integration cases remain NOT_RUN locally. Reviewed workflow
+`[worker-cleanup]` alone selects four runtimes/five affected files; skips unchanged
+full aggregate, frozen build and unused LinuxQt package installation. Normal workflow
+behavior is unchanged. Exact combined review: P03_CLEANUP_INTEGRATION_REVIEW.md.
