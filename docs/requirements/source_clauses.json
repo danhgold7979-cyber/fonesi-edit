@@ -1,0 +1,3305 @@
+[
+  {
+    "id": "PR-L007",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 7,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Ứng dụng desktop dùng cá nhân, Windows 10/11 trước, xử lý và lưu dữ liệu trên máy người dùng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L008",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 8,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Bốn nhóm chức năng: tải kênh; tải/dịch/chèn phụ đề; edit hàng loạt; ghép theo cảnh và ma trận.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L009",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 9,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Ưu tiên tự động hóa theo preset, khả năng phục hồi và giao diện vẫn phản hồi khi chạy việc nặng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L010",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 10,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Tận dụng công cụ mã nguồn mở phù hợp; kiểm chứng từng thành phần trước khi chốt kiến trúc.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L011",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 11,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Có phụ đề rời thì tải, dịch sang ngôn ngữ chọn và chèn vào video. Ngôn ngữ đích mặc định: tiếng Việt.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L012",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 12,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Lồng tiếng AI, nhận diện giọng nói, OCR và tự bám chữ bằng tracking để tích hợp sau.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L013",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 13,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Ảnh được tải và tổ chức thư mục; slideshow và edit ảnh hàng loạt nằm ngoài phạm vi bản đầu.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L014",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 14,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Thao tác kéo thả trực tiếp trong preview và timeline là yêu cầu bắt buộc cho các đối tượng được hỗ trợ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L015",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 15,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Cài đặt có quét/trỏ đường dẫn/tải-cài/cập nhật công cụ; quản lý Google Chrome thật và phiên đăng nhập mọi nền tảng. Chi tiết ở [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md).",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L016",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 16,
+    "section": "1. Mục tiêu và các quyết định đã thống nhất",
+    "verbatim": "- Mỗi yêu cầu dưới đây là phạm vi cần triển khai. Chỉ đánh dấu hoàn thành sau khi có bằng chứng nghiệm thu.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L026",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 26,
+    "section": "2. Giao diện và luồng công việc",
+    "verbatim": "- Theo lô, mặc định: hoàn tất các mục tải của một kênh/lô, kể cả những mục đã kết thúc với lỗi, rồi xử lý các tệp hợp lệ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L027",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 27,
+    "section": "2. Giao diện và luồng công việc",
+    "verbatim": "- Cuốn chiếu: mỗi tệp tải xong và hợp lệ được đưa sang công đoạn tiếp theo, có giới hạn tài nguyên dùng chung.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L041",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 41,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Nhập nhiều URL, nhập danh sách từ tệp, nhận diện nền tảng, kiểm tra URL trùng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L042",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 42,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Chọn ảnh/video/cả hai; video dài/Shorts/Reels nếu nguồn phân biệt được.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L043",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 43,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Lọc ngày, số lượng, thời lượng, chất lượng tối đa; chọn thứ tự cũ trước/mới trước.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L044",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 44,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Chọn độ phân giải/chất lượng có sẵn, giới hạn tốc độ, số tệp và số kênh đồng thời.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L045",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 45,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Tải phụ đề, thumbnail và metadata nếu có; ghi rõ phần nào nguồn không cung cấp.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L046",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 46,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Quét trước rồi chọn hoặc chạy theo preset; đặt lịch đồng bộ chỉ lấy nội dung mới.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L047",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 47,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Tiếp tục tải khi nguồn hỗ trợ; thử lại có giới hạn và thời gian chờ tăng dần.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L048",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 48,
+    "section": "3.2. Lựa chọn tải",
+    "verbatim": "- Mọi nền tảng có mục đăng nhập qua Google Chrome thật; một hồ sơ chứa nhiều nền tảng, nhiều tài khoản cùng nền tảng dùng hồ sơ độc lập. Tái sử dụng phiên đã gán khi connector dùng được; hiển thị hết hạn/thiếu quyền/bridge lỗi riêng theo tài khoản.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L067",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 67,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Tên kênh có ID ổn định, không ghép nhầm kênh trùng tên hoặc kênh đổi tên.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L068",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 68,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Tên tệp có ngày, tiêu đề rút gọn và ID; làm sạch ký tự và giới hạn đường dẫn trên Windows.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L069",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 69,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Bài nhiều ảnh có số thứ tự; album giữ quan hệ với bài/album nguồn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L070",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 70,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Chống tải trùng bằng ID nguồn, kiểm tra tệp; hash bổ sung khi cần.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L071",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 71,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Có thể chỉ tải bổ sung sub khi video đã có. Nâng chất lượng là yêu cầu tải mới được ghi nhận.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L072",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 72,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Tệp đang tải dùng tên tạm, kiểm tra media trước khi công nhận hoàn thành.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L073",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 73,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Giữ nguồn; không ghi đè đầu ra mặc định; bỏ qua output/cache/tệp tạm khi quét đệ quy.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L074",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 74,
+    "section": "3.3. Thư mục và tính toàn vẹn",
+    "verbatim": "- Báo riêng quét chưa hết, tải lỗi, thiếu quyền và hoàn tất. Không suy ra đã tải toàn bộ kênh từ một danh sách quét dở.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L080",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 80,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Chọn ngôn ngữ nguồn tự động hoặc thủ công, ngôn ngữ đích, danh sách ngôn ngữ ưu tiên và biến thể vùng nếu bộ dịch hỗ trợ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L081",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 81,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Ưu tiên sub đúng ngôn ngữ đích; trong các bản phù hợp ưu tiên bản do người đăng cung cấp. Phụ đề tự động được gắn nhãn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L082",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 82,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Nếu chỉ có sub khác ngôn ngữ: dịch khi đã cấu hình bộ dịch; không tự chèn ngôn ngữ ngoài danh sách thay thế đã được cho phép.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L083",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 83,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Nguồn/đích lựa chọn theo khả năng bộ dịch; dự kiến gồm Việt, Trung giản thể/phồn thể, Anh, Nhật, Hàn và các ngôn ngữ khác được hỗ trợ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L084",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 84,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Chọn mức dịch sát nghĩa/tự nhiên/ngắn gọn khi bộ dịch hỗ trợ; từ điển thuật ngữ, tên riêng, từ cần giữ nguyên, quy tắc xưng hô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L085",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 85,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Dịch có ngữ cảnh, giữ ánh xạ về câu và thời gian gốc; không hứa mọi câu dịch vừa thời lượng mà không kiểm tra.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L086",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 86,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Xem bản gốc/bản dịch song song, sửa từng câu, tìm/thay thế, dịch lại câu chọn, khóa câu đã sửa.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L087",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 87,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Cache theo nội dung, ngôn ngữ, bộ dịch/phiên bản và cấu hình; chỉ đổi font không dịch lại.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L088",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 88,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Bộ dịch thay thế được; hỗ trợ xử lý giới hạn tốc độ, retry và lỗi từng lô. Không lưu khóa API trong project hoặc log.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L089",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 89,
+    "section": "4.1. Chọn và dịch",
+    "verbatim": "- Nếu có dịch vụ tính phí: ước tính, đặt hạn mức, ngừng nhận việc dịch mới khi đạt hạn mức. Không tự gọi API khi chưa được cấu hình.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L093",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 93,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Nhập SRT/VTT/ASS; chuyển về mô hình cue chung, giữ thông tin định dạng được hỗ trợ; báo rõ thuộc tính không hỗ trợ khi nhập.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L094",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 94,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Ghép sub với video bằng ID nguồn, ngôn ngữ hoặc quy tắc tên tệp; trường hợp mơ hồ phải cho chọn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L095",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 95,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Sửa bắt đầu/kết thúc, kéo cue trên timeline, tách/gộp, dịch thời gian toàn bộ hoặc đoạn chọn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L096",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 96,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Kiểm tra chồng thời gian, thời lượng ngắn, câu dài và cue vượt cuối video; không tự sửa mất nội dung.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L097",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 97,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Nếu video bị trim/đổi tốc độ, thời gian cue phải biến đổi theo cùng ánh xạ thời gian và bỏ phần ngoài đoạn xuất.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L098",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 98,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Xuất sub rời SRT/ASS; mặc định đồng thời giữ sub và ghi sub vào hình khi xuất video.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L099",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 99,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Không có sub phù hợp: mặc định tiếp tục edit và đánh dấu thiếu sub; tùy chọn bỏ video hoặc chờ bổ sung.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L100",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 100,
+    "section": "4.2. Tệp và thời gian",
+    "verbatim": "- Chữ đã nằm trong hình không được coi là file sub; không có tự ASR/OCR trong phạm vi này.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L110",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 110,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Chọn một/nhiều thư mục; quét đệ quy; cây checkbox, tìm kiếm, lọc theo định dạng/thời lượng/độ phân giải; loại thư mục khỏi lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L111",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 111,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Bỏ khỏi danh sách không xóa dữ liệu. Đổi tên tệp thật là công cụ riêng với xem trước, phát hiện xung đột và ánh xạ hoàn tác.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L112",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 112,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Mỗi video một đầu ra là chế độ mặc định. Ghép nhiều clip theo âm thanh là chế độ riêng, không tự bật khi một clip quá ngắn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L113",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 113,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Thư mục đầu ra theo kênh, giữ quan hệ nguồn; xem trước tên/đường dẫn trước khi chạy.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L114",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 114,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Áp dụng preset chung, chọn nhiều clip để áp dụng, hoặc ghi đè riêng từng clip. Tác vụ giữ bản cấu hình tại lúc thêm vào hàng đợi.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L115",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 115,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Chọn tỷ lệ 9:16, 16:9, 1:1, 4:5 hoặc tùy chỉnh; fit/crop/nền mờ; xem vùng bị cắt.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L116",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 116,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Cắt đầu/cuối, chọn đoạn, tốc độ cố định hoặc ngẫu nhiên trong khoảng cho phép; lật, xoay, zoom và dịch chuyển.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L117",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 117,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Logo, chữ, vùng che và chuyển động theo đặc tả editor; xem thử trên nhiều video đại diện trước khi chạy lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L118",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 118,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Điều chỉnh sáng, tương phản, bão hòa, gamma, nhiệt độ màu và preset màu với xem trước; không tự áp hiệu chỉnh ngoài preset.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L119",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 119,
+    "section": "5. Edit hàng loạt",
+    "verbatim": "- Ngẫu nhiên có khoảng giá trị, xác suất, giới hạn vùng và seed; cho chọn độc lập theo video hoặc dùng chung toàn lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L123",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 123,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Track riêng: tiếng gốc, âm thanh chính, nhạc nền, sound effect. Chưa có giọng AI.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L124",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 124,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Tắt/giảm tiếng gốc; âm lượng, fade, trim, điểm bắt đầu, độ trễ và nghe solo/mute từng track.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L125",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 125,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Một âm thanh cho cả lô, ghép theo tên, theo danh sách hoặc ngẫu nhiên từ danh sách; mặc định một âm thanh cho cả lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L126",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 126,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Chọn nguồn quyết định thời lượng: video, âm thanh chính hoặc thời lượng nhập tay.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L127",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 127,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Nhạc nền có lặp và chuyển tiếp, fade, mức âm lượng; giảm nhạc theo đoạn lời được đánh dấu hoặc bộ phát hiện tín hiệu âm thanh khi có hỗ trợ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L128",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 128,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Sound effect ở thời điểm tuyệt đối, đầu/cuối video, đầu/cuối cảnh hoặc tỷ lệ thời lượng; đặt nhiều lần trên timeline.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L129",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 129,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Bảo vệ mức âm tổng, hiển thị clipping; tùy chọn chuẩn hóa âm lượng với mục tiêu được ghi rõ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L130",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 130,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Đổi tốc độ âm thanh có lựa chọn giữ cao độ. Không ngầm kéo giọng vượt giới hạn đã đặt.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L131",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 131,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Một video quá ngắn: chọn tăng/giảm tốc trong giới hạn, lặp, giữ khung hình cuối, hoặc báo thiếu. Không tự lấy clip khác trong chế độ mỗi video một đầu ra.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L132",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 132,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Nhiều clip: thứ tự tên/thời gian/ngẫu nhiên, thời lượng min/max mỗi đoạn, trim phần dư, giới hạn tốc độ, tính cả thời lượng chồng của chuyển cảnh.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L133",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 133,
+    "section": "6. Âm thanh và thời lượng",
+    "verbatim": "- Đầu ra kiểm tra track cần thiết, thời lượng và đồng bộ theo dung sai được xác định ở bước thử nghiệm kỹ thuật.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L137",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 137,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Quét thư mục cha chứa cảnh C1…Cn; mỗi cảnh có nhiều góc G1…Gm. Sắp xếp số tự nhiên; cho kéo đổi thứ tự và khóa cảnh/góc.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L138",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 138,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- C1 là cảnh 1, G1 là góc 1. Mặc định đặt tên logic, ánh xạ bằng ID tệp ổn định; giữ nguyên tên thật.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L139",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 139,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Mỗi đầu ra lấy một góc hợp lệ từ mỗi cảnh, giữ đủ cảnh và đúng thứ tự trừ khi người dùng chọn quy tắc khác rõ ràng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L140",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 140,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Số tổ hợp lý thuyết là tích số góc hợp lệ từng cảnh; số khả thi còn phụ thuộc thời lượng và ràng buộc chống lặp.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L141",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 141,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Chống trùng tổ hợp, cân bằng lượt sử dụng, cửa sổ W không lặp góc ở cùng cảnh, khác tối thiểu K cảnh.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L142",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 142,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- K có lựa chọn so với đầu ra liền trước hoặc mọi đầu ra trong cửa sổ W; ghi rõ điều kiện đang áp dụng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L143",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 143,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Chống trùng mặc định theo lịch sử cùng dự án; có lựa chọn lịch sử rộng hơn. Lịch sử phân biệt đã lên kế hoạch, đang chạy, thành công và thất bại.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L144",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 144,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Không nới ràng buộc ngầm. Nếu mọi cảnh đều áp dụng cửa sổ W nghiêm ngặt thì mỗi cảnh cần ít nhất W+1 góc để sinh được một chuỗi dài hơn W; đây chưa phải điều kiện đủ khi còn ràng buộc khác.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L145",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 145,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Sinh theo số lượng yêu cầu, không cấp phát toàn bộ tích tổ hợp lớn. Giới hạn thời gian tìm, cho hủy; phân biệt chưa tìm đủ với đã chứng minh không có nghiệm.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L146",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 146,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Bảng ma trận: mã đầu ra, góc từng cảnh, chuỗi C1G1+C2G2+…, thời lượng, cấu hình âm thanh, seed, trạng thái, lỗi và đường dẫn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L147",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 147,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Sửa một ô/góc, khóa ô, tạo lại hàng chưa chạy, xem thử hàng, xuất CSV, thống kê tần suất dùng góc.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L148",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 148,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Hash phát hiện tệp giống hệt; so sánh tương đồng nội dung là nâng cấp riêng. Biến đổi hình không bảo đảm nội dung hoàn toàn khác.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L149",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 149,
+    "section": "7. Ghép cảnh và ma trận",
+    "verbatim": "- Khớp âm thanh: chia đều, theo tỷ lệ, theo trọng số hoặc thời lượng cảnh nhập tay; ưu tiên giữ đủ cảnh, giới hạn tốc độ/cắt. Không khả thi phải báo, không tự bỏ cảnh.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L155",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 155,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Các bước auto là lựa chọn trong preset; có xem trước kế hoạch và chạy thử một đầu ra trước cả lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L156",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 156,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Tôn trọng chỉnh sửa thủ công và khóa thuộc tính/câu/cảnh; không chạy auto ghi đè ngầm.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L157",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 157,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Auto framing bản đầu theo tỷ lệ, điểm neo và vùng crop đã đặt; tự nhận diện chủ thể/khuôn mặt là phần mở rộng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L158",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 158,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Có CPU/GPU/Auto; kiểm tra khả năng decode, filter và encode riêng. GPU bắt buộc thì báo nếu không đáp ứng; Auto có thể fallback và ghi lý do.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L159",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 159,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Giới hạn riêng số nguồn quét, tệp tải, tác vụ dịch, render và luồng mỗi render.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L160",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 160,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Profile Êm máy/Cân bằng/Tối đa; gợi ý dựa trên benchmark và tải hiện tại.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L161",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 161,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Theo dõi CPU, RAM, GPU/VRAM khi hỗ trợ, dung lượng ổ đĩa, tốc độ và nhiệt độ nếu đọc được.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L162",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 162,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Giữ tài nguyên dự phòng, hạn chế việc đồng thời khi thiếu RAM/VRAM, ngừng nhận việc mới khi thiếu ổ đĩa.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L163",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 163,
+    "section": "8. Tự động hóa và tài nguyên",
+    "verbatim": "- Tải/render/đọc metadata chạy ngoài luồng UI; lỗi một worker không làm mất hàng đợi.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L167",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 167,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Trạng thái: chờ, đang quét, tải, dịch, render, kiểm tra, tạm dừng, chờ cấu hình, thành công, thành công có cảnh báo, lỗi, hủy, bỏ qua.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L168",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 168,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Có tiến độ từng bước và toàn tác vụ, thời gian đã chạy, ETA, tốc độ, số xong/lỗi/bỏ qua. Chưa biết tổng thì hiển thị số đã tìm được, không dựng phần trăm giả.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L169",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 169,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Tạm dừng hàng đợi ngừng nhận việc mới. Hủy tác vụ xử lý riêng tệp dang dở. Render có thể phải chạy lại công đoạn từ đầu.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L170",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 170,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Lưu trạng thái bền vững; khởi động lại giữ việc đã xong và chỉ lên lịch phần cần làm. Thử lại lỗi không làm lại toàn bộ lô.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L171",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 171,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Chọn ưu tiên, di chuyển tác vụ chưa chạy, lọc/tìm lỗi, mở nguồn/kết quả, sao chép thông báo lỗi.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L172",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 172,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Khi cấu hình thay đổi, lưu phiên bản mới; cập nhật các tác vụ đang chờ là thao tác riêng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L173",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 173,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Lưu bản cấu hình, seed, phiên bản công cụ, nguồn và danh sách clip cho mỗi đầu ra; không chứa bí mật.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L174",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 174,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Tự lưu project, bản phục hồi, liên kết lại media bị di chuyển, sao lưu preset và project.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L175",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 175,
+    "section": "9. Hàng đợi, trạng thái và phục hồi",
+    "verbatim": "- Cache thumbnail/waveform/proxy/dịch có dung lượng giới hạn và dọn theo chính sách; không xóa nguồn hoặc đầu ra người dùng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L179",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 179,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Thiết lập | Mặc định |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L181",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 181,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Giao diện | Tiếng Việt, cho phép mở rộng ngôn ngữ giao diện riêng với ngôn ngữ sub |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L182",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 182,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Phụ đề đích | Tiếng Việt |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L183",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 183,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Thiếu sub | Tiếp tục edit, ghi cảnh báo |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L184",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 184,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Đầu ra | MP4 H.264/AAC tương thích rộng; codec/chất lượng/FPS có thể đổi |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L185",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 185,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Video gốc | Giữ nguyên |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L186",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 186,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Đầu ra trùng | Không ghi đè; so cấu hình để bỏ qua hoặc tạo phiên bản |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L187",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 187,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Edit hàng loạt | Mỗi video một đầu ra |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L188",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 188,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Ma trận | Không trùng tổ hợp, cân bằng lượt dùng, lưu lịch sử dự án |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L189",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 189,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Phần cứng | Auto, profile Cân bằng; số việc được đo trước khi gợi ý |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L190",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 190,
+    "section": "10. Mặc định vận hành",
+    "verbatim": "| Tự động hóa | Chỉ các bước bật trong preset; giữ ghi đè thủ công |",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L194",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 194,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Tải được các loại nội dung đã ghi là hỗ trợ trên nguồn kiểm chứng; báo đúng mục thiếu/lỗi và quét chưa hết.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L195",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 195,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Tải/dịch/chèn sub đúng video và ngôn ngữ; thời gian khớp sau trim/đổi tốc độ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L196",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 196,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Preview và export thống nhất vị trí, thời gian, font, chuyển động và âm thanh trong dung sai đã đo.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L197",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 197,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Edit hàng loạt đúng phạm vi; kết quả không bị quét vào lại; dữ liệu nguồn được giữ nguyên.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L198",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 198,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Ma trận đúng thứ tự, đủ cảnh và đúng điều kiện chống trùng; không ngầm thay điều kiện.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L199",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 199,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Tác vụ có progress/thời gian, UI phản hồi, lỗi riêng lẻ không làm mất lô, mở lại tiếp tục được.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L200",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 200,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Thử với video dọc/ngang, nhiều FPS/codec, có/không audio, Unicode Việt/Trung, tệp lỗi, tên trùng và thư mục lớn.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L201",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 201,
+    "section": "11. Điều kiện hoàn thành",
+    "verbatim": "- Windows là hệ điều hành mục tiêu: kết quả chạy trong cloud/Linux không thay thế nghiệm thu trên Windows.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L205",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 205,
+    "section": "12. Những quyết định kỹ thuật cần thực nghiệm",
+    "verbatim": "- Bộ kết nối và mức hỗ trợ thực tế của từng nền tảng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L206",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 206,
+    "section": "12. Những quyết định kỹ thuật cần thực nghiệm",
+    "verbatim": "- Bộ dịch, chất lượng Trung–Việt, chi phí/giới hạn và cấu hình cần thiết.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L207",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 207,
+    "section": "12. Những quyết định kỹ thuật cần thực nghiệm",
+    "verbatim": "- Engine preview/timeline/render, font shaping, codec và encoder phần cứng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L208",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 208,
+    "section": "12. Những quyết định kỹ thuật cần thực nghiệm",
+    "verbatim": "- Cấu hình máy mục tiêu, giới hạn song song và dung sai nghiệm thu.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L214",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 214,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Bảng công cụ có vai trò, bắt buộc/tùy chọn, đường dẫn, version, trạng thái, nguồn bản cài, nút quét/chọn đường dẫn/kiểm tra/tải-cài/cập nhật/sửa/rollback.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L215",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 215,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Quét công cụ gói kèm, app quản lý, PATH và vị trí phổ biến; không chỉ kiểm tra tồn tại file. FFmpeg/ffprobe, downloader và dependency theo workflow được kiểm tra capability.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L216",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 216,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Thiếu thành phần có nút tải/cài từ nguồn tin cậy, xác minh, progress và kiểm tra lại; ưu tiên cài per-user, không đè bản hệ thống hoặc đổi binary đang dùng.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L217",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 217,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Google Chrome chính thức được tìm/trỏ/tải-cài tương tự. Một bản Chrome có nhiều hồ sơ user-data-dir độc lập; mặc định app quản lý hồ sơ riêng, không chiếm hồ sơ cá nhân.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L218",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 218,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Mỗi nền tảng đều có nút đăng nhập, chọn hồ sơ/tài khoản mặc định, kiểm tra, đăng nhập lại; người dùng thao tác mật khẩu/OTP/QR/xác minh trong Chrome.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L219",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 219,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Một hồ sơ có thể dùng Facebook A + TikTok A + YouTube A; Facebook B dùng hồ sơ khác. Nhiều page/kênh dưới cùng danh tính không bắt tạo Chrome mới.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L220",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 220,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Nguồn/job nhớ account binding; đăng nhập lại cùng nick rồi tiếp tục. Đổi nick trong hồ sơ phải phát hiện mismatch, không tự dùng nick mới cho job cũ.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L221",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 221,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Tải công khai vẫn được nếu chưa gán tài khoản và nguồn cho phép. Job đã chọn tài khoản hết hạn thì chờ đúng tài khoản, không tự giảm sang quét công khai.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L222",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 222,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Đăng nhập website, connector dùng phiên và quyền xem nguồn là ba kiểm tra riêng. Không cam kết đọc được cookie Chrome chỉ vì đã đăng nhập, không tắt bảo vệ mã hóa để làm cho chạy.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "PR-L223",
+    "file": "PRODUCT_REQUIREMENTS.md",
+    "line": 223,
+    "section": "13. Cài đặt công cụ và tài khoản Chrome",
+    "verbatim": "- Chi tiết schema, nút và nghiệm thu: [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Phần này thuộc bản hiện tại, không đẩy sang danh sách AI tích hợp sau.",
+    "source_sha256": "851df47de15859e2db6a56216509c800c5e7c0a357365eb993f50fb32543695d",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L007",
+    "file": "EDITOR_SPEC.md",
+    "line": 7,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Trái: media, thư mục, cảnh/góc và tài nguyên; giữa: preview; phải: thuộc tính; dưới: timeline.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L008",
+    "file": "EDITOR_SPEC.md",
+    "line": 8,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Hàng đợi và thông số máy thu gọn/mở rộng; đổi kích thước panel, lưu bố cục, đặt lại bố cục.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L009",
+    "file": "EDITOR_SPEC.md",
+    "line": 9,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Cơ bản hiển thị thiết lập thường dùng; Nâng cao mở thêm lựa chọn. Có tìm kiếm thuộc tính, tooltip, ô nhập số cạnh slider và reset từng thuộc tính/nhóm.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L010",
+    "file": "EDITOR_SPEC.md",
+    "line": 10,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Thay đổi hiển thị ngay khi có thể; việc cần render preview có chỉ báo, hủy được và không khóa UI.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L011",
+    "file": "EDITOR_SPEC.md",
+    "line": 11,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Tất cả chỉnh sửa tạo lệnh undo/redo. Một lần kéo là một lệnh, không chiếm hàng trăm bước undo.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L012",
+    "file": "EDITOR_SPEC.md",
+    "line": 12,
+    "section": "1. Bố cục và nguyên tắc",
+    "verbatim": "- Phạm vi luôn hiển thị: clip này / các clip chọn / preset cả lô. Sửa preset không tự thay tác vụ đang chạy.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L018",
+    "file": "EDITOR_SPEC.md",
+    "line": 18,
+    "section": "2.1. Đối tượng hỗ trợ",
+    "verbatim": "- Khung video/crop, logo ảnh, chữ do phần mềm thêm, phụ đề rời và vùng che chữ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L019",
+    "file": "EDITOR_SPEC.md",
+    "line": 19,
+    "section": "2.1. Đối tượng hỗ trợ",
+    "verbatim": "- Click chọn, Shift+click chọn nhiều, hộp chọn, chuyển chọn qua danh sách layer khi các đối tượng chồng nhau.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L020",
+    "file": "EDITOR_SPEC.md",
+    "line": 20,
+    "section": "2.1. Đối tượng hỗ trợ",
+    "verbatim": "- Đối tượng đang chọn có viền, các tay nắm, tâm/điểm neo và thông số; đối tượng khóa không bị kéo nhầm.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L021",
+    "file": "EDITOR_SPEC.md",
+    "line": 21,
+    "section": "2.1. Đối tượng hỗ trợ",
+    "verbatim": "- Chữ/logo đã nằm trong video gốc không phải layer độc lập; bản đầu không tự tách để di chuyển.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L025",
+    "file": "EDITOR_SPEC.md",
+    "line": 25,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Kéo di chuyển; tay nắm đổi kích thước; khóa/mở tỷ lệ; tay nắm xoay; nhập số chính xác.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L026",
+    "file": "EDITOR_SPEC.md",
+    "line": 26,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Căn trái/giữa/phải, trên/giữa/dưới; chín điểm neo; phân bố đều đối tượng được chọn.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L027",
+    "file": "EDITOR_SPEC.md",
+    "line": 27,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Lưới, đường căn, vùng an toàn, snap theo tâm/cạnh/đối tượng; giữ Alt để tạm tắt snap.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L028",
+    "file": "EDITOR_SPEC.md",
+    "line": 28,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Mũi tên dịch một bước theo độ phân giải đầu ra, Shift+mũi tên dịch bước lớn khi canvas có focus.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L029",
+    "file": "EDITOR_SPEC.md",
+    "line": 29,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Nút đưa về trong khung, khớp khung, giữ tỷ lệ và đặt lại biến đổi.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L030",
+    "file": "EDITOR_SPEC.md",
+    "line": 30,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Zoom preview: fit, 25/50/100/200% và tùy chỉnh; pan khi phóng to; đổi zoom không đổi vị trí đối tượng trong video.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L031",
+    "file": "EDITOR_SPEC.md",
+    "line": 31,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Crop có lưới, tỷ lệ khóa, nền ngoài vùng xuất và nút xác nhận/hủy; không kéo nhầm clip trong lúc crop.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L032",
+    "file": "EDITOR_SPEC.md",
+    "line": 32,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Lưu vị trí/kích thước theo tỷ lệ khung và điểm neo để áp dụng được cho nhiều độ phân giải; xem trước riêng khi đổi tỷ lệ dọc/ngang.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L033",
+    "file": "EDITOR_SPEC.md",
+    "line": 33,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Hiển thị tọa độ, kích thước, góc, opacity, điểm neo và vùng thời gian của đối tượng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L034",
+    "file": "EDITOR_SPEC.md",
+    "line": 34,
+    "section": "2.2. Biến đổi và căn chỉnh",
+    "verbatim": "- Nhân bản, nhóm/tách nhóm, khóa/mở, ẩn/hiện, đổi thứ tự trước/sau, copy/paste kiểu và copy/paste chuyển động.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L038",
+    "file": "EDITOR_SPEC.md",
+    "line": 38,
+    "section": "2.3. Chỉnh nội dung và thời gian",
+    "verbatim": "- Double-click chữ để sửa tại chỗ; có chế độ nhập chữ riêng để phím tắt không ăn vào nội dung.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L039",
+    "file": "EDITOR_SPEC.md",
+    "line": 39,
+    "section": "2.3. Chỉnh nội dung và thời gian",
+    "verbatim": "- Chọn cue sub tại con trỏ, sửa văn bản; tùy chọn áp kiểu cho cue chọn hoặc cả track.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L040",
+    "file": "EDITOR_SPEC.md",
+    "line": 40,
+    "section": "2.3. Chỉnh nội dung và thời gian",
+    "verbatim": "- Bật ghi keyframe: thay đổi tại vị trí playhead tạo keyframe của thuộc tính được bật. Tắt ghi: sửa giá trị nền hoặc hỏi phạm vi khi có keyframe.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L041",
+    "file": "EDITOR_SPEC.md",
+    "line": 41,
+    "section": "2.3. Chỉnh nội dung và thời gian",
+    "verbatim": "- Kéo thời điểm xuất hiện/kết thúc trên timeline, đặt in/out theo playhead; giới hạn trong thời lượng project.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L042",
+    "file": "EDITOR_SPEC.md",
+    "line": 42,
+    "section": "2.3. Chỉnh nội dung và thời gian",
+    "verbatim": "- So sánh trước/sau hoặc bật/tắt từng hiệu ứng; xem frame tại kích thước xuất khi cần kiểm tra chữ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L048",
+    "file": "EDITOR_SPEC.md",
+    "line": 48,
+    "section": "3.1. Font",
+    "verbatim": "- Quét font hệ thống, chọn font người dùng cung cấp TTF/OTF bằng thư mục riêng; không tự cài toàn hệ thống.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L049",
+    "file": "EDITOR_SPEC.md",
+    "line": 49,
+    "section": "3.1. Font",
+    "verbatim": "- Tìm theo tên, lọc yêu thích/gần dùng, xem mẫu bằng chính nội dung đang nhập.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L050",
+    "file": "EDITOR_SPEC.md",
+    "line": 50,
+    "section": "3.1. Font",
+    "verbatim": "- Chọn family, style/weight có thật, cỡ, đậm/nghiêng khi hỗ trợ, gạch chân, gạch ngang.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L051",
+    "file": "EDITOR_SPEC.md",
+    "line": 51,
+    "section": "3.1. Font",
+    "verbatim": "- Giãn ký tự, giãn dòng, căn trái/giữa/phải, chiều rộng hộp chữ, padding, tự xuống dòng, giới hạn số dòng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L052",
+    "file": "EDITOR_SPEC.md",
+    "line": 52,
+    "section": "3.1. Font",
+    "verbatim": "- Cỡ theo pixel đầu ra hoặc tỷ lệ khung; hiện giá trị quy đổi, không phụ thuộc mức zoom preview.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L053",
+    "file": "EDITOR_SPEC.md",
+    "line": 53,
+    "section": "3.1. Font",
+    "verbatim": "- Font fallback cho glyph thiếu, cảnh báo thiếu font/glyph khi mở project hoặc xuất; cho thay font hàng loạt.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L054",
+    "file": "EDITOR_SPEC.md",
+    "line": 54,
+    "section": "3.1. Font",
+    "verbatim": "- Hỗ trợ Unicode, dấu tiếng Việt, chữ Trung/Nhật/Hàn qua font thích hợp. Các hệ chữ RTL và shaping khác phải kiểm chứng trước khi hiển thị là hỗ trợ đầy đủ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L055",
+    "file": "EDITOR_SPEC.md",
+    "line": 55,
+    "section": "3.1. Font",
+    "verbatim": "- Preview và render dùng cùng font đã chọn và quy tắc xuống dòng; project ghi nhận font cần dùng, không sao chép font không có sẵn quyền phân phối.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L059",
+    "file": "EDITOR_SPEC.md",
+    "line": 59,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Màu chữ bằng bảng màu, HEX/RGB, màu gần dùng/yêu thích; opacity riêng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L060",
+    "file": "EDITOR_SPEC.md",
+    "line": 60,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Viền màu/độ dày; bóng màu/độ mờ/độ lệch; nền khối/nền dòng với màu, opacity, padding và bo góc.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L061",
+    "file": "EDITOR_SPEC.md",
+    "line": 61,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Các preset dễ đọc: sáng viền tối, tối nền sáng, nền mờ, tiêu đề, chú thích, song ngữ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L062",
+    "file": "EDITOR_SPEC.md",
+    "line": 62,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Viết hoa/thường theo lựa chọn, giữ nguyên tên riêng trong dịch; tìm/thay thế nội dung có xem trước.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L063",
+    "file": "EDITOR_SPEC.md",
+    "line": 63,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Nội dung động: tên kênh, tiêu đề rút gọn, số đầu ra, tên cảnh và ngày; cho xem giá trị sẽ thay, không chèn thông tin nhạy cảm từ metadata.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L064",
+    "file": "EDITOR_SPEC.md",
+    "line": 64,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Nhiều lớp chữ, mỗi lớp có thời gian, kiểu, vị trí và chuyển động riêng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L065",
+    "file": "EDITOR_SPEC.md",
+    "line": 65,
+    "section": "3.2. Kiểu chữ",
+    "verbatim": "- Chọn xử lý tràn: tự xuống dòng, giảm cỡ trong giới hạn, hoặc cảnh báo; không cắt mất chữ ngầm.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L069",
+    "file": "EDITOR_SPEC.md",
+    "line": 69,
+    "section": "3.3. Ngôn ngữ",
+    "verbatim": "- Tách ngôn ngữ giao diện, ngôn ngữ nguồn, ngôn ngữ dịch đích và font; đổi ngôn ngữ không đồng nghĩa font đã đủ glyph.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L070",
+    "file": "EDITOR_SPEC.md",
+    "line": 70,
+    "section": "3.3. Ngôn ngữ",
+    "verbatim": "- Tìm ngôn ngữ theo tên/mã, nhớ gần dùng, thứ tự ưu tiên, tự nhận diện khi có dữ liệu đáng tin cậy.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L071",
+    "file": "EDITOR_SPEC.md",
+    "line": 71,
+    "section": "3.3. Ngôn ngữ",
+    "verbatim": "- Song ngữ với vị trí, thứ tự, màu, cỡ và khoảng cách hai khối riêng; có preview mẫu.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L072",
+    "file": "EDITOR_SPEC.md",
+    "line": 72,
+    "section": "3.3. Ngôn ngữ",
+    "verbatim": "- Danh sách ngôn ngữ dịch phản ánh bộ dịch thực tế; không hiển thị mọi ngôn ngữ là khả dụng khi provider chưa hỗ trợ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L076",
+    "file": "EDITOR_SPEC.md",
+    "line": 76,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Thêm nhiều logo PNG/JPEG/WebP khi decoder hỗ trợ, giữ alpha nếu nguồn có; báo nền không trong suốt khi cần.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L077",
+    "file": "EDITOR_SPEC.md",
+    "line": 77,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Kích thước theo % khung hoặc pixel, khóa tỷ lệ, crop, xoay, opacity, viền/bóng nếu được engine hỗ trợ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L078",
+    "file": "EDITOR_SPEC.md",
+    "line": 78,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Chín vị trí nhanh, lề từng cạnh, tọa độ nhập tay, vùng giới hạn chuyển động và vùng cần tránh.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L079",
+    "file": "EDITOR_SPEC.md",
+    "line": 79,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Chọn toàn video, một đoạn hoặc các khoảng xuất hiện; fade đầu/cuối.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L080",
+    "file": "EDITOR_SPEC.md",
+    "line": 80,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Chọn logo theo từng kênh, theo tên tệp hoặc danh sách; báo thiếu logo thay vì dùng nhầm logo kênh khác.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L081",
+    "file": "EDITOR_SPEC.md",
+    "line": 81,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Kéo logo từ thư viện thả vào preview/timeline, thay ảnh nhưng giữ biến đổi/chuyển động nếu người dùng chọn.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L082",
+    "file": "EDITOR_SPEC.md",
+    "line": 82,
+    "section": "4. Logo và đối tượng phủ",
+    "verbatim": "- Không tự phóng logo vượt giới hạn chất lượng hoặc ra ngoài khung mà không cho thấy cảnh báo.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L088",
+    "file": "EDITOR_SPEC.md",
+    "line": 88,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Nhóm | Lựa chọn |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L090",
+    "file": "EDITOR_SPEC.md",
+    "line": 90,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Cố định | Neo một vị trí, bật/tắt theo thời gian |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L091",
+    "file": "EDITOR_SPEC.md",
+    "line": 91,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Chạy thẳng | Trái→phải, phải→trái, trên→dưới, dưới→trên, đường chéo |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L092",
+    "file": "EDITOR_SPEC.md",
+    "line": 92,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Qua điểm | Điểm A→B, nhiều điểm do người dùng đặt, lần lượt qua các góc |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L093",
+    "file": "EDITOR_SPEC.md",
+    "line": 93,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Lặp | Lặp cùng chiều, đi-về, nảy trong vùng giới hạn |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L094",
+    "file": "EDITOR_SPEC.md",
+    "line": 94,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Nhẹ | Trôi chậm, zoom in/out, nhịp phóng nhỏ, xoay trong biên độ |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L095",
+    "file": "EDITOR_SPEC.md",
+    "line": 95,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Xuất hiện/biến mất | Fade, trượt vào/ra, zoom vào/ra |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L096",
+    "file": "EDITOR_SPEC.md",
+    "line": 96,
+    "section": "5.1. Preset chuyển động",
+    "verbatim": "| Ngẫu nhiên | Vị trí/đường đi/tham số trong vùng và khoảng cho phép, seed tái tạo |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L100",
+    "file": "EDITOR_SPEC.md",
+    "line": 100,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Hướng, điểm đầu/cuối, điểm neo, đường đi và phạm vi hoạt động.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L101",
+    "file": "EDITOR_SPEC.md",
+    "line": 101,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Chọn điều khiển bằng tốc độ hoặc thời gian hoàn thành; hai giá trị liên kết, không để mâu thuẫn.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L102",
+    "file": "EDITOR_SPEC.md",
+    "line": 102,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Tốc độ theo % chiều rộng/chiều cao khung mỗi giây; có giá trị pixel/giây quy đổi theo đầu ra. Không phụ thuộc FPS hoặc zoom preview.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L103",
+    "file": "EDITOR_SPEC.md",
+    "line": 103,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Trì hoãn bắt đầu, thời gian vào, thời gian giữ, thời gian ra, khoảng nghỉ giữa vòng, số lần lặp hoặc lặp đến hết đoạn.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L104",
+    "file": "EDITOR_SPEC.md",
+    "line": 104,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Linear, ease-in, ease-out, ease-in-out; hiển thị đường cong và cho xem thử.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L105",
+    "file": "EDITOR_SPEC.md",
+    "line": 105,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Độ phóng min/max, góc xoay min/max, opacity min/max; keyframe X/Y/scale/rotation/opacity.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L106",
+    "file": "EDITOR_SPEC.md",
+    "line": 106,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Giữ toàn đối tượng trong khung hoặc cho phép đi ra ngoài theo preset; tính cả kích thước/điểm neo khi nảy ở biên.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L107",
+    "file": "EDITOR_SPEC.md",
+    "line": 107,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Vùng tránh sub/logo khác; nếu không đủ không gian thì báo hoặc giữ vị trí đã đặt, không hứa tự giải mọi xung đột.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L108",
+    "file": "EDITOR_SPEC.md",
+    "line": 108,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Seed cố định/ngẫu nhiên mới; cùng chuyển động cho cả lô hoặc biến thể mỗi đầu ra.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L109",
+    "file": "EDITOR_SPEC.md",
+    "line": 109,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Keyframe có copy/paste, xóa, chuyển thời gian và undo; cho chọn thời gian tuyệt đối hoặc tỷ lệ thời lượng clip.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L110",
+    "file": "EDITOR_SPEC.md",
+    "line": 110,
+    "section": "5.2. Tham số chuyển động",
+    "verbatim": "- Chuyển động không phải tracking chủ thể. Chưa có tự bám người/vật/chữ trong video gốc.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L114",
+    "file": "EDITOR_SPEC.md",
+    "line": 114,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Nhiều vùng độc lập: hình chữ nhật, chỉnh vị trí/kích thước trực tiếp, bo góc.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L115",
+    "file": "EDITOR_SPEC.md",
+    "line": 115,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Chọn blur, mosaic hoặc màu phủ; cường độ, màu, opacity và feather khi engine hỗ trợ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L116",
+    "file": "EDITOR_SPEC.md",
+    "line": 116,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Thời gian bật/tắt, fade; keyframe vị trí/kích thước nếu cần di chuyển thủ công.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L117",
+    "file": "EDITOR_SPEC.md",
+    "line": 117,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Layer vùng che đặt dưới sub mới và trên video gốc theo mặc định; đổi thứ tự được.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L118",
+    "file": "EDITOR_SPEC.md",
+    "line": 118,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Vùng che có thể lưu trong preset theo tọa độ tương đối nhưng cần xem lại khi chữ gốc thay đổi vị trí.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L119",
+    "file": "EDITOR_SPEC.md",
+    "line": 119,
+    "section": "6. Vùng che chữ gốc",
+    "verbatim": "- Là che/làm mờ, không phải xóa chữ tái tạo nền hoặc tự tracking.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L123",
+    "file": "EDITOR_SPEC.md",
+    "line": 123,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Track video, vùng che, logo, chữ, sub và các track audio; đổi tên/màu/chiều cao track.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L124",
+    "file": "EDITOR_SPEC.md",
+    "line": 124,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Khóa, ẩn, mute/solo theo loại track; liên kết audio-video, nhóm đối tượng và chọn nhiều.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L125",
+    "file": "EDITOR_SPEC.md",
+    "line": 125,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Thước thời gian, playhead, thumbnail, waveform, marker, snap, zoom ngang, cuộn và fit toàn project.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L126",
+    "file": "EDITOR_SPEC.md",
+    "line": 126,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Kéo đổi vị trí/thời gian; trim mép; split tại playhead; gap và ripple-delete là hai thao tác khác nhau.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L127",
+    "file": "EDITOR_SPEC.md",
+    "line": 127,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Delete mặc định chỉ xóa đối tượng khỏi project hoặc danh sách, không xóa tệp trên ổ đĩa.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L128",
+    "file": "EDITOR_SPEC.md",
+    "line": 128,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- In/out để xuất một đoạn; vòng lặp đoạn preview; nhảy đầu/cuối, từng frame và marker.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L129",
+    "file": "EDITOR_SPEC.md",
+    "line": 129,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Track sub có tìm câu và nhảy theo cue; âm thanh có nghe thử, mức âm, fade và điểm đặt sound effect.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L130",
+    "file": "EDITOR_SPEC.md",
+    "line": 130,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Hiện vùng clip thiếu media/thiếu sub, khoảng trống, cue chồng và thời điểm âm thanh bị cắt.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L131",
+    "file": "EDITOR_SPEC.md",
+    "line": 131,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Cache thumbnail/waveform theo nền; proxy Nhanh/Cân bằng/Cao; cho tạo lại proxy khi lỗi.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L132",
+    "file": "EDITOR_SPEC.md",
+    "line": 132,
+    "section": "7. Timeline và âm thanh",
+    "verbatim": "- Preview cùng mô hình thời gian, layer, kiểu chữ và biến đổi với export. Không dùng một hiệu ứng chỉ có trong preview rồi đánh dấu xuất được.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L136",
+    "file": "EDITOR_SPEC.md",
+    "line": 136,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Kéo tệp/thư mục từ Explorer vào ứng dụng; drag nhiều mục; đánh dấu tệp không hỗ trợ.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L137",
+    "file": "EDITOR_SPEC.md",
+    "line": 137,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Tìm/lọc/sắp xếp media, folder, hàng đợi, cue; chọn tất cả/bỏ chọn/đảo chọn; tìm theo trạng thái.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L138",
+    "file": "EDITOR_SPEC.md",
+    "line": 138,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Menu chuột phải theo ngữ cảnh; mở thư mục chứa, mở kết quả, sao chép đường dẫn và lỗi.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L139",
+    "file": "EDITOR_SPEC.md",
+    "line": 139,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Tạo preset từ clip đang chỉnh; nhân bản preset; so sánh, nhập/xuất preset; kiểm tra phiên bản khi nhập.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L140",
+    "file": "EDITOR_SPEC.md",
+    "line": 140,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Copy/paste một nhóm thuộc tính, ví dụ chỉ font hoặc chỉ chuyển động, tránh thay cả cấu hình.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L141",
+    "file": "EDITOR_SPEC.md",
+    "line": 141,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Xem trước thay đổi hàng loạt, tên đầu ra, dung lượng ước tính, số video và cảnh báo trước khi chạy.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L142",
+    "file": "EDITOR_SPEC.md",
+    "line": 142,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Lưu project, tự lưu, khôi phục sau thoát bất thường; liên kết lại media bị di chuyển bằng thư mục gốc mới.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L143",
+    "file": "EDITOR_SPEC.md",
+    "line": 143,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Báo thiếu font, logo, nhạc, sub, codec, quyền ghi hoặc dung lượng; cho sửa liên kết thay vì tạo project lại.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L144",
+    "file": "EDITOR_SPEC.md",
+    "line": 144,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Làm thử một đầu ra hoặc một đoạn trước cả lô; mở video thử để xác nhận.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L145",
+    "file": "EDITOR_SPEC.md",
+    "line": 145,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- Thông báo hoàn tất/lỗi, âm báo tùy chọn; đóng ứng dụng/tắt máy sau xong chỉ khi người dùng chủ động bật.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L146",
+    "file": "EDITOR_SPEC.md",
+    "line": 146,
+    "section": "8. Công cụ phụ để giảm thao tác",
+    "verbatim": "- HiDPI, cỡ chữ giao diện, theme sáng/tối, focus bàn phím, tên nút rõ; nhớ thư mục và bố cục gần dùng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L152",
+    "file": "EDITOR_SPEC.md",
+    "line": 152,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Phím | Thao tác | Phạm vi |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L154",
+    "file": "EDITOR_SPEC.md",
+    "line": 154,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+O | Mở project | Ứng dụng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L155",
+    "file": "EDITOR_SPEC.md",
+    "line": 155,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+, | Mở Cài đặt | Ứng dụng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L156",
+    "file": "EDITOR_SPEC.md",
+    "line": 156,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| F5 | Quét lại công cụ | Bảng công cụ, không áp sang Chrome |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L157",
+    "file": "EDITOR_SPEC.md",
+    "line": 157,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+Shift+O | Thêm media/thư mục | Project |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L158",
+    "file": "EDITOR_SPEC.md",
+    "line": 158,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+S / Ctrl+Shift+S | Lưu / lưu thành project mới | Project |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L159",
+    "file": "EDITOR_SPEC.md",
+    "line": 159,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+Z / Ctrl+Shift+Z | Undo / redo | Editor, ô nhập có lịch sử riêng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L160",
+    "file": "EDITOR_SPEC.md",
+    "line": 160,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+C / Ctrl+V / Ctrl+X | Copy / paste / cut | Đối tượng hoặc văn bản theo focus |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L161",
+    "file": "EDITOR_SPEC.md",
+    "line": 161,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+D | Nhân bản đối tượng | Canvas/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L162",
+    "file": "EDITOR_SPEC.md",
+    "line": 162,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+A | Chọn tất cả trong vùng hiện tại | Danh sách/canvas/timeline/ô nhập |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L163",
+    "file": "EDITOR_SPEC.md",
+    "line": 163,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Delete | Bỏ đối tượng/mục chọn, không xóa tệp | Editor/danh sách |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L164",
+    "file": "EDITOR_SPEC.md",
+    "line": 164,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Esc | Hủy kéo/công cụ hoặc bỏ chọn | Editor |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L165",
+    "file": "EDITOR_SPEC.md",
+    "line": 165,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Space | Phát/dừng | Player, trừ lúc nhập chữ |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L166",
+    "file": "EDITOR_SPEC.md",
+    "line": 166,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Trái/phải | Lùi/tiến một frame khi dừng | Player/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L167",
+    "file": "EDITOR_SPEC.md",
+    "line": 167,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Shift+trái/phải | Lùi/tiến một giây | Player/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L168",
+    "file": "EDITOR_SPEC.md",
+    "line": 168,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Mũi tên | Dịch đối tượng một pixel đầu ra | Canvas khi đang chọn đối tượng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L169",
+    "file": "EDITOR_SPEC.md",
+    "line": 169,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Shift+mũi tên | Dịch đối tượng mười pixel đầu ra | Canvas |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L170",
+    "file": "EDITOR_SPEC.md",
+    "line": 170,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Alt trong lúc kéo | Tạm tắt snap | Canvas/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L171",
+    "file": "EDITOR_SPEC.md",
+    "line": 171,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| I / O | Đặt đầu/cuối vùng chọn | Player/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L172",
+    "file": "EDITOR_SPEC.md",
+    "line": 172,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Home / End | Đầu/cuối project | Player/timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L173",
+    "file": "EDITOR_SPEC.md",
+    "line": 173,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+B | Split clip tại playhead | Timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L174",
+    "file": "EDITOR_SPEC.md",
+    "line": 174,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| M | Thêm marker | Timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L175",
+    "file": "EDITOR_SPEC.md",
+    "line": 175,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| S | Bật/tắt snap | Timeline/canvas, ngoài chế độ nhập chữ |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L176",
+    "file": "EDITOR_SPEC.md",
+    "line": 176,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| + / - | Zoom timeline | Timeline |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L177",
+    "file": "EDITOR_SPEC.md",
+    "line": 177,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+con lăn | Zoom quanh playhead/con trỏ | Timeline hoặc preview theo focus |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L178",
+    "file": "EDITOR_SPEC.md",
+    "line": 178,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| F | Fit preview | Preview |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L179",
+    "file": "EDITOR_SPEC.md",
+    "line": 179,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+F | Tìm trong vùng hiện tại | Danh sách/sub/thiết lập |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L180",
+    "file": "EDITOR_SPEC.md",
+    "line": 180,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| Ctrl+Enter | Đưa cấu hình vào hàng đợi | Editor, ngoài chế độ nhập chữ |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L181",
+    "file": "EDITOR_SPEC.md",
+    "line": 181,
+    "section": "9. Phím tắt mặc định",
+    "verbatim": "| F1 | Trợ giúp/phím tắt theo vùng | Ứng dụng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L187",
+    "file": "EDITOR_SPEC.md",
+    "line": 187,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Auto | Hành vi và giới hạn |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L189",
+    "file": "EDITOR_SPEC.md",
+    "line": 189,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Nhận diện link | Xác định bộ kết nối, loại URL, loại trùng; không coi mọi URL là kênh |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L190",
+    "file": "EDITOR_SPEC.md",
+    "line": 190,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Đồng bộ kênh | Tải nội dung mới theo lịch, lưu mốc và lịch sử quét |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L191",
+    "file": "EDITOR_SPEC.md",
+    "line": 191,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Nhận file mới | Theo dõi folder, chỉ nhận khi tệp đã ổn định/sao chép xong |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L192",
+    "file": "EDITOR_SPEC.md",
+    "line": 192,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Ghép sub | ID/ngôn ngữ/quy tắc tên; mơ hồ thì yêu cầu chọn, không đoán ngầm |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L193",
+    "file": "EDITOR_SPEC.md",
+    "line": 193,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Dịch sub | Theo ngôn ngữ đích, cache, thuật ngữ, khóa câu đã sửa và hạn mức |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L194",
+    "file": "EDITOR_SPEC.md",
+    "line": 194,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Bố trí chữ | Tự ngắt dòng/giảm cỡ trong giới hạn/vùng an toàn; cảnh báo khi không đủ chỗ |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L195",
+    "file": "EDITOR_SPEC.md",
+    "line": 195,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Đổi tỷ lệ | Fit/crop/nền theo preset và điểm neo; không tự nhận diện chủ thể ở bản đầu |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L196",
+    "file": "EDITOR_SPEC.md",
+    "line": 196,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Logo theo kênh | Bảng ánh xạ kênh→logo/preset; thiếu tài nguyên thì báo |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L197",
+    "file": "EDITOR_SPEC.md",
+    "line": 197,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Khớp âm thanh | Phân bổ cảnh, trim/tốc độ trong giới hạn, báo cấu hình bất khả thi |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L198",
+    "file": "EDITOR_SPEC.md",
+    "line": 198,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Chuyển động | Sinh biến thể trong khoảng/vùng, lưu seed, tôn trọng keyframe khóa |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L199",
+    "file": "EDITOR_SPEC.md",
+    "line": 199,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Tạo ma trận | Số lượng, lịch sử, chống lặp, cân bằng góc, giới hạn tìm và hủy được |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L200",
+    "file": "EDITOR_SPEC.md",
+    "line": 200,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Phần cứng | Kiểm tra encoder/filter, gợi ý số việc, quản lý RAM/VRAM/ổ đĩa |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L201",
+    "file": "EDITOR_SPEC.md",
+    "line": 201,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Chạy chuỗi | Tải→sub→dịch→edit→xuất; riêng theo lô hoặc cuốn chiếu |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L202",
+    "file": "EDITOR_SPEC.md",
+    "line": 202,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Thử lại | Chỉ lỗi tạm thời, giới hạn và backoff; lỗi tài khoản/cấu hình chờ xử lý |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L203",
+    "file": "EDITOR_SPEC.md",
+    "line": 203,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Kiểm tra đầu ra | Đọc media, đối chiếu track/thời lượng, phát hiện thiếu/hỏng; không thay bằng chỉ kiểm tra tồn tại tệp |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L204",
+    "file": "EDITOR_SPEC.md",
+    "line": 204,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Phục hồi | Giữ việc xong, tiếp tục công đoạn thiếu, ghi lý do phải render lại |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L205",
+    "file": "EDITOR_SPEC.md",
+    "line": 205,
+    "section": "10. Tự động hóa theo quy tắc",
+    "verbatim": "| Dọn cache | Theo tuổi/dung lượng, không xóa nguồn, đầu ra hoặc tệp đang dùng |",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L209",
+    "file": "EDITOR_SPEC.md",
+    "line": 209,
+    "section": "Quyền ưu tiên giữa auto và thao tác tay",
+    "verbatim": "1. Thuộc tính khóa và chỉnh sửa riêng được giữ nguyên.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L210",
+    "file": "EDITOR_SPEC.md",
+    "line": 210,
+    "section": "Quyền ưu tiên giữa auto và thao tác tay",
+    "verbatim": "2. Auto chỉ cập nhật thuộc tính chưa bị ghi đè, trừ khi người dùng chọn đặt lại.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L211",
+    "file": "EDITOR_SPEC.md",
+    "line": 211,
+    "section": "Quyền ưu tiên giữa auto và thao tác tay",
+    "verbatim": "3. Có nút chạy lại auto theo nhóm: chỉ sub, chỉ bố cục, chỉ ma trận…",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L212",
+    "file": "EDITOR_SPEC.md",
+    "line": 212,
+    "section": "Quyền ưu tiên giữa auto và thao tác tay",
+    "verbatim": "4. Xem trước danh sách tác động; tác vụ đã chạy giữ bản cấu hình riêng.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L213",
+    "file": "EDITOR_SPEC.md",
+    "line": 213,
+    "section": "Quyền ưu tiên giữa auto và thao tác tay",
+    "verbatim": "5. Mỗi quyết định tự động có thể xem lý do và tham số trong lịch sử.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L217",
+    "file": "EDITOR_SPEC.md",
+    "line": 217,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Kéo/resize/xoay một logo, chữ, cue sub và vùng che; lưu/mở lại đúng; undo/redo đúng một thao tác kéo.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L218",
+    "file": "EDITOR_SPEC.md",
+    "line": 218,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Nhập tiếng Việt/Trung không kích hoạt phím tắt; thiếu font được báo và thay được.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L219",
+    "file": "EDITOR_SPEC.md",
+    "line": 219,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Cùng preset chạy trên video dọc/ngang và độ phân giải khác nhau không làm đối tượng mất khỏi khung ngoài ý muốn.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L220",
+    "file": "EDITOR_SPEC.md",
+    "line": 220,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Tốc độ chuyển động không đổi khi đổi zoom preview/FPS; vị trí tại các mốc so khớp render.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L221",
+    "file": "EDITOR_SPEC.md",
+    "line": 221,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Keyframe, lặp đi-về, fade, thứ tự layer và thời điểm xuất hiện đúng trên preview và export.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L222",
+    "file": "EDITOR_SPEC.md",
+    "line": 222,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Sửa một clip không thay cả lô; sửa cả lô không ghi đè thuộc tính đã khóa; chạy auto không mất chỉnh sửa tay.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L223",
+    "file": "EDITOR_SPEC.md",
+    "line": 223,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Phím mũi tên thực hiện đúng chức năng theo vùng focus; Delete không xóa tệp gốc.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L224",
+    "file": "EDITOR_SPEC.md",
+    "line": 224,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Preview có proxy/tải nền, UI phản hồi khi render; thao tác hủy không làm mất project.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "ED-L225",
+    "file": "EDITOR_SPEC.md",
+    "line": 225,
+    "section": "11. Nghiệm thu editor",
+    "verbatim": "- Các tùy chọn chưa triển khai không được gắn nhãn đã hoạt động. Phạm vi chưa hoàn tất được theo dõi trong kế hoạch, không âm thầm bỏ khỏi đặc tả.",
+    "source_sha256": "b0d48da54e8d46a3959d8cd7871678e4a0c6485641bb0734e2b102c9190d1fc9",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L007",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 7,
+    "section": "1. Phân khu trong Cài đặt",
+    "verbatim": "1. Công cụ cần thiết: quét, đường dẫn, phiên bản, kiểm tra hoạt động, tải/cài/cập nhật/sửa.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L008",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 8,
+    "section": "1. Phân khu trong Cài đặt",
+    "verbatim": "2. Hồ sơ Chrome: Chrome thật, thư mục dữ liệu độc lập, mở/đổi tên/gán tài khoản/trạng thái.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L009",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 9,
+    "section": "1. Phân khu trong Cài đặt",
+    "verbatim": "3. Tài khoản nền tảng: mọi nền tảng đều có mục đăng nhập, hồ sơ được gán, tài khoản mặc định, kiểm tra phiên và đăng nhập lại.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L010",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 10,
+    "section": "1. Phân khu trong Cài đặt",
+    "verbatim": "4. Chẩn đoán: readiness theo chức năng, lỗi dependency/session/nguồn, lịch sử kiểm tra đã loại thông tin nhạy cảm.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L024",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 24,
+    "section": "2.1. Nội dung bảng",
+    "verbatim": "- Quét lại; chọn tệp/thư mục; dùng bản phát hiện được; khôi phục đường dẫn mặc định.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L025",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 25,
+    "section": "2.1. Nội dung bảng",
+    "verbatim": "- Kiểm tra hoạt động; mở thư mục; xem lỗi và bản build/capability.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L026",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 26,
+    "section": "2.1. Nội dung bảng",
+    "verbatim": "- Tải và cài; tải/cài tất cả thành phần bắt buộc còn thiếu theo workflow đang chọn.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L027",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 27,
+    "section": "2.1. Nội dung bảng",
+    "verbatim": "- Cập nhật, sửa cài đặt, quay lại phiên bản đã hoạt động; gỡ riêng bản do app quản lý và không còn được dùng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L028",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 28,
+    "section": "2.1. Nội dung bảng",
+    "verbatim": "- Nếu thành phần chỉ tải được installer hoặc cần UAC/thao tác trình duyệt: tải từ nguồn tin cậy, mở installer và ghi rõ bước còn lại; không báo cài xong trước khi kiểm tra lại.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L040",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 40,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Thành phần | Vai trò | Chính sách |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L042",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 42,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| FFmpeg và ffprobe | Probe, ghép, sub, audio, encode | Bắt buộc cho workflow media; bản gói kèm hoặc tải bản Windows đã chọn và kiểm chứng |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L043",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 43,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| yt-dlp | Bộ tải video chính | App quản lý binary/module đã pin; có trạng thái phiên bản/cập nhật riêng |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L044",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 44,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| gallery-dl | Ảnh/album và nguồn bổ sung | Cài theo connector cần dùng; không hứa mọi nền tảng được hỗ trợ |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L045",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 45,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Google Chrome chính thức | Đăng nhập bằng trình duyệt thật | Tìm bản đã cài, cho trỏ tệp, tải/cài từ nguồn chính thức nếu thiếu |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L046",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 46,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| JavaScript runtime/thành phần extractor bổ sung | Phụ thuộc của phiên bản downloader nếu cần | Xác định ở P02; chỉ cài khi connector/tool được chọn thực sự yêu cầu |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L047",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 47,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Thư viện playback/runtime hệ thống | Preview/codec/UI | Ưu tiên gói kèm hợp lệ; VC++ runtime hoặc thành phần khác chỉ yêu cầu nếu build cần |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L048",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 48,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Font bổ sung | Hiển thị các hệ chữ | Chọn font sẵn có hoặc thư mục font riêng; chỉ tải font có nguồn/giấy phép phù hợp |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L049",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 49,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Model dịch cục bộ | Chỉ cho phương án dịch local được chọn | Không tải model khi dùng API; hiển thị dung lượng và yêu cầu máy trước khi tải |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L050",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 50,
+    "section": "2.2. Danh sách thành phần",
+    "verbatim": "| Driver GPU | Tăng tốc phần cứng | Phát hiện/kiểm tra, hướng dẫn tới hãng; không âm thầm cài/thay driver |",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L056",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 56,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Hiển thị tiến độ, dung lượng, tốc độ, thời gian, nguồn và bước tải/xác minh/cài/kiểm tra; chưa biết tổng thì hiển thị đúng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L057",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 57,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Manifest có OS/architecture/version/artifact/dependencies/nguồn/checksum hoặc chữ ký được xác thực. Giữ TLS và xác minh; không bỏ kiểm tra khi tải lỗi.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L058",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 58,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Staging riêng, kiểm tra archive/đường dẫn giải nén, kiểm tra binary trước khi kích hoạt; lỗi giữ bản cũ và có rollback.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L059",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 59,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- App-managed tools lưu trong user data theo version; không đè công cụ hệ thống/người dùng, không tự sửa PATH toàn máy.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L060",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 60,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Job giữ tool version/path đã resolve và lease. Không thay binary đang render/tải; kích hoạt bản mới cho job sau khi điều kiện an toàn đạt.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L061",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 61,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Bản bên ngoài chỉ được quét/chọn/kiểm tra; cập nhật bằng cách cài bản app quản lý hoặc để người dùng cập nhật ngoài, không tự xóa bản của người dùng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L062",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 62,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Hủy/mất mạng/quyền ghi/đĩa đầy có thông báo và cleanup staging; cài lại không tạo bản rác hoặc mất cấu hình.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L063",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 63,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Tải-cài tất cả giữ trạng thái từng thành phần, không coi cả nhóm thành công vì một tool đã cài; cài lại chỉ làm phần thiếu/lỗi và giữ phần đã đạt.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L064",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 64,
+    "section": "2.3. Tải, cài và cập nhật",
+    "verbatim": "- Phát hiện có bản mới không tự đổi môi trường đang chạy. Tự động tải/cài trong phạm vi nút người dùng đã bấm hoặc lựa chọn auto-update được bật rõ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L085",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 85,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Một hồ sơ chứa nhiều nền tảng. Mỗi nền tảng có một danh tính đăng nhập đang được app gán cho hồ sơ đó.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L086",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 86,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Muốn thêm tài khoản thứ hai của cùng nền tảng thì tạo/chọn hồ sơ khác. App không coi account switcher trong cùng cookie jar là hai phiên độc lập.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L087",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 87,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Nhiều cửa sổ chung một user-data-dir vẫn là một hồ sơ, không phải cách ly tài khoản.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L088",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 88,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Đăng nhập Chrome Sync/Google ở cấp trình duyệt không phải điều kiện bắt buộc để tạo hồ sơ; đăng nhập từng website thực hiện trong Chrome.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L089",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 89,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Tài khoản Facebook có nhiều page hoặc Google có nhiều kênh vẫn có thể là một tài khoản xác thực với nhiều đối tượng truy cập; không bắt tạo Chrome mới cho mỗi page/kênh.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L090",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 90,
+    "section": "3. Mô hình Chrome thật và nhiều tài khoản",
+    "verbatim": "- Nền tảng có liên kết danh tính như Instagram/Threads được kiểm tra riêng; không tự suy ra đăng nhập một bên thì connector bên kia dùng được.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L096",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 96,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Tạo, đổi tên/màu/nhãn, xem đường dẫn/phiên bản, mở, chọn mặc định và kiểm tra hồ sơ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L097",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 97,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Mở một nền tảng vào đúng Chrome/hồ sơ đã chọn; dùng trình duyệt Google Chrome có cửa sổ thật để người dùng thao tác.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L098",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 98,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Google Chrome, Chromium tải kèm automation và WebView là các lựa chọn khác nhau; bản này yêu cầu Google Chrome thật, không âm thầm thay bằng trình duyệt khác.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L099",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 99,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Hồ sơ có trạng thái browser: đóng/mở/bận/bị khóa/thiếu đường dẫn/không tương thích. Không xóa lock file hoặc ép đóng Chrome đang dùng để giành quyền.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L100",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 100,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Xóa liên kết tài khoản khỏi app khác với đăng xuất website; xóa hồ sơ/dữ liệu Chrome là thao tác riêng có xác nhận rõ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L101",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 101,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Liên kết hồ sơ Chrome cá nhân có sẵn chỉ là tùy chọn sau khi đã kiểm chứng tương thích; không tự sao chép/migrate hồ sơ cá nhân hoặc coi là đường mặc định.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L102",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 102,
+    "section": "4.1. Hồ sơ Chrome",
+    "verbatim": "- Thư mục hồ sơ không phải cache để tự dọn và không nằm trong project export. Chuyển máy/Windows khác không được hứa giữ phiên chỉ bằng copy thư mục vì bảo vệ phiên có thể gắn với máy/OS.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L110",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 110,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "1. Chọn nền tảng, hồ sơ hiện có hoặc tạo hồ sơ mới.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L111",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 111,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "2. Mở URL đăng nhập hợp lệ của nền tảng trong đúng Google Chrome/hồ sơ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L112",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 112,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "3. Người dùng nhập tài khoản/mật khẩu, OTP/QR/CAPTCHA hoặc xác minh nếu website yêu cầu.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L113",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 113,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "4. Bấm kiểm tra; app xác minh trạng thái đăng nhập bằng thao tác đọc và nhận diện tài khoản khi khả dụng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L114",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 114,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "5. Kiểm tra riêng connector có dùng được phiên cho quét/tải thử hay không.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L115",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 115,
+    "section": "4.2. Mọi nền tảng có mục đăng nhập",
+    "verbatim": "6. Lưu liên kết platform/account/profile và trạng thái. Chrome giữ cookie trong kho của chính hồ sơ; project/preset chỉ lưu ID tham chiếu.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L121",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 121,
+    "section": "4.3. Trạng thái xác thực",
+    "verbatim": "- Chưa cấu hình / chưa đăng nhập / chưa kiểm tra / phiên dùng được / hết hạn / cần xác minh / sai tài khoản / connector chưa dùng được phiên.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L122",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 122,
+    "section": "4.3. Trạng thái xác thực",
+    "verbatim": "- Phân biệt đăng nhập website thành công với quyền xem nội dung, khả năng bridge và rate limit; một mục lỗi không tự đổi toàn bộ thành hết hạn.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L123",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 123,
+    "section": "4.3. Trạng thái xác thực",
+    "verbatim": "- Tên tài khoản hiển thị khác source đang tải. Người tải có thể tải kênh khác mà tài khoản của họ có quyền xem.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L127",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 127,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Mỗi nguồn/job có lựa chọn tài khoản hoặc chế độ công khai; nhớ lựa chọn theo nền tảng/nguồn.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L128",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 128,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Mặc định dùng tài khoản đã gán nếu có; chưa gán và nguồn cho phép thì tải công khai, không bắt đăng nhập tất cả website ngay khi cài app.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L129",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 129,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Trước lô cần auth, kiểm tra Chrome/profile/session/connector và quyền truy cập nguồn bằng thao tác đọc thích hợp; không chỉ kiểm tra có cookie file.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L130",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 130,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Nếu job đã chọn tài khoản nhưng phiên hết hạn: chờ đúng tài khoản, mở đăng nhập lại, kiểm tra rồi tiếp tục phần còn thiếu. Không tự âm thầm chuyển sang công khai làm danh sách tải bị thiếu.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L131",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 131,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Snapshot giữ profile ID, account binding ID và danh tính đã kiểm chứng nếu có; cookie/session token không được nhúng vào snapshot.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L132",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 132,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Refresh phiên cùng danh tính có thể dùng lại sau kiểm tra. Nếu người dùng đổi nick trong Chrome, job cũ phải báo sai tài khoản, không tự chạy bằng nick mới.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L133",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 133,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Không tự xoay tài khoản khi rate limit hoặc thiếu quyền; người dùng chủ động chọn tài khoản khác và xác nhận cập nhật job nếu cần.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L134",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 134,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Session và quyền truy cập phải tách cache theo account scope để kết quả riêng tư/giới hạn của tài khoản A không bị dùng cho B.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L135",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 135,
+    "section": "5. Dùng phiên đăng nhập khi tải",
+    "verbatim": "- Điều phối truy cập hồ sơ theo khả năng thật, tránh hai tiến trình giành cùng user-data-dir. Việc không cần browser vẫn được tải song song theo giới hạn connector/tài khoản.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L141",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 141,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Không thiết kế đường mặc định bằng copy file SQLite, giải mã cookie hoặc tắt bảo vệ Chrome/Windows.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L142",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 142,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Chọn cơ chế session handoff mà connector và Chrome hỗ trợ, ví dụ tích hợp trình duyệt/extension/bridge hoặc cookie interface của công cụ khi hệ thống thực sự cho phép; thử trên Chrome chính thức và Windows thật.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L143",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 143,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Nếu dùng automation/CDP: dùng hồ sơ app quản lý tách biệt, endpoint local giới hạn vòng đời/quyền, không mở cổng điều khiển ra mạng hay chiếm hồ sơ cá nhân mặc định. Không hứa native CDP có sẵn cơ chế xác thực ngoài khả năng thật.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L144",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 144,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Nếu connector không nhận phiên qua đường đã kiểm chứng, ghi giới hạn; có thể cần đường chạy qua browser phù hợp. Không báo tài khoản sẵn sàng cho bộ tải chỉ vì trang web hiển thị đã đăng nhập.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L145",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 145,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Nhập cookie thủ công chỉ là đường bổ sung nếu quyết định hỗ trợ; không dùng như lời giải mặc định bắt người dùng xuất lại mỗi lần.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L146",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 146,
+    "section": "6. Điểm bắt buộc kiểm chứng ở P02",
+    "verbatim": "- Không có một cơ chế đăng nhập bảo đảm mọi website đều hỗ trợ. Mỗi nền tảng vẫn có nút/quản lý đăng nhập, còn mức dùng phiên được ghi bằng evidence riêng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L152",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 152,
+    "section": "7. Readiness trước khi chạy",
+    "verbatim": "1. Công cụ: đúng đường dẫn/phiên bản/capability.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L153",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 153,
+    "section": "7. Readiness trước khi chạy",
+    "verbatim": "2. Phiên: đúng Chrome/hồ sơ/tài khoản và connector dùng được.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L154",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 154,
+    "section": "7. Readiness trước khi chạy",
+    "verbatim": "3. Nguồn: quét/tải loại URL và nội dung cụ thể có quyền truy cập.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L160",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 160,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Máy Windows thiếu công cụ: quét đúng, tải/cài theo nút, xác minh, kiểm tra lại và chạy workflow thật.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L161",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 161,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Công cụ có sẵn ở đường dẫn Unicode: chọn dùng được, không sửa bản hệ thống; sai version/capability được báo.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L162",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 162,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Tải bị ngắt, checksum/chữ ký lỗi, đĩa đầy, không có quyền, cập nhật lúc tool bận: không phá bản đang dùng; có retry/rollback rõ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L163",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 163,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Chrome A đăng nhập Facebook A + TikTok A; Chrome B đăng nhập Facebook B: ba binding đúng, mở đúng hồ sơ, quét/tải dùng đúng tài khoản.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L164",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 164,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Khởi động lại app/máy: giữ liên kết hồ sơ và dùng phiên còn hợp lệ, không yêu cầu đăng nhập lại vô cớ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L165",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 165,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Đổi nick cùng nền tảng trong một hồ sơ: job cũ phát hiện mismatch, không tải nhầm danh tính.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L166",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 166,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Chrome đang mở/bị khóa hoặc bridge không nhận được phiên mã hóa: báo đúng nguyên nhân, không phá profile hoặc tắt bảo vệ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L167",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 167,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Hết hạn/OTP/CAPTCHA: chỉ job tài khoản bị ảnh hưởng chờ; người dùng xử lý trong Chrome, kiểm tra lại rồi resume không tải trùng.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L168",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 168,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Mọi nền tảng có trang cấu hình đăng nhập; từng đường auth còn chưa kiểm chứng được ghi đúng, không thay bằng cam kết hỗ trợ.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  },
+  {
+    "id": "SB-L169",
+    "file": "SETTINGS_AND_BROWSER_SPEC.md",
+    "line": 169,
+    "section": "8. Nghiệm thu bổ sung",
+    "verbatim": "- Export project/preset/log chẩn đoán không chứa mật khẩu, cookie, token, dữ liệu hồ sơ Chrome hoặc nội dung đăng nhập riêng tư.",
+    "source_sha256": "e3c23eee0954f38be12933789087a48b4e41f264f62cd91e2ea0090fcdc8ec43",
+    "mapping_review": "PENDING"
+  }
+]

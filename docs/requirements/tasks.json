@@ -1,0 +1,566 @@
+[
+  {
+    "id": "P01-01",
+    "scope": "đánh mã yêu cầu, tách phạm vi hiện tại/tích hợp sau; ghi mặc định và trường hợp lỗi.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-02",
+    "scope": "wireframe tám khu vực, media/preview/inspector/timeline, Cơ bản/Nâng cao, trạng thái rỗng/đang làm/lỗi.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-03",
+    "scope": "luồng thêm kênh, folder, âm thanh, chỉnh sub/logo, ma trận và hàng đợi; đếm thao tác đường dùng thường xuyên.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-04",
+    "scope": "preset từng nhóm, một clip/nhiều clip/cả lô; thuộc tính khóa và ghi đè tay.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-05",
+    "scope": "định nghĩa W/K, ưu tiên khớp âm thanh, thiếu sub, tên logic, trùng tên và tệp đã xử lý.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-06",
+    "scope": "corpus media, nguồn thử, quyền truy cập/cấu hình cần, tiêu chí và phép đo preview/export.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-07",
+    "scope": "hợp đồng project/preset/job, module và sổ quyết định cần thực nghiệm ở P02.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P01-08",
+    "scope": "wireframe Cài đặt công cụ/hồ sơ Chrome/tài khoản mọi nền tảng, luồng scan→download/install→check, login→verify→use; readiness ba trục.",
+    "status": "IN_PROGRESS",
+    "plan": "docs/phases/P01_PLAN.md"
+  },
+  {
+    "id": "P02-01",
+    "scope": "ghi toolchain/máy/OS/codec/filter/encoder/font; lấy công cụ từ nguồn tin cậy, giữ TLS/checksum/chữ ký, pin sau kiểm chứng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-02",
+    "scope": "thử yt-dlp/gallery-dl trên nguồn công khai và nguồn có cấu hình đăng nhập; quét nhiều trang, tải video/ảnh/sub theo bảng nền tảng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-03",
+    "scope": "thử dịch Trung–Việt với thuật ngữ/tên riêng/câu dài; so chất lượng, tốc độ, chi phí, cache và quota.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-04",
+    "scope": "so engine preview cho Qt; mẫu alpha logo, chữ Việt/Trung, blur, seek, waveform, keyframe, audio; so mốc với FFmpeg export.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-05",
+    "scope": "thử CPU/encoder GPU thật, phân biệt encode GPU và filter CPU; đo RAM/VRAM và fallback.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-06",
+    "scope": "bản đóng gói Windows thử: mở UI, media/font/sub, FFmpeg, Unicode, startup.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-07",
+    "scope": "benchmark có máy/mẫu; chốt ngân sách UI/proxy/seek, sai số hình/thời gian và mức song song ban đầu trước P04/P07.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-08",
+    "scope": "ghi quyết định provider dịch, preview, FFmpeg build, packaging; blocker cho Windows/nguồn chưa truy cập được.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-09",
+    "scope": "thử discovery/tool manifest, nguồn Windows đáng tin, đường dẫn tùy chỉnh/version/capability, tải-cài-verify và rollback khi job đang dùng bản cũ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P02-10",
+    "scope": "Google Chrome chính thức trên Windows, hồ sơ độc lập, nhiều nền tảng/một hồ sơ và nhiều nick cùng nền tảng khác hồ sơ; kiểm chứng session handoff vào downloader với Chrome đang mở, mã hóa hiện tại và account mismatch.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P02_PLAN.md"
+  },
+  {
+    "id": "P03-01",
+    "scope": "scaffold module, môi trường tái lập, dependency lock, config và user data tách khỏi thư mục chương trình.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-02",
+    "scope": "schema/version/migration cho project/media/preset/job/artifact/history/cache; backup và phục hồi khi migration lỗi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-03",
+    "scope": "probe, ID/fingerprint, rational timestamp/time map; media không audio hoặc metadata lỗi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-04",
+    "scope": "scheduler/worker process, công đoạn/progress/cancel/pause/retry, quản lý tiến trình con trên Windows và lease phục hồi sau crash.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-05",
+    "scope": "snapshot cấu hình/seed, log lọc bí mật, phân loại lỗi và UI hàng đợi đầu tiên.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-06",
+    "scope": "output tạm → kiểm tra → tên cuối an toàn, không đè; truy vết nguồn; bỏ output/cache khi quét.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-07",
+    "scope": "save/autosave/recovery, relink media, cache theo fingerprint/phiên bản; thử đóng bất thường có kiểm soát.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-08",
+    "scope": "dependency registry/resolver, tool ownership/version/path/capabilities, trusted manifests, cài per-user, staging/self-test/activation/lease/rollback, không đè tool ngoài.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P03-09",
+    "scope": "schema BrowserProfile/PlatformAccountBinding, profile ownership/browser state/auth state, credential refs và account-scoped cache; không lưu cookie/mật khẩu trong project.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P03_PLAN.md"
+  },
+  {
+    "id": "P04-01",
+    "scope": "panel/theme/HiDPI/cỡ chữ UI, drag từ Explorer, media/inspector, slider/ô số/reset.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-02",
+    "scope": "chọn/kéo/resize/xoay logo/chữ/vùng che, crop; neo/tọa độ tương đối, lưới/safe area/snap/Alt và đưa về khung.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-03",
+    "scope": "đa chọn/nhóm/khóa/ẩn/thứ tự layer; tránh kéo nhầm; menu ngữ cảnh.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-04",
+    "scope": "undo/redo, một drag một lệnh; inspector và canvas dùng cùng model, save/open giữ đúng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-05",
+    "scope": "timeline/playhead/trim/split/in-out/gap/ripple/marker, thumbnail/waveform, zoom/scroll/loop.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-06",
+    "scope": "proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-07",
+    "scope": "shortcut theo focus, remap/xung đột/trợ giúp; nhập Việt/Trung không kích hoạt player/canvas.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P04-08",
+    "scope": "UI Cài đặt tool scan/path/check/download/install-all/update/repair/rollback có progress; Chrome/profile/account tables, Ctrl+, và readiness với nút khắc phục đúng lỗi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P04_PLAN.md"
+  },
+  {
+    "id": "P05-01",
+    "scope": "registry/capabilities, nhiều URL, bài/kênh/playlist, ID chuẩn và loại trùng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-02",
+    "scope": "phân trang/checkpoint, ảnh/video/Reels/Shorts/album khi nguồn hỗ trợ, lọc ngày/thời lượng/số lượng/chất lượng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-03",
+    "scope": "cây nội dung, chọn mục, tổng chưa biết/quét ngắt, cancel và tiếp tục khi hỗ trợ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-04",
+    "scope": "downloader/tệp tạm/validation, tốc độ/retry/rate limit/auth; không log cookie/token.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-05",
+    "scope": "folder/kênh/album Unicode có ID, video/images/subtitles/metadata, thiếu đĩa/quyền ghi/tên dài/xung đột.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-06",
+    "scope": "chống trùng theo ID/chất lượng/tệp hợp lệ; bổ sung sub riêng, tải lại tệp lỗi, đồng bộ lần hai và kênh đổi tên.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-07",
+    "scope": "kiểm chứng nguồn/loại media/auth, lưu ngày/phiên bản/evidence. Thiếu quyền ghi blocker, không dùng mock để báo hỗ trợ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-08",
+    "scope": "profile manager mở Chrome thật vào đúng user-data-dir/nền tảng, tạo/đặt tên/gán nhiều nền tảng, tách nick cùng nền tảng, xử lý khóa/bận mà không phá profile.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-09",
+    "scope": "session broker theo cơ chế đạt P02, đăng nhập/kiểm tra/đăng nhập lại cho mọi nền tảng, nhận diện nick, trạng thái website khác khả năng connector dùng phiên và quyền nguồn.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P05-10",
+    "scope": "chọn account theo nguồn/job, nhớ mặc định, refresh cùng danh tính/resume, mismatch chặn đúng job; không silent fallback sang công khai hoặc tự xoay nick; auth cache không lẫn tài khoản.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P05_PLAN.md"
+  },
+  {
+    "id": "P06-01",
+    "scope": "SRT/VTT/ASS về cue chung, báo style chưa hỗ trợ; ghép bằng ID/ngôn ngữ/tên, báo mơ hồ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P06-02",
+    "scope": "nguồn/đích/ưu tiên, sub người đăng/tự động, chính sách thiếu sub và khác ngôn ngữ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P06-03",
+    "scope": "adapter dịch thật, thuật ngữ/xưng hô/tên riêng/ngữ cảnh, cache, chi phí/rate limit/retry.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P06-04",
+    "scope": "gốc/dịch song song, sửa/tìm/thay/tách/gộp, dịch lại câu chọn, khóa câu đã sửa, lịch sử.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P06-05",
+    "scope": "thời gian qua timeline/ô số, offset, kiểm tra chồng/tràn, time map sau trim/speed.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P06-06",
+    "scope": "đơn/song ngữ, style cơ bản liên kết P07, xuất SRT/ASS và burn-in qua pipeline chung.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P06_PLAN.md"
+  },
+  {
+    "id": "P07-01",
+    "scope": "font hệ thống/TTF/OTF riêng, tìm/yêu thích/mẫu/fallback/glyph/thiếu font; cùng font/layout preview-render.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-02",
+    "scope": "chữ/viền/bóng/nền/padding/căn/giãn dòng/giãn chữ/ngắt dòng/nội dung động; nhiều logo, vị trí/lề/opacity/thời gian.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-03",
+    "scope": "nhiều vùng blur/mosaic/màu, bo góc/cường độ/feather theo khả năng engine đã chứng minh; cảnh báo thuộc tính không khả dụng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-04",
+    "scope": "keyframe X/Y/scale/rotation/opacity, linear/easing, copy/paste, thời gian tuyệt đối/tương đối, playhead và undo.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-05",
+    "scope": "chạy thẳng/chéo/A→B/nhiều điểm/qua góc/lặp/đi-về/nảy/zoom/xoay/fade; speed/duration/delay/hold/repeat/vùng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-06",
+    "scope": "random có seed/khoảng/xác suất, biến thể mỗi clip, vùng tránh/cảnh báo xung đột, giữ khóa tay.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-07",
+    "scope": "fit/crop/nền/tỷ lệ/màu/flip/rotate/speed; thứ tự filter, time map sub, capability CPU/GPU.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P07-08",
+    "scope": "compiler từ model chung, đối chiếu frame, progress FFmpeg/cancel/validation; tối ưu một lần encode khi có thể, ghi lý do cần intermediate.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P07_PLAN.md"
+  },
+  {
+    "id": "P08-01",
+    "scope": "nhiều folder/đệ quy/checkbox/loại/đảo chọn/tìm/lọc, không xóa nguồn, không nhận output/cache.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-02",
+    "scope": "preset/ghi đè clip/xem tác động/snapshot, output theo kênh/mẫu tên/phiên bản không đè.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-03",
+    "scope": "tiếng gốc/âm chính/nhạc/SFX, mute/solo/gain/fade/trim/delay, meter/clipping/chuẩn hóa.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-04",
+    "scope": "audio cả lô/theo tên/danh sách/random và playlist thủ công đa thư mục có preflight/snapshot/render verification; nhạc lặp chuyển tiếp; SFX theo giây/cảnh/tỷ lệ và trigger không đều; ducking theo chính sách hỗ trợ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-05",
+    "scope": "duration planner một hoặc nhiều clip; đích video/audio/nhập tay, min/max speed/đoạn, giữ cao độ, lặp/freeze/cắt theo lựa chọn.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-06",
+    "scope": "tính chuyển cảnh/audio crossfade vào thời lượng, time map sub; báo bất khả thi, không tự bỏ cảnh/ghép clip ngoài chế độ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P08-07",
+    "scope": "chạy thử một video/đoạn, ước tính dung lượng/ETA, render lô/resume, kiểm tra duration/tracks/media.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P08_PLAN.md"
+  },
+  {
+    "id": "P09-01",
+    "scope": "quét C1…Cn/G1…Gm, natural sort/đổi thứ tự/khóa/loại, ID ổn định/tên logic; đổi tên thật có ánh xạ hoàn tác riêng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P09-02",
+    "scope": "tích tổ hợp/lọc/history dự án/hash góc/tổ hợp; phân biệt reservation và đầu ra thành công.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P09-03",
+    "scope": "generator seed/không trùng/cân bằng/W/K, phạm vi so sánh, timeout/cancel, chưa tìm đủ khác bất khả thi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P09-04",
+    "scope": "bảng sửa/khóa ô/tạo lại hàng/preview/chuỗi C1G1+C2G2+…/thống kê/CSV; sửa hàng phải kiểm tra lại ràng buộc.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P09-05",
+    "scope": "chia đều/tỷ lệ/trọng số/nhập tay, dùng duration planner P08, tính chuyển cảnh, giữ đủ/thứ tự.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P09-06",
+    "scope": "render/validation theo hàng, snapshot nguồn/góc/preset/seed, commit lịch sử sau output hợp lệ, retry không sinh tổ hợp mới ngầm.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P09_PLAN.md"
+  },
+  {
+    "id": "P10-01",
+    "scope": "DAG tải→sub→dịch→edit→render→validation theo lô/cuốn chiếu, công đoạn idempotent/trạng thái riêng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-02",
+    "scope": "lịch đồng bộ/watcher đợi tệp ổn định/loại output, chống job trùng/chạy chồng, chính sách lịch bỏ lỡ; chạy khi app đóng cần chế độ nền/Windows Task Scheduler được bật rõ.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-03",
+    "scope": "kênh→logo/preset/output, auto layout có giới hạn, chạy lại riêng nhóm/giữ sửa tay/dry-run.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-04",
+    "scope": "CPU/RAM/GPU/VRAM/đĩa, Êm/Cân bằng/Tối đa, giới hạn riêng quét/tải/dịch/render/luồng mỗi việc.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-05",
+    "scope": "benchmark gợi ý, giữ tài nguyên dự phòng/backpressure/giảm nhận việc, phục hồi có ngưỡng tránh dao động; encode khác filter GPU.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-06",
+    "scope": "ETA/tốc độ/công đoạn/lô, ưu tiên/đổi job chờ/thông báo, hành động sau xong do người dùng bật, dọn cache an toàn.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P10-07",
+    "scope": "preflight tool/Chrome/session/quyền nguồn, lease tool/profile và giới hạn theo account/domain; login lại đúng nick rồi resume, cập nhật tool không đụng job đang chạy, không dọn browser data như cache.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P10_PLAN.md"
+  },
+  {
+    "id": "P11-01",
+    "scope": "end-to-end các workflow/nguồn hỗ trợ; dọc/ngang/CFR/VFR/rotation/audio lệch hoặc không audio/sub sau speed-trim.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-02",
+    "scope": "crash worker/app/mạng/auth/rate limit/quota/tệp hỏng/thiếu font-media/quyền ghi-đĩa đầy; retry/resume.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-03",
+    "scope": "lô lớn/nhiều layer/ma trận lớn/tải+render; đo UI/proxy/seek/RAM/VRAM/rò tài nguyên trên máy tham chiếu.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-04",
+    "scope": "đối chiếu frame/sub/audio/duration theo dung sai; sửa nguyên nhân, không tắt kiểm tra để đạt.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-05",
+    "scope": "rà mọi hàng truy vết, mọi tùy chọn/phím tắt/focus/HiDPI/theme/persistence/preset migration.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-06",
+    "scope": "nguồn có phiên bản/ngày/evidence, tách lỗi app/hạn chế nguồn/blocker cấu hình; không đóng mục chưa chạy thành công.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-07",
+    "scope": "log/backup/cache/dependency, lỗi còn lại theo mức ảnh hưởng và cách khắc phục.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P11-08",
+    "scope": "missing/wrong tools, installer ngắt/verify lỗi/quyền ghi/update bận; Chrome A nhiều nền tảng, Chrome B nick khác, phiên hết hạn/challenge/mismatch/lock/bridge không dùng được, export không chứa session.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P11_PLAN.md"
+  },
+  {
+    "id": "P12-01",
+    "scope": "đóng gói tái lập theo P02, FFmpeg/thư viện/font hợp lệ; chạy không cần bộ dev/admin nếu không thiết yếu.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-02",
+    "scope": "phân biệt install/user data, Unicode/quyền ghi/antivirus thực tế, CPU-only và GPU phù hợp khi có.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-03",
+    "scope": "chạy workflow từ bản đóng gói, save/open/crash/restart/migration/cấu hình thiếu, mở kết quả bằng player ngoài.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-04",
+    "scope": "hướng dẫn Việt, preset mẫu, cấu hình dịch/phiên nguồn an toàn, phím tắt/chẩn đoán/báo lỗi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-05",
+    "scope": "cập nhật tool/adapter có version/xác minh/tương thích/rollback, backup trước đổi schema.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-06",
+    "scope": "manifest, capabilities, máy thật, release notes/giới hạn, lưu bản phục hồi.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  },
+  {
+    "id": "P12-07",
+    "scope": "Windows mới thiếu dependency/Chrome: từ Cài đặt tải-cài-kiểm tra, mở Chrome thật/login, dùng phiên tải mẫu; tool ngoại không bị sửa, offline vẫn dùng media cục bộ, giới hạn auth được ghi đúng.",
+    "status": "PLANNED",
+    "plan": "docs/phases/P12_PLAN.md"
+  }
+]

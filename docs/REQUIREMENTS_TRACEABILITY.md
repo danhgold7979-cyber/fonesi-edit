@@ -1,6 +1,6 @@
 # Fonesi Edit — Đối chiếu yêu cầu với đầu việc và nghiệm thu
 
-Bảng dưới lưu tiêu chí nghiệm thu và mapping của 95 nhóm yêu cầu, không phải bảng tất cả đã đạt. Code, bằng chứng local và các phần còn mở được cập nhật tại [đối chiếu triển khai](IMPLEMENTATION_COVERAGE.md) và [trạng thái](CURRENT_STATUS.md).
+Bảng dưới lưu tiêu chí nghiệm thu và mapping của 95 nhóm yêu cầu, không phải bảng tất cả đã đạt. Bằng chứng clean rebuild bắt đầu rỗng; xem [trạng thái](CURRENT_STATUS.md). Mọi CI/PASS cũ đã chuyển sang archive, không chứng nhận thế hệ này.
 
 Nguồn: PR = [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md); ED = [EDITOR_SPEC.md](EDITOR_SPEC.md); SB = [SETTINGS_AND_BROWSER_SPEC.md](SETTINGS_AND_BROWSER_SPEC.md). Mã Pxx-yy tham chiếu [kế hoạch](IMPLEMENTATION_PLAN.md). Các hàng nhóm phải kiểm tra đủ thuộc tính trong section nguồn, không lấy một ví dụ qua là cả nhóm xong.
 
@@ -137,7 +137,7 @@ Nguồn: PR = [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md); ED = [EDITOR_S
 | FLOW-22 | Phiên hết hạn/OTP/CAPTCHA: chờ đúng nick, login thật, kiểm tra và resume | P05, P10–P11 |
 | FLOW-23 | Export project/preset/log và dọn cache không lộ hoặc xóa dữ liệu phiên Chrome | P03, P10–P12 |
 
-Bằng chứng hiện tại dùng media synthetic và HTTP localhost: xem [báo cáo local](LOCAL_VERIFICATION.md). FLOW có nguồn live/API/Chrome/GPU/Windows chỉ được đánh đạt sau thử đúng môi trường; test transport giả không thay bằng chứng dịch thật.
+Clean rebuild chưa có bằng chứng runtime; kho evidence mới bắt đầu rỗng. FLOW có nguồn live/API/Chrome/GPU/Windows chỉ được đánh đạt sau thử đúng môi trường; test transport giả không thay bằng chứng dịch thật.
 
 ## 8. Tích hợp sau, không tính là thiếu của bản hiện tại
 
@@ -158,9 +158,9 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 | TOL-01 | Bảng tool và quét nguồn phổ biến/tùy chỉnh | PR 13; SB 2.1 | P01-08, P04-08 | Hiện đường dẫn/version/vai trò/trạng thái, không chỉ tìm tên exe |
 | TOL-02 | Trỏ đường dẫn, chọn bản, kiểm tra hoạt động | SB 2.1 | P02-09, P03-08 | Unicode/timeout/sai version/capability báo đúng, không sửa tool ngoài |
 | TOL-03 | FFmpeg/ffprobe/downloader và dependency theo workflow | SB 2.2 | P02-09, P03-08 | Manifest đúng kiến trúc/phiên bản/capability, không bắt cài dev tools vô cớ |
-| TOL-04 | Tải-cài thiếu, install-all, progress/cancel | SB 2 | P03-08, P04-08 | Nút chạy thật qua tải/xác minh/cài/kiểm tra; chưa xong không báo ready |
+| TOL-04 | Tải-cài thiếu, install-all, progress/cancel và chống thao tác cập nhật trùng | SB 2, 2.3 | P03-08, P04-08, P11-08 | Nút chạy thật qua tải/xác minh/cài/kiểm tra; chưa xong không báo ready; FFmpeg/ffprobe chung busy key, công cụ độc lập vẫn xếp hàng, install-missing bỏ qua thành phần đang bận. |
 | TOL-05 | Trusted artifacts, TLS/checksum/chữ ký | SB 2.3 | P02-09, P03-08 | Artifact lỗi bị chặn, bản cũ và cấu hình được giữ |
-| TOL-06 | Staging/repair/update/rollback và tool lease | SB 2.3 | P03-08, P10-07 | Job cũ giữ binary cũ, bản mới kích hoạt an toàn, rollback chạy được |
+| TOL-06 | Staging/repair/update/rollback, receipt identity, tool lease, Settings cleanup và update-busy | SB 2.3 | P03-08, P10-07, P11-08 | Job cũ giữ binary cũ; activation xác thực receipt identity/managed path/hash/companion; rollback chặn executable ngoài root và ffprobe symlink; Settings cleanup chỉ gỡ bản không còn lease; per-tool busy guard chặn cập nhật trùng và thao tác xung đột. Máy Windows người dùng, cross-process mutex và live install/update cần bằng chứng clean rebuild |
 | TOL-07 | Chrome chính thức quét/trỏ/tải-cài | SB 2.2, 3 | P02-10, P04-08, P12-07 | Google Chrome thật, không WebView/Chromium giả thay thế |
 | TOL-08 | Runtime/font/model/driver có điều kiện | SB 2.2 | P03-08, P12-07 | Chỉ thành phần cần được yêu cầu, driver không tự thay, API không tự tải model |
 | TOL-09 | Readiness tool/phiên/quyền nguồn, nút sửa đúng lỗi | SB 7 | P04-08, P10-07 | Thiếu tool/login/nguồn có hành động khác nhau, media cục bộ không bị chặn vô cớ |
@@ -175,3 +175,4 @@ Phần này thuộc phạm vi hiện tại, không phải phần tích hợp sau
 | AUTH-09 | Đổi nick/mismatch, không xoay tài khoản tự động | SB 5 | P05-10, P11-08 | Job cũ không chạy bằng nick mới; rate limit không tự coi hết hạn |
 | AUTH-10 | Account-scoped cache và profile concurrency | SB 5 | P03-09, P10-07 | Cache/quyền A không dùng cho B, không giành user-data-dir |
 | AUTH-11 | Browser data riêng, export/dọn/xóa liên kết khác xóa profile | SB 4–5, 8 | P03-09, P10-07, P11-08 | Export không lộ session, cache cleanup không xóa profile, xóa dữ liệu có thao tác riêng |
+

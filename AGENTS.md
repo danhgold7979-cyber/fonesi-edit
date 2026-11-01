@@ -8,3 +8,10 @@
 - Keep source media unchanged. Validate generated outputs before reporting success. Never weaken TLS, artifact checks or Chrome/OS protections.
 - Test meaningful changes with the relevant checks. Keep unavailable, skipped and failed checks separate from passed checks.
 - Do not delegate to sub-agents unless the user explicitly requests delegation.
+
+## Clean generation 2026-11-01 (supersedes old implementation status)
+- The active implementation is rebuilt from scratch. Do not import archived src/tests/scripts or dirty changes. Preserve canonical source requirements and licensing/reference artifacts.
+- Exactly one new short branch per canonical phase: phase-01 through phase-12. Keep main stable; ordinary commits, no force/history rewrite. Parent owns remote publication/branch removal in this task.
+- Old CI/PASS is historical only. Current evidence lives in docs/evidence/records.json, with generation and exact new SHA. 95 requirement groups require child-level evidence, not one example per group.
+- Before any source reset/removal verify recoverable archives/inventory; never reset/delete the separate old dirty checkout.
+- All 94 task scopes remain mandatory; local/blocked/accepted distinct. Developer correctness checks are not Windows/Chrome/provider/GPU acceptance.
