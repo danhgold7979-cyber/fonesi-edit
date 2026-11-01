@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       # Explicit diagnostic commits preserve prior green matrix evidence; not aggregate acceptance.
-      matrix: ${{ fromJSON(github.event_name == 'push' && (contains(github.event.head_commit.message, '[coordinator-diagnostic]') || contains(github.event.head_commit.message, '[windows-boundary]')) && '{"include":[{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"}]}' || '{"os":["windows-latest","ubuntu-24.04"],"python":["3.12","3.13"]}') }}
+      matrix: ${{ fromJSON(github.event_name == 'push' && (contains(github.event.head_commit.message, '[coordinator-diagnostic]') || contains(github.event.head_commit.message, '[windows-boundary]') || contains(github.event.head_commit.message, '[admission-observation]')) && '{"include":[{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"}]}' || '{"os":["windows-latest","ubuntu-24.04"],"python":["3.12","3.13"]}') }}
     name: "${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-diagnostic]') && 'Coordinator diagnostic (not aggregate)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[coordinator-recovery]') && 'Coordinator recovery (affected tests)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[integration-repair]') && 'Integration repair (affected tests)' || github.event_name == 'push' && contains(github.event.head_commit.message, '[publication-admission]') && 'Publication admission (affected tests)' || 'Foundation' }} (${{ matrix.os }}, ${{ matrix.python }})"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -21,6 +21,7 @@ jobs:
       INTEGRATION_REPAIR: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[integration-repair]') }}
       WINDOWS_BOUNDARY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[windows-boundary]') }}
       PUBLICATION_ADMISSION: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[publication-admission]') }}
+      ADMISSION_OBSERVATION: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[admission-observation]') }}
       QT_QPA_PLATFORM: offscreen
       PYTHONUTF8: '1'
       EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -45,8 +46,11 @@ jobs:
         if: env.COORDINATOR_DIAGNOSTIC != 'true' && env.COORDINATOR_RECOVERY != 'true' && env.INTEGRATION_REPAIR != 'true' && env.PUBLICATION_ADMISSION != 'true'
         run: uv run --no-sync python -m pytest -q --junitxml=foundation-results.xml
       - name: Affected live publication admission (not aggregate acceptance)
-        if: env.PUBLICATION_ADMISSION == 'true'
+        if: env.PUBLICATION_ADMISSION == 'true' && env.ADMISSION_OBSERVATION != 'true'
         run: uv run --no-sync python -m pytest -q tests/test_publication_admission.py tests/test_publication_session.py tests/test_publication_recovery.py --junitxml=foundation-results.xml
+      - name: Observable source mutation boundaries (not aggregate acceptance)
+        if: env.PUBLICATION_ADMISSION == 'true' && env.ADMISSION_OBSERVATION == 'true'
+        run: uv run --no-sync python -m pytest -q tests/test_publication_admission.py -k 'precision or source_change_after_hash' --junitxml=foundation-results.xml
       - name: Affected integration repair (not aggregate acceptance)
         if: env.INTEGRATION_REPAIR == 'true' && env.WINDOWS_BOUNDARY != 'true'
         run: uv run --no-sync python -m pytest -q tests/test_jobs_migration.py tests/test_jobs_open_identity.py tests/test_media_discovery.py tests/test_tool_discovery.py tests/test_frozen_boundary_harness.py --junitxml=foundation-results.xml

@@ -65,3 +65,10 @@ remain refused. Recursive `session.scan_sources` automatically supplies every ma
 output root, configured cache root and durable artifact physical identity to the
 existing scanner. The artifact query is capped100001, refusing above100000 rather
 than silently dropping exclusions. Returned candidates still require validation.
+
+Metadata continuity is intentionally weaker than byte immutability: same-size edits
+can be invisible while timestamps are unchanged/coarse/delayed (or restored). The
+namespace guard must not be used as content validation or permission to skip the
+required source fingerprint/probe checks before execution and after relevant I/O.
+Its mutation regressions use changed size or explicitly changed observed metadata,
+not an assumption that every write immediately changes Windows timestamps.

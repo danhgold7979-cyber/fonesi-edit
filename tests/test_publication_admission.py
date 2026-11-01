@@ -93,7 +93,7 @@ def test_snapshot_source_change_after_hash_prevents_link(tmp_path,empty_plan,mon
         live.stage_subtitle('subtitle',RAW);live.prepare();live.claim()
         dest=live._destinations[str(root)];verify=dest._verify
         def change(*args,**kwargs):
-            verify(*args,**kwargs);source.write_bytes(b'changed!')
+            verify(*args,**kwargs);source.write_bytes(b'changed size and content')
         monkeypatch.setattr(dest,'_verify',change)
         with pytest.raises(PublicationUnknown):live.publish_member('subtitle')
         assert not (root/'final.srt').exists()
@@ -114,5 +114,5 @@ def test_named_and_descriptor_timestamp_precision_separate_but_mutation_rejected
     monkeypatch.setattr(module.os,'fstat',coarse)
     with Destination(root) as dest,NamespaceAdmission({'assets':[source_record(source)],'fonts':[]},{str(root):dest},output(root)) as admission:
         admission.guard() # Same physical object, different API timestamp precision.
-        source.write_bytes(b'changed!')
+        source.write_bytes(b'changed size and content')
         with pytest.raises(PublicationUnknown):admission.guard()

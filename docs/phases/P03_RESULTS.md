@@ -859,3 +859,24 @@ Original local cleanup assertions did not establish race safety and are not acce
 evidence. A separately reviewed object-bound deletion capability plus worker quiescence
 is required before cleanup can safely ship. No automatic cleanup/unsafe retry/foreign
 file deletion remains in active source.
+
+### Admission target result / metadata-observation repair
+
+Public2c5ddff85e04fcbfc77389b209452f8ca29c6426 run41300558073: Ubuntu3.12.15,
+Ubuntu3.13.17 and Windows3.12.10 each48 PASS/1SKIP (actual FFmpeg unavailable).
+Windows3.13.16:47PASS/1SKIP/1FAIL, solely the precision test's immediate same-size
+write observation. The original test assumed timestamps necessarily change; the
+namespace admission contract explicitly does not validate content hashes. Two test
+mutations now change size (precision and pre-link observation) so they deterministically
+exercise observable metadata loss. No application source/guard is changed. Same-size
+edits with unchanged/coarse/delayed/restored metadata are explicitly NOT detected;
+fingerprint/probe validation remains required before execution and after relevant I/O.
+The exact hosted timestamp mechanism is unknown. Primary timestamp limitations:
+https://learn.microsoft.com/en-us/windows/win32/sysinfo/file-times .
+
+All four ZIP API digests/source identities and8 exact member hashes retained in
+hosted-41300558073. Local2 affected cases PASS and independent2 PASS; next paired
+[publication-admission] [admission-observation] targets only those two cases on
+Windows3.12/3.13. Prior48/47PASS cases are carried forward, not repeated. Frozen
+unchanged remains skipped. No source-byte immutability, safe cleanup or criterion
+acceptance inferred.

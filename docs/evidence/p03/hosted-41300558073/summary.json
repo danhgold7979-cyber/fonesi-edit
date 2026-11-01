@@ -1,0 +1,113 @@
+{
+  "run_id": 41300558073,
+  "public_source": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+  "status": "FAIL",
+  "jobs": [
+    {
+      "name": "publication-admission-ubuntu-24.04-py3.12",
+      "zip_sha256": "237bc619dc1f589f60ca413700b2da872fe0c35883b1f6bcff7089ba53a02760",
+      "files_sha256": {
+        "foundation-source.json": "4a31142d94e3358f181fb39d681c39f47db263b50e7f693f62941deba93027ce",
+        "foundation-results.xml": "9cc216a6909867e2619865262f615e9f7eb60cc936eaefbf21b6c1d0872566e8"
+      },
+      "source": {
+        "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+        "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.12.15",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "49",
+        "time": "4.333",
+        "timestamp": "2026-11-01T11:08:54.127567+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "failed_cases": []
+    },
+    {
+      "name": "publication-admission-ubuntu-24.04-py3.13",
+      "zip_sha256": "d514503d7165a078d6fae3c89f18b582e4b3a0cb493752543d219071277091b1",
+      "files_sha256": {
+        "foundation-source.json": "93dcfc131bb561fcabe484809330433ba561f5abd255ae9a17eaca7e835102e0",
+        "foundation-results.xml": "8e63876ec7f74063533eba409897f17fa43f138064a57ca0f3fc471587c25516"
+      },
+      "source": {
+        "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+        "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+        "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "python": "3.13.17",
+        "sqlite": "3.45.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "49",
+        "time": "1.745",
+        "timestamp": "2026-11-01T11:08:57.422453+00:00",
+        "hostname": "runnervm48cm3"
+      },
+      "failed_cases": []
+    },
+    {
+      "name": "publication-admission-windows-latest-py3.12",
+      "zip_sha256": "6570ae3475d0ae1f43208e12150b79ff9529028c7c15325513a2a4c2d8af200c",
+      "files_sha256": {
+        "foundation-source.json": "d0f9c1beb66cdc824d7ac6c3743fd1f14edb3107bbc2a9ad17ba4e384686d82c",
+        "foundation-results.xml": "f24a510c7a7fea1f40683cb1e772c18bce0f4008df5b735a3ac8238805277d09"
+      },
+      "source": {
+        "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+        "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.12.10",
+        "sqlite": "3.49.1"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "49",
+        "time": "15.422",
+        "timestamp": "2026-11-01T11:09:17.735063+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "failed_cases": []
+    },
+    {
+      "name": "publication-admission-windows-latest-py3.13",
+      "zip_sha256": "ea39814aea3436995c3db161700c88f770a89cfa00b9b19cd78bd51ed800263d",
+      "files_sha256": {
+        "foundation-source.json": "02d8f7ef674bf07ff60624f80eaf6ebd4f3edbf76c95d833225ffb64f039e853",
+        "foundation-results.xml": "a8d6fd64bf587cd0cf4a7718b3939fe988dbf26166a20e10f7ed703dcb189c6c"
+      },
+      "source": {
+        "source_sha": "2c5ddff85e04fcbfc77389b209452f8ca29c6426",
+        "source_tree": "393c15e71a0cd466cfe07f7c4e69d0df32778699",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.16",
+        "sqlite": "3.50.4"
+      },
+      "counts": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "1",
+        "tests": "49",
+        "time": "10.725",
+        "timestamp": "2026-11-01T11:09:16.212892+00:00",
+        "hostname": "runnervmdaln5"
+      },
+      "failed_cases": [
+        "test_named_and_descriptor_timestamp_precision_separate_but_mutation_rejected"
+      ]
+    }
+  ]
+}
