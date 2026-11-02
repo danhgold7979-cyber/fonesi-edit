@@ -34,7 +34,7 @@ class LayerEditorWorkspace(QWidget):
         super().__init__(parent);self.get_session=get_session
         self.selected_id=None;self.undo_stack=[];self.redo_stack=[]
         self.syncing=False;self.committing=False;self.stopping=False
-        self.last_session=None;self.last_revision=None
+        self.last_session=None;self.last_revision=None;self.original_transform=None
         root=QVBoxLayout(self)
         self.notice=QLabel('Canvas hình học layer; chưa giải mã video hoặc render hiệu ứng. Không phải preview/export.')
         self.notice.setWordWrap(True);root.addWidget(self.notice)
@@ -132,8 +132,9 @@ class LayerEditorWorkspace(QWidget):
         self.syncing=True
         try:
             if layer is not None:
-                t=layer['transform']
+                t=layer['transform'];self.original_transform=deepcopy(t)
                 for name,s in self.spins.items():s.setValue(val(t[name]))
+            else:self.original_transform=None
                 self.anchor.setCurrentText(t['anchor']);self.flip_x.setChecked(t['flip_x']);self.flip_y.setChecked(t['flip_y'])
         finally:self.syncing=False
 
@@ -199,9 +200,18 @@ class LayerEditorWorkspace(QWidget):
         data=self.data();layer=self.selected(data)
         if layer is None or locked(layer):return
         t=layer['transform']
-        for name,s in self.spins.items():t[name]=pair(s.value())
-        t['anchor']=self.anchor.currentText();t['flip_x']=self.flip_x.isChecked();t['flip_y']=self.flip_y.isChecked()
-        self.commit(data,'chỉnh thông số layer')
+        original=self.original_transform or deepcopy(t)
+        changed=False
+        for name,s in self.spins.items():
+            if abs(s.value()-val(original[name]))>0.000051:
+                t[name]=pair(s.value());changed=True
+        if self.anchor.currentText()!=original['anchor']:
+            t['anchor']=self.anchor.currentText();changed=True
+        if self.flip_x.isChecked()!=original['flip_x']:
+            t['flip_x']=self.flip_x.isChecked();changed=True
+        if self.flip_y.isChecked()!=original['flip_y']:
+            t['flip_y']=self.flip_y.isChecked();changed=True
+        if changed:self.commit(data,'chỉnh thông số layer')
 
     def undo(self):self._history(True)
     def redo(self):self._history(False)
