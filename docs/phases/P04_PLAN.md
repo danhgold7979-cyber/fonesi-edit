@@ -1,6 +1,6 @@
 # P04 — Task-specific clean implementation plan
 
-Generation clean-2026-11-01; branch `phase-04`. Status PLANNED, not implemented or accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
+Generation clean-2026-11-01; branch `phase-04`. Status IN_PROGRESS; P04-01/P04-02 have partial code, no P04 task or phase is accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
 
 ## P04-01 — panel/theme/HiDPI/cỡ chữ UI, drag từ Explorer, media/inspector, slider/ô số/reset.
 
@@ -126,12 +126,6 @@ PASS claim; other failures, if any, remain separate.
 ## Slice B — local file transfer into source selector
 
 Accept exactly one local file URL from the desktop file manager. Check that it is absolute, bounded, existing, regular, and not a symlink or reparse point. Reject remote URLs, folders, multiple files, and missing paths. A successful drop only fills the existing source field; the user must still review it and press the existing import action. It must not start ffprobe, alter tool trust, copy/move/delete the source, or write project data. Test valid and rejected Qt events and verify source bytes, project revision, and worker state are unchanged. Physical Windows Explorer and HiDPI checks remain external.
-
-## Slice C — first editable layer workspace
-
-Create a real Editor workspace over the existing immutable CompositionPlan and ProjectSession. The first native canvas scope is typed rectangular mask-layer geometry: normalized anchor position and extent, scale, clockwise rotation, opacity, visibility, z-order and explicit lock state. The layer list and numeric inspector must read/write the same model. Canvas drag commits once on release; numeric edits commit once on editing completion. Each completed edit advances project revision exactly once through CompletedCommand CAS. A session-local undo/redo stack restores previous model values by issuing new monotonic revisions, never rewinding stored revisions.
-
-The workspace may show layer bounds over a neutral canvas. It must state that source-video decode, final mask effects, text/font parity and preview/export rendering are not implemented by this slice. No button may claim a render succeeded. Deleting a layer removes only the project object, never its source file. Test rational normalization, all nine anchors, noncentral rotation, locked transforms, hidden layers, z-order, stale revision, one-drag-one-command, undo/redo/save/reopen equality, and source-file preservation. Full multi-select/group/crop/resize handles and renderer parity remain open.
 
 ## Slice C — first editable layer workspace
 
