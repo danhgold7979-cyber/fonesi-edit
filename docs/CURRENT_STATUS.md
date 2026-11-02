@@ -1,6 +1,6 @@
 # Current clean rebuild status
 
-P01 ACCEPTED DESIGN ONLY (independent dbc3f30; recorded527a1a8). P02 bounded local experiments complete, external gates OPEN; P03 IN_PROGRESS on phase-03; P04–P12 PLANNED.94tasks/95groups/438runtime criteria/392source records; exact child assertions accepted13/438 (see current child ledger); whole runtime requirement groups accepted0/95. This is not a tool-completion percentage.
+P01 design accepted only; P02 bounded local experiments complete with external gates OPEN; P03 and P04 IN_PROGRESS on the unified develop/fonesi-full branch; P05–P12 PLANNED. The master ledger contains 94 tasks, 95 requirement groups, 438 runtime criteria and 392 source records; 13/438 child criteria are PASS and 0/95 whole requirement groups are accepted. This is not a tool-completion percentage.
 
 New P02 codee0cfb14 produced3 scoped experiment evidence records: Qt raster/FFmpeg encode-decode/parity at640 and1080, explicit audio stream/delay, Linux frozen Qt startup. [P02 results](phases/P02_RESULTS.md). Whole P02 OPEN. Default headless Qt audio enumeration crashed; official Pulse fallback returns0devices without crashing, not physical playback evidence.
 
@@ -86,3 +86,10 @@ revision CAS. This remains partial source-only implementation: no timeline,
 render-ready conversion, actual Windows user media acceptance or P04 task
 acceptance. Exact-code Linux/Windows CI remains pending and the previously
 accepted child count stays 13/438.
+
+
+## Unified Fonesi Edit checkpoint — 2026-11-02
+
+The sole integration branch is develop/fonesi-full in danhgold7979-cyber/fonesi-edit; main remains unchanged. The current code checkpoint 6e4b905b36f271c0f4a585365ebebd23dfd5b6bc passed hosted CI run 41490203672: Ubuntu Python 3.12/3.13 each 815 passed, 39 skipped, 0 failed; Windows Python 3.12/3.13 each 828 passed, 26 skipped, 0 failed. Windows Python 3.12 also passed five scoped frozen CLI checks. See docs/phases/P04_RESULTS.md for exact scope and limits.
+
+P04 now has partial code for explicit local media import/drop and a geometry-only mask-layer workspace with numeric transforms, canvas move, lock, visibility, z-order and session-local undo/redo. This is not a complete editor: text/logo/font editing, crop/resize handles, multi-select/group, timeline/playhead/trim/split, proxy/seek, renderer/export, preview parity and actual user-device Windows/codec acceptance remain open. P04 whole-task acceptance is 0/8. P03 whole-task acceptance remains 0/9. Do not infer completion from the hosted test count.
