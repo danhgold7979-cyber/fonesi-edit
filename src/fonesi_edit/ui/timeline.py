@@ -3,7 +3,9 @@ from fractions import Fraction
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QBrush, QPen
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGraphicsScene, QGraphicsView, QGraphicsRectItem, QGraphicsTextItem
+from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
+    QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox)
+from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
 
 
 def _q(value):
@@ -11,29 +13,113 @@ def _q(value):
 
 
 class TimelinePanel(QWidget):
+    project_changed=__import__('PySide6.QtCore',fromlist=['Signal']).Signal()
     def __init__(self,get_session,parent=None):
         super().__init__(parent)
         self.get_session=get_session
+        self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline tổng quan theo thời gian chính xác. Chưa có playhead, trim/split, phát lại hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
         self.summary=QLabel('Chưa có clip trong timeline.')
         self.summary.setTextFormat(Qt.TextFormat.PlainText);layout.addWidget(self.summary)
+        self.clip_list=QListWidget();self.clip_list.currentRowChanged.connect(self._select_clip)
+        layout.addWidget(self.clip_list)
+        controls=QHBoxLayout()
+        self.playhead_slider=QSlider(Qt.Orientation.Horizontal);self.playhead_slider.setRange(0,0)
+        self.playhead_slider.valueChanged.connect(self._playhead_changed);controls.addWidget(self.playhead_slider)
+        self.playhead_label=QLabel('Playhead: 0 frame');controls.addWidget(self.playhead_label)
+        self.ripple=QCheckBox('Ripple (đóng khoảng trống)');controls.addWidget(self.ripple)
+        self.split_button=QPushButton('Tách tại playhead');self.trim_in_button=QPushButton('Trim đầu');self.trim_out_button=QPushButton('Trim cuối')
+        for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
+        layout.addLayout(controls)
+        self.action_message=QLabel('');self.action_message.setWordWrap(True);layout.addWidget(self.action_message)
+        self.split_button.clicked.connect(self.split_at_playhead)
+        self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
+        self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
         self.scene=QGraphicsScene(self)
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
         layout.addWidget(self.view)
         self.update_project()
 
+    def _selected_clip(self):
+        session=self.get_session()
+        if session is None or self.selected_clip_id is None:return None
+        return next((x for x in session.project.plan.clips if x.id==self.selected_clip_id),None)
+
+    def _select_clip(self,row):
+        item=self.clip_list.item(row) if row>=0 else None
+        self.selected_clip_id=None if item is None else item.data(Qt.ItemDataRole.UserRole)
+        self.update_actions()
+
+    def _playhead_changed(self,value):
+        self._playhead=value
+        time=Fraction(value,1)/self._fps
+        self.playhead_label.setText(f'Playhead: {value} frame · {float(time):.3f}s')
+        self.update_actions()
+
+    def update_actions(self):
+        clip=self._selected_clip()
+        available=clip is not None
+        inside=False
+        if clip is not None:
+            start=_q(clip.output_start);end=start+(_q(clip.source_out)-_q(clip.source_in))/_q(clip.speed)+_q(clip.freeze_duration)
+            playhead=Fraction(self._playhead,1)/self._fps
+            inside=start<playhead<end
+        self.split_button.setEnabled(available and inside)
+        self.trim_in_button.setEnabled(available and inside)
+        self.trim_out_button.setEnabled(available and inside)
+
+    def split_at_playhead(self):
+        self._apply_timeline_edit('split')
+
+    def trim_at_playhead(self,edge):
+        self._apply_timeline_edit(edge)
+
+    def _apply_timeline_edit(self,action):
+        session=self.get_session();clip=self._selected_clip()
+        if session is None or clip is None:return
+        playhead=Fraction(self._playhead,1)/self._fps
+        try:
+            if action=='split':
+                result=split_video_clip(session.project,clip.id,playhead,expected_revision=session.revision)
+            else:
+                result=trim_video_clip(session.project,clip.id,playhead,edge=action,
+                    ripple=self.ripple.isChecked(),expected_revision=session.revision)
+            session.commit(result.command)
+        except TimelineEditError as exc:
+            self.action_message.setText(f'Không thực hiện được: {exc}')
+            return
+        except Exception:
+            self.action_message.setText('Không xác nhận được chỉnh sửa timeline; không tự gửi lại.')
+            return
+        self.action_message.setText('Đã lưu chỉnh sửa timeline theo frame/rational time. Chưa phát hoặc render.')
+        self.project_changed.emit()
+
     def update_project(self):
         session=self.get_session()
         self.scene.clear()
         if session is None:
             self.scene.setSceneRect(QRectF(0,0,1000,180))
+            self.clip_list.clear();self.playhead_slider.setRange(0,0)
             self.summary.setText('Mở dự án để xem timeline.')
+            self.update_actions()
             return
         data=session.project.plan.to_dict()
         output_duration=_q(data['output']['duration'])
+        self._fps=_q(data['output']['fps'])
+        self.clip_list.clear()
+        for clip in sorted(data['clips'],key=lambda x:(_q(x['output_start']),x['id'])):
+            start=_q(clip['output_start']);length=(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
+            row=QListWidgetItem(f"{float(start):.3f}s · {float(length):.3f}s · {clip['id'][:8]}")
+            row.setData(Qt.ItemDataRole.UserRole,clip['id']);self.clip_list.addItem(row)
+            if clip['id']==self.selected_clip_id:self.clip_list.setCurrentItem(row)
+        max_frames=max(0,int(output_duration*self._fps))
+        self.playhead_slider.setRange(0,max_frames)
+        self.playhead_slider.setValue(min(self._playhead,max_frames))
+        self._playhead=self.playhead_slider.value()
+        self.playhead_label.setText(f'Playhead: {self._playhead} frame · {float(Fraction(self._playhead,1)/self._fps):.3f}s')
         video=[];audio=[];layers=[]
         for clip in data['clips']:
             start=_q(clip['output_start'])
@@ -96,3 +182,4 @@ class TimelinePanel(QWidget):
             f"{len(audio)} audio clip · {len(layers)} layer interval. Đây là sơ đồ thời gian, không phải preview."
         )
         self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
+        self.update_actions()
