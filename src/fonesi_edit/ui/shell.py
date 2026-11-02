@@ -11,6 +11,7 @@ from fonesi_edit.ui.project_relink import RelinkPanel
 from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
 from fonesi_edit.ui.media_import import MediaImportPanel
+from fonesi_edit.ui.layer_editor import LayerEditorWorkspace
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
@@ -45,6 +46,8 @@ class MainWindow(QMainWindow):
         self.media_import.idle.connect(self._queue_idle)
         self.media_import.project_changed.connect(self._project_changed)
         self.media_import.state_changed.connect(self._project_actions)
+        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self)
+        self.layer_editor.project_changed.connect(self._project_changed)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
@@ -82,8 +85,11 @@ class MainWindow(QMainWindow):
                 contents.addWidget(self.restore_panel)
                 contents.addWidget(QLabel('Chưa có tác vụ được chạy. Không có số liệu hiệu suất.'))
             elif index == 3:
-                contents.addWidget(self.inspection_panel)
-                contents.addWidget(self.media_import)
+                tabs=QTabWidget()
+                tabs.addTab(self.layer_editor,'Canvas / Layer')
+                tabs.addTab(self.media_import,'Thư viện media')
+                tabs.addTab(self.inspection_panel,'Quan sát media')
+                contents.addWidget(tabs)
                 contents.addWidget(QLabel('Chưa có timeline, bộ dựng hoặc xuất video.'))
             elif index == 6:
                 contents.addWidget(self.queue_page)
@@ -210,6 +216,7 @@ class MainWindow(QMainWindow):
             self.project=self.session.project
             self.project_label.setText(f'Dự án: {self.project.name}\nMã: {self.project.id}')
         self.media_import.update_project()
+        self.layer_editor.update_project()
         self._project_actions()
 
     def _project_actions(self):
@@ -219,6 +226,7 @@ class MainWindow(QMainWindow):
                                     and not self.relink_panel.busy and not self.media_import.busy and not self._close_requested)
         self.relink_panel.update_actions()
         self.media_import.update_actions()
+        self.layer_editor.update_actions()
 
     @property
     def background_busy(self):return (bool(self.coordinator_host is not None and self.coordinator_host.isRunning()) or
@@ -227,7 +235,7 @@ class MainWindow(QMainWindow):
     def request_stop(self):
         self._close_requested=True
         if self.coordinator_host is not None:self.coordinator_host.requestInterruption()
-        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
+        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.layer_editor.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
