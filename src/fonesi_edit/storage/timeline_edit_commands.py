@@ -96,28 +96,37 @@ def trim_video_clip(project:Project,clip_id:str,output_time:Fraction,*,edge:str,
         removed=output_time-start
         old_end=end
         clip['source_in']=_pair(boundary)
-        clip['output_start']=_pair(output_time)
-        # Matching source-audio tracks follow the same edit point when it is inside them.
+        if not ripple:
+            clip['output_start']=_pair(output_time)
         for audio in data['audio']['clips']:
             if audio['asset_id']!=clip['asset_id']:continue
             astart,aend,ain,aout,aspeed=_span(audio)
             if astart<output_time<aend:
                 audio['source_in']=_pair(ain+(output_time-astart)*aspeed)
-                audio['output_start']=_pair(output_time)
+                if not ripple:audio['output_start']=_pair(output_time)
         if ripple:
             for other in data['clips']:
                 if other['id']==clip_id:continue
                 ostart=_fraction(other['output_start'])
                 if ostart>=old_end:other['output_start']=_pair(ostart-removed)
             for audio in data['audio']['clips']:
-                if audio['asset_id']==clip['asset_id']:continue
                 astart=_fraction(audio['output_start'])
                 if astart>=old_end:audio['output_start']=_pair(astart-removed)
     else:
+        removed=end-output_time
+        old_end=end
         clip['source_out']=_pair(boundary)
         for audio in data['audio']['clips']:
             if audio['asset_id']!=clip['asset_id']:continue
             astart,aend,ain,aout,aspeed=_span(audio)
             if astart<output_time<aend:
                 audio['source_out']=_pair(ain+(output_time-astart)*aspeed)
+        if ripple:
+            for other in data['clips']:
+                if other['id']==clip_id:continue
+                ostart=_fraction(other['output_start'])
+                if ostart>=old_end:other['output_start']=_pair(ostart-removed)
+            for audio in data['audio']['clips']:
+                astart=_fraction(audio['output_start'])
+                if astart>=old_end:audio['output_start']=_pair(astart-removed)
     return _command(project,data,expected_revision)
