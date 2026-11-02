@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 import time
 from hashlib import sha256
 
@@ -44,7 +45,7 @@ def _opened(tmp_path):
 def _panel(window,source):
     panel=window.media_import
     panel.source.setText(str(source))
-    panel.tool.setText(sys.executable)
+    panel.tool.setText(str(Path(sys.executable).resolve()))
     panel.trust.setChecked(True)
     return panel
 

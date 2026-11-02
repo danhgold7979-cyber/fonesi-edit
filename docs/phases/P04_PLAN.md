@@ -111,3 +111,14 @@ source bytes unchanged; Qt shell close waits for background import, owner
 threads retire before QApplication. Linux/Windows 3.12/3.13 source tests; actual
 FFmpeg on a physical Windows user machine remains NOT_RUN. P04-01/P03-07,
 full import/drag/drop/HiDPI/timeline and release acceptance remain OPEN.
+
+ 
+### Initial CI diagnostic and correction
+Initial source suite on commit c4d42d59 failed three new Linux Qt tests
+(run 41482065653). The tests chose the virtualenv `sys.executable`
+symlink as the explicitly trusted ffprobe *path*, which correctly fails
+the production non-reparse tool preflight before any synthetic probe can
+run. Do not weaken that guard. Fixture path now uses the resolved regular
+Python executable; the owned Python child remains a synthetic process
+test, never media codec verification. Exact fix CI must run before a
+PASS claim; other failures, if any, remain separate.
