@@ -134,8 +134,10 @@ class LayerEditorWorkspace(QWidget):
             if layer is not None:
                 t=layer['transform'];self.original_transform=deepcopy(t)
                 for name,s in self.spins.items():s.setValue(val(t[name]))
-            else:self.original_transform=None
-                self.anchor.setCurrentText(t['anchor']);self.flip_x.setChecked(t['flip_x']);self.flip_y.setChecked(t['flip_y'])
+                self.anchor.setCurrentText(t['anchor'])
+                self.flip_x.setChecked(t['flip_x']);self.flip_y.setChecked(t['flip_y'])
+            else:
+                self.original_transform=None
         finally:self.syncing=False
 
     def select_row(self,row):
