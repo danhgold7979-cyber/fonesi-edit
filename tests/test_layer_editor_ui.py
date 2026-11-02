@@ -32,7 +32,7 @@ def test_mask_layer_add_numeric_edit_undo_redo_and_save_reopen(tmp_path,qt_app):
             assert layer['type']=='mask' and layer['visible']
             assert window.session.project.plan.to_dict()['clips']==[]
             assert editor.layers.count()==1
-            assert 'Chưa giải mã video' in editor.notice.text()
+            assert 'chưa giải mã video' in editor.notice.text().lower()
 
             editor.spins['x'].setValue(0.6)
             editor.spins['y'].setValue(0.4)
