@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineE
 from fonesi_edit.domain.media_library import MediaRecord, MediaPath, validate_observation
 from fonesi_edit.media.probe import inspect_media, fingerprint, ProbeCanceled, ProbeError
 from fonesi_edit.media.observations import normalize_probe
+from fonesi_edit.media.frames import observe_frames
 from fonesi_edit.media.retirement import ValidationLifecycle
 from fonesi_edit.storage.media_commands import add_media
+from fonesi_edit.storage.timeline_commands import add_video_clip, TimelineImportError
 
 
 def _source_signature(info):
@@ -132,6 +134,45 @@ class MediaImportWorker(QThread):
                 (self.outcome != 'OBSERVED' or len(lifecycle.mechanisms) == 1))
 
 
+class TimelineImportWorker(QThread):
+    """Observe an exact frame map for an already imported source; never renders."""
+    def __init__(self, record, tool, parent=None):
+        super().__init__(parent)
+        self.record=record
+        self.source=Path(record.path_ref.path)
+        self.tool=Path(tool)
+        self.scan=None
+        self.outcome='UNKNOWN'
+        self.retired=False
+
+    def run(self):
+        operation=object()
+        lifecycle=ValidationLifecycle(operation)
+        try:
+            with lifecycle.validation_body():
+                if (not self.source.is_absolute() or not self.tool.is_absolute() or
+                        self.record.observation is None):
+                    raise ProbeError('Verified absolute media/tool and typed observation required')
+                _regular_original(self.source)
+                _regular_original(self.tool)
+                videos=[s for s in self.record.observation.streams
+                        if s.kind=='video' and not s.attached_picture]
+                if len(videos)!=1:
+                    raise ProbeError('Exactly one non-attached video stream is supported')
+                if self.isInterruptionRequested():
+                    raise ProbeCanceled('Canceled before frame observation')
+                self.scan=observe_frames(self.source,self.tool,self.record.observation,videos[0].index,
+                    cancel=self.isInterruptionRequested,_lifecycle=lifecycle)
+            self.outcome='OBSERVED'
+        except ProbeCanceled:
+            self.outcome='CANCELED'
+        except Exception:
+            self.outcome='REFUSED'
+        finally:
+            self.retired=(lifecycle.confirmed_for(operation) and
+                          (self.outcome!='OBSERVED' or len(lifecycle.mechanisms)==1))
+
+
 class MediaImportPanel(QWidget):
     idle = Signal()
     project_changed = Signal()
@@ -141,6 +182,8 @@ class MediaImportPanel(QWidget):
         super().__init__(parent)
         self.get_session = get_session
         self.worker = None
+        self.timeline_worker = None
+        self.timeline_cancel_requested = False
         self.stopping = False
         self.revoked = False
         self.cancel_requested = False
@@ -180,7 +223,13 @@ class MediaImportPanel(QWidget):
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(['Tên tệp', 'ID thư viện', 'Dung lượng B', 'Trạng thái'])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.itemSelectionChanged.connect(self.update_actions)
         layout.addWidget(self.table)
+        self.timeline_button=QPushButton('Đưa media đã chọn vào timeline')
+        self.timeline_button.clicked.connect(self.add_selected_to_timeline)
+        layout.addWidget(self.timeline_button)
         self.source.textChanged.connect(self.update_actions)
         self.tool.textChanged.connect(lambda _:self.trust.setChecked(False))
         self.tool.textChanged.connect(self.update_actions)
@@ -189,7 +238,7 @@ class MediaImportPanel(QWidget):
 
     @property
     def busy(self):
-        return self.worker is not None
+        return self.worker is not None or self.timeline_worker is not None
 
     def update_project(self):
         session = self.get_session()
@@ -202,6 +251,7 @@ class MediaImportPanel(QWidget):
                                             str(item.size_bytes), item.observation_state)):
                 cell = QTableWidgetItem(value)
                 cell.setToolTip(value)
+                if column==0:cell.setData(Qt.ItemDataRole.UserRole,item.id)
                 self.table.setItem(index, column, cell)
         if session is None:
             self.message.setText('Mở một dự án trước khi nhập media. Chưa thay đổi tệp.')
@@ -219,8 +269,66 @@ class MediaImportPanel(QWidget):
         self.add_button.setEnabled(available and session is not None and
             not session.reconciliation_required and self.trust.isChecked() and
             bool(self.source.text()) and bool(self.tool.text()))
-        self.cancel_button.setEnabled(self.busy and not self.stopping and
-            not self.worker.isInterruptionRequested())
+        self.timeline_button.setEnabled(available and session is not None and
+            not session.reconciliation_required and self.trust.isChecked() and
+            bool(self.tool.text()) and self._selected_record() is not None)
+        active_worker=self.worker if self.worker is not None else self.timeline_worker
+        self.cancel_button.setEnabled(active_worker is not None and not self.stopping and
+            not active_worker.isInterruptionRequested())
+
+    def _selected_record(self):
+        session=self.get_session()
+        if session is None or session.project.library is None:return None
+        rows=self.table.selectionModel().selectedRows()
+        if len(rows)!=1:return None
+        cell=self.table.item(rows[0].row(),0)
+        if cell is None:return None
+        media_id=cell.data(Qt.ItemDataRole.UserRole)
+        return next((item for item in session.project.library.items if item.id==media_id),None)
+
+    def add_selected_to_timeline(self):
+        session=self.get_session();record=self._selected_record()
+        if (self.busy or self.stopping or self.revoked or session is None or record is None or
+                session.reconciliation_required or not self.trust.isChecked()):
+            return
+        tool=Path(self.tool.text())
+        if not tool.is_absolute():
+            self.message.setText('Chọn ffprobe bằng đường dẫn tuyệt đối và xác nhận tin cậy trước.')
+            return
+        revision=session.revision
+        self.timeline_cancel_requested=False
+        worker=TimelineImportWorker(record,tool,self)
+        self.timeline_worker=worker
+        worker.finished.connect(lambda:self._timeline_finished(worker,session,revision,record))
+        self.message.setText('Đang quan sát PTS của luồng video đã chọn; chưa tạo clip hoặc render.')
+        self.update_actions();self.state_changed.emit();worker.start()
+
+    def _timeline_finished(self,worker,session,revision,record):
+        if self.timeline_worker is not worker:return
+        if not worker.wait(0):
+            QTimer.singleShot(10,lambda:self._timeline_finished(worker,session,revision,record));return
+        if not worker.retired:
+            self.revoked=True
+            self.message.setText('Chưa xác nhận tiến trình quan sát đã dừng an toàn. Không thêm timeline hoặc chạy lại.')
+        elif self.stopping or self.timeline_cancel_requested or worker.outcome=='CANCELED':
+            self.message.setText('Đã hủy quan sát frame; project không đổi.')
+        elif worker.outcome!='OBSERVED' or worker.scan is None:
+            self.message.setText('Không xác nhận được frame map; project không đổi.')
+        elif self.get_session() is not session or session.revision!=revision:
+            self.message.setText('Project/revision đã đổi trong khi quan sát; không ghi kết quả cũ.')
+        else:
+            try:
+                addition=add_video_clip(session.project,record,worker.scan,expected_revision=revision)
+                session.commit(addition.command)
+            except TimelineImportError as exc:
+                self.message.setText(f'Không thể thêm clip: {exc}')
+            except Exception:
+                self.message.setText('Không xác nhận ghi timeline; kiểm tra project/khôi phục, không tự thử lại.')
+            else:
+                self.project_changed.emit()
+                self.message.setText('Đã thêm clip và các track âm thanh đã quan sát. Chưa phát, dựng hoặc xuất video.')
+        self.timeline_worker=None;worker.deleteLater()
+        self.update_actions();self.state_changed.emit();self.idle.emit()
 
     def _source_dropped(self, path):
         self.message.setText('Đã chọn đường dẫn nguồn. Chưa chạy kiểm tra hoặc thêm media; hãy rà soát rồi bấm nút nhập.')
@@ -300,6 +408,11 @@ class MediaImportPanel(QWidget):
             self.cancel_requested = True
             self.worker.requestInterruption()
             self.message.setText('Đã yêu cầu dừng; chờ kiểm tra quyền sở hữu tiến trình.')
+            self.update_actions()
+        if self.timeline_worker is not None:
+            self.timeline_cancel_requested = True
+            self.timeline_worker.requestInterruption()
+            self.message.setText('Đã yêu cầu dừng quan sát frame; chờ tiến trình sở hữu nghỉ an toàn.')
             self.update_actions()
 
     def request_stop(self):
