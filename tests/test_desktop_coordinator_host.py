@@ -156,3 +156,40 @@ def test_ui_contended_owner_reports_read_only_without_mutation(queue, tmp_path, 
             wait_for(qt_app, lambda: not window.background_busy and not window.isVisible())
             window.deleteLater()
             qt_app.processEvents()
+
+
+def test_refusal_keeps_retry_disabled_until_exact_qthread_retirement(queue,tmp_path,qt_app,monkeypatch):
+    from PySide6.QtCore import QThread,Signal
+    import fonesi_edit.ui.shell as shell
+    repo,jobs=queue
+
+    class DelayedRefusal(QThread):
+        acquired=Signal(object)
+        unavailable=Signal(str)
+        def __init__(self,path,expected_token,parent=None):
+            super().__init__(parent)
+        def run(self):
+            self.unavailable.emit('Đang có bộ điều phối khác; chỉ đọc.')
+            self.msleep(250)
+
+    monkeypatch.setattr(shell,'DesktopCoordinatorHost',DelayedRefusal)
+    with ProjectStore(tmp_path/'projects.sqlite3') as store:
+        window=MainWindow(store)
+        window.show()
+        window.navigation.setCurrentRow(6)
+        page=window.queue_page
+        try:
+            wait_for(qt_app,lambda:not page.busy and page.store_token is not None)
+            page.coordinator_button.click()
+            wait_for(qt_app,lambda:window._coordinator_error is not None)
+            assert window.coordinator_host is not None and window.coordinator_host.isRunning()
+            assert page._host_pending and not page.coordinator_button.isEnabled()
+            wait_for(qt_app,lambda:window.coordinator_host is None)
+            assert page.inbox is None and not page._host_pending
+            assert 'chỉ đọc' in page.command_notice.text().lower()
+            assert page.coordinator_button.isEnabled()
+            assert all(repo.get(job.id)==job for job in jobs)
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()

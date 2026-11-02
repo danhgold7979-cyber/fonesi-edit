@@ -755,3 +755,14 @@ suite on Ubuntu and Windows with Python 3.12/3.13. This slice integrates the liv
 queue command owner only; it does NOT implement a scheduler/executor, FFmpeg render
 worker, automatic lease recovery, or job-success path. Those remain separate P03-04
 acceptance gates.
+
+ 
+### Desktop coordinator refusal/retirement race (post-integration)
+The live host can report a denied owner while Qt is still retiring its
+thread-local SQLite handles. A premature retry button may emit a new request
+while MainWindow still owns the previous QThread, leaving that request stuck.
+Buffer the sanitized refusal until host `finished` plus `wait(0)` confirm
+retirement. Only then detach the queue route, clear host reference and
+re-enable explicit retry. A deterministic delayed-refusal QThread regression
+must prove the retry button stays disabled through teardown. No job replay,
+ownership bypass or complete P03-task claim follows.

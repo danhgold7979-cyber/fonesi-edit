@@ -1375,3 +1375,14 @@ Verification: focused source/Qt tests and complete Linux/Windows CI at the exact
 code commit are PENDING. A past CI pass from phase-03 or an archived generation
 does not verify this change. Accepted runtime criteria remain 13/438 and P03
 whole-task acceptance remains 0/9 until separately reviewed evidence.
+
+ 
+### Desktop coordinator native CI and refusal follow-up
+Initial unified-branch source commit 2d85a971 reached actual Linux/Windows CI
+run 41480333908: Ubuntu 796PASS/39SKIP for Python3.12 and Python3.13;
+Windows 809PASS/26SKIP on each; Windows3.12 frozen CLI five checks PASS.
+These are exact source/hosted synthetic and scoped frozen checks, NOT physical
+Windows GUI/media/product acceptance. A subsequent review identified a Qt
+refusal-vs-finished retry window, addressed with a delayed-refusal regression.
+That delta's exact CI remains pending; 13/438 child and 0/9 P03 whole tasks
+remain accepted until separately reviewed evidence.

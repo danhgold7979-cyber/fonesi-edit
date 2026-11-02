@@ -26,6 +26,7 @@ class MainWindow(QMainWindow):
         self.session = None
         self._close_requested=False
         self.coordinator_host=None
+        self._coordinator_error=None
         self.new_project_dialog=NewProjectDialog(lambda:self.session,self.activate_created_project,self)
         self.new_project_panel=self.new_project_dialog.panel
         self.new_project_panel.idle.connect(self._queue_idle)
@@ -113,6 +114,7 @@ class MainWindow(QMainWindow):
             self.queue_page.coordinator_unavailable('Không thể xác minh đường dẫn bộ điều phối; chỉ đọc.')
             return
         self.coordinator_host=host
+        self._coordinator_error=None
         host.acquired.connect(lambda inbox:self._coordinator_acquired(host,inbox))
         host.unavailable.connect(lambda message:self._coordinator_unavailable(host,message))
         host.finished.connect(lambda:self._coordinator_finished(host))
@@ -125,7 +127,8 @@ class MainWindow(QMainWindow):
 
     def _coordinator_unavailable(self,host,message):
         if self.coordinator_host is host and not self._close_requested:
-            self.queue_page.coordinator_unavailable(message)
+            # Keep retry disabled until exact QThread/SQLite owner teardown.
+            self._coordinator_error=message
 
     def _coordinator_finished(self,host):
         if self.coordinator_host is not host:return
@@ -134,6 +137,9 @@ class MainWindow(QMainWindow):
             return
         self.coordinator_host=None
         self.queue_page.coordinator_stopped()
+        if self._coordinator_error is not None and not self._close_requested:
+            self.queue_page.coordinator_unavailable(self._coordinator_error)
+        self._coordinator_error=None
         host.deleteLater()
         self._queue_idle()
 
