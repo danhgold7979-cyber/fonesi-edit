@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
         self.layer_editor=LayerEditorWorkspace(lambda:self.session,self)
         self.layer_editor.project_changed.connect(self._project_changed)
         self.timeline_panel=TimelinePanel(lambda:self.session,self)
+        self.timeline_panel.project_changed.connect(self._project_changed)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
