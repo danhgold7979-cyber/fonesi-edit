@@ -71,8 +71,9 @@ class LayerEditorWorkspace(QWidget):
         bar=QHBoxLayout()
         self.add_button=QPushButton('Thêm vùng che');self.delete_button=QPushButton('Xóa layer')
         self.lock_button=QPushButton('Khóa/mở');self.hide_button=QPushButton('Ẩn/hiện')
+        self.up_button=QPushButton('Đưa lên');self.down_button=QPushButton('Đưa xuống')
         self.undo_button=QPushButton('Hoàn tác');self.redo_button=QPushButton('Làm lại')
-        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.undo_button,self.redo_button):bar.addWidget(b)
+        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.undo_button,self.redo_button):bar.addWidget(b)
         root.addLayout(bar)
         split=QSplitter(Qt.Orientation.Horizontal)
         left=QWidget();ll=QVBoxLayout(left);ll.addWidget(QLabel('Layer'))
@@ -94,6 +95,7 @@ class LayerEditorWorkspace(QWidget):
         root.addWidget(split)
         self.add_button.clicked.connect(self.add_mask);self.delete_button.clicked.connect(self.delete_selected)
         self.lock_button.clicked.connect(self.toggle_lock);self.hide_button.clicked.connect(self.toggle_visibility)
+        self.up_button.clicked.connect(lambda:self.move_selected(1));self.down_button.clicked.connect(lambda:self.move_selected(-1))
         self.undo_button.clicked.connect(self.undo);self.redo_button.clicked.connect(self.redo)
         self.layers.currentRowChanged.connect(self.select_row)
         self.scene.selectionChanged.connect(self.scene_selected)
@@ -116,7 +118,7 @@ class LayerEditorWorkspace(QWidget):
         layer=self.selected();edit=layer is not None and not locked(layer) and not self.stopping
         for s in self.spins.values():s.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
-        for b in (self.delete_button,self.lock_button,self.hide_button):b.setEnabled(layer is not None and not self.stopping)
+        for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button):b.setEnabled(layer is not None and not self.stopping)
         if layer is None:self.status.setText('Chưa chọn layer.')
         else:self.status.setText(('Đã khóa biến đổi' if locked(layer) else 'Có thể chỉnh sửa')+
                                  (' · đang ẩn' if not layer['visible'] else ' · đang hiện'))
@@ -226,6 +228,19 @@ class LayerEditorWorkspace(QWidget):
             'style':{'mode':'color','amount':[0,1],'feather_px':[0,1],'radius_px':[0,1],'color':[0,0,0,180]},
             'content':None,'keyframes':[],'visible':True,'locked_fields':[]})
         self.selected_id=layer_id;self.commit(data,'thêm vùng che')
+
+    def move_selected(self,direction):
+        data=self.data()
+        if data is None or self.selected_id is None:return
+        ordered=sorted(data['layers'],key=lambda x:(x['z'],x['id']))
+        index=next((i for i,x in enumerate(ordered) if x['id']==self.selected_id),None)
+        if index is None:return
+        target=max(0,min(len(ordered)-1,index-direction))
+        if target==index:return
+        layer=ordered.pop(index);ordered.insert(target,layer)
+        for z,item in enumerate(ordered):item['z']=z
+        data['layers']=ordered
+        self.commit(data,'đổi thứ tự layer')
 
     def delete_selected(self):
         data=self.data()
