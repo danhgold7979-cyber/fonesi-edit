@@ -1,7 +1,7 @@
 """Read-only exact-time timeline overview; no playback, trim or render claim."""
 from fractions import Fraction
 
-from PySide6.QtCore import QRectF, Qt
+from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QBrush, QPen
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox)
@@ -13,7 +13,7 @@ def _q(value):
 
 
 class TimelinePanel(QWidget):
-    project_changed=__import__('PySide6.QtCore',fromlist=['Signal']).Signal()
+    project_changed=Signal()
     def __init__(self,get_session,parent=None):
         super().__init__(parent)
         self.get_session=get_session
@@ -46,7 +46,8 @@ class TimelinePanel(QWidget):
     def _selected_clip(self):
         session=self.get_session()
         if session is None or self.selected_clip_id is None:return None
-        return next((x for x in session.project.plan.clips if x.id==self.selected_clip_id),None)
+        data=session.project.plan.to_dict()
+        return next((x for x in data['clips'] if x['id']==self.selected_clip_id),None)
 
     def _select_clip(self,row):
         item=self.clip_list.item(row) if row>=0 else None
@@ -83,9 +84,9 @@ class TimelinePanel(QWidget):
         playhead=Fraction(self._playhead,1)/self._fps
         try:
             if action=='split':
-                result=split_video_clip(session.project,clip.id,playhead,expected_revision=session.revision)
+                result=split_video_clip(session.project,clip['id'],playhead,expected_revision=session.revision)
             else:
-                result=trim_video_clip(session.project,clip.id,playhead,edge=action,
+                result=trim_video_clip(session.project,clip['id'],playhead,edge=action,
                     ripple=self.ripple.isChecked(),expected_revision=session.revision)
             session.commit(result.command)
         except TimelineEditError as exc:
