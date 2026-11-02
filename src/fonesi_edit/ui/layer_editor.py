@@ -3,7 +3,7 @@ from copy import deepcopy
 from fractions import Fraction
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QRectF, Signal
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
 from PySide6.QtGui import QColor, QBrush, QPen
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
@@ -27,6 +27,36 @@ def offset(anchor,w,h):
     x=0 if anchor.endswith('left') else -w if anchor.endswith('right') else -w/2
     y=0 if anchor.startswith('top') else -h if anchor.startswith('bottom') else -h/2
     return x,y
+
+class LayerBoundsItem(QGraphicsRectItem):
+    def __init__(self,layer,width,height,moved):
+        t=layer['transform'];w=val(t['width'])*width*val(t['scale_x']);h=val(t['height'])*height*val(t['scale_y'])
+        x,y=offset(t['anchor'],w,h)
+        super().__init__(QRectF(x,y,w,h))
+        self.layer_id=layer['id'];self.moved=moved;self.pressed=None
+        self.setPos(val(t['x'])*width,val(t['y'])*height)
+        self.setRotation(val(t['rotation']));self.setOpacity(val(t['opacity']))
+        self.setZValue(layer['z']+1)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,not locked(layer))
+        self.setData(0,self.layer_id)
+        self.setToolTip(f"{layer['type']} · z={layer['z']}")
+        if layer['type']=='mask':
+            rgba=layer['style']['color'];fill=QColor(*rgba);fill.setAlpha(min(110,rgba[3]));edge=QColor(245,190,80)
+        else:fill=QColor(90,170,240,45);edge=QColor(90,190,255)
+        self.setBrush(QBrush(fill));self.setPen(QPen(edge,2,Qt.PenStyle.DashLine))
+
+    def mousePressEvent(self,event):
+        self.pressed=QPointF(self.pos())
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self,event):
+        super().mouseReleaseEvent(event)
+        if self.pressed is not None and self.pos()!=self.pressed:
+            layer_id=self.layer_id;position=QPointF(self.pos())
+            QTimer.singleShot(0,lambda:self.moved(layer_id,position))
+        self.pressed=None
+
 
 class LayerEditorWorkspace(QWidget):
     project_changed=Signal()
@@ -65,7 +95,9 @@ class LayerEditorWorkspace(QWidget):
         self.add_button.clicked.connect(self.add_mask);self.delete_button.clicked.connect(self.delete_selected)
         self.lock_button.clicked.connect(self.toggle_lock);self.hide_button.clicked.connect(self.toggle_visibility)
         self.undo_button.clicked.connect(self.undo);self.redo_button.clicked.connect(self.redo)
-        self.layers.currentRowChanged.connect(self.select_row);self.update_project()
+        self.layers.currentRowChanged.connect(self.select_row)
+        self.scene.selectionChanged.connect(self.scene_selected)
+        self.update_project()
 
     @property
     def busy(self):return False
@@ -114,16 +146,9 @@ class LayerEditorWorkspace(QWidget):
             bg.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,False);self.scene.addItem(bg)
             for layer in data['layers']:
                 if not layer['visible']:continue
-                t=layer['transform'];w=val(t['width'])*W*val(t['scale_x']);h=val(t['height'])*H*val(t['scale_y'])
-                x,y=offset(t['anchor'],w,h);item=QGraphicsRectItem(QRectF(x,y,w,h))
-                item.setPos(val(t['x'])*W,val(t['y'])*H);item.setRotation(val(t['rotation']))
-                item.setOpacity(val(t['opacity']));item.setZValue(layer['z']+1)
-                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,True)
-                item.setData(0,layer['id']);item.setToolTip(f"{layer['type']} · z={layer['z']}")
-                if layer['type']=='mask':
-                    rgba=layer['style']['color'];fill=QColor(*rgba);fill.setAlpha(min(110,rgba[3]));edge=QColor(245,190,80)
-                else:fill=QColor(90,170,240,45);edge=QColor(90,190,255)
-                item.setBrush(QBrush(fill));item.setPen(QPen(edge,2,Qt.PenStyle.DashLine));self.scene.addItem(item)
+                item=LayerBoundsItem(layer,W,H,self.dragged)
+                self.scene.addItem(item)
+                if layer['id']==self.selected_id:item.setSelected(True)
             self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
         finally:self.syncing=False
         self.set_inspector(self.selected(data));self.update_actions()
@@ -139,6 +164,30 @@ class LayerEditorWorkspace(QWidget):
             else:
                 self.original_transform=None
         finally:self.syncing=False
+
+    def scene_selected(self):
+        if self.syncing:return
+        selected=next((x for x in self.scene.selectedItems() if isinstance(x,LayerBoundsItem)),None)
+        self.selected_id=None if selected is None else selected.layer_id
+        self.syncing=True
+        try:
+            row=-1
+            for i in range(self.layers.count()):
+                if self.layers.item(i).data(Qt.ItemDataRole.UserRole)==self.selected_id:row=i;break
+            self.layers.setCurrentRow(row)
+        finally:self.syncing=False
+        self.set_inspector(self.selected());self.update_actions()
+
+    def dragged(self,layer_id,position):
+        data=self.data()
+        if data is None:return
+        layer=next((x for x in data['layers'] if x['id']==layer_id),None)
+        if layer is None or locked(layer):return
+        width=data['output']['width'];height=data['output']['height']
+        layer['transform']['x']=pair(position.x()/width)
+        layer['transform']['y']=pair(position.y()/height)
+        self.selected_id=layer_id
+        self.commit(data,'di chuyển layer')
 
     def select_row(self,row):
         if self.syncing:return
