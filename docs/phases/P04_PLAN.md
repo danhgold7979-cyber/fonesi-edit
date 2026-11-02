@@ -76,3 +76,38 @@ Generation clean-2026-11-01; branch `phase-04`. Status PLANNED, not implemented 
 
 ## Phase gate
 Every task acceptance above and corresponding master gate must pass. Unit/mock evidence does not close live/Windows/GPU/Chrome acceptance. Keep LOCAL_VERIFIED, BLOCKED_EXTERNAL and ACCEPTED distinct. Submit independent review and one aggregate checkpoint after affected tests; do not mark whole phase complete from a working slice.
+
+## Initial local media library import — P04-01 partial, P03-07 command dependency
+
+Entry evidence: P03 library-only persistence on `develop/fonesi-full` preserves
+independent UUIDs, content-bound refs, explicit unresolved observations and
+CAS project revision. The P03 desktop coordinator host is independent of import.
+Whole P03 and P04 gates stay open. This bounded slice does NOT add media to the
+render-ready CompositionPlan, run a download, or imply player/codec support.
+
+A dedicated Editor import panel accepts exactly one explicit local media path
+and one explicitly user-trusted absolute ffprobe executable; no auto-resolution,
+credential acquisition, Chrome access, provider calls, or user media modification.
+A background QThread pins regular non-reparse source identity, performs the
+existing bounded `inspect_media` + typed normalization + semantic validation
+inside owned validator retirement, then re-fingerprints and rechecks identity.
+An observed source becomes a typed `MediaRecord` with independent UUID and
+absolute hash-bound path; it remains explicitly non-render-ready. Unknown or
+unconfirmed process retirement revokes the operation without adoption/retry.
+
+Import to the active project is the existing `add_media` completed command,
+CAS against the captured session identity and revision, committed exactly once
+through `ProjectSession.commit`. UI close/cancel, stale project, duplicate
+content or changed bytes cannot silently commit. A later explicit project Save
+writes the same v2 library envelope; source media is never deleted/copied. Project
+list display is bounded and read-only, showing unresolved state rather than a
+claim of timeline/render readiness. Support direct UI tests with synthetic
+approved tool fixture and actual native tests separately; mock output is not
+codec acceptance. No project mutation before process retirement is confirmed.
+
+Regression scope: project missing / wrong tools / symlink sources / duplicate
+content / post-probe mutation / cancellation / stale session / recovery /
+source bytes unchanged; Qt shell close waits for background import, owner
+threads retire before QApplication. Linux/Windows 3.12/3.13 source tests; actual
+FFmpeg on a physical Windows user machine remains NOT_RUN. P04-01/P03-07,
+full import/drag/drop/HiDPI/timeline and release acceptance remain OPEN.
