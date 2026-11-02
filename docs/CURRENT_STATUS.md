@@ -77,3 +77,12 @@ includes the desktop coordinator host; a real opt-in GUI-to-owner transport
 is being implemented with separate source/native CI. No renderer or external
 platform acceptance follows. Existing 13/438 child/0 P03-task accepted numbers
 remain unchanged pending exact-code review and verification. `main` is unchanged.
+
+ 
+P04 independent entry (2026-11-02): A bounded Editor library import panel
+now feeds the existing v2 media library through explicit file/ffprobe
+selection, native-owned probe retirement, immutable hash/identity and project
+revision CAS. This remains partial source-only implementation: no timeline,
+render-ready conversion, actual Windows user media acceptance or P04 task
+acceptance. Exact-code Linux/Windows CI remains pending and the previously
+accepted child count stays 13/438.

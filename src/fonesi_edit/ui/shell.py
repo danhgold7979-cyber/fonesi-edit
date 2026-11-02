@@ -10,6 +10,7 @@ from fonesi_edit.jobs.desktop_host import DesktopCoordinatorHost
 from fonesi_edit.ui.project_relink import RelinkPanel
 from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
+from fonesi_edit.ui.media_import import MediaImportPanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
@@ -39,6 +40,10 @@ class MainWindow(QMainWindow):
         self.restore_panel.idle.connect(self._queue_idle)
         self.inspection_panel=InspectionPanel(self)
         self.inspection_panel.idle.connect(self._queue_idle)
+        self.media_import=MediaImportPanel(lambda:self.session,self)
+        self.media_import.idle.connect(self._queue_idle)
+        self.media_import.project_changed.connect(self._project_changed)
+        self.media_import.state_changed.connect(self._project_actions)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
@@ -77,6 +82,7 @@ class MainWindow(QMainWindow):
                 contents.addWidget(QLabel('Chưa có tác vụ được chạy. Không có số liệu hiệu suất.'))
             elif index == 3:
                 contents.addWidget(self.inspection_panel)
+                contents.addWidget(self.media_import)
                 contents.addWidget(QLabel('Chưa có timeline, bộ dựng hoặc xuất video.'))
             elif index == 6:
                 contents.addWidget(self.queue_page)
@@ -132,7 +138,7 @@ class MainWindow(QMainWindow):
         self._queue_idle()
 
     def activate_created_project(self,created,expected_session,expected_revision):
-        if (self._close_requested or self.session is not expected_session or
+        if (self._close_requested or self.media_import.busy or self.session is not expected_session or
             (self.session is not None and self.session.revision!=expected_revision)):
             raise StorageError('Active project changed during creation')
         offer=prepare_open(self.store,created.path)
@@ -157,7 +163,7 @@ class MainWindow(QMainWindow):
 
     def open_project(self, path: Path, *, recovery_choice=None):
         # Resolve and revalidate a choice before replacing any shared UI model.
-        if self.relink_panel.busy:raise StorageError('Relink verification still active; cancel and wait first')
+        if self.relink_panel.busy or self.media_import.busy:raise StorageError('A media/relink verification is active; cancel and wait first')
         offer = prepare_open(self.store, path)
         choice = recovery_choice
         if choice is None:
@@ -197,23 +203,25 @@ class MainWindow(QMainWindow):
         if self.session is not None:
             self.project=self.session.project
             self.project_label.setText(f'Dự án: {self.project.name}\nMã: {self.project.id}')
+        self.media_import.update_project()
         self._project_actions()
 
     def _project_actions(self):
-        self.new_button.setEnabled(not self._close_requested)
-        self.open_button.setEnabled(not self.relink_panel.busy and not self._close_requested)
+        self.new_button.setEnabled(not self._close_requested and not self.media_import.busy)
+        self.open_button.setEnabled(not self.relink_panel.busy and not self.media_import.busy and not self._close_requested)
         self.save_button.setEnabled(self.session is not None and not self.session.reconciliation_required
-                                    and not self.relink_panel.busy and not self._close_requested)
+                                    and not self.relink_panel.busy and not self.media_import.busy and not self._close_requested)
         self.relink_panel.update_actions()
+        self.media_import.update_actions()
 
     @property
     def background_busy(self):return (bool(self.coordinator_host is not None and self.coordinator_host.isRunning()) or
-        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy)
+        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.media_import.busy or self.tool_inventory.busy or self.tool_pair.busy)
 
     def request_stop(self):
         self._close_requested=True
         if self.coordinator_host is not None:self.coordinator_host.requestInterruption()
-        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
+        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
