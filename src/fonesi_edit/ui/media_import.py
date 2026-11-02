@@ -5,6 +5,7 @@ import os
 import stat
 
 from PySide6.QtCore import QThread, Signal, QTimer, Qt
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView)
 
@@ -25,6 +26,65 @@ def _regular_original(path):
             getattr(info, 'st_file_attributes', 0) & 0x400):
         raise ProbeError('Local source/tool must be a regular non-reparse file')
     return info
+
+
+class LocalMediaPathEdit(QLineEdit):
+    """One local file URL may populate this field; dropping never imports it."""
+    dropped = Signal(str)
+    rejected = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setPlaceholderText('Chọn tệp hoặc kéo thả một tệp media cục bộ vào đây')
+
+    @staticmethod
+    def _candidate(mime):
+        urls = mime.urls()
+        if len(urls) != 1:
+            raise ValueError('Chỉ nhận một tệp mỗi lần kéo thả.')
+        url = urls[0]
+        if not url.isLocalFile():
+            raise ValueError('Chỉ nhận tệp cục bộ; URL mạng không được nhập tại đây.')
+        raw = url.toLocalFile()
+        try:
+            encoded = raw.encode('utf-8')
+        except UnicodeEncodeError as exc:
+            raise ValueError('Đường dẫn tệp không hợp lệ.') from exc
+        if (not raw or '\x00' in raw or len(raw) > 32768 or
+                len(encoded) > 131072 or raw.startswith(('\\\\', '//'))):
+            raise ValueError('Đường dẫn tệp rỗng, quá dài hoặc không phải đường dẫn cục bộ.')
+        path = Path(raw)
+        if not path.is_absolute():
+            raise ValueError('Đường dẫn tệp phải là đường dẫn tuyệt đối.')
+        _regular_original(path)
+        return path
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if self.isEnabled() and event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if self.isEnabled() and event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        if not self.isEnabled():
+            event.ignore()
+            return
+        try:
+            path = self._candidate(event.mimeData())
+        except (OSError, ValueError, ProbeError):
+            self.rejected.emit('Không nhận được tệp. Chỉ kéo một tệp cục bộ thông thường; thư mục, liên kết và URL mạng bị từ chối.')
+            event.ignore()
+            return
+        self.setText(str(path))
+        self.dropped.emit(str(path))
+        event.acceptProposedAction()
 
 
 class MediaImportWorker(QThread):
@@ -89,8 +149,9 @@ class MediaImportPanel(QWidget):
         title.setTextFormat(Qt.PlainText)
         title.setWordWrap(True)
         layout.addWidget(title)
-        self.source = QLineEdit()
-        self.source.setPlaceholderText('Tệp media tuyệt đối, không phải shortcut/symlink')
+        self.source = LocalMediaPathEdit()
+        self.source.dropped.connect(self._source_dropped)
+        self.source.rejected.connect(self._drop_rejected)
         self.tool = QLineEdit()
         self.tool.setPlaceholderText('ffprobe tuyệt đối, do bạn lựa chọn và tin cậy')
         self.source_button = QPushButton('Chọn tệp…')
@@ -160,6 +221,12 @@ class MediaImportPanel(QWidget):
             bool(self.source.text()) and bool(self.tool.text()))
         self.cancel_button.setEnabled(self.busy and not self.stopping and
             not self.worker.isInterruptionRequested())
+
+    def _source_dropped(self, path):
+        self.message.setText('Đã chọn đường dẫn nguồn. Chưa chạy kiểm tra hoặc thêm media; hãy rà soát rồi bấm nút nhập.')
+
+    def _drop_rejected(self, message):
+        self.message.setText(message)
 
     def choose_source(self):
         if self.busy or self.stopping or self.revoked:
