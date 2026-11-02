@@ -55,3 +55,18 @@ before stopping its timer, never equating route closure with job success/cancel.
 Default scheduler must still call notifications for its own transitions. No
 external DB mutations are inferred; manual refresh remains available after read
 failure. No retry of a command follows from a refresh hint.
+
+ 
+## Desktop host integration on the unified branch
+An explicit UI request following a verified read-only queue snapshot starts
+`DesktopCoordinatorHost` on a dedicated Qt thread. The host rechecks the
+ownership token before opening the existing-only store, before publishing the
+route, and acquires the exclusive native coordinator lock inside the worker
+thread. Only `CoordinatorInbox` crosses to the UI; its bounded `submit` is
+thread-safe but `drain` and repository operations remain on the owner thread.
+Without an acquired host the explicitly requested host mode stays read-only.
+Closing interrupts the host, closes pending command Futures through the inbox,
+releases ownership, then closes the SQLite handle on that same thread.
+The opt-in design preserves standalone explicit QueuePage callers; there is
+no automatic scheduler, worker spawn, output success or route fallback when
+host acquisition fails.

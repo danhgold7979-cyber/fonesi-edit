@@ -1358,3 +1358,20 @@ No unchanged FFmpeg, frozen bundle or unrelated aggregate rerun. Native result i
 PENDING, not inferred from local checks.13/438 and P03 11/78 remain unchanged.
 Independent final source review CLEAR: prior4selected cases and exact3correction
 instancesPASS, no repeated baseline. Workflow fe4191f9 reviewed for165-case scope.
+
+ 
+## Unified development branch — desktop coordinator integration (2026-11-02)
+The pre-code master and exact P03 plan were reviewed at the existing clean P03
+checkpoint. Commit on `develop/fonesi-full` introduces an opt-in, long-lived
+Qt coordinator host for a read-only-verified existing jobs store. The worker
+thread owns its SQLite repository, native coordinator lock/epoch and bounded
+command inbox; the GUI handles only selected typed command requests and durable
+read-only refresh. Shutdown requests interruption and waits for owner release,
+never QThread.terminate or automatic command replay. An unavailable owner leaves
+the queue read-only. This is a queue-control integration, NOT scheduler, worker
+execution, render, provider, or P03 acceptance.
+
+Verification: focused source/Qt tests and complete Linux/Windows CI at the exact
+code commit are PENDING. A past CI pass from phase-03 or an archived generation
+does not verify this change. Accepted runtime criteria remain 13/438 and P03
+whole-task acceptance remains 0/9 until separately reviewed evidence.

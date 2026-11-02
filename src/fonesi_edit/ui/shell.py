@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QListWidget,
 from fonesi_edit.storage.projects import ProjectStore, StorageError
 from fonesi_edit.storage.autosave import prepare_open
 from fonesi_edit.ui.queue import QueuePage
+from fonesi_edit.jobs.desktop_host import DesktopCoordinatorHost
 from fonesi_edit.ui.project_relink import RelinkPanel
 from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
@@ -23,10 +24,12 @@ class MainWindow(QMainWindow):
         self.project = None
         self.session = None
         self._close_requested=False
+        self.coordinator_host=None
         self.new_project_dialog=NewProjectDialog(lambda:self.session,self.activate_created_project,self)
         self.new_project_panel=self.new_project_dialog.panel
         self.new_project_panel.idle.connect(self._queue_idle)
         self.queue_page=QueuePage(store.path.parent/'jobs.sqlite3')
+        self.queue_page.coordinator_requested.connect(self.start_coordinator)
         self.queue_page.idle.connect(self._queue_idle)
         self.relink_panel=RelinkPanel(lambda:self.session,self)
         self.relink_panel.idle.connect(self._queue_idle)
@@ -95,6 +98,38 @@ class MainWindow(QMainWindow):
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
+
+    def start_coordinator(self,store_token):
+        if self._close_requested or self.coordinator_host is not None:return
+        try:
+            host=DesktopCoordinatorHost(self.queue_page.path,store_token,self)
+        except ValueError:
+            self.queue_page.coordinator_unavailable('Không thể xác minh đường dẫn bộ điều phối; chỉ đọc.')
+            return
+        self.coordinator_host=host
+        host.acquired.connect(lambda inbox:self._coordinator_acquired(host,inbox))
+        host.unavailable.connect(lambda message:self._coordinator_unavailable(host,message))
+        host.finished.connect(lambda:self._coordinator_finished(host))
+        host.start()
+
+    def _coordinator_acquired(self,host,inbox):
+        if (self.coordinator_host is not host or self._close_requested or
+                not host.isRunning() or not self.queue_page.attach_coordinator(inbox)):
+            host.requestInterruption()
+
+    def _coordinator_unavailable(self,host,message):
+        if self.coordinator_host is host and not self._close_requested:
+            self.queue_page.coordinator_unavailable(message)
+
+    def _coordinator_finished(self,host):
+        if self.coordinator_host is not host:return
+        if not host.wait(0):
+            QTimer.singleShot(10,lambda:self._coordinator_finished(host))
+            return
+        self.coordinator_host=None
+        self.queue_page.coordinator_stopped()
+        host.deleteLater()
+        self._queue_idle()
 
     def activate_created_project(self,created,expected_session,expected_revision):
         if (self._close_requested or self.session is not expected_session or
@@ -172,10 +207,12 @@ class MainWindow(QMainWindow):
         self.relink_panel.update_actions()
 
     @property
-    def background_busy(self):return self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy
+    def background_busy(self):return (bool(self.coordinator_host is not None and self.coordinator_host.isRunning()) or
+        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.tool_inventory.busy or self.tool_pair.busy)
 
     def request_stop(self):
         self._close_requested=True
+        if self.coordinator_host is not None:self.coordinator_host.requestInterruption()
         self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 

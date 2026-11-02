@@ -69,3 +69,11 @@ Machine-readable P03 task states are now reconciled from stale PLANNED to IN_PRO
 Public phase-03 `72eb57d6c1da839cc4f9e806769da9eaad1f9166`, tree `1e4dcae6925676e8a49cbe5906a10bb1233d13d2`: four affected source/Qt targets55PASS each and two actual pinned Windows pair GUI targets passed. Independent receipts support exactly12/438 accepted children,11/78 P03-mapped; P03 whole tasks0/9. TOL-01.03 belongs to P01/P04, not P03. Main remains P01. Registry/leases/installer/automatic startup scan/full codecs are not accepted. See current acceptance ledger and hosted41324375838/41324375928 summaries.
 
 Latest accepted child reconciliation:13/438 globally,11/78 P03-mapped,0/9 P03 tasks. TOL-01.02 belongs to P01/P04. Independently verified preference58cases and first-navigation42cases each passed on four targets; current public phase03b7dd8bea. New blank-project creation is local reviewed foundation, not Editor/renderer acceptance.
+
+ 
+Unified integration note (2026-11-02): `develop/fonesi-full` has been restored
+from clean P03 at a017344f and is the sole integration branch. P03 design now
+includes the desktop coordinator host; a real opt-in GUI-to-owner transport
+is being implemented with separate source/native CI. No renderer or external
+platform acceptance follows. Existing 13/438 child/0 P03-task accepted numbers
+remain unchanged pending exact-code review and verification. `main` is unchanged.

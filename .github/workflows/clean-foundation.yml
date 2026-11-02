@@ -1,7 +1,7 @@
 name: Clean foundation (not product acceptance)
 on:
   push:
-    branches: [phase-03]
+    branches: [develop/fonesi-full]
   pull_request:
   workflow_dispatch:
 permissions:

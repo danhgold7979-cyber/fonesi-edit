@@ -1,7 +1,7 @@
 name: Pinned Windows FFmpeg synthetic capability (not product acceptance)
 on:
   push:
-    branches: [phase-03]
+    branches: [develop/fonesi-full]
 permissions:
   contents: read
 jobs:

@@ -56,15 +56,20 @@ class QueueReader(QThread):
 
 class QueuePage(QWidget):
     idle=Signal()
+    coordinator_requested=Signal(str)
     def __init__(self,path,parent=None,*,inbox=None):
         super().__init__(parent);self.inbox=inbox;self.path=path;self.reader=None;self.commander=None;self.event_reader=None;self.stopping=False;self.store_token=None;self._snapshot_valid=False
         self._route_revision=inbox.state()[0] if inbox is not None else 0
+        self._host_mode=inbox is not None;self._host_pending=False
         layout=QVBoxLayout(self)
         self.message=QLabel('Chưa đọc dữ liệu hàng đợi. Không có số liệu giả lập.')
         self.message.setTextFormat(Qt.PlainText);layout.addWidget(self.message)
         self.command_notice=QLabel('');self.command_notice.setTextFormat(Qt.PlainText)
         self.command_notice.setWordWrap(True);layout.addWidget(self.command_notice)
         self.refresh_button=QPushButton('Đọc lại hàng đợi');self.refresh_button.clicked.connect(self.refresh);layout.addWidget(self.refresh_button)
+        self.coordinator_button=QPushButton('Bật bộ điều phối tác vụ đã xác minh')
+        self.coordinator_button.clicked.connect(self.request_coordinator)
+        layout.addWidget(self.coordinator_button)
         self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(['Mã tác vụ','Trạng thái','Lần thử','Hủy đã yêu cầu','Xuất tệp / Tiến độ'])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -137,6 +142,7 @@ class QueuePage(QWidget):
             for column,value in enumerate(values):
                 item=QTableWidgetItem(value);item.setToolTip(value);item.setData(Qt.UserRole,row);self.table.setItem(index,column,item)
         self.message.setText(('Hiển thị tối đa 500 tác vụ gần nhất; còn dữ liệu khác.' if snapshot.truncated else f'{len(snapshot.rows)} tác vụ từ dữ liệu ứng dụng.') if snapshot.store_exists else 'Chưa có kho tác vụ; không tạo dữ liệu giả.')
+        self._actions()
     def _finished(self):
         if self.reader is not None and not self.reader.wait(0):
             QTimer.singleShot(10,self._finished);return
@@ -152,6 +158,44 @@ class QueuePage(QWidget):
     @property
     def busy(self):return self.reader is not None or self.commander is not None or self.event_reader is not None
 
+    def request_coordinator(self):
+        if (self.stopping or self.busy or self._host_pending or self.inbox is not None or
+                not self._snapshot_valid or not self.store_token):
+            return
+        self._host_mode=True
+        self._host_pending=True
+        self.command_notice.setText('Đang xác minh và lấy quyền điều phối; chưa gửi lệnh.')
+        self._actions()
+        self.coordinator_requested.emit(self.store_token)
+
+    def attach_coordinator(self,inbox):
+        if (self.stopping or not self._host_pending or self.store_token is None or
+                inbox.state()[1] or inbox.progress.drain().store_token!=self.store_token):
+            return False
+        self.inbox=inbox
+        self._route_revision=inbox.state()[0]
+        self._host_pending=False
+        self.command_notice.setText('Đã có bộ điều phối thực. Chưa có worker tự động hoặc render.')
+        self.progress_timer.start()
+        self._actions()
+        return True
+
+    def coordinator_unavailable(self,message):
+        if self.stopping:return
+        self._host_pending=False
+        self.command_notice.setText(message)
+        self._actions()
+
+    def coordinator_stopped(self):
+        if self.inbox is not None:
+            self.inbox=None
+            self.progress_timer.stop()
+        self._host_pending=False
+        if not self.stopping:
+            self._host_mode=True
+            self.command_notice.setText('Bộ điều phối đã dừng; chỉ đọc. Có thể yêu cầu kết nối lại.')
+        self._actions()
+
     def _selected(self):
         selected=self.table.selectionModel().selectedRows()
         if len(selected)!=1:return None
@@ -163,12 +207,17 @@ class QueuePage(QWidget):
         if not hasattr(self,'action_buttons'):return
         row=self._selected();available=row is not None and self.store_token is not None and not self.busy and not self.stopping
         if hasattr(self,'events_button'):self.events_button.setEnabled(available)
+        if hasattr(self,'coordinator_button'):
+            self.coordinator_button.setEnabled(self._snapshot_valid and self.store_token is not None and
+                self.inbox is None and not self._host_pending and not self.busy and not self.stopping)
+        available=available and (not self._host_mode or (self.inbox is not None and not self.inbox.state()[1]))
         allowed={'pause':{'pending'},'resume':{'paused'},'cancel':{'pending','paused','running','validating'}}
         for action,button in self.action_buttons.items():button.setEnabled(available and row.state in allowed[action])
 
     def command(self,action):
         row=self._selected()
-        if row is None or self.store_token is None or self.busy or self.stopping:return
+        if (row is None or self.store_token is None or self.busy or self.stopping or
+                (self._host_mode and (self.inbox is None or self.inbox.state()[1]))):return
         self.commander=QueueCommander(self.path,QueueCommand(action,row.id,row.version,self.store_token),self,inbox=self.inbox)
         self.commander.applied.connect(self._applied);self.commander.refused.connect(self._command_refused)
         self.commander.finished.connect(self._command_finished)
