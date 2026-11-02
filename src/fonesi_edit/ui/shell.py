@@ -12,6 +12,7 @@ from fonesi_edit.ui.project_restore import RestorePanel
 from fonesi_edit.ui.media_inspection import InspectionPanel
 from fonesi_edit.ui.media_import import MediaImportPanel
 from fonesi_edit.ui.layer_editor import LayerEditorWorkspace
+from fonesi_edit.ui.timeline import TimelinePanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
@@ -48,6 +49,7 @@ class MainWindow(QMainWindow):
         self.media_import.state_changed.connect(self._project_actions)
         self.layer_editor=LayerEditorWorkspace(lambda:self.session,self)
         self.layer_editor.project_changed.connect(self._project_changed)
+        self.timeline_panel=TimelinePanel(lambda:self.session,self)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
@@ -87,6 +89,7 @@ class MainWindow(QMainWindow):
             elif index == 3:
                 tabs=QTabWidget()
                 tabs.addTab(self.layer_editor,'Canvas / Layer')
+                tabs.addTab(self.timeline_panel,'Timeline')
                 tabs.addTab(self.media_import,'Thư viện media')
                 tabs.addTab(self.inspection_panel,'Quan sát media')
                 contents.addWidget(tabs)
@@ -190,7 +193,7 @@ class MainWindow(QMainWindow):
         return self.project
 
     def save_current_project(self):
-        if self.session is None or self.relink_panel.busy:
+        if self.session is None or self.relink_panel.busy or self.media_import.busy:
             return
         try:
             self.session.save()
@@ -217,6 +220,7 @@ class MainWindow(QMainWindow):
             self.project_label.setText(f'Dự án: {self.project.name}\nMã: {self.project.id}')
         self.media_import.update_project()
         self.layer_editor.update_project()
+        self.timeline_panel.update_project()
         self._project_actions()
 
     def _project_actions(self):
