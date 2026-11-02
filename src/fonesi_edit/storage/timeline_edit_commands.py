@@ -1,0 +1,123 @@
+"""Frame-exact timeline split/trim commands with explicit gap vs ripple semantics."""
+from copy import deepcopy
+from dataclasses import dataclass
+from fractions import Fraction
+from uuid import uuid4
+
+from fonesi_edit.domain.composition import CompositionPlan
+from .projects import Project
+from .autosave import CompletedCommand
+
+
+class TimelineEditError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class TimelineEditResult:
+    command: CompletedCommand
+    created_ids: tuple[str, ...] = ()
+
+
+def _fraction(pair):
+    return Fraction(pair[0],pair[1])
+
+
+def _pair(value):
+    if type(value) is not Fraction:
+        raise TimelineEditError('Exact rational frame time required')
+    return [value.numerator,value.denominator]
+
+
+def _span(clip):
+    start=_fraction(clip['output_start'])
+    source_in=_fraction(clip['source_in'])
+    source_out=_fraction(clip['source_out'])
+    speed=_fraction(clip['speed'])
+    freeze=_fraction(clip.get('freeze_duration',[0,1]))
+    if speed<=0 or freeze!=0 or source_out<=source_in:
+        raise TimelineEditError('Only positive-speed non-freeze clips can be split/trimmed')
+    return start,start+(source_out-source_in)/speed,source_in,source_out,speed
+
+
+def _command(project,data,expected_revision,created=()):
+    if type(expected_revision) is not int or expected_revision<0:
+        raise TimelineEditError('Exact project session revision required')
+    data['revision']+=1
+    data['provenance']['project_revision']=data['revision']
+    try:
+        plan=CompositionPlan.parse(data)
+    except Exception as exc:
+        raise TimelineEditError('Timeline edit violates CompositionPlan invariants') from exc
+    return TimelineEditResult(CompletedCommand(project.with_plan(plan),expected_revision),tuple(created))
+
+
+def split_video_clip(project:Project,clip_id:str,output_time:Fraction,*,expected_revision:int):
+    if type(project) is not Project or type(output_time) is not Fraction:
+        raise TimelineEditError('Typed project and exact rational playhead required')
+    data=project.plan.to_dict()
+    clip=next((x for x in data['clips'] if x['id']==clip_id),None)
+    if clip is None:raise TimelineEditError('Selected video clip does not exist')
+    start,end,source_in,source_out,speed=_span(clip)
+    if not start<output_time<end:raise TimelineEditError('Split must be strictly inside the selected clip')
+    source_split=source_in+(output_time-start)*speed
+    if not source_in<source_split<source_out:raise TimelineEditError('Split maps to a zero-length source segment')
+    left=clip
+    right=deepcopy(clip);right['id']=str(uuid4())
+    left['source_out']=_pair(source_split)
+    right['source_in']=_pair(source_split);right['output_start']=_pair(output_time)
+    data['clips'].append(right)
+    created=[right['id']]
+    for audio in list(data['audio']['clips']):
+        if audio['asset_id']!=clip['asset_id']:continue
+        astart,aend,ain,aout,aspeed=_span(audio)
+        if not astart<output_time<aend:continue
+        split=ain+(output_time-astart)*aspeed
+        if not ain<split<aout:raise TimelineEditError('Audio split maps to a zero-length segment')
+        audio_right=deepcopy(audio);audio_right['id']=str(uuid4())
+        audio['source_out']=_pair(split)
+        audio_right['source_in']=_pair(split);audio_right['output_start']=_pair(output_time)
+        data['audio']['clips'].append(audio_right);created.append(audio_right['id'])
+    return _command(project,data,expected_revision,created)
+
+
+def trim_video_clip(project:Project,clip_id:str,output_time:Fraction,*,edge:str,
+                    ripple:bool,expected_revision:int):
+    if type(project) is not Project or type(output_time) is not Fraction or type(ripple) is not bool:
+        raise TimelineEditError('Typed project, exact playhead and explicit ripple flag required')
+    if edge not in {'in','out'}:raise TimelineEditError('Trim edge must be in or out')
+    data=project.plan.to_dict()
+    clip=next((x for x in data['clips'] if x['id']==clip_id),None)
+    if clip is None:raise TimelineEditError('Selected video clip does not exist')
+    start,end,source_in,source_out,speed=_span(clip)
+    if not start<output_time<end:raise TimelineEditError('Trim point must be strictly inside the selected clip')
+    boundary=source_in+(output_time-start)*speed
+    if edge=='in':
+        removed=output_time-start
+        old_end=end
+        clip['source_in']=_pair(boundary)
+        clip['output_start']=_pair(output_time)
+        # Matching source-audio tracks follow the same edit point when it is inside them.
+        for audio in data['audio']['clips']:
+            if audio['asset_id']!=clip['asset_id']:continue
+            astart,aend,ain,aout,aspeed=_span(audio)
+            if astart<output_time<aend:
+                audio['source_in']=_pair(ain+(output_time-astart)*aspeed)
+                audio['output_start']=_pair(output_time)
+        if ripple:
+            for other in data['clips']:
+                if other['id']==clip_id:continue
+                ostart=_fraction(other['output_start'])
+                if ostart>=old_end:other['output_start']=_pair(ostart-removed)
+            for audio in data['audio']['clips']:
+                if audio['asset_id']==clip['asset_id']:continue
+                astart=_fraction(audio['output_start'])
+                if astart>=old_end:audio['output_start']=_pair(astart-removed)
+    else:
+        clip['source_out']=_pair(boundary)
+        for audio in data['audio']['clips']:
+            if audio['asset_id']!=clip['asset_id']:continue
+            astart,aend,ain,aout,aspeed=_span(audio)
+            if astart<output_time<aend:
+                audio['source_out']=_pair(ain+(output_time-astart)*aspeed)
+    return _command(project,data,expected_revision)
