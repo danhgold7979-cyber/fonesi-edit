@@ -723,3 +723,35 @@ relink paths preserve the library. No lossy intermediate v2 writer may publish.
 Existing SQLite document schema remains unchanged; future envelope versions refuse.
 Initial scope is pure record/persistence/relink, not file admission, P04 import/drop
 UI, render-ready conversion, executable trust or ownership/deletion capability.
+
+## Integrated desktop coordinator host — P03-04 / P03-05 (next implementation slice)
+
+The desktop shell must use one long-lived coordinator owner for an existing, verified
+jobs store. Start it only after a read-only queue snapshot proves that the store exists;
+never create/migrate a jobs database merely by opening the queue. The host runs on a
+dedicated Qt worker thread and creates the existing-only JobRepository, native
+CoordinatorOwnership and CoordinatorInbox on that same thread. The SQLite connection,
+OS lock, epoch checks and inbox drain remain thread-affine to the host.
+
+The UI receives only the thread-safe inbox reference after owner acquisition succeeds.
+Selected pause/resume/cancel requests are submitted through that inbox; the host drains
+them at a bounded polling interval and the queue continues to obtain state through its
+existing read-only snapshot worker. If another process owns the coordinator, the
+desktop remains read-only and reports the condition; it must not bypass the lock or
+create a second owner. QueuePage used without a host retains its explicit standalone
+mode for isolated callers/tests.
+
+Shutdown is a protocol, not thread termination: stop new UI admissions, request host
+interruption, let the current owner-thread transaction finish, close the inbox so
+unadmitted Futures are refused, then release coordinator ownership and close the
+repository on the owning thread. MainWindow must keep QApplication alive until the
+host and all queue workers have actually retired. No forced terminate, transaction
+replay, fake worker, automatic job claim or fabricated progress is permitted.
+
+Tests cover existing/missing/foreign stores, coordinator contention, thread affinity,
+real Qt selected commands through the host, queued-command cancellation, host loss,
+shutdown ordering, and unchanged queue snapshot/selection behavior. Run the focused
+suite on Ubuntu and Windows with Python 3.12/3.13. This slice integrates the live
+queue command owner only; it does NOT implement a scheduler/executor, FFmpeg render
+worker, automatic lease recovery, or job-success path. Those remain separate P03-04
+acceptance gates.
