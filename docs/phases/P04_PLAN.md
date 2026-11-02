@@ -122,3 +122,7 @@ run. Do not weaken that guard. Fixture path now uses the resolved regular
 Python executable; the owned Python child remains a synthetic process
 test, never media codec verification. Exact fix CI must run before a
 PASS claim; other failures, if any, remain separate.
+
+## P04-01 slice B — local file transfer into source selector
+
+Accept exactly one local file URL from the desktop file manager. Check that it is absolute, bounded, existing, regular, and not a symlink or reparse point. Reject remote URLs, folders, multiple files, and missing paths. A successful drop only fills the existing source field; the user must still review it and press the existing import action. It must not start ffprobe, alter tool trust, copy/move/delete the source, or write project data. Test valid and rejected Qt events and verify source bytes, project revision, and worker state are unchanged. Physical Windows Explorer and HiDPI checks remain external.
