@@ -274,7 +274,7 @@ Current code checkpoint: `3e0efdc1b5a9fb4bf5fad978ed1345956463f663`. Clean-found
 Windows Python 3.12 also completed the development onedir build and scoped frozen CLI boundary checks. The separate pinned Windows FFmpeg synthetic capability workflow was SKIPPED. This is hosted source/Qt and scoped packaged-boundary evidence, not physical user-device GUI, live Chrome, provider, GPU, codec-corpus, playback or render/export acceptance. No P04 task or phase is accepted.
 
 
-## P04-08 slice T — read-only profile/account metadata tables
+## Slice T — P04-08 read-only profile/account metadata tables
 
 **Dependencies:** P03-09 owned metadata repository exists as a partial local capability; no live Chrome/profile path or authenticated handoff is available. This slice consumes only persisted BrowserProfile/Binding observations and does not claim to create or control Chrome profiles.
 
