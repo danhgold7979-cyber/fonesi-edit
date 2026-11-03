@@ -26,7 +26,7 @@ def test_selected_ui_cancel_retires_descendant_then_cleans_only_owned_stage(tmp_
     root=tmp_path/'output';root.mkdir();foreign=root/'foreign.tmp';foreign.write_bytes(b'FOREIGN')
     marker=tmp_path/'child-status';release=tmp_path/'release-child';ready=threading.Event();shared={};errors=[];observations=[]
     install_python_probe(monkeypatch,observations)
-    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});r=pathlib.Path({str(release)!r});p.write_text("ready");\\nwhile not r.exists():time.sleep(.01)\\np.write_text("SURVIVED")'
+    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});r=pathlib.Path({str(release)!r});p.write_text("ready");\nwhile not r.exists():time.sleep(.01)\np.write_text("SURVIVED")'
     parent=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(10)'
     def decoder(args,**kwargs):
         observations.append(kwargs['_retirement']);return run_owned([sys.executable,'-c',parent],**kwargs)
