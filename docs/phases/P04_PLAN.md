@@ -287,3 +287,14 @@ Windows Python 3.12 also completed the development onedir build and scoped froze
 **Lifecycle:** Read on a background QThread only after the user opens Settings or presses Refresh. Ignore stale completions, sanitize errors, and make MainWindow close wait for actual worker retirement. No Chrome process, network, cookie access, login prompt, profile-directory operation or account rebind is permitted in this slice.
 
 **Regression/acceptance:** missing-store no-create; existing owned-store typed snapshot and byte/sidecar invariance; foreign/unmarked/corrupt/newer/WAL-active refusal without modification; bounds and default-binding integrity; Qt background-thread rendering, refresh, close/cancel and error state. This slice is partial P04-08 evidence only; AUTH-01.01, AUTH-04.01/.04 and live Chrome/profile/login/bridge gates remain NOT_RUN. Do not accept P04-08 or any AUTH group.
+
+
+## Slice T hosted-test correction — P04-08 metadata tab containment
+
+**Entry checkpoint:** `f7be849d6bd2cbc41fdb5e03e270488002ae06c3`; clean-foundation run `41581193827`.
+
+**Observed failure:** the test `test_main_window_settings_tab_mounts_metadata_panel_without_creating_store` calls `window.account_metadata.parentWidget()` and expects that immediate parent to be a `QTabWidget`. Qt's QTabWidget reparents each tab page into its internal QStackedWidget, so the immediate parent is correctly a QStackedWidget even though the actual tab widget exists above it. The production shell already constructs the Settings tabs using QTabWidget and adds AccountMetadataPanel as the fourth tab. This is a test ancestry assumption, not a missing UI tab.
+
+**Correction:** walk the QObject/widget parent chain to locate the containing QTabWidget, then assert the metadata panel's tab index and expected label. Preserve the existing main-window page index and missing-store no-create assertions. Do not replace the shell's eight-area QStackedWidget or remove the Settings QTabWidget.
+
+**Acceptance:** targeted account metadata UI tests and all four clean-foundation runners pass on the exact resulting HEAD. P04-08 and P04 remain IN_PROGRESS; live Chrome/profile/login/bridge gates remain NOT_RUN.
