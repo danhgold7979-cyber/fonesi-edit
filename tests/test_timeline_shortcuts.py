@@ -24,6 +24,7 @@ def _open(tmp_path):
     addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
     window.session.commit(addition.command);window._project_changed()
     timeline=window.timeline_panel
+    timeline.parentWidget().setCurrentIndex(1)
     timeline.clip_list.setCurrentRow(0)
     return store,window,timeline
 
