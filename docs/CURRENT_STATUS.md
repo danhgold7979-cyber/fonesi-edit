@@ -209,7 +209,7 @@ New P04-01 evidence on code HEAD `b9ad4e814c2ac636997afc4336ac421d4fd140e4`:
 - Pending close while coordinator work is active does not persist layout before close acceptance.
 - Qt owns OS DPI/HiDPI scaling. Hosted offscreen tests do not certify physical mixed-DPI behavior.
 
-Exact GitHub Actions run [41601897085](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085), on the exact code HEAD:
+Exact GitHub Actions run 41601897085, on the exact code HEAD:
 - Ubuntu Python 3.12.15: 954 passed, 39 skipped, 0 failed.
 - Ubuntu Python 3.13.17: 954 passed, 39 skipped, 0 failed.
 - Windows Python 3.12.10: 967 passed, 26 skipped, 0 failed.
