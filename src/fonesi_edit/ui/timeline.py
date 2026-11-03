@@ -966,7 +966,8 @@ class TimelinePanel(QWidget):
         if self._crop_revision!=session.revision:
             self.action_message.setText('Project đã đổi trong lúc mở inspector; thay đổi crop tạm bị hủy và dữ liệu mới được tải lại.')
             self._refresh_crop_inspector();return
-        data=session.project.plan.to_dict()
+        before=session.project.plan.to_dict()
+        data=deepcopy(before)
         target=next((x for x in data['clips'] if x['id']==self.selected_clip_id),None)
         if target is None:return
         original=self._crop_original or deepcopy(target['crop'])
@@ -988,6 +989,7 @@ class TimelinePanel(QWidget):
         except Exception:
             self.action_message.setText('Crop không hợp lệ hoặc project đã đổi; dữ liệu đã lưu không bị thay đổi. Kiểm tra lại bốn cạnh.')
             self._refresh_crop_inspector();return
+        self.history.record(before,session,expected,'clip crop')
         self._refresh_crop_inspector()
         self.action_message.setText('Đã lưu crop chuẩn hóa; chưa có crop preview compositor hoặc render.')
         self.project_changed.emit()
