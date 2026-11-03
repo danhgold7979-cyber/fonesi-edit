@@ -78,6 +78,8 @@ def test_shortcut_settings_panel_search_remap_conflict_and_reset(tmp_path,qt_app
 
         panel.reset_selected()
         assert registry.sequence('layer.undo')=='Ctrl+Z'
+        with pytest.raises(ShortcutConflictError):
+            registry.set_sequence('layer.undo','Right')  # Shared Editor undo overlaps Timeline navigation.
         panel.reset_all()
         assert registry.sequence('timeline.next_frame')=='Right'
         assert registry.sequence('timeline.add_marker')=='M'
