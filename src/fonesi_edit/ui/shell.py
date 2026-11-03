@@ -1,6 +1,7 @@
 """Eight-area foundation shell sharing one authoritative loaded project."""
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer
+from PySide6.QtGui import QShortcut,QKeySequence
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QListWidget,
     QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget,QTabWidget)
 from fonesi_edit.storage.projects import ProjectStore, StorageError
@@ -113,6 +114,10 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.currentRowChanged.connect(lambda index:self.queue_page.refresh() if index==6 else None)
         self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
+        self.settings_shortcut=QShortcut(QKeySequence('Ctrl+,'),self)
+        self.settings_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.settings_shortcut.activated.connect(lambda:self.navigation.setCurrentRow(7))
+        self.navigation.setToolTip('Ctrl+, mở khu vực Preset/Cài đặt')
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
