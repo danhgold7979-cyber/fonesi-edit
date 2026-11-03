@@ -564,3 +564,28 @@ This slice verifies programmatic accessibility metadata and existing keyboard se
 
 ### Acceptance boundary
 - This slice edits canonical normalized crop geometry only. It does not render/crop the video, prove frame parity, create proxy media, or export. Crop compositor/export parity remains open for P07/P11.
+
+
+## Slice AG — crop gesture cancellation and ratio-safe source boundaries (P04-02)
+
+**Scope:** harden the existing Slice AF crop overlay without replacing its still-frame-only behavior.
+
+### Contract
+
+- Escape during an active pointer gesture restores the exact starting normalized crop and emits no staged change.
+- Turning crop edit mode off during a gesture cancels that gesture; a later mouse release cannot stage it.
+- Press/release without pointer movement is a no-op and emits no crop change.
+- Ratio-locked resize must preserve the starting width/height ratio even when the source-frame boundary limits the requested size. The handle may stop before the pointer if further movement would violate the ratio or source bounds.
+- All crop coordinates remain within [0,1], width/height remain positive, and source media/project state are unchanged until explicit Confirm.
+- Add accessible name/description and keyboard focus to the crop surface.
+
+### Tests and verification
+
+- Qt offscreen tests for Escape, disabling edit mid-drag, no-op click and ratio-locked edge resize at source boundary.
+- Existing crop move, corner resize, source clamp, Confirm/Cancel, stale revision, clip switch and save/reopen tests remain enabled.
+- Run `tests/test_crop_overlay.py`, `tests/test_timeline_crop_zoom.py`, plan integrity and exact four-runner CI.
+- Physical mouse, HiDPI and Windows end-user interaction remain external acceptance gates.
+
+### Acceptance boundary
+
+This slice validates safe staging and normalized geometry only. It does not add decoded-pixel crop composition, playback or export parity, and does not accept P04-02/P04.
