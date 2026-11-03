@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** 78ff11a8fb45e08dc9806b015e5f2f94475476db  
-**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41589895118
-**Latest code checkpoint:** 78ff11a8fb45e08dc9806b015e5f2f94475476db (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** b9ad4e814c2ac636997afc4336ac421d4fd140e4  
+**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085
+**Latest code checkpoint:** b9ad4e814c2ac636997afc4336ac421d4fd140e4 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -211,3 +211,22 @@ Tests: test_multiple_local_file_drop_queues_without_import_until_explicit_select
 Hosted run 41599687098 completed SUCCESS on exact HEAD 2cc8a50dad9fa1ceb9c89c6a52857a814761393b: Ubuntu Python 3.12.15/3.13.17 each 948 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 961 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 actual development onedir build PASS; frozen schema/subtitle/read-only tool discovery/license boundary checks PASS (5 cases). Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 Acceptance boundary: Qt drag/drop was synthetic and offscreen. Physical Windows Explorer multi-select, HiDPI/mixed-DPI, network shares, directory recursion, real codec/media validity and batch/parallel import remain NOT_RUN or out of this slice. ED-L136 and P04-01 remain IN_PROGRESS; no task or phase acceptance is inferred.
+
+## Slice AA — persistent appearance and window-layout preferences (P04-01, 2026-11-03)
+
+Code checkpoint: `b9ad4e814c2ac636997afc4336ac421d4fd140e4` on `develop/fonesi-full`.
+
+The integrated UI now includes a dedicated appearance settings panel with allow-listed persisted theme (system/light/dark), base font size (9/10/11/12/14/16 pt) and in-app zoom (100/110/125/150%). Preferences are isolated under the user-level QSettings `appearance` group and are not written into project files. Live application updates include palette, font and control spacing. Reset removes only appearance preferences and preserves shortcut and window-layout settings. Qt continues to own OS-level DPI/HiDPI scaling; the in-app zoom control does not claim to change Windows display scaling.
+
+Main-window persistence covers geometry, dock/window state, navigation row, Editor tab and Settings tab. Corrupt or oversized geometry/state fall back to defaults. A close request while the coordinator is still running does not persist an unaccepted window layout; settings are saved only after the close is accepted. The latest test-only commit adds coverage for Settings tab restoration and pending-close behavior.
+
+Regression coverage: `tests/test_appearance_settings.py` includes allow-list persistence, live theme/font/zoom application, reset isolation, geometry/navigation/Editor/Settings tab restoration, corrupt/oversized geometry fallback and pending-close non-persistence.
+
+Exact hosted clean-foundation run [41601897085](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085) completed SUCCESS on exact HEAD `b9ad4e814c2ac636997afc4336ac421d4fd140e4`:
+- Ubuntu Python 3.12.15: 954 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 954 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 967 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 967 passed, 26 skipped, 0 failed.
+- Integrity/plan check PASS on all four runners. Windows Python 3.12 also passed the development onedir build and five scoped frozen CLI schema/subtitle/tool-discovery/license checks. Separate pinned Windows FFmpeg capability workflow remains SKIPPED.
+
+Acceptance boundary: hosted Qt tests are offscreen. Physical Windows GUI, Explorer multi-select, mixed-DPI/HiDPI, physical Vietnamese/Chinese IME, live FFmpeg/media corpus, GPU, Chrome session/account, providers, continuous playback, synchronized A/V seek and renderer/export parity remain unaccepted or NOT_RUN. P04-01 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted.
