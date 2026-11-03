@@ -61,6 +61,8 @@ def test_group_selection_hides_individual_resize_handles_and_locked_layer_refuse
 
         editor._sync_selection({first},first)
         editor.toggle_lock()
+        locked_item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==first)
+        assert locked_item.show_handles is False
         revision=window.session.revision
         editor.resized(first,960,540,QPointF(960,540))
         editor.rotated(first,90)
