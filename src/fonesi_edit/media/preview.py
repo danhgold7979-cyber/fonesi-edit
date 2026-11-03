@@ -130,11 +130,12 @@ def _png_dimensions(data:bytes):
 
 
 def _timestamp(value:Fraction):
-    if type(value) is not Fraction or value<0:raise PreviewError('Nonnegative exact decoder timestamp required')
-    scale=10**9
+    if type(value) is not Fraction:raise PreviewError('Exact decoder timestamp required')
+    sign='-' if value<0 else ''
+    value=abs(value);scale=10**9
     ticks=(value.numerator*scale*2+value.denominator)//(2*value.denominator)
     whole,fraction=divmod(ticks,scale)
-    return f'{whole}.{fraction:09d}'
+    return f'{sign}{whole}.{fraction:09d}'
 
 
 def _cache_key(source_hash,tool_hash,stream_index,decoder_time,max_width,max_height):
@@ -199,7 +200,13 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
     width,height=_png_dimensions(result.stdout)
     frame=PreviewFrame(result.stdout,source_hash,tool_hash,stream_index,decoder_time,width,height,False)
     with _CACHE_LOCK:
-        _FRAME_CACHE[key]=frame;_FRAME_CACHE.move_to_end(key);_FRAME_CACHE_SIZE+=len(frame.png)
+        existing=_FRAME_CACHE.get(key)
+        if existing is None:
+            _FRAME_CACHE[key]=frame;_FRAME_CACHE_SIZE+=len(frame.png)
+        else:
+            frame=PreviewFrame(existing.png,source_hash,tool_hash,stream_index,decoder_time,
+                               existing.width,existing.height,True)
+        _FRAME_CACHE.move_to_end(key)
         while _FRAME_CACHE and (_FRAME_CACHE_SIZE>_FRAME_CACHE_BYTES or len(_FRAME_CACHE)>_FRAME_CACHE_LIMIT):
             _,removed=_FRAME_CACHE.popitem(last=False);_FRAME_CACHE_SIZE-=len(removed.png)
     return frame
