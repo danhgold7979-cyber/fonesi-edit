@@ -1085,5 +1085,111 @@
       "Named markers, loop playback and export-range rendering remain open.",
       "No continuous playback, synchronized A/V seek, real-media codec corpus, GPU, live Chrome or provider acceptance."
     ]
+  },
+  {
+    "id": "P04-HOSTED-TIMELINE-MARKERS-41588026020",
+    "generation": "clean-2026-11-01",
+    "commit": "fad21b7a1a1b77e5e967145721b6974e8f7375bd",
+    "tree": "46805ed779e11638517f6699611014fe9a28e986",
+    "task_ids": [
+      "P04-05",
+      "P04-07"
+    ],
+    "criterion_ids": [],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Partial project-persisted named marker create/select/delete and focus-scoped M shortcut verification only; no ED-17.04/ED-19.26, task or phase acceptance.",
+    "command": "GitHub Actions clean-foundation run 41588026020; full source foundation, actual Windows development onedir build and scoped frozen CLI boundary checks.",
+    "started_at": "2026-11-03T06:08:35Z",
+    "finished_at": "2026-11-03T06:12:25Z",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "fad21b7a1a1b77e5e967145721b6974e8f7375bd",
+          "source_tree": "46805ed779e11638517f6699611014fe9a28e986",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "fad21b7a1a1b77e5e967145721b6974e8f7375bd",
+          "source_tree": "46805ed779e11638517f6699611014fe9a28e986",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "fad21b7a1a1b77e5e967145721b6974e8f7375bd",
+          "source_tree": "46805ed779e11638517f6699611014fe9a28e986",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "fad21b7a1a1b77e5e967145721b6974e8f7375bd",
+          "source_tree": "46805ed779e11638517f6699611014fe9a28e986",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_composition::test_timeline_markers_are_optional_navigation_metadata_not_render_content",
+      "tests.test_composition::test_invalid_timeline_markers_fail_closed",
+      "tests.test_composition::test_timeline_marker_collection_accepts_1000_and_rejects_1001",
+      "tests.test_timeline_panel_controls::test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed",
+      "tests.test_shortcut_registry::test_layer_and_timeline_shortcuts_rebind_live_without_reopening_project"
+    ],
+    "status": "PASS",
+    "observations": {
+      "ubuntu_py312": {
+        "passed": 938,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "ubuntu_py313": {
+        "passed": 938,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312": {
+        "passed": 951,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py313": {
+        "passed": 951,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312_onedir_build": "PASS",
+      "windows_py312_frozen_cli_boundaries": "PASS",
+      "pinned_windows_ffmpeg_synthetic": "SKIPPED"
+    },
+    "artifact_paths": [],
+    "run_ids": [
+      41588026020
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41588026020"
+    ],
+    "limitations": [
+      "Qt tests used QT_QPA_PLATFORM=offscreen; no physical Windows GUI, Vietnamese/Chinese IME, Explorer or HiDPI acceptance.",
+      "ED-17.04 remains NOT_RUN because loop playback, marker rename/drag, continuous thumbnails and synchronized A/V seek are not complete.",
+      "ED-19.26 remains NOT_RUN because physical IME/target focus certification is not complete.",
+      "No renderer/export parity, real-media codec corpus, GPU, live Chrome or provider acceptance."
+    ]
   }
 ]
