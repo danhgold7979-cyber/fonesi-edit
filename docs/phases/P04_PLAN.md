@@ -541,3 +541,26 @@ This slice verifies programmatic accessibility metadata and existing keyboard se
 - Tests cover non-finite resize dimensions/anchor points and rotation, plus all nine anchor positions retaining their anchor coordinates after a valid resize.
 - Regression suite includes tests/test_layer_canvas_handles.py, tests/test_layer_canvas_guides.py, tests/test_layer_canvas_drag.py and existing transform precision/lock tests.
 - Acceptance is limited to finite-value model safety and synthetic Qt tests. Physical drag, display scaling, preview/render parity and target-device interaction remain external/open.
+
+
+## Slice AF — interactive normalized crop overlay (P04-02)
+
+**Master source:** EDITOR_SPEC.md §2.2, especially crop grid, locked ratio, outside-area shading and explicit confirm/cancel. **Task:** P04-02; depends on P04-01 UI state and the existing canonical clip crop model.
+
+### Contract
+- Render the user-requested still source frame in a dedicated crop-edit surface. The surface is a crop geometry editor, not a composition preview or renderer.
+- Display the current normalized clip crop rectangle over the still frame, shade the outside region, and draw optional thirds-grid guides and resize handles.
+- Allow dragging the crop rectangle and its eight handles; clamp all edges to the source frame and reject zero/near-zero extents. Keep the selected clip and crop revision pinned during the gesture.
+- Optional ratio lock preserves the crop's starting aspect ratio. The lock is a UI gesture constraint, not a change to the clip's canonical crop schema.
+- Gesture edits are staged only in UI memory. Confirm commits one normalized crop update through the existing ProjectSession CAS; Cancel restores the last committed crop. No source bytes are changed.
+- A stale project revision refuses the staged crop and reloads authoritative values. Switching clip or invalidating the still preview discards pending geometry.
+- Numeric crop fields remain available and use the same canonical crop representation.
+
+### Tests and acceptance
+- Pure geometry tests for move/edge/corner resize, clamping, minimum extent, ratio lock and portrait/landscape pixmap fitting.
+- Qt tests for staged drag, confirm exactly one project revision, cancel zero revisions, stale revision refusal, selection change discard, and save/reopen equality.
+- Existing tests/test_timeline_crop_zoom.py must remain valid or be updated to the explicit apply/cancel semantics with equivalent assertions.
+- Exact four-runner clean-foundation CI and plan integrity. Hosted/offscreen tests do not prove physical mouse/HiDPI or crop renderer parity.
+
+### Acceptance boundary
+- This slice edits canonical normalized crop geometry only. It does not render/crop the video, prove frame parity, create proxy media, or export. Crop compositor/export parity remains open for P07/P11.
