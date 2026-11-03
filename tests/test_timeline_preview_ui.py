@@ -297,6 +297,7 @@ def test_preview_quality_change_does_not_cancel_waveform_observation(tmp_path,qt
         timeline.preview_trust.setChecked(True)
         timeline.request_waveform()
         wait_for(qt_app,entered.is_set)
+        assert timeline.preview_quality.isEnabled()
         timeline.preview_quality.setCurrentIndex(2)
         release.set()
         wait_for(qt_app,lambda:not timeline.busy)
