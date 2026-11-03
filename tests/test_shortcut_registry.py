@@ -38,6 +38,8 @@ def test_shortcut_registry_persists_preferences_and_rejects_scope_conflicts(tmp_
         second.set_sequence('app.settings','Left')
     with pytest.raises(ShortcutError):
         second.set_sequence('layer.group','')
+    with pytest.raises(ShortcutError,match='one key chord'):
+        second.set_sequence('layer.group','Ctrl+K, Ctrl+C')
     second.reset('layer.undo')
     assert second.sequence('layer.undo')=='Ctrl+Z'
 
