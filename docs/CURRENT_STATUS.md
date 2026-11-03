@@ -198,7 +198,7 @@ Hosted Qt drag/drop evidence is synthetic/offscreen, not physical Windows Explor
 
 ## Latest verified checkpoint — 2026-11-03 15:30 VN
 
-Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch: `main` remains unchanged. Code HEAD verified before this status-only update: `b9ad4e814c2ac636997afc4336ac421d4fd140e4`. The exact code HEAD passed clean-foundation run [41601897085](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085). The following documentation update is a separate commit and does not change source code.
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch: `main` remains unchanged. Code HEAD verified before this status-only update: `b9ad4e814c2ac636997afc4336ac421d4fd140e4`. The exact code HEAD passed clean-foundation run 41601897085. The following documentation update is a separate commit and does not change source code.
 
 Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 53%** (manual task-scope estimate; not test coverage or acceptance). Task estimates used: P04-01 70%, P04-02 50%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance is 0/8.
 
