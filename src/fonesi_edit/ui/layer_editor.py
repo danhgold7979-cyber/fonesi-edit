@@ -201,35 +201,67 @@ class LayerEditorWorkspace(QWidget):
                 self.original_transform=None
         finally:self.syncing=False
 
-    def scene_selected(self):
-        if self.syncing:return
-        selected=next((x for x in self.scene.selectedItems() if isinstance(x,LayerBoundsItem)),None)
-        self.selected_id=None if selected is None else selected.layer_id
+    def _sync_selection(self,ids,primary=None):
+        data=self.data()
+        if data is None:
+            self.selected_ids=set();self.selected_id=None;return
+        valid={x['id'] for x in data['layers']}
+        ids=self.expand_group_ids(set(ids)&valid,data)
+        self.selected_ids=ids
+        self.selected_id=primary if primary in ids else (next(iter(sorted(ids)),None))
         self.syncing=True
         try:
-            row=-1
             for i in range(self.layers.count()):
-                if self.layers.item(i).data(Qt.ItemDataRole.UserRole)==self.selected_id:row=i;break
-            self.layers.setCurrentRow(row)
+                item=self.layers.item(i);item.setSelected(item.data(Qt.ItemDataRole.UserRole) in ids)
+            selected_locked=any(locked(x) for x in data['layers'] if x['id'] in ids)
+            for item in self.scene.items():
+                if isinstance(item,LayerBoundsItem):
+                    is_selected=item.layer_id in ids
+                    item.setSelected(is_selected)
+                    layer=next(x for x in data['layers'] if x['id']==item.layer_id)
+                    item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
+                                 not locked(layer) and (not selected_locked if is_selected else True))
         finally:self.syncing=False
         self.set_inspector(self.selected());self.update_actions()
+
+    def select_rows(self):
+        if self.syncing:return
+        ids={item.data(Qt.ItemDataRole.UserRole) for item in self.layers.selectedItems()}
+        current=self.layers.currentItem()
+        primary=None if current is None else current.data(Qt.ItemDataRole.UserRole)
+        self._sync_selection(ids,primary)
+
+    def scene_selected(self):
+        if self.syncing:return
+        items=[x for x in self.scene.selectedItems() if isinstance(x,LayerBoundsItem)]
+        ids={x.layer_id for x in items}
+        primary=items[-1].layer_id if items else None
+        self._sync_selection(ids,primary)
 
     def dragged(self,layer_id,position):
         data=self.data()
         if data is None:return
-        layer=next((x for x in data['layers'] if x['id']==layer_id),None)
-        if layer is None or locked(layer):return
+        selected_items=[x for x in self.scene.selectedItems() if isinstance(x,LayerBoundsItem)]
+        if not selected_items:
+            selected_items=[x for x in self.scene.items()
+                            if isinstance(x,LayerBoundsItem) and x.layer_id==layer_id]
+        ids={x.layer_id for x in selected_items}
+        layers={x['id']:x for x in data['layers']}
+        if not ids or any(x not in layers or locked(layers[x]) for x in ids):
+            self.update_project();return
         width=data['output']['width'];height=data['output']['height']
-        layer['transform']['x']=pair(position.x()/width)
-        layer['transform']['y']=pair(position.y()/height)
-        self.selected_id=layer_id
-        self.commit(data,'di chuyển layer')
+        for item in selected_items:
+            layer=layers[item.layer_id]
+            layer['transform']['x']=pair(item.pos().x()/width)
+            layer['transform']['y']=pair(item.pos().y()/height)
+        self.selected_ids=ids;self.selected_id=layer_id
+        self.commit(data,'di chuyển nhóm layer' if len(ids)>1 else 'di chuyển layer')
 
     def select_row(self,row):
         if self.syncing:return
         item=self.layers.item(row) if row>=0 else None
-        self.selected_id=None if item is None else item.data(Qt.ItemDataRole.UserRole)
-        self.update_project()
+        self._sync_selection(set() if item is None else {item.data(Qt.ItemDataRole.UserRole)},
+                             None if item is None else item.data(Qt.ItemDataRole.UserRole))
 
     def commit(self,data,label):
         session=self.get_session()
