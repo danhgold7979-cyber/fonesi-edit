@@ -87,7 +87,7 @@ def test_absolute_asset_requires_regular_non_symlink_file(tmp_path):
     try:link.symlink_to(source)
     except (OSError,NotImplementedError):pytest.skip('Symlink creation unavailable')
     asset['path_ref']['path']=str(link)
-    with pytest.raises(module.PreviewError,match='non-reparse'):
+    with pytest.raises(module.PreviewError,match='symlinks or reparse'):
         module.resolve_asset_path(asset,tmp_path)
 
 
