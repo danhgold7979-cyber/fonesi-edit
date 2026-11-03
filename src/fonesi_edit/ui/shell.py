@@ -82,8 +82,7 @@ class MainWindow(QMainWindow):
             page = QWidget()
             contents = QVBoxLayout(page)
             heading = QLabel(title)
-            heading_font=heading.font();heading_font.setBold(True)
-            heading_font.setPointSizeF(heading_font.pointSizeF()*1.4);heading.setFont(heading_font)
+            heading_font=heading.font();heading_font.setBold(True);heading.setFont(heading_font)
             contents.addWidget(heading)
             if index == 0:
                 contents.addWidget(self.project_label)
