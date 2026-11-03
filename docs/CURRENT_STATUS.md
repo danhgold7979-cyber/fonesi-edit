@@ -159,6 +159,6 @@ The machine-readable task ledger is reconciled: 8/94 ACCEPTED, 17/94 IN_PROGRESS
 
 Code checkpoint: `ff86e797b662ca118189e7a19980d45bbdfdb4a5` on `develop/fonesi-full`. Optional CompositionPlan timeline_range persists half-open In/Out output-frame boundaries; validation uses the exact output frame count; I/O/Escape and buttons commit through ProjectSession; project-file save/reopen restores the selection. Legacy plans remain valid.
 
-Hosted clean-foundation run [41584573033](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41584573033) passed: Ubuntu 3.12.15/3.13.17 each 924 passed, 39 skipped, 0 failed; Windows 3.12.10/3.13.17 each 937 passed, 26 skipped, 0 failed; integrity PASS all four. Windows 3.12 onedir build and scoped frozen CLI boundaries PASS. Pinned Windows FFmpeg synthetic capability SKIPPED.
+Hosted clean-foundation run 41584573033 passed: Ubuntu 3.12.15/3.13.17 each 924 passed, 39 skipped, 0 failed; Windows 3.12.10/3.13.17 each 937 passed, 26 skipped, 0 failed; integrity PASS all four. Windows 3.12 onedir build and scoped frozen CLI boundaries PASS. Pinned Windows FFmpeg synthetic capability SKIPPED.
 
 Offscreen hosted Qt verification is not physical Windows GUI or media/render acceptance. Named markers, loop, export-range renderer, continuous thumbnails/waveform, synchronized A/V seek and physical Windows GUI remain open. Acceptance counts unchanged: 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 groups accepted; P04 whole-task acceptance 0/8.
