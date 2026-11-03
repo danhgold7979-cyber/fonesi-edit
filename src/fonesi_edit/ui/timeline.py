@@ -230,6 +230,7 @@ class CropEditorView(QWidget):
         if handle=='move':
             left=max(0,min(1-start['width'],left+dx))
             top=max(0,min(1-start['height'],top+dy))
+            right=left+start['width'];bottom=top+start['height']
         else:
             if 'w' in handle:left=max(0,min(right-minimum,left+dx))
             if 'e' in handle:right=min(1,max(left+minimum,right+dx))
