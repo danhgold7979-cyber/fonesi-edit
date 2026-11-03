@@ -37,9 +37,9 @@ class InventoryWorker(QThread):
 class ToolInventoryPanel(QWidget):
     idle=Signal()
     def __init__(self,parent=None,*,preferences_path=None,shortcut_registry=None):
-        super().__init__(parent);self.worker=None;self.stopping=False;self.revision=0
+        super().__init__(parent);self.worker=None;self.worker_revision=None;self.stopping=False;self.revision=0
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
-        self.preferences_path=preferences_path;self.preference_worker=None
+        self.preferences_path=preferences_path;self.preference_worker=None;self.preference_revision=None
         self.saved_snapshot=None;self.saved_revision=None;self.uncertain_save=None
         self.first_open_attempted=False;self.navigation_generation=0
         layout=QVBoxLayout(self)
@@ -116,10 +116,15 @@ class ToolInventoryPanel(QWidget):
         if extra and not Path(extra).is_absolute():
             self.message.setText('Thư mục bổ sung phải tuyệt đối; không dùng thư mục hiện hành.');return
         worker=InventoryWorker(configured,extra,self.system.isChecked(),self)
-        revision=self.revision;self.worker=worker;self.clear_rows()
-        worker.finished.connect(lambda:self._finished(worker,revision))
+        revision=self.revision;self.worker=worker;self.worker_revision=revision;self.clear_rows()
+        worker.finished.connect(self._inventory_worker_finished,Qt.ConnectionType.QueuedConnection)
         self.message.setText('Đang đọc metadata, tối đa 256 kiểm tra/3 giây giữa thao tác; I/O hệ điều hành có thể chậm hơn.')
         self.update_actions();worker.start()
+    def _inventory_worker_finished(self):
+        # A bound QObject slot plus QueuedConnection guarantees UI mutation on
+        # the panel's GUI thread, never on the QThread that emitted finished.
+        worker=self.worker
+        if worker is not None:self._finished(worker,self.worker_revision)
     def _finished(self,worker,revision):
         if self.worker is not worker:return
         if not worker.wait(0):QTimer.singleShot(10,lambda:self._finished(worker,revision));return
@@ -141,7 +146,7 @@ class ToolInventoryPanel(QWidget):
             self.candidates.setPlainText('\n'.join(lines))
             self.message.setText(f'{result.status}: đã xem {result.examined} tên tệp. '
                 'Không có công cụ nào được xác nhận READY; nguồn tìm không chứng minh sở hữu/tin cậy. '+', '.join(result.diagnostics))
-        self.worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+        self.worker=None;self.worker_revision=None;worker.deleteLater();self.update_actions();self.idle.emit()
     def cancel(self):
         self.navigation_generation+=1
         active=self.worker or self.preference_worker
@@ -172,10 +177,14 @@ class ToolInventoryPanel(QWidget):
             self.preference_message.setText('Chỉ lưu đường dẫn tuyệt đối hoặc rỗng, không NUL, tối đa 32768 byte mỗi mục.');return
         self._preferences_start(PreferenceWorker(self.preferences_path,value=value,expected=self.saved_snapshot,parent=self))
     def _preferences_start(self,worker,auto_generation=None):
-        revision=self.revision;worker.auto_generation=auto_generation;self.preference_worker=worker
-        worker.finished.connect(lambda:self._preferences_finished(worker,revision))
+        revision=self.revision;worker.auto_generation=auto_generation;self.preference_worker=worker;self.preference_revision=revision
+        worker.finished.connect(self._preferences_worker_finished,Qt.ConnectionType.QueuedConnection)
         self.preference_message.setText('Đang đọc/lưu cấu hình trên worker; không chạy công cụ. I/O có thể cần chờ.')
         self.update_actions();worker.start()
+    def _preferences_worker_finished(self):
+        # Keep all QWidget and Project/UI state updates on the GUI thread.
+        worker=self.preference_worker
+        if worker is not None:self._preferences_finished(worker,self.preference_revision)
     def _preferences_finished(self,worker,revision):
         if self.preference_worker is not worker:return
         if not worker.wait(0):QTimer.singleShot(10,lambda:self._preferences_finished(worker,revision));return
@@ -209,7 +218,7 @@ class ToolInventoryPanel(QWidget):
                 self.saved_snapshot=result;self.saved_revision=revision
                 self.preference_message.setText(f'Đã lưu phiên bản {result.version}. Không thực thi/READY/kích hoạt, không đổi tác vụ cũ.')
         applied=worker.result
-        self.preference_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+        self.preference_worker=None;self.preference_revision=None;worker.deleteLater();self.update_actions();self.idle.emit()
         if auto_eligible and self.saved_snapshot==applied:
             applied_revision=self.revision;expected=applied.value
             QTimer.singleShot(0,lambda:self._first_scan(auto_generation,applied_revision,expected))
