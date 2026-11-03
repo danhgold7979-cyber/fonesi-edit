@@ -888,6 +888,17 @@
         "z": {
           "type": "integer"
         },
+        "group_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "intervals": {
           "type": "array",
           "items": {
@@ -957,7 +968,7 @@
         "visible",
         "locked_fields"
       ],
-      "$comment": "R12: layer type chooses exact compatible style/content; intervals sorted disjoint; keyframes use explicit clip/global time basis; z ties stable by ID."
+      "$comment": "R12: layer type chooses exact compatible style/content; optional group_id is shared by at least two layers; intervals sorted disjoint; keyframes use explicit clip/global time basis; z ties stable by ID."
     },
     "mask_style": {
       "type": "object",
