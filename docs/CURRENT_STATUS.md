@@ -173,3 +173,14 @@ Slice V adds project-persisted named timeline markers with M shortcut, list/disp
 Exact hosted clean-foundation run 41588026020 completed SUCCESS on exact HEAD fad21b7a1a1b77e5e967145721b6974e8f7375bd: Ubuntu Python 3.12.15/3.13.17 each 938 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 951 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic capability SKIPPED.
 
 Hosted Qt tests ran offscreen; no physical Windows GUI, IME, Explorer, HiDPI, live Chrome/provider, real-media/GPU, continuous playback, synchronized A/V seek or renderer/export acceptance. All P04 tasks remain IN_PROGRESS; P04 whole-task acceptance 0/8. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted.
+## P04 inspector usability checkpoint — 2026-11-03
+
+Integrated repository: danhgold7979-cyber/fonesi-edit; active branch: develop/fonesi-full; latest code HEAD: 1038d0afa91bddcaca45fc00c832247451da19cb. Release branch main remains unchanged at e514b51d764d972fbf7c018e0dbdbdf964ece267.
+
+**Phase tracking: P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 51%.** This is a manual task-scope estimate, not a test or acceptance percentage. Task-level estimates used for the arithmetic mean: P04-01 55%, P04-02 50%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; 0/8 accepted.
+
+P04-01 now includes numeric/slider transform controls, property and group resets, Basic/Advanced inspector mode, Vietnamese property search, contextual disabled reasons and tooltips. Worker completion callbacks for tool preferences/inventory are explicitly queued to the GUI thread. Still open: persistent Basic/Advanced preference, full effect-property catalog, theme/font-size/HiDPI/layout persistence, multi-file Explorer drag/drop and physical Windows UI acceptance.
+
+Exact hosted clean-foundation run 41594109888 completed SUCCESS on exact HEAD 1038d0afa91bddcaca45fc00c832247451da19cb: Ubuntu Python 3.12.15/3.13.17 each 943 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 956 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and five scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+Hosted Qt evidence is offscreen, not physical Windows GUI acceptance. Global acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted. P04 whole-task acceptance remains 0/8.

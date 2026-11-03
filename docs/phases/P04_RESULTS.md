@@ -185,3 +185,16 @@ Regression coverage in tests/test_layer_editor_ui.py: test_inspector_slider_drag
 Hosted clean-foundation run 41589895118 completed SUCCESS on exact HEAD 78ff11a8fb45e08dc9806b015e5f2f94475476db: Ubuntu Python 3.12.15/3.13.17 each 941 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 954 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 development onedir build and scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 Acceptance boundary: Basic/Advanced mode, property search, complete tooltip/disabled-reason mapping, theme/font-size/HiDPI persistence, multi-file Explorer drag/drop and physical Windows GUI remain open. ED-01.02/.03 and P04-01 are NOT accepted. Hosted Qt tests used offscreen mode; this is not physical Windows user-device acceptance.
+## Slice Y — Basic/Advanced inspector mode, property search and disabled reasons (P04-01, 2026-11-03)
+
+Code checkpoint: 1038d0afa91bddcaca45fc00c832247451da19cb on develop/fonesi-full.
+
+Layer inspector Basic mode shows X/Y/width/height/opacity. Advanced mode adds scale X/Y, rotation, anchor and flips. Search matches Vietnamese labels and stable keys; it can surface an advanced property from Basic mode. A separate state label reports why editing is disabled (no project, reconciliation, no selection, multi-selection, locked layer, shutdown) or confirms an editable single layer. Numeric, slider and all reset controls include the current reason in Vietnamese tooltips. Units/ranges are visible.
+
+PreferenceWorker and InventoryWorker completion callbacks now dispatch through bound QObject slots using QueuedConnection, keeping QWidget and project-state updates on the GUI thread. The worker regression test records and checks GUI-thread completion.
+
+Regression tests: test_inspector_basic_advanced_search_units_and_tooltips; test_inspector_disabled_reasons_follow_multi_selection_and_lock; test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once; test_inspector_property_and_group_resets_commit_once_and_preserve_other_fields; test_anchor_and_flip_individual_resets_restore_only_selected_property; test_unknown_commit_requires_matching_owned_reload_not_replay.
+
+Hosted clean-foundation run 41594109888 completed SUCCESS on exact HEAD 1038d0afa91bddcaca45fc00c832247451da19cb: Ubuntu Python 3.12.15 and 3.13.17 each 943 passed, 39 skipped, 0 failed; Windows Python 3.12.10 and 3.13.17 each 956 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 actual development onedir build PASS; frozen schema/subtitle/read-only tool discovery/license boundary checks PASS (5 cases). Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+Acceptance boundary: hosted Qt tests used QT_QPA_PLATFORM=offscreen. No physical Windows GUI/Explorer, HiDPI, Vietnamese/Chinese IME, theme/layout persistence or multi-file drag/drop acceptance. Basic/Advanced preference is not persisted; future effect panels are not covered by this inspector search. ED-01.02/.03/.04 remain NOT_RUN. P04-01 and P04 remain IN_PROGRESS; no task or phase acceptance is inferred.
