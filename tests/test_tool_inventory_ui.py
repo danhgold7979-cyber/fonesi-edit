@@ -2,7 +2,7 @@
 import os
 import threading
 import time
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer,QSettings
 from fonesi_edit.ui import tool_inventory as ui
 from fonesi_edit.ui.shell import MainWindow
 from fonesi_edit.storage.projects import ProjectStore
@@ -22,7 +22,8 @@ def test_settings_opens_without_tools_then_first_open_scans_once_missing_not_rea
     def scan(**kwargs):calls.append(threading.get_ident());return real(**kwargs)
     monkeypatch.setattr(ui,'discover_tools',scan);monkeypatch.setattr(ui,'system_search_dirs',lambda:())
     with ProjectStore(tmp_path/'active.db') as store:
-        window=MainWindow(store);panel=window.tool_inventory
+        ui_settings=QSettings(str(tmp_path/'ui.ini'),QSettings.Format.IniFormat)
+        window=MainWindow(store,ui_settings=ui_settings);panel=window.tool_inventory
         assert calls==[] and not panel.busy # constructing app is not blocked by tools/preferences
         window.navigation.setCurrentRow(7)
         assert window.pages.currentIndex()==7 and panel.first_open_attempted
@@ -60,7 +61,8 @@ def test_close_cancels_scan_and_waits_owned_worker_without_blocking_gui(qt_app,t
         return real(**kwargs)
     monkeypatch.setattr(ui,'discover_tools',held)
     with ProjectStore(tmp_path/'active.db') as store:
-        window=MainWindow(store);window.show();panel=window.tool_inventory;panel.system.setChecked(False)
+        ui_settings=QSettings(str(tmp_path/'ui.ini'),QSettings.Format.IniFormat)
+        window=MainWindow(store,ui_settings=ui_settings);window.show();panel=window.tool_inventory;panel.system.setChecked(False)
         panel.paths['ffmpeg'].setText(str(tmp_path/'queued-candidate'))
         pulses=[];timer=QTimer();timer.timeout.connect(lambda:pulses.append(1));timer.start(2)
         panel.start();spin(qt_app,entered.is_set);window.close()
