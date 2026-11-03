@@ -227,3 +227,14 @@ Tests: valid half-open range, one-frame range at final output frame, Out-before-
 ## Slice S — F5 metadata-only tool inventory rescan
 
 Bind F5 only to the tool inventory table and its child focus. It reuses the existing bounded background metadata scan, never launches a candidate executable, never grants trust, and never affects a real Chrome window. The action is registered in the shared shortcut preferences and can be remapped with the same conflict checks/live rebinding. Tests cover table-focus activation, no activation from unrelated settings/Chrome scope, live remapping and worker execution off the UI thread. This does not implement installation, update, repair, rollback or Chrome/account workflows.
+
+
+## 2026-11-03 CI remediation slice — P04-07 shortcut routing
+
+**Entry checkpoint:** `3f1ab9ff0a4923ad166190d998fafb71fd4f37e6`; workflow run `41573785927`.
+
+**Observed evidence:** all four hosted source-suite runners failed with the same 10 tests. The logs identify a PySide6 enum conversion exception in `ShortcutRegistry.matches` (`int(KeyboardModifier)`), plus focus/activation failures in Settings, timeline, and tool inventory shortcuts and one case-sensitive Vietnamese assertion. This slice must correct the production enum conversion first, then re-run all four OS/Python combinations. Do not weaken IME handling, shortcut focus scopes, tool scan safety, or assertions. If independent focus failures remain after the enum correction, diagnose them from the next exact run before editing.
+
+**Implementation:** use the documented integer `.value` of the masked Qt keyboard-modifier enum; preserve the portable QKeySequence comparison. Add/retain a direct regression for Control/Shift/Alt combinations and ensure existing layer, timeline, Settings, and F5 UI tests remain enabled.
+
+**Acceptance:** targeted shortcut tests and full four-runner clean-foundation matrix pass on the resulting exact HEAD; all skipped platform checks remain separately reported. This slice does not accept P04-07 or P04 overall.
