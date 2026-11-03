@@ -1,6 +1,6 @@
 # P04 — Task-specific clean implementation plan
 
-Generation clean-2026-11-01; branch `phase-04`. Status IN_PROGRESS; P04-01/P04-02 have partial code, no P04 task or phase is accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
+Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_PROGRESS; P04-01 through P04-05 have partial implementation, P04-03 grouping and P04-05 timeline remain under verification; no P04 task or phase is accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
 
 ## P04-01 — panel/theme/HiDPI/cỡ chữ UI, drag từ Explorer, media/inspector, slider/ô số/reset.
 
