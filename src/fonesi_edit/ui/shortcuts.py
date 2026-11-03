@@ -127,26 +127,35 @@ class ShortcutEventRouter(QObject):
         self.ignore_text_entry=ignore_text_entry
         self.repeatable=frozenset(repeatable)
 
-    def _is_text_entry(self,watched):
-        if not self.ignore_text_entry:return False
-        text_types=(QLineEdit,QTextEdit,QPlainTextEdit,QKeySequenceEdit)
-        # Inspect both the event receiver and actual focus widget: Qt may propagate
-        # an unhandled key to a parent after the child filter has returned False.
+    def _text_entry_kind(self,watched):
+        if not self.ignore_text_entry:return None
+        text_types=(QLineEdit,QTextEdit,QPlainTextEdit)
+        # Inspect both receiver and focus widget because Qt may propagate a key
+        # from an unhandled editor to its parent. QKeySequenceEdit owns capture;
+        # a spin box owns numeric input but does not block the app Settings chord.
         for candidate in (watched,QApplication.focusWidget()):
             current=candidate;found_text_entry=False
             while current is not None:
+                if isinstance(current,QKeySequenceEdit):return 'capture'
                 if isinstance(current,QAbstractSpinBox):
-                    # Its internal QLineEdit is a numeric editor, not a text document.
                     found_text_entry=False
                     break
                 if isinstance(current,text_types):found_text_entry=True
                 parent=getattr(current,'parentWidget',None)
                 current=parent() if parent is not None else None
-            if found_text_entry:return True
-        return False
+            if found_text_entry:return 'text'
+        return None
 
     def eventFilter(self,watched,event):
-        if event.type()!=QEvent.Type.KeyPress or self._is_text_entry(watched):return False
+        if event.type()!=QEvent.Type.KeyPress:return False
+        focus_kind=self._text_entry_kind(watched)
+        if focus_kind=='capture':return False
+        if focus_kind=='text':
+            # Consume only a registered app chord so it cannot propagate to a
+            # parent and accidentally fire globally; ordinary typing is untouched.
+            if any(self.registry.matches(action_id,event) for action_id,_callback in self.bindings):
+                event.accept();return True
+            return False
         for action_id,callback in self.bindings:
             if not self.registry.matches(action_id,event):continue
             if event.isAutoRepeat() and action_id not in self.repeatable:
