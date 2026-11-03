@@ -251,3 +251,10 @@ Bind F5 only to the tool inventory table and its child focus. It reuses the exis
 **Numeric-input test correction:** Qt spin boxes use Up/Down to change the numeric value; Left/Right move the text cursor. Keep a regression proving Left/Right do not move the timeline playhead and Up increments the focused numeric value. Do not change production spin-box semantics to satisfy an incorrect assertion.
 
 **Acceptance:** retain all functional assertions; add event-filter tests for main-window scope/text-entry exclusion, timeline scope/crop isolation, tool-table scope/live remap, and layer Ctrl+Alt remap. Run targeted Qt tests, then all four hosted Linux/Windows Python 3.12/3.13 jobs on the exact resulting HEAD. No task or phase is accepted by this slice alone.
+
+
+### Slice 2 refinement from hosted Windows evidence
+
+Run `41577723521` passed Linux Python 3.12/3.13 (904 passed, 39 skipped each) and Windows Python 3.13 (917 passed, 26 skipped); Windows Python 3.12 had 916 passed, 26 skipped and one teardown assertion in `test_desktop_coordinator_host`. The host had already reported `isRunning() == false`, but the test called `wait(0)` only once and asserted immediately. Correct the helper to poll the actual `wait(0)` completion predicate within its existing five-second bound; retain the requirement that the native thread is joined before teardown.
+
+Clarify application shortcut scope: Ctrl+, must work from the numeric inspector as required by Slice N. It does not collide with the spin box's native arrow keys. Continue suppressing it while a text editor or QKeySequenceEdit owns focus, including when Qt propagates a key event to a parent widget. The timeline's Left/Right and Up/Down numeric semantics remain isolated by the timeline's exact installed scopes.
