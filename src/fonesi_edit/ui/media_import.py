@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 import os
 import stat
+import unicodedata
 
 from PySide6.QtCore import QThread, Signal, QTimer, Qt, QEvent
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
@@ -92,6 +93,14 @@ class LocalMediaPathEdit(QLineEdit):
 
 MAX_DROP_QUEUE_FILES=64
 MAX_DROP_QUEUE_ROWS=128
+MAX_DROP_QUEUE_URLS_PER_DROP=256
+
+
+def _drop_detail(url):
+    if url.isLocalFile():
+        return url.toLocalFile()
+    # Do not echo credentials, query tokens or fragments from a rejected URL.
+    return f'{url.scheme()}://{url.host()}{url.path()}'
 
 
 class LocalMediaDropQueue(QListWidget):
@@ -108,61 +117,108 @@ class LocalMediaDropQueue(QListWidget):
         self.setToolTip('Kéo nhiều tệp cục bộ vào đây. Chỉ chọn tệp; không tự kiểm tra hoặc nhập.')
         self._seen=set()
         self._valid_count=0
-        self._overflow_reported=False
+        self._refused_count=0
+        self._overflow_item=None
+        self._overflow_rows=0
+
+    @property
+    def valid_count(self):
+        return self._valid_count
+
+    @property
+    def refused_count(self):
+        return self._refused_count
 
     @staticmethod
     def _candidate(url):
         if not url.isLocalFile():
             raise ValueError('Chỉ nhận tệp cục bộ; URL mạng bị từ chối.')
         raw=url.toLocalFile()
-        try:encoded=raw.encode('utf-8')
-        except UnicodeEncodeError as exc:raise ValueError('Đường dẫn tệp không hợp lệ.') from exc
-        if (not raw or '\\x00' in raw or len(raw)>32768 or len(encoded)>131072 or
-                raw.startswith(('\\\\\\\\','//'))):
-            raise ValueError('Đường dẫn rỗng, quá dài hoặc không phải đường dẫn cục bộ.')
+        try:
+            encoded=raw.encode('utf-8')
+        except UnicodeEncodeError as exc:
+            raise ValueError('Đường dẫn tệp không hợp lệ.') from exc
+        if (not raw or '\x00' in raw or len(raw)>32768 or len(encoded)>131072 or
+                raw.startswith(('\\\\','//'))):
+            raise ValueError('Đường dẫn rỗng, quá dài hoặc là đường dẫn mạng/UNC.')
         path=Path(raw)
-        if not path.is_absolute():raise ValueError('Đường dẫn phải tuyệt đối.')
+        if not path.is_absolute():
+            raise ValueError('Đường dẫn phải tuyệt đối.')
         _regular_original(path)
         return path
 
+    def _append_overflow_summary(self,count):
+        if count<=0:return
+        if self._overflow_item is None:
+            self._overflow_item=QListWidgetItem()
+            self._overflow_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self.addItem(self._overflow_item)
+        self._overflow_rows+=count
+        self._overflow_item.setText(
+            f'Đã ẩn {self._overflow_rows} mục bổ sung vì giới hạn {MAX_DROP_QUEUE_ROWS} dòng.')
+        self._overflow_item.setToolTip(
+            'Danh sách được giới hạn để tránh nhận quá nhiều mục kéo thả. Các mục ẩn không được xếp hàng.')
+
+    def _append_item(self,item):
+        # Reserve the final visible row for an explicit overflow summary.
+        if self.count()<MAX_DROP_QUEUE_ROWS-1:
+            self.addItem(item)
+            return True
+        self._append_overflow_summary(1)
+        return False
+
     def _refusal(self,label,reason,tooltip=None):
+        self._refused_count+=1
         item=QListWidgetItem(f'Từ chối · {label} — {reason}')
         item.setData(Qt.ItemDataRole.UserRole,None)
         item.setData(Qt.ItemDataRole.UserRole+1,'REFUSED')
         item.setToolTip(tooltip or reason)
-        self.addItem(item)
+        self._append_item(item)
 
     def add_urls(self,urls):
+        urls=tuple(urls)
         accepted=rejected=0
-        for index,url in enumerate(urls):
-            if self.count()>=MAX_DROP_QUEUE_ROWS:
-                rejected+=len(urls)-index
+        stopped=False
+        for index,url in enumerate(urls[:MAX_DROP_QUEUE_URLS_PER_DROP]):
+            remaining=len(urls)-index
+            if self.count()>=MAX_DROP_QUEUE_ROWS-1:
+                rejected+=remaining
+                self._append_overflow_summary(remaining)
+                stopped=True
                 break
             if self._valid_count>=MAX_DROP_QUEUE_FILES:
-                if not self._overflow_reported:
-                    self._refusal('Hàng đợi','Đã đạt giới hạn 64 tệp hợp lệ; các mục còn lại không được xếp hàng.')
-                    self._overflow_reported=True
-                rejected+=len(urls)-index
+                self._refusal(
+                    'Hàng đợi',
+                    f'Đã đạt giới hạn {MAX_DROP_QUEUE_FILES} tệp hợp lệ; các mục còn lại không được xếp hàng.')
+                rejected+=remaining
+                stopped=True
                 break
+            detail=_drop_detail(url)
             try:
                 path=self._candidate(url)
             except (OSError,ValueError,ProbeError) as exc:
                 label=url.fileName() or ('URL không cục bộ' if not url.isLocalFile() else 'Tệp không hợp lệ')
-                self._refusal(label,str(exc))
+                self._refusal(label,str(exc),detail)
                 rejected+=1
                 continue
-            key=os.path.normcase(os.path.normpath(str(path)))
+            key=unicodedata.normalize('NFC',os.path.normcase(os.path.normpath(str(path))))
             if key in self._seen:
                 self._refusal(path.name,'Tệp trùng lặp trong hàng đợi',str(path))
                 rejected+=1
                 continue
-            self._seen.add(key);self._valid_count+=1
+            self._seen.add(key)
+            self._valid_count+=1
             item=QListWidgetItem(f'Chờ chọn · {path.name}')
             item.setData(Qt.ItemDataRole.UserRole,str(path))
             item.setData(Qt.ItemDataRole.UserRole+1,'PENDING')
             item.setToolTip(str(path))
-            self.addItem(item)
+            self._append_item(item)
             accepted+=1
+        omitted=max(0,len(urls)-MAX_DROP_QUEUE_URLS_PER_DROP)
+        if omitted:
+            rejected+=omitted
+            self._refused_count+=omitted
+            self._append_overflow_summary(omitted)
         self.changed.emit()
         self.summary.emit(accepted,rejected)
         return accepted,rejected
@@ -171,12 +227,14 @@ class LocalMediaDropQueue(QListWidget):
         self.clear()
         self._seen.clear()
         self._valid_count=0
-        self._overflow_reported=False
+        self._refused_count=0
+        self._overflow_item=None
+        self._overflow_rows=0
         self.changed.emit()
 
     def eventFilter(self,watched,event):
         # QAbstractScrollArea delivers native drag/drop to its viewport.
-        if watched == self.viewport():
+        if watched==self.viewport():
             if event.type()==QEvent.Type.DragEnter:
                 self.dragEnterEvent(event);return True
             if event.type()==QEvent.Type.DragMove:
@@ -410,6 +468,7 @@ class MediaImportPanel(QWidget):
         return None if item is None else item.data(Qt.ItemDataRole.UserRole)
 
     def use_selected_drop(self):
+        if self.busy or self.stopping or self.revoked:return
         path=self._selected_drop_path()
         if not path:
             self.message.setText('Chọn một tệp hợp lệ trong hàng đợi trước. Không có media nào được nhập.')
@@ -419,6 +478,7 @@ class MediaImportPanel(QWidget):
         self.update_actions()
 
     def clear_drop_queue(self):
+        if self.busy or self.stopping or self.revoked:return
         self.drop_queue.clear_queue()
         self.message.setText('Đã xóa hàng đợi tệp kéo thả. Thư viện dự án không thay đổi.')
         self.update_actions()
