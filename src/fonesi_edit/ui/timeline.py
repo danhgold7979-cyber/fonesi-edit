@@ -13,6 +13,7 @@ from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
+from fonesi_edit.ui.shortcuts import ShortcutRegistry
 
 
 def _q(value):
@@ -107,9 +108,10 @@ class WaveformWidget(QWidget):
 class TimelinePanel(QWidget):
     project_changed=Signal()
     idle=Signal()
-    def __init__(self,get_session,parent=None):
+    def __init__(self,get_session,parent=None,shortcut_registry=None):
         super().__init__(parent)
         self.get_session=get_session
+        self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
@@ -189,27 +191,32 @@ class TimelinePanel(QWidget):
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
         layout.addWidget(self.view)
-        self._timeline_shortcuts=[]
+        self._timeline_shortcuts={}
         self._install_timeline_shortcuts()
         self.update_project()
 
     def _install_timeline_shortcuts(self):
         bindings=(
-            ('Left',lambda:self._step_playhead(-1)),
-            ('Right',lambda:self._step_playhead(1)),
-            ('Shift+Left',lambda:self._step_playhead(-10)),
-            ('Shift+Right',lambda:self._step_playhead(10)),
-            ('Home',lambda:self.playhead_slider.setValue(self.playhead_slider.minimum())),
-            ('End',lambda:self.playhead_slider.setValue(self.playhead_slider.maximum())),
+            ('timeline.previous_frame',lambda:self._step_playhead(-1)),
+            ('timeline.next_frame',lambda:self._step_playhead(1)),
+            ('timeline.previous_10',lambda:self._step_playhead(-10)),
+            ('timeline.next_10',lambda:self._step_playhead(10)),
+            ('timeline.start',lambda:self.playhead_slider.setValue(self.playhead_slider.minimum())),
+            ('timeline.end',lambda:self.playhead_slider.setValue(self.playhead_slider.maximum())),
         )
         for owner in (self.clip_list,self.view):
-            for sequence,callback in bindings:
-                shortcut=QShortcut(QKeySequence(sequence),owner)
+            for action_id,callback in bindings:
+                shortcut=QShortcut(QKeySequence(self.shortcut_registry.sequence(action_id)),owner)
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
                 shortcut.activated.connect(callback)
-                self._timeline_shortcuts.append(shortcut)
-        help_text='Timeline: ←/→ từng frame, Shift+←/→ 10 frame, Home/End đầu/cuối. Ô crop giữ phím chỉnh sửa riêng.'
+                self._timeline_shortcuts.setdefault(action_id,[]).append(shortcut)
+        self.shortcut_registry.changed.connect(self._timeline_shortcut_changed)
+        help_text='Timeline: phím tắt có thể đổi trong Cài đặt → Phím tắt. Ô crop giữ phím chỉnh sửa riêng.'
         self.clip_list.setToolTip(help_text);self.view.setToolTip(help_text)
+
+    def _timeline_shortcut_changed(self,action_id):
+        for shortcut in self._timeline_shortcuts.get(action_id,()):
+            shortcut.setKey(QKeySequence(self.shortcut_registry.sequence(action_id)))
 
     def _step_playhead(self,delta):
         if self.stopping or self.playhead_slider.isSliderDown():return
