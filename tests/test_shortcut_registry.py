@@ -28,6 +28,7 @@ def test_shortcut_registry_persists_preferences_and_rejects_scope_conflicts(tmp_
     path=tmp_path/'shortcuts.ini'
     first=ShortcutRegistry(settings=_settings(path))
     assert first.sequence('layer.undo')=='Ctrl+Z'
+    assert first.sequence('timeline.add_marker')=='M'
     first.set_sequence('layer.undo','Ctrl+Alt+Z')
     second=ShortcutRegistry(settings=_settings(path))
     assert second.sequence('layer.undo')=='Ctrl+Alt+Z'
@@ -79,6 +80,7 @@ def test_shortcut_settings_panel_search_remap_conflict_and_reset(tmp_path,qt_app
         assert registry.sequence('layer.undo')=='Ctrl+Z'
         panel.reset_all()
         assert registry.sequence('timeline.next_frame')=='Right'
+        assert registry.sequence('timeline.add_marker')=='M'
     finally:
         panel.close();panel.deleteLater()
 
@@ -114,6 +116,12 @@ def test_layer_and_timeline_shortcuts_rebind_live_without_reopening_project(tmp_
         assert timeline.playhead_slider.value()==1
         assert window.session.revision==before
         assert registry.sequence('timeline.next_frame')=='Alt+Right'
+        registry.set_sequence('timeline.add_marker','Alt+M')
+        marker_revision=window.session.revision
+        QTest.keyClick(timeline.clip_list,Qt.Key.Key_M,Qt.KeyboardModifier.AltModifier)
+        marker=window.session.project.plan.to_dict()['timeline_markers'][0]
+        assert marker['frame']==1 and marker['label']=='M1'
+        assert window.session.revision==marker_revision+1
     finally:
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())

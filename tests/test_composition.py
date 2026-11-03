@@ -23,6 +23,42 @@ def test_timeline_range_is_optional_and_validated_as_half_open_output_frames(emp
     assert CompositionPlan.parse(empty_plan).to_dict()['timeline_range']=={'in_frame':29,'out_frame':None}
 
 
+def test_timeline_markers_are_optional_navigation_metadata_not_render_content(empty_plan):
+    base=CompositionPlan.parse(empty_plan)
+    marked=deepcopy(empty_plan)
+    marked['timeline_markers']=[{
+        'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':29,'label':'M1'
+    }]
+    with_marker=CompositionPlan.parse(marked)
+    assert with_marker.to_dict()['timeline_markers'][0]['frame']==29
+    assert with_marker.render_content_digest(BUILD)==base.render_content_digest(BUILD)
+    assert with_marker.execution_digest({})!=base.execution_digest({})
+
+
+@pytest.mark.parametrize('markers',[
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':-1,'label':'M1'}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':30,'label':'M1'}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':True,'label':'M1'}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':''}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'   '}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1\n'}],
+    [{'id':'not-a-uuid','frame':1,'label':'M1'}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1','extra':1}],
+    [
+        {'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1'},
+        {'id':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','frame':1,'label':'M2'},
+    ],
+    [
+        {'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1'},
+        {'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':2,'label':'M2'},
+    ],
+])
+def test_invalid_timeline_markers_fail_closed(empty_plan,markers):
+    empty_plan['timeline_markers']=markers
+    with pytest.raises(PlanError):
+        CompositionPlan.parse(empty_plan)
+
+
 @pytest.mark.parametrize('timeline_range',[
     {'in_frame':None,'out_frame':10},
     {'in_frame':None,'out_frame':None},

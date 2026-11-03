@@ -141,6 +141,62 @@ def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt
                     current.deleteLater()
 
 
+def test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed(tmp_path,qt_app):
+    project=empty_project(NewProjectIntent('Named timeline markers',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);reopened=None;window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline.playhead_slider.setValue(12)
+            before=window.session.revision
+            timeline.preview_path.setFocus()
+            from PySide6.QtTest import QTest
+            from PySide6.QtCore import Qt
+            QTest.keyClick(timeline.preview_path,Qt.Key.Key_M)
+            assert 'timeline_markers' not in window.session.project.plan.to_dict()
+            assert window.session.revision==before
+            timeline.preview_path.clear()
+            timeline.clip_list.setFocus()
+            QTest.keyClick(timeline.clip_list,Qt.Key.Key_M)
+            assert window.session.revision==before+1
+            markers=window.session.project.plan.to_dict()['timeline_markers']
+            assert len(markers)==1 and markers[0]['frame']==12 and markers[0]['label']=='M1'
+            assert timeline.marker_list.count()==1
+            assert timeline.marker_count_label.text()=='1 marker'
+            from PySide6.QtWidgets import QGraphicsTextItem
+            assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='M1'
+                       for item in timeline.scene.items())
+            window.session.save()
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()
+            window=None
+
+            reopened=MainWindow(store);reopened.show();reopened.open_project(path)
+            reopened.navigation.setCurrentRow(3)
+            restored=reopened.timeline_panel;restored.parentWidget().setCurrentIndex(1)
+            assert restored.marker_list.count()==1
+            assert restored.marker_list.item(0).text()=='M1 · frame 12'
+            before_select=reopened.session.revision
+            restored.marker_list.setCurrentRow(0)
+            assert restored.playhead_slider.value()==12
+            assert reopened.session.revision==before_select
+            restored.remove_marker_button.click()
+            assert 'timeline_markers' not in reopened.session.project.plan.to_dict()
+            assert reopened.session.revision==before_select+1
+            assert restored.marker_list.count()==0
+            reopened.session.save()
+        finally:
+            for current in (reopened,window):
+                if current is not None:
+                    current.close()
+                    wait_for(qt_app,lambda current=current:not current.background_busy and not current.isVisible())
+                    current.deleteLater()
+
+
 def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
     project=empty_project(NewProjectIntent('Invalid range markers',1920,1080,Fraction(30),Fraction(10)))
     path=tmp_path/'project.json';save_project_file(path,project)
