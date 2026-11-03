@@ -1,7 +1,7 @@
 """Basic layer list and numeric transform editor backed by ProjectSession CAS."""
 from copy import deepcopy
 from fractions import Fraction
-from math import atan2,degrees
+from math import atan2,degrees,isfinite
 from uuid import uuid4
 
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject, QEvent, QSettings
@@ -570,13 +570,22 @@ class LayerEditorWorkspace(QWidget):
         if data is None:return
         layer=next((x for x in data['layers'] if x['id']==layer_id),None)
         if layer is None or locked(layer):self.update_project();return
+        if (not isfinite(float(width_px)) or not isfinite(float(height_px)) or
+                width_px<=0 or height_px<=0 or
+                not isfinite(anchor_scene.x()) or not isfinite(anchor_scene.y())):
+            self.status.setText('Kích thước hoặc tọa độ không hợp lệ; đã giữ nguyên layer.')
+            self.update_project();return
         t=layer['transform'];W=data['output']['width'];H=data['output']['height']
         sx=Fraction(t['scale_x'][0],t['scale_x'][1]);sy=Fraction(t['scale_y'][0],t['scale_y'][1])
         if sx<=0 or sy<=0:self.update_project();return
-        t['width']=pair(Fraction(str(width_px))/(W*sx))
-        t['height']=pair(Fraction(str(height_px))/(H*sy))
-        t['x']=pair(Fraction(str(anchor_scene.x()))/W)
-        t['y']=pair(Fraction(str(anchor_scene.y()))/H)
+        try:
+            t['width']=pair(Fraction(str(width_px))/(W*sx))
+            t['height']=pair(Fraction(str(height_px))/(H*sy))
+            t['x']=pair(Fraction(str(anchor_scene.x()))/W)
+            t['y']=pair(Fraction(str(anchor_scene.y()))/H)
+        except (ValueError,TypeError,ZeroDivisionError,OverflowError):
+            self.status.setText('Không thể chuẩn hóa kích thước layer; dữ liệu dự án không thay đổi.')
+            self.update_project();return
         self.selected_id=layer_id;self.selected_ids={layer_id}
         self.commit(data,'đổi kích thước layer trên canvas')
 
@@ -585,7 +594,13 @@ class LayerEditorWorkspace(QWidget):
         if data is None:return
         layer=next((x for x in data['layers'] if x['id']==layer_id),None)
         if layer is None or locked(layer):self.update_project();return
-        layer['transform']['rotation']=pair(rotation)
+        if not isfinite(float(rotation)):
+            self.status.setText('Góc xoay không hợp lệ; đã giữ nguyên layer.')
+            self.update_project();return
+        try:layer['transform']['rotation']=pair(rotation)
+        except (ValueError,TypeError,OverflowError):
+            self.status.setText('Không thể chuẩn hóa góc xoay; dữ liệu dự án không thay đổi.')
+            self.update_project();return
         self.selected_id=layer_id;self.selected_ids={layer_id}
         self.commit(data,'xoay layer trên canvas')
 
@@ -597,6 +612,11 @@ class LayerEditorWorkspace(QWidget):
         if not ids or any(x not in layers or locked(layers[x]) for x in ids):
             self.update_project();return
         width=data['output']['width'];height=data['output']['height']
+        coordinates=(position.x(),position.y()) if origin is None else (
+            position.x(),position.y(),origin.x(),origin.y())
+        if not all(isfinite(float(value)) for value in coordinates):
+            self.status.setText('Tọa độ kéo không hợp lệ; đã giữ nguyên layer.')
+            self.update_project();return
         if origin is not None:
             dx=Fraction(str(position.x()-origin.x()))/width
             dy=Fraction(str(position.y()-origin.y()))/height
