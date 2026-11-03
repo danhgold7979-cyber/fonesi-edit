@@ -127,7 +127,7 @@ class ToolInventoryPanel(QWidget):
         if worker is not None:self._finished(worker,self.worker_revision)
     def _finished(self,worker,revision):
         if self.worker is not worker:return
-        if not worker.wait(0):QTimer.singleShot(10,lambda:self._finished(worker,revision));return
+        if not worker.wait(0):QTimer.singleShot(10,self,lambda:self._finished(worker,revision));return
         if revision!=self.revision:
             self.clear_rows();self.message.setText('Đầu vào thay đổi khi đang quét; bỏ kết quả cũ, không tự quét lại.')
         elif worker.failed or worker.result is None:
@@ -187,7 +187,7 @@ class ToolInventoryPanel(QWidget):
         if worker is not None:self._preferences_finished(worker,self.preference_revision)
     def _preferences_finished(self,worker,revision):
         if self.preference_worker is not worker:return
-        if not worker.wait(0):QTimer.singleShot(10,lambda:self._preferences_finished(worker,revision));return
+        if not worker.wait(0):QTimer.singleShot(10,self,lambda:self._preferences_finished(worker,revision));return
         auto_generation=worker.auto_generation
         auto_eligible=(auto_generation is not None and auto_generation==self.navigation_generation and
             revision==self.revision and not self.stopping and not worker.isInterruptionRequested() and
