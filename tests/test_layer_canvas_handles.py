@@ -173,3 +173,50 @@ def test_deferred_canvas_gesture_callbacks_use_editor_qobject_context(tmp_path,q
         assert all(call[1] is editor for call in scheduled)
     finally:
         _close(store,window,qt_app)
+
+
+def test_viewport_pointer_drag_on_resize_handle_commits_one_geometry_command(tmp_path,qt_app):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask()
+        item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==editor.selected_id)
+        handle=item._resize_handles()['se']
+        start=editor.view.mapFromScene(item.mapToScene(handle))
+        end=editor.view.mapFromScene(item.mapToScene(handle+QPointF(60,45)))
+        before=window.session.revision
+        QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+        QTest.mouseMove(editor.view.viewport(),QPoint(end))
+        QTest.mouseRelease(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+        qt_app.processEvents()
+        assert window.session.revision==before+1
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['width']==[9,32]
+        assert transform['height']==[5,24]
+        assert transform['x']==[1,2] and transform['y']==[1,2]
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_viewport_pointer_drag_on_rotation_handle_commits_one_geometry_command(tmp_path,qt_app):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask()
+        item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==editor.selected_id)
+        rotation=item._rotation_handle()
+        start=editor.view.mapFromScene(item.mapToScene(rotation))
+        target=QPointF(item.rect().center().x()+abs(rotation.y()),item.rect().center().y())
+        end=editor.view.mapFromScene(item.mapToScene(target))
+        before=window.session.revision
+        QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+        QTest.mouseMove(editor.view.viewport(),QPoint(end))
+        QTest.mouseRelease(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+        qt_app.processEvents()
+        assert window.session.revision==before+1
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['rotation']==[90,1]
+    finally:
+        _close(store,window,qt_app)
