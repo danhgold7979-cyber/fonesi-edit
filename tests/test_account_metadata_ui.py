@@ -100,3 +100,30 @@ def test_close_waits_for_account_snapshot_worker_retirement(qt_app,tmp_path,monk
     spin(qt_app,lambda:not panel.busy)
     assert 'dừng' in panel.status.text().lower()
     panel.close()
+
+
+
+def test_main_window_settings_tab_mounts_metadata_panel_without_creating_store(qt_app,tmp_path,monkeypatch):
+    from PySide6.QtWidgets import QTabWidget
+    from fonesi_edit.ui import tool_inventory as tool_ui
+    from fonesi_edit.ui.shell import MainWindow
+    from fonesi_edit.storage.projects import ProjectStore
+
+    monkeypatch.setattr(tool_ui,'system_search_dirs',lambda:())
+    store=ProjectStore(tmp_path/'projects.sqlite3')
+    window=MainWindow(store)
+    window.show()
+    try:
+        window.navigation.setCurrentRow(7)
+        spin(qt_app,lambda:not window.background_busy)
+        tabs=window.account_metadata.parentWidget()
+        assert isinstance(tabs,QTabWidget)
+        assert tabs.indexOf(window.account_metadata)>=0
+        assert window.pages.currentIndex()==7
+        assert not (tmp_path/'accounts.sqlite3').exists()
+        assert 'không tạo' in window.account_metadata.status.text().lower()
+    finally:
+        window.close()
+        spin(qt_app,lambda:not window.background_busy and not window.isVisible())
+        window.deleteLater()
+        store.close()
