@@ -1,7 +1,7 @@
 """Canvas handles commit normalized resize/rotation through the shared project CAS."""
 import os
 from fractions import Fraction
-from math import isclose
+from math import atan2,degrees,isclose
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
@@ -186,6 +186,9 @@ def test_viewport_pointer_drag_on_resize_handle_commits_one_geometry_command(tmp
         handle=item._resize_handles()['se']
         start=editor.view.mapFromScene(item.mapToScene(handle))
         end=editor.view.mapFromScene(item.mapToScene(handle+QPointF(60,45)))
+        scene_start=editor.view.mapToScene(start);scene_end=editor.view.mapToScene(end)
+        expected_width=480+(scene_end.x()-scene_start.x())
+        expected_height=180+(scene_end.y()-scene_start.y())
         before=window.session.revision
         QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
         QTest.mouseMove(editor.view.viewport(),QPoint(end))
@@ -193,10 +196,10 @@ def test_viewport_pointer_drag_on_resize_handle_commits_one_geometry_command(tmp
         qt_app.processEvents()
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
-        # QGraphicsView maps the requested scene endpoint to integer viewport
-        # coordinates. Assert output-pixel geometry with a sub-pixel tolerance.
-        assert isclose(transform['width'][0]/transform['width'][1]*1920,540,abs_tol=1.5)
-        assert isclose(transform['height'][0]/transform['height'][1]*1080,225,abs_tol=1.5)
+        # Compare against the actual integer viewport endpoint mapped back to scene
+        # coordinates, not the unquantized requested QPointF.
+        assert isclose(transform['width'][0]/transform['width'][1]*1920,expected_width,abs_tol=0.02)
+        assert isclose(transform['height'][0]/transform['height'][1]*1080,expected_height,abs_tol=0.02)
         assert transform['x']==[1,2] and transform['y']==[1,2]
     finally:
         _close(store,window,qt_app)
@@ -213,6 +216,11 @@ def test_viewport_pointer_drag_on_rotation_handle_commits_one_geometry_command(t
         start=editor.view.mapFromScene(item.mapToScene(rotation))
         target=QPointF(item.rect().center().x()+abs(rotation.y()),item.rect().center().y())
         end=editor.view.mapFromScene(item.mapToScene(target))
+        anchor_scene=item.mapToScene(QPointF(0,0))
+        start_scene=editor.view.mapToScene(start);end_scene=editor.view.mapToScene(end)
+        start_angle=degrees(atan2(start_scene.y()-anchor_scene.y(),start_scene.x()-anchor_scene.x()))
+        end_angle=degrees(atan2(end_scene.y()-anchor_scene.y(),end_scene.x()-anchor_scene.x()))
+        expected_rotation=(end_angle-start_angle+180)%360-180
         before=window.session.revision
         QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
         QTest.mouseMove(editor.view.viewport(),QPoint(end))
@@ -220,6 +228,6 @@ def test_viewport_pointer_drag_on_rotation_handle_commits_one_geometry_command(t
         qt_app.processEvents()
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
-        assert isclose(transform['rotation'][0]/transform['rotation'][1],90,abs_tol=1.0)
+        assert isclose(transform['rotation'][0]/transform['rotation'][1],expected_rotation,abs_tol=0.02)
     finally:
         _close(store,window,qt_app)
