@@ -140,3 +140,61 @@ def test_unknown_process_retirement_is_not_reported_as_ordinary_decoder_failure(
     with pytest.raises(module.PreviewRetirementUnknown,match='do not retry or close'):
         module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
             stream_index=0,decoder_time=Fraction(0))
+
+def test_audio_waveform_extracts_bounded_float32_bins_and_reuses_cache(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs;calls=[]
+    pcm=struct.pack('<4f',-1.0,-0.5,0.5,1.0)
+    def run(args,**kwargs):
+        calls.append((args,kwargs))
+        return ProcessResult(0,pcm,b'')
+    monkeypatch.setattr(module,'run_owned',run)
+    first=module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+        stream_index=3,decoder_start=Fraction(-1,50),duration=Fraction(1,2),bucket_count=2)
+    second=module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+        stream_index=3,decoder_start=Fraction(-1,50),duration=Fraction(1,2),bucket_count=2)
+    assert len(calls)==1
+    assert first.peaks==((-1.0,-0.5),(0.5,1.0))
+    assert first.sample_count==4 and first.sample_rate==8000
+    assert first.cache_hit is False and second.cache_hit is True
+    args=calls[0][0]
+    assert args[args.index('-ss')+1]=='-0.020000000'
+    assert args[args.index('-map')+1]=='0:3'
+    assert args[args.index('-t')+1]=='0.500000000'
+    assert args[args.index('-ac')+1]=='1' and args[args.index('-ar')+1]=='8000'
+    assert calls[0][1]['max_output_bytes']==2*1024*1024
+    assert source.read_bytes()==b'video source bytes'
+
+
+@pytest.mark.parametrize('pcm',[
+    b'abc',
+    struct.pack('<2f',0.0,float('nan')),
+    struct.pack('<2f',0.0,float('inf')),
+])
+def test_audio_waveform_rejects_malformed_or_nonfinite_pcm(inputs,monkeypatch,pcm):
+    source,ffmpeg,digest=inputs
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:ProcessResult(0,pcm,b''))
+    with pytest.raises(module.PreviewError):
+        module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+            stream_index=1,decoder_start=Fraction(0),duration=Fraction(1),bucket_count=32)
+
+
+def test_audio_waveform_rejects_duration_and_sample_bounds_before_launch(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs;calls=[]
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,struct.pack('<f',0),b'')))
+    with pytest.raises(module.PreviewError,match='bounded waveform'):
+        module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_start=Fraction(0),duration=Fraction(61),bucket_count=32)
+    assert not calls
+
+
+def test_audio_waveform_process_cancellation_and_unknown_retirement_are_distinct(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(_ for _ in ()).throw(ProcessCanceled('cancel')))
+    with pytest.raises(module.PreviewCanceled):
+        module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_start=Fraction(0),duration=Fraction(1),bucket_count=32)
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(_ for _ in ()).throw(
+        ProcessError('Job quiescence query failed; process retirement unconfirmed')))
+    with pytest.raises(module.PreviewRetirementUnknown):
+        module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_start=Fraction(0),duration=Fraction(1),bucket_count=32)
