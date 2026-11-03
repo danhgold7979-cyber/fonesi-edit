@@ -168,6 +168,6 @@ def test_crop_overlay_confirm_commits_one_normalized_project_revision(tmp_path,q
         assert .24 < float(Fraction(*crop['top'])) < .26
         assert crop['width']==[2,5] and crop['height']==[2,5]
         assert not panel._crop_overlay_pending
-        assert 'chưa có crop compositor' in panel.action_message.text().lower()
+        assert 'chưa có crop preview compositor' in panel.action_message.text().lower()
     finally:
         _close(window,store,qt_app)
