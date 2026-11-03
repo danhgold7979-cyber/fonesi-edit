@@ -403,3 +403,23 @@ Clean-foundation run [41614862113](https://github.com/danhgold7979-cyber/fonesi-
 Plan integrity PASS on all four runners. Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS. Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. The separate pinned Windows FFmpeg capability workflow was not run.
 
 Acceptance boundary: hosted QGraphicsScene hit-testing is offscreen synthetic evidence. It does not certify physical mouse input, Windows mixed-DPI/HiDPI, screen readers, IME, decoded crop compositing, GPU, real media, or renderer/export parity. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+
+## Slice AK — anchor-preserving viewport resize and nine-anchor pointer coverage (P04-02, 2026-11-03)
+
+Implementation commit: `44ac412f1451c719bef184af9a6b256e1252676f`; nine-anchor pointer regression: `0c18073520ebae01f497ddc483192b48877b3085`; Qt fixture teardown follow-up: `e22b7053a6f521970c22f36f4d75c07592248b2a`.
+
+The real QGraphicsView viewport gesture revealed that the previous resize handler stretched only the dragged edge. For a centered or otherwise non-edge anchor this moved the canonical transform origin. The resize algorithm now derives new extents from handle direction, local pointer delta and selected anchor alignment, then reconstructs the local rectangle from `offset(anchor,width,height)`. The selected anchor remains at local origin (0,0), which is the canonical scene anchor for all nine positions. Center anchors resize symmetrically; edge anchors preserve their anchor-side edge; a handle coincident with the anchor does not change that axis. Minimum extent remains 12 scene units. The release callback now records the unchanged local origin as the anchor scene position.
+
+The viewport resize test derives its expected dimensions from the actual integer viewport endpoints mapped back into scene coordinates, so it verifies the event path without hiding geometry errors behind broad tolerances. A second pointer-path test exercises all nine anchors with the corresponding opposite resize handle and verifies one revision, unchanged canonical x/y and changed extents. The viewport rotation test derives expected rotation from the quantized scene endpoints. The canvas test fixture now drains all deferred QObject deletion events before closing ProjectStore.
+
+Exact hosted clean-foundation run 41621095256 completed SUCCESS on exact HEAD `e87e4b136277e0ec0102f07b897325c504a005d0`:
+- Ubuntu Python 3.12.15: 982 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 982 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 995 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 995 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow SKIPPED.
+
+Earlier failed pointer tests exposed two independent issues: a missing Qt import in the new tests, then an actual anchor-position defect in the production resize path. The tests were corrected to calculate expectations from viewport quantization, and the production geometry was fixed; assertions were not removed. Earlier Python 3.13 Qt aborts led to a separate P03 tool-panel lifetime correction recorded in P03_RESULTS. Physical Windows pointer/HiDPI behavior, actual media, crop compositor, renderer/export parity and full P04 acceptance remain external/open. P04-02 and P04 remain IN_PROGRESS; no task or phase is accepted.
