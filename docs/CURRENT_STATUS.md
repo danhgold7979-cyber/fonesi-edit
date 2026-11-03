@@ -117,3 +117,20 @@ Acceptance denominators remain unchanged: 13/438 child criteria PASS, 425 NOT_RU
 Added explicit, background, content-bound still-frame preview with an in-memory bounded cache and safe application shutdown. Preview is not playback/render and does not prove audio synchronization, frame parity, crop/transform parity or codec support. Unknown process retirement locks preview and application close instead of allowing retry.
 
 Latest completed diagnostic before the correction commit: run 41567567876 failed on both Linux Python 3.12/3.13 with 4 failures / 873 passes / 39 skips. The failures were test/UI issues: the keyboard shortcut tests left the Editor page hidden, absolute missing source path leaked FileNotFoundError, and a null Qt QPixmap was compared to None. The current branch includes fixes and must be re-run through all four matrix jobs. Windows results for that failed run were still running at the time and must not be counted as PASS.
+
+
+## P04 implementation checkpoint — 2026-11-03 10:17 VN
+
+Latest integration head before this status update: `43b0d97575167c10f65968bafdf267fc8e4735ea`. P04 remains IN_PROGRESS; no P04 task or phase is accepted.
+
+Additional implemented code now includes:
+- Persistent layer groups, multi-selection and atomic batch operations.
+- Canvas 5% grid, 90% safe-area guide, snap/Alt bypass, bring-into-frame, resize/rotation handles.
+- Focus-scoped layer shortcuts and Ctrl+, to open the existing Preset/Cài đặt page.
+- Integer-frame timeline editing, crop inspector, zoom/scroll, explicit still-frame preview, four-frame filmstrip and bounded 60-second mono waveform visualization.
+
+Latest fully completed four-runner CI: run 41570055537 at code checkpoint 457817662c5fb6e70038b19a84b7a52f6ee33fc6. Ubuntu Python 3.12/3.13: 888 passed, 39 skipped, 0 failed each. Windows Python 3.12/3.13: 901 passed, 26 skipped, 0 failed each. Integrity check PASS on all four. This checkpoint includes the still-frame, filmstrip and waveform code. It predates the later Ctrl+, Settings shortcut and its regression test.
+
+Current HEAD `43b0d97575167c10f65968bafdf267fc8e4735ea` has clean-foundation run 41571515314 pending. Do not claim the new shortcut and test passed until this run completes.
+
+Acceptance remains 13/438 child criteria PASS and 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED; P03 whole-task acceptance 0/9 and P04 whole-task acceptance 0/8. Still open: continuous video playback, synchronized A/V seek, proxy/thumbnail generation, exact decoded PTS parity, crop/transform compositor, render/export parity, complete Settings tool/profile/account workflows, shortcut remapping/conflict UI, physical IME/HiDPI/Explorer tests and physical Windows user-device acceptance.

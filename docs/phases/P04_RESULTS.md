@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** 8b26775559c3158497f3282b01412ffeb275b6af  
-**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41562878790
-**Latest code checkpoint:** 9ac2bdfb8b9f0311a0ac14974830253d52c3ff77 (CI queued; not yet verified)
+**Last fully verified code checkpoint:** 457817662c5fb6e70038b19a84b7a52f6ee33fc6  
+**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41570055537
+**Latest code checkpoint:** 43b0d97575167c10f65968bafdf267fc8e4735ea (CI pending; not yet verified)
 
 ## P04-01 — partial implementation
 
@@ -97,3 +97,16 @@ Implemented on develop/fonesi-full:
 - Preview is a still image only. No playback, audio sync, exact PTS parity, crop/transform compositor, waveform/thumbnail generation or export parity.
 
 Regression coverage added: tests/test_media_preview.py and tests/test_timeline_preview_ui.py. Initial hosted run 41567567876 exposed four test failures: two shortcut tests targeted a hidden Editor page; missing absolute path escaped as FileNotFoundError; Qt returns a null QPixmap object rather than Python None. The source/test fixes are included in the current checkpoint; next CI run must confirm them. No PASS claim for this checkpoint yet.
+
+
+## Slice L and M — filmstrip and waveform implementation
+
+Current code includes user-triggered four-frame filmstrip extraction and bounded audio waveform observation:
+- Filmstrip samples four rational timestamps at 1/8, 3/8, 5/8 and 7/8 of the selected source interval; it discards the entire strip on any failure/cancel.
+- Waveform uses the matching original-role audio stream, mono float32 at 8 kHz, at most 60 seconds, bounded output and finite sample validation, aggregated into at most 256 min/max bins.
+- Both use the explicit trusted FFmpeg path, source/tool content hashes, in-memory bounded cache and stale request rejection. Neither writes source media.
+- These are still images and amplitude visualization only: no continuous playback, synchronized A/V seek, loudness/clipping meter or render parity.
+
+Latest fully completed four-runner run 41570055537 at 457817662c5fb6e70038b19a84b7a52f6ee33fc6: Ubuntu 3.12/3.13 each 888 passed, 39 skipped; Windows 3.12/3.13 each 901 passed, 26 skipped; all zero failed and integrity PASS. This is hosted CI, not real user media corpus or physical Windows acceptance.
+
+Slice N adds Ctrl+, navigation to the existing Preset/Cài đặt page with a regression test. It is in current HEAD `43b0d97575167c10f65968bafdf267fc8e4735ea`; run 41571515314 is pending. It does not complete P04-08 Settings workflows.
