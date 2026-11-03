@@ -155,7 +155,8 @@ def test_timeline_i_o_escape_shortcuts_set_and_clear_range_without_project_edits
             window.open_project(path)
             addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
             window.session.commit(addition.command);window._project_changed()
-            timeline=window.timeline_panel;timeline.clip_list.setFocus()
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1);timeline.clip_list.setFocus()
             before=window.session.revision
             timeline.playhead_slider.setValue(10)
             from PySide6.QtTest import QTest
