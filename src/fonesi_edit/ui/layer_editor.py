@@ -160,6 +160,10 @@ class LayerShortcutRouter(QObject):
         if event.type()==QEvent.Type.InputMethod:
             self.ime_preedit_active=bool(event.preeditString())
             return False
+        if event.type() in (QEvent.Type.FocusIn,QEvent.Type.FocusOut):
+            # A focus transition ends any preedit owned by the previous focus target.
+            self.ime_preedit_active=False
+            return False
         if event.type()!=QEvent.Type.KeyPress or self.editor.stopping or self.ime_preedit_active:return False
         bindings=(
             ('layer.undo',self.editor.undo),
