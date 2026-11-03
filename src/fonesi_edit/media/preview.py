@@ -48,7 +48,7 @@ def _signature(path:Path):
     info=path.lstat()
     if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:
         raise PreviewError('Source/tool must be a regular non-reparse file')
-    if info.st_size<1:return (info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,info.st_ctime_ns)
+    if info.st_size<1:raise PreviewError('Empty source/tool files cannot be previewed')
     return (info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,info.st_ctime_ns)
 
 
