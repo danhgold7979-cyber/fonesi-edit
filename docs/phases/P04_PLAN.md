@@ -238,3 +238,16 @@ Bind F5 only to the tool inventory table and its child focus. It reuses the exis
 **Implementation:** use the documented integer `.value` of the masked Qt keyboard-modifier enum; preserve the portable QKeySequence comparison. Add/retain a direct regression for Control/Shift/Alt combinations and ensure existing layer, timeline, Settings, and F5 UI tests remain enabled.
 
 **Acceptance:** targeted shortcut tests and full four-runner clean-foundation matrix pass on the resulting exact HEAD; all skipped platform checks remain separately reported. This slice does not accept P04-07 or P04 overall.
+
+
+## 2026-11-03 CI remediation slice 2 — deterministic focus routing
+
+**Entry checkpoint:** `fd1b097c125810f86e7b7895a1c20961c6d57d3a`; run `41576103614`. Four runners reduced the suite from 10 to 6 failures. Remaining failures: Ctrl+, app navigation, custom Alt+Ctrl layer remap, timeline frame/In-Out shortcuts, F5 table rescan, and a crop test that incorrectly expects Right Arrow to increment a QDoubleSpinBox.
+
+**Root-cause direction:** Qt shortcut-map activation is not reliable for the current offscreen/hosted focus tests and fails to demonstrate the required target-widget focus scope. Replace QShortcut-only dispatch for Settings, timeline and tool inventory with explicit KeyPress event filters installed on the exact intended widgets and their viewport children. App Settings must be available across the main-window widget tree but must not steal input from text editors, key-sequence capture or numeric spin boxes. Timeline dispatch is restricted to clip-list/canvas widgets; crop spin boxes stay outside that filter. F5 dispatch is restricted to the tool table and viewport and continues to call only the existing bounded metadata worker. All routers read the shared registry at event time so remaps take effect immediately.
+
+**Layer remap hardening:** preserve the existing layer-only router and IME preedit guard; clear stale preedit state on focus transitions and retain explicit Ctrl+Alt event coverage. No layer shortcut is installed on numeric inspectors or globally.
+
+**Numeric-input test correction:** Qt spin boxes use Up/Down to change the numeric value; Left/Right move the text cursor. Keep a regression proving Left/Right do not move the timeline playhead and Up increments the focused numeric value. Do not change production spin-box semantics to satisfy an incorrect assertion.
+
+**Acceptance:** retain all functional assertions; add event-filter tests for main-window scope/text-entry exclusion, timeline scope/crop isolation, tool-table scope/live remap, and layer Ctrl+Alt remap. Run targeted Qt tests, then all four hosted Linux/Windows Python 3.12/3.13 jobs on the exact resulting HEAD. No task or phase is accepted by this slice alone.
