@@ -230,7 +230,7 @@ class LayerEditorWorkspace(QWidget):
         form.addRow('Chế độ',self.inspector_advanced)
         self.inspector_rows={}
         self.spins={};self.sliders={};self.slider_scales={};self.reset_buttons={}
-        fields=
+        fields=(
             ('x','X (tỷ lệ khung)',-10,10),
             ('y','Y (tỷ lệ khung)',-10,10),
             ('width','Rộng (tỷ lệ khung)',.0001,10),
@@ -338,12 +338,12 @@ class LayerEditorWorkspace(QWidget):
         selected=self.selected_layers()
         single=selected[0] if len(selected)==1 else None
         edit=single is not None and not locked(single) and ready
-        self.inspector_reason.setText(self._inspector_disabled_reason())
         reason=self._inspector_disabled_reason()
-        for s in self.spins.values():
-            s.setEnabled(edit);s.setToolTip(reason)
-        for slider in self.sliders.values():slider.setToolTip(reason)
-        for button in self.reset_buttons.values():button.setToolTip(reason)
+        self.inspector_reason.setText(reason)
+        for name,s in self.spins.items():
+            s.setEnabled(edit);s.setToolTip(f'{name}: {reason}')
+        for name,slider in self.sliders.items():slider.setToolTip(f'{name}: {reason}')
+        for name,button in self.reset_buttons.items():button.setToolTip(f'Đặt lại {name}; {reason}')
         for slider in self.sliders.values():slider.setEnabled(edit)
         for button in self.reset_buttons.values():button.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
