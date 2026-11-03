@@ -1,6 +1,6 @@
 import threading
 import time
-from PySide6.QtCore import QCoreApplication,QEvent
+from PySide6.QtCore import QCoreApplication,QEvent,QThread
 from fonesi_edit.ui import tool_preferences as io
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.dependencies.preferences import load_preferences, save_preferences, ToolPreferences, PreferencesUnknown
@@ -49,7 +49,14 @@ def test_explicit_load_save_reopen_no_scan_trust_or_tool_execution(qt_app,tmp_pa
 
 def test_unknown_commit_requires_matching_owned_reload_not_replay(qt_app,tmp_path,monkeypatch):
     path=tmp_path/'tools.db';save_preferences(path,ToolPreferences(),load_preferences(path))
-    panel=ToolInventoryPanel(preferences_path=path);panel.load_saved();spin(qt_app,lambda:not panel.busy)
+    panel=ToolInventoryPanel(preferences_path=path)
+    completion_threads=[];real_finished=panel._preferences_finished
+    def record_completion(worker,revision):
+        completion_threads.append(QThread.currentThread())
+        return real_finished(worker,revision)
+    panel._preferences_finished=record_completion
+    panel.load_saved();spin(qt_app,lambda:not panel.busy)
+    assert completion_threads and all(thread is qt_app.thread() for thread in completion_threads)
     real=io.save_preferences;calls=[]
     def unknown(*args,**kwargs):
         calls.append(1)
