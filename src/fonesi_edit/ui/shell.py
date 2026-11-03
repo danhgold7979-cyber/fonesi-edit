@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self.media_import.idle.connect(self._queue_idle)
         self.media_import.project_changed.connect(self._project_changed)
         self.media_import.state_changed.connect(self._project_actions)
-        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self,self.shortcut_registry)
+        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self,self.shortcut_registry,self.ui_settings)
         self.layer_editor.project_changed.connect(self._project_changed)
         self.timeline_panel=TimelinePanel(lambda:self.session,self,self.shortcut_registry)
         self.timeline_panel.project_changed.connect(self._project_changed)
