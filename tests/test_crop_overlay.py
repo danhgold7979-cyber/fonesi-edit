@@ -63,3 +63,41 @@ def test_crop_overlay_clamps_move_to_source_frame(qt_app):
     assert crop['top']+crop['height']<=1+1e-9
     assert crop['width']>0 and crop['height']>0
     view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
+
+
+def test_crop_overlay_escape_cancels_active_drag_without_emitting(qt_app):
+    view=_view(qt_app);changes=[];view.crop_changed.connect(changes.append)
+    original=dict(view.crop)
+    rect=view._crop_rect();center=rect.center()
+    QTest.mousePress(view,Qt.MouseButton.LeftButton,pos=QPoint(round(center.x()),round(center.y())))
+    QTest.mouseMove(view,QPoint(round(center.x()+30),round(center.y()+15)))
+    assert view.crop!=original
+    QTest.keyClick(view,Qt.Key.Key_Escape)
+    assert view.crop==original
+    assert changes==[]
+    assert view._active_handle is None and view._start_crop is None
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
+
+
+def test_disabling_crop_edit_cancels_pointer_gesture(qt_app):
+    view=_view(qt_app);changes=[];view.crop_changed.connect(changes.append)
+    original=dict(view.crop)
+    rect=view._crop_rect();center=rect.center()
+    QTest.mousePress(view,Qt.MouseButton.LeftButton,pos=QPoint(round(center.x()),round(center.y())))
+    QTest.mouseMove(view,QPoint(round(center.x()+30),round(center.y()+15)))
+    assert view.crop!=original
+    view.set_editing(False)
+    assert view.crop==original
+    QTest.mouseRelease(view,Qt.MouseButton.LeftButton,pos=QPoint(round(center.x()+30),round(center.y()+15)))
+    assert changes==[]
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
+
+
+def test_crop_overlay_click_without_drag_is_a_noop(qt_app):
+    view=_view(qt_app);changes=[];view.crop_changed.connect(changes.append)
+    rect=view._crop_rect();center=rect.center()
+    QTest.mousePress(view,Qt.MouseButton.LeftButton,pos=QPoint(round(center.x()),round(center.y())))
+    QTest.mouseRelease(view,Qt.MouseButton.LeftButton,pos=QPoint(round(center.x()),round(center.y())))
+    assert changes==[]
+    assert view.crop=={'left':.2,'top':.2,'width':.4,'height':.4}
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
