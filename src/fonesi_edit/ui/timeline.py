@@ -256,19 +256,39 @@ class CropEditorView(QWidget):
             if self.ratio_locked:
                 ratio=max(minimum,start['width'])/max(minimum,start['height'])
                 if handle in ('nw','ne','sw','se'):
-                    width=right-left;height=bottom-top
-                    if width/max(height,minimum)>ratio:height=width/ratio
-                    else:width=height*ratio
-                    if 'w' in handle:left=right-width
-                    else:right=left+width
-                    if 'n' in handle:top=bottom-height
-                    else:bottom=top+height
+                    fixed_x=right if 'w' in handle else left
+                    fixed_y=bottom if 'n' in handle else top
+                    width=abs(right-left);height=abs(bottom-top)
+                    if width/max(height,minimum)>ratio:
+                        height=width/ratio
+                    else:
+                        width=height*ratio
+                    max_width=fixed_x if 'w' in handle else 1-fixed_x
+                    max_height=fixed_y if 'n' in handle else 1-fixed_y
+                    factor=min(1.0,max_width/max(width,minimum),max_height/max(height,minimum))
+                    width*=factor;height*=factor
+                    if 'w' in handle:left=fixed_x-width;right=fixed_x
+                    else:left=fixed_x;right=fixed_x+width
+                    if 'n' in handle:top=fixed_y-height;bottom=fixed_y
+                    else:top=fixed_y;bottom=fixed_y+height
                 elif 'e' in handle or 'w' in handle:
-                    height=(right-left)/ratio;center=(start['top']+start['height']/2)
+                    fixed_x=left if 'e' in handle else right
+                    max_width=1-fixed_x if 'e' in handle else fixed_x
+                    width=min(max(minimum,abs(right-left)),max_width,ratio)
+                    height=width/ratio
+                    center=start['top']+start['height']/2
                     top=max(0,min(1-height,center-height/2));bottom=top+height
+                    if 'e' in handle:left=fixed_x;right=fixed_x+width
+                    else:left=fixed_x-width;right=fixed_x
                 else:
-                    width=(bottom-top)*ratio;center=(start['left']+start['width']/2)
+                    fixed_y=top if 's' in handle else bottom
+                    max_height=1-fixed_y if 's' in handle else fixed_y
+                    height=min(max(minimum,abs(bottom-top)),max_height,1/ratio)
+                    width=height*ratio
+                    center=start['left']+start['width']/2
                     left=max(0,min(1-width,center-width/2));right=left+width
+                    if 's' in handle:top=fixed_y;bottom=fixed_y+height
+                    else:top=fixed_y-height;bottom=fixed_y
             left=max(0,min(left,1-minimum));top=max(0,min(top,1-minimum))
             right=max(left+minimum,min(1,right));bottom=max(top+minimum,min(1,bottom))
         self.crop={'left':left,'top':top,'width':right-left,'height':bottom-top}
