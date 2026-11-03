@@ -7,7 +7,7 @@ from uuid import uuid4
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject, QEvent
 from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
-    QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,QSlider,
+    QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,QSlider,QLineEdit,
     QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
 
 from fonesi_edit.domain.composition import CompositionPlan
@@ -218,8 +218,19 @@ class LayerEditorWorkspace(QWidget):
         ll.addWidget(self.layers);split.addWidget(left)
         self.scene=QGraphicsScene(self);self.view=QGraphicsView(self.scene);split.addWidget(self.view)
         right=QWidget();form=QFormLayout(right)
+        self.inspector_search=QLineEdit()
+        self.inspector_search.setPlaceholderText('Tìm thuộc tính…')
+        self.inspector_search.setAccessibleName('Tìm thuộc tính')
+        self.inspector_search.setToolTip('Tìm theo tên tiếng Việt hoặc mã thuộc tính. Kết quả tìm kiếm bao gồm cả thuộc tính nâng cao.')
+        self.inspector_search.textChanged.connect(self._filter_inspector)
+        form.addRow('Tìm thuộc tính',self.inspector_search)
+        self.inspector_advanced=QCheckBox('Nâng cao')
+        self.inspector_advanced.setToolTip('Hiện thêm tỷ lệ, góc xoay, điểm neo và lật.')
+        self.inspector_advanced.toggled.connect(self._filter_inspector)
+        form.addRow('Chế độ',self.inspector_advanced)
+        self.inspector_rows={}
         self.spins={};self.sliders={};self.slider_scales={};self.reset_buttons={}
-        fields=(
+        fields=
             ('x','X (tỷ lệ khung)',-10,10),
             ('y','Y (tỷ lệ khung)',-10,10),
             ('width','Rộng (tỷ lệ khung)',.0001,10),
@@ -245,13 +256,16 @@ class LayerEditorWorkspace(QWidget):
             slider.sliderReleased.connect(self.apply_inspector)
             reset.clicked.connect(lambda _checked=False,key=name:self.reset_inspector_property(key))
             self.spins[name]=spin;self.sliders[name]=slider;self.slider_scales[name]=scale;self.reset_buttons[name]=reset
-            form.addRow(label,row)
+            field_label=QLabel(label);form.addRow(field_label,row)
+            search_terms=f'{name} {label} {label.lower()} {name.replace("_"," ")}'.casefold()
+            self.inspector_rows[name]=(row,field_label,search_terms,name not in {'x','y','width','height','opacity'})
         self.anchor=QComboBox();self.anchor.addItems(ANCHORS);self.anchor.activated.connect(self.apply_inspector)
         self.reset_anchor_button=QPushButton('↺');self.reset_anchor_button.setToolTip('Đặt lại điểm neo')
         anchor_row=QWidget();anchor_layout=QHBoxLayout(anchor_row);anchor_layout.setContentsMargins(0,0,0,0)
         anchor_layout.addWidget(self.anchor,1);anchor_layout.addWidget(self.reset_anchor_button)
         self.reset_anchor_button.clicked.connect(lambda:self.reset_inspector_property('anchor'))
-        form.addRow('Điểm neo',anchor_row)
+        anchor_label=QLabel('Điểm neo');form.addRow(anchor_label,anchor_row)
+        self.inspector_rows['anchor']=(anchor_row,anchor_label,'anchor điểm neo căn neo',True)
         self.flip_x=QCheckBox('Lật ngang');self.flip_y=QCheckBox('Lật dọc')
         self.flip_x.toggled.connect(self.apply_inspector);self.flip_y.toggled.connect(self.apply_inspector)
         self.reset_flip_x_button=QPushButton('↺');self.reset_flip_y_button=QPushButton('↺')
@@ -263,10 +277,16 @@ class LayerEditorWorkspace(QWidget):
         self.reset_flip_x_button.clicked.connect(lambda:self.reset_inspector_property('flip_x'))
         self.reset_flip_y_button.clicked.connect(lambda:self.reset_inspector_property('flip_y'))
         form.addRow(flip_x_row);form.addRow(flip_y_row)
+        self.inspector_rows['flip_x']=(flip_x_row,None,'flip_x flip x lật ngang',True)
+        self.inspector_rows['flip_y']=(flip_y_row,None,'flip_y flip y lật dọc',True)
         self.reset_transform_button=QPushButton('Đặt lại toàn bộ biến đổi')
         self.reset_transform_button.clicked.connect(self.reset_inspector_transform)
         form.addRow(self.reset_transform_button)
+        self.inspector_reason=QLabel('Mở hoặc tạo dự án để chỉnh thuộc tính layer.')
+        self.inspector_reason.setWordWrap(True);self.inspector_reason.setAccessibleName('Lý do trạng thái thuộc tính')
+        form.addRow(self.inspector_reason)
         self.status=QLabel('Chưa chọn layer.');self.status.setWordWrap(True);form.addRow(self.status)
+        self._filter_inspector()
         split.addWidget(right);split.setStretchFactor(0,1);split.setStretchFactor(1,4);split.setStretchFactor(2,1)
         root.addWidget(split)
         self.add_button.clicked.connect(self.add_mask);self.delete_button.clicked.connect(self.delete_selected)
@@ -318,7 +338,12 @@ class LayerEditorWorkspace(QWidget):
         selected=self.selected_layers()
         single=selected[0] if len(selected)==1 else None
         edit=single is not None and not locked(single) and ready
-        for s in self.spins.values():s.setEnabled(edit)
+        self.inspector_reason.setText(self._inspector_disabled_reason())
+        reason=self._inspector_disabled_reason()
+        for s in self.spins.values():
+            s.setEnabled(edit);s.setToolTip(reason)
+        for slider in self.sliders.values():slider.setToolTip(reason)
+        for button in self.reset_buttons.values():button.setToolTip(reason)
         for slider in self.sliders.values():slider.setEnabled(edit)
         for button in self.reset_buttons.values():button.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
@@ -410,6 +435,24 @@ class LayerEditorWorkspace(QWidget):
             else:
                 self.original_transform=None
         finally:self.syncing=False
+
+    def _filter_inspector(self,*_):
+        query=self.inspector_search.text().strip().casefold()
+        advanced=self.inspector_advanced.isChecked()
+        for _name,(row,label,terms,is_advanced) in self.inspector_rows.items():
+            visible=(query in terms) if query else (advanced or not is_advanced)
+            row.setVisible(visible)
+            if label is not None:label.setVisible(visible)
+
+    def _inspector_disabled_reason(self):
+        session=self.get_session()
+        if session is None:return 'Mở hoặc tạo dự án trước khi chỉnh thuộc tính.'
+        if session.reconciliation_required:return 'Dự án cần đối soát; thao tác chỉnh sửa đang tạm khóa.'
+        selected=self.selected_layers()
+        if not selected:return 'Chọn một layer trong danh sách hoặc canvas để chỉnh thuộc tính.'
+        if len(selected)>1:return 'Đang chọn nhiều layer; chọn đúng một layer để dùng inspector số.'
+        if locked(selected[0]):return 'Layer đang khóa biến đổi; mở khóa layer trước khi chỉnh.'
+        return 'Đang chỉnh một layer. X, Y, rộng/cao là tỷ lệ theo khung; scale là hệ số ×; xoay tính bằng độ; opacity từ 0 đến 1.'
 
     def _slider_value_changed(self,name,value):
         if self.syncing:return
