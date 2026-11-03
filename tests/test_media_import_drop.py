@@ -46,12 +46,13 @@ def _trusted_panel(window):
 def _send_drop(edit, urls):
     mime = QMimeData()
     mime.setUrls(urls)
+    target=edit.viewport() if hasattr(edit,'viewport') else edit
     enter = QDragEnterEvent(QPoint(2, 2), Qt.CopyAction, mime,
                             Qt.NoButton, Qt.NoModifier)
-    QApplication.sendEvent(edit, enter)
+    QApplication.sendEvent(target, enter)
     drop = QDropEvent(QPointF(2.0, 2.0), Qt.CopyAction, mime,
                       Qt.NoButton, Qt.NoModifier)
-    QApplication.sendEvent(edit, drop)
+    QApplication.sendEvent(target, drop)
     return enter.isAccepted(), drop.isAccepted()
 
 
