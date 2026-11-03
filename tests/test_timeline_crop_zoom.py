@@ -108,3 +108,72 @@ def test_timeline_zoom_scroll_and_playhead_marker_do_not_mutate_project(tmp_path
         assert window.session.revision==before
     finally:
         _close(window,store,qt_app)
+
+
+def test_crop_overlay_drag_stages_then_cancel_keeps_project_unchanged(tmp_path,qt_app):
+    from PySide6.QtCore import Qt,QPoint
+    from PySide6.QtGui import QPixmap
+    from PySide6.QtTest import QTest
+    store,window,addition=_window(tmp_path,qt_app)
+    try:
+        panel=window.timeline_panel
+        data=window.session.project.plan.to_dict()
+        data['clips'][0]['crop']={'left':[1,5],'top':[1,5],'width':[2,5],'height':[2,5]}
+        data['revision']+=1;data['provenance']['project_revision']=data['revision']
+        plan=CompositionPlan.parse(data)
+        window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
+        window._project_changed();panel.clip_list.setCurrentRow(0)
+        panel.preview_image.setPixmap(QPixmap(400,200))
+        panel._refresh_crop_inspector()
+        panel.crop_edit_toggle.setChecked(True)
+        revision=window.session.revision
+        rect=panel.preview_image._crop_rect();center=rect.center()
+        start=QPoint(round(center.x()),round(center.y()))
+        end=QPoint(start.x()+24,start.y()+12)
+        QTest.mousePress(panel.preview_image,Qt.MouseButton.LeftButton,pos=start)
+        QTest.mouseMove(panel.preview_image,end)
+        QTest.mouseRelease(panel.preview_image,Qt.MouseButton.LeftButton,pos=end)
+        assert panel._crop_overlay_pending
+        assert panel.crop_apply_button.isEnabled()
+        assert window.session.revision==revision
+        panel.crop_cancel_button.click()
+        assert window.session.revision==revision
+        assert not panel._crop_overlay_pending
+        assert window.session.project.plan.to_dict()['clips'][0]['crop']=={
+            'left':[1,5],'top':[1,5],'width':[2,5],'height':[2,5]}
+    finally:
+        _close(window,store,qt_app)
+
+
+def test_crop_overlay_confirm_commits_one_normalized_project_revision(tmp_path,qt_app):
+    from PySide6.QtCore import Qt,QPoint
+    from PySide6.QtGui import QPixmap
+    from PySide6.QtTest import QTest
+    store,window,_=_window(tmp_path,qt_app)
+    try:
+        panel=window.timeline_panel
+        data=window.session.project.plan.to_dict()
+        data['clips'][0]['crop']={'left':[1,5],'top':[1,5],'width':[2,5],'height':[2,5]}
+        data['revision']+=1;data['provenance']['project_revision']=data['revision']
+        plan=CompositionPlan.parse(data)
+        window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
+        window._project_changed();panel.clip_list.setCurrentRow(0)
+        panel.preview_image.setPixmap(QPixmap(400,200))
+        panel._refresh_crop_inspector();panel.crop_edit_toggle.setChecked(True)
+        before=window.session.revision
+        rect=panel.preview_image._crop_rect();center=rect.center()
+        start=QPoint(round(center.x()),round(center.y()))
+        end=QPoint(start.x()+24,start.y()+12)
+        QTest.mousePress(panel.preview_image,Qt.MouseButton.LeftButton,pos=start)
+        QTest.mouseMove(panel.preview_image,end)
+        QTest.mouseRelease(panel.preview_image,Qt.MouseButton.LeftButton,pos=end)
+        assert window.session.revision==before
+        panel.crop_apply_button.click()
+        assert window.session.revision==before+1
+        crop=window.session.project.plan.to_dict()['clips'][0]['crop']
+        assert crop['left']==[1,4] and crop['top']==[1,4]
+        assert crop['width']==[2,5] and crop['height']==[2,5]
+        assert not panel._crop_overlay_pending
+        assert 'chưa có crop compositor' in panel.action_message.text().lower()
+    finally:
+        _close(window,store,qt_app)
