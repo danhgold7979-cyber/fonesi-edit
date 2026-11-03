@@ -528,3 +528,16 @@ This slice can close only its own local implementation contract after tests and 
 ### Acceptance boundary
 
 This slice verifies programmatic accessibility metadata and existing keyboard semantics in hosted Qt tests. It does not claim screen-reader certification, physical Windows accessibility inspection, HiDPI or IME acceptance, and it does not close P04-01/P04.
+
+
+## Slice AE — reject non-finite canvas geometry (P04-02)
+
+**Scope:** harden the existing canvas resize, rotate and drag command boundary. This is an input-validation slice; it does not add a new rendering capability.
+
+- Reject NaN and positive/negative infinity for resize width/height, normalized anchor coordinates, rotation angle and drag positions before converting values to rational model fields.
+- Reject zero/negative resize dimensions.
+- On rejection, preserve the canonical CompositionPlan and ProjectSession revision; refresh the view from the authoritative project model and show a localized reason.
+- Valid edits continue through the existing single CompletedCommand CAS path.
+- Tests cover non-finite resize dimensions/anchor points and rotation, plus all nine anchor positions retaining their anchor coordinates after a valid resize.
+- Regression suite includes tests/test_layer_canvas_handles.py, tests/test_layer_canvas_guides.py, tests/test_layer_canvas_drag.py and existing transform precision/lock tests.
+- Acceptance is limited to finite-value model safety and synthetic Qt tests. Physical drag, display scaling, preview/render parity and target-device interaction remain external/open.
