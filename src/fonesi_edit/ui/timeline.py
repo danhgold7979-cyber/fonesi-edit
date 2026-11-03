@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsS
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
-from fonesi_edit.media.preview import (PreviewFrame,PreviewError,PreviewCanceled,
+from fonesi_edit.media.preview import (PreviewFrame,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,resolve_asset_path)
 
 
@@ -26,7 +26,7 @@ class PreviewWorker(QThread):
         super().__init__(parent)
         self.source=Path(source);self.ffmpeg=Path(ffmpeg)
         self.expected_sha256=expected_sha256;self.stream_index=stream_index
-        self.decoder_time=decoder_time;self.frame=None;self.error=None;self.canceled=False
+        self.decoder_time=decoder_time;self.frame=None;self.error=None;self.canceled=False;self.retirement_unknown=False
     def run(self):
         try:
             self.frame=extract_preview_frame(self.source,self.ffmpeg,
@@ -35,6 +35,8 @@ class PreviewWorker(QThread):
                 timeout=30,max_width=1280,max_height=720)
         except PreviewCanceled:
             self.canceled=True
+        except PreviewRetirementUnknown as exc:
+            self.retirement_unknown=True;self.error=str(exc)
         except PreviewError as exc:
             self.error=str(exc)
         except BaseException:
@@ -52,6 +54,7 @@ class TimelinePanel(QWidget):
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None;self.stopping=False
+        self.preview_retirement_unknown=False
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Chưa có phát video/âm thanh, thumbnail/waveform tự động hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
@@ -116,7 +119,7 @@ class TimelinePanel(QWidget):
 
     @property
     def busy(self):
-        return self.preview_worker is not None
+        return self.preview_worker is not None or self.preview_retirement_unknown
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
         self._preview_generation+=1
@@ -186,7 +189,11 @@ class TimelinePanel(QWidget):
         session=self.get_session()
         current=(generation==self._preview_generation and not self.stopping and session is not None
                  and session.revision==self._preview_revision and self.selected_clip_id==self._preview_clip_id)
-        if current and worker.frame is not None:
+        if worker.retirement_unknown:
+            self.preview_retirement_unknown=True;self.stopping=True
+            self.preview_image.clear();self.preview_image.setText('Tiến trình FFmpeg chưa xác nhận đã dừng.')
+            self.preview_message.setText('KHÔNG THỂ XÁC NHẬN FFmpeg và tiến trình con đã dừng. Đã khóa chạy lại và đóng ứng dụng; kiểm tra Task Manager/tiến trình hệ thống rồi khởi động lại.')
+        elif current and worker.frame is not None:
             image=QImage.fromData(worker.frame.png,'PNG')
             if image.isNull():
                 self.preview_image.clear();self.preview_image.setText('Không giải mã được PNG preview.')
@@ -254,10 +261,10 @@ class TimelinePanel(QWidget):
             preview_inside=preview_start<=preview_time<preview_end and _q(clip['freeze_duration'])==0
         preview_ready=(available and preview_inside and not self.busy and not self.stopping and self.preview_trust.isChecked()
                        and bool(self.preview_path.text()) and Path(self.preview_path.text()).is_absolute())
-        self.preview_button.setEnabled(preview_ready)
-        self.preview_path.setEnabled(not self.busy and not self.stopping)
-        self.preview_browse.setEnabled(not self.busy and not self.stopping)
-        self.preview_trust.setEnabled(not self.busy and not self.stopping)
+        self.preview_button.setEnabled(preview_ready and not self.preview_retirement_unknown)
+        self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
+        self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
+        self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
 
     def _refresh_crop_inspector(self):
         session=self.get_session();clip=self._selected_clip()
