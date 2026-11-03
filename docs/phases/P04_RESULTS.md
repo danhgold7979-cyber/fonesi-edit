@@ -198,3 +198,16 @@ Regression tests: test_inspector_basic_advanced_search_units_and_tooltips; test_
 Hosted clean-foundation run 41594109888 completed SUCCESS on exact HEAD 1038d0afa91bddcaca45fc00c832247451da19cb: Ubuntu Python 3.12.15 and 3.13.17 each 943 passed, 39 skipped, 0 failed; Windows Python 3.12.10 and 3.13.17 each 956 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 actual development onedir build PASS; frozen schema/subtitle/read-only tool discovery/license boundary checks PASS (5 cases). Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 Acceptance boundary: hosted Qt tests used QT_QPA_PLATFORM=offscreen. No physical Windows GUI/Explorer, HiDPI, Vietnamese/Chinese IME, theme/layout persistence or multi-file drag/drop acceptance. Basic/Advanced preference is not persisted; future effect panels are not covered by this inspector search. ED-01.02/.03/.04 remain NOT_RUN. P04-01 and P04 remain IN_PROGRESS; no task or phase acceptance is inferred.
+## Slice Z — bounded multi-file local drop queue (P04-01, 2026-11-03)
+
+Code checkpoint: 2cc8a50dad9fa1ceb9c89c6a52857a814761393b on develop/fonesi-full.
+
+Implemented a temporary bounded queue for up to 64 valid local media files. Paths are checked as absolute UTF-8 regular files, with NUL/UNC/reparse/path-length protection, NFC/normcase deduplication and visible refusal states for remote URLs, missing files, directories, duplicates and overflow. Visible rows are capped at 128 with an overflow summary. Invalid local rows include normalized full-path tooltips; remote URL tooltips omit credentials, query strings and fragments.
+
+Selecting one accepted row populates the existing single-file source field only. It does not invoke ffprobe, create a MediaRecord, change the project/library revision or copy/modify the source. Explicit ffprobe trust and the existing import action remain required. The queue and its actions disable while media validation is active or the panel is stopping/revoked.
+
+Tests: test_multiple_local_file_drop_queues_without_import_until_explicit_selection; test_mixed_multi_file_drop_keeps_valid_item_and_marks_unsupported_items; test_drop_queue_deduplicates_and_caps_valid_files; test_drop_queue_rejects_nul_and_unc_paths_before_filesystem_access; test_drop_queue_keeps_visible_bounded_overflow_summary; test_directory_and_missing_file_drop_are_refused; test_symlink_drop_is_refused_when_platform_can_create_symlinks; test_cancel_during_owned_probe_does_not_mutate_project (queue disabled during active worker).
+
+Hosted run 41599687098 completed SUCCESS on exact HEAD 2cc8a50dad9fa1ceb9c89c6a52857a814761393b: Ubuntu Python 3.12.15/3.13.17 each 948 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 961 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 actual development onedir build PASS; frozen schema/subtitle/read-only tool discovery/license boundary checks PASS (5 cases). Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+Acceptance boundary: Qt drag/drop was synthetic and offscreen. Physical Windows Explorer multi-select, HiDPI/mixed-DPI, network shares, directory recursion, real codec/media validity and batch/parallel import remain NOT_RUN or out of this slice. ED-L136 and P04-01 remain IN_PROGRESS; no task or phase acceptance is inferred.

@@ -184,3 +184,14 @@ P04-01 now includes numeric/slider transform controls, property and group resets
 Exact hosted clean-foundation run 41594109888 completed SUCCESS on exact HEAD 1038d0afa91bddcaca45fc00c832247451da19cb: Ubuntu Python 3.12.15/3.13.17 each 943 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 956 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and five scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 Hosted Qt evidence is offscreen, not physical Windows GUI acceptance. Global acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted. P04 whole-task acceptance remains 0/8.
+## P04-01 multi-file drop queue checkpoint — 2026-11-03
+
+Integrated repository: danhgold7979-cyber/fonesi-edit; active branch: develop/fonesi-full; latest code HEAD: 2cc8a50dad9fa1ceb9c89c6a52857a814761393b. Release branch main remains unchanged at e514b51d764d972fbf7c018e0dbdbdf964ece267.
+
+**Phase tracking: P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 51%.** This is a manual task-scope estimate, not a test or acceptance percentage. Task-level estimates: P04-01 60%, P04-02 50%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; 0/8 accepted.
+
+P04-01 now includes numeric/slider inspector controls and resets, Basic/Advanced mode, Vietnamese property search and layer-specific disabled reasons, plus a bounded 64-file local drop review queue with per-item refusal and explicit one-at-a-time selection. Still open: persistent Basic/Advanced preference, full effect-property catalog, theme/font-size/HiDPI/layout persistence and physical Windows Explorer/HiDPI acceptance.
+
+Exact hosted clean-foundation run 41599687098 completed SUCCESS on exact HEAD 2cc8a50dad9fa1ceb9c89c6a52857a814761393b: Ubuntu Python 3.12.15/3.13.17 each 948 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 961 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and five scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+Hosted Qt drag/drop evidence is synthetic/offscreen, not physical Windows Explorer acceptance. Global acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted. P04 whole-task acceptance remains 0/8.
