@@ -252,3 +252,20 @@ def test_audio_waveform_process_cancellation_and_unknown_retirement_are_distinct
     with pytest.raises(module.PreviewRetirementUnknown):
         module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
             stream_index=0,decoder_start=Fraction(0),duration=Fraction(1),bucket_count=32)
+
+def test_preview_quality_dimensions_are_separate_cache_entries(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs;calls=[]
+    def run(args,**kwargs):
+        calls.append((args,kwargs))
+        return ProcessResult(0,_png(),b'')
+    monkeypatch.setattr(module,'run_owned',run)
+    draft=module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
+        stream_index=2,decoder_time=Fraction(1,4),max_width=320,max_height=180)
+    standard=module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
+        stream_index=2,decoder_time=Fraction(1,4),max_width=640,max_height=360)
+    cached=module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
+        stream_index=2,decoder_time=Fraction(1,4),max_width=320,max_height=180)
+    assert len(calls)==2
+    assert draft.cache_hit is False and standard.cache_hit is False and cached.cache_hit is True
+    assert draft.png==standard.png==cached.png
+    assert len(module._FRAME_CACHE)==2
