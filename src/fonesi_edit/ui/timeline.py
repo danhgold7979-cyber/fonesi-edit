@@ -308,10 +308,12 @@ class CropEditorView(QWidget):
 class TimelinePanel(QWidget):
     project_changed=Signal()
     idle=Signal()
-    def __init__(self,get_session,parent=None,shortcut_registry=None):
+    def __init__(self,get_session,parent=None,shortcut_registry=None,history=None):
         super().__init__(parent)
         self.get_session=get_session
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
+        self.history=history or ProjectCommandHistory(get_session,self)
+        self.history.changed.connect(self.update_actions)
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None;self._crop_overlay_pending=False
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
