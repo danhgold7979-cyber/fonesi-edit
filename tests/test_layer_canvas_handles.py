@@ -116,3 +116,60 @@ def test_resize_preserves_each_of_nine_anchor_positions(tmp_path,qt_app):
             assert after['width']==[1,2] and after['height']==[1,2]
     finally:
         _close(store,window,qt_app)
+
+
+def test_all_resize_and_rotation_handles_are_in_selected_item_hit_shape(tmp_path,qt_app):
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask()
+        item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==editor.selected_id)
+        assert item.isSelected() and item.show_handles
+        for name,local_point in item._resize_handles().items():
+            scene_point=item.mapToScene(local_point)
+            assert item in editor.scene.items(scene_point),name
+        rotation_point=item.mapToScene(item._rotation_handle())
+        assert item in editor.scene.items(rotation_point)
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_group_and_locked_items_do_not_hit_test_individual_handles(tmp_path,qt_app):
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor
+        editor.add_mask();first=editor.selected_id
+        editor.add_mask();second=editor.selected_id
+        editor._sync_selection({first,second},first);editor.group_selected()
+        items={x.layer_id:x for x in editor.scene.items() if getattr(x,'layer_id',None)}
+        for item in items.values():
+            assert not item.show_handles
+            assert item not in editor.scene.items(item.mapToScene(item._rotation_handle()))
+
+        editor._sync_selection({first},first);editor.toggle_lock()
+        locked_item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==first)
+        assert not locked_item.show_handles
+        assert locked_item not in editor.scene.items(locked_item.mapToScene(locked_item._rotation_handle()))
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_deferred_canvas_gesture_callbacks_use_editor_qobject_context(tmp_path,qt_app,monkeypatch):
+    from PySide6.QtCore import QTimer
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask()
+        item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==editor.selected_id)
+        scheduled=[];real=QTimer.singleShot
+        def capture(*args):
+            if len(args)==3 and args[0]==0:
+                scheduled.append(args)
+                return
+            return real(*args)
+        monkeypatch.setattr(QTimer,'singleShot',capture)
+        item._defer_editor_callback(editor.dragged,item.layer_id,QPointF(10,10),QPointF(0,0),False)
+        item._defer_editor_callback(editor.resized,item.layer_id,20,20,QPointF(10,10))
+        item._defer_editor_callback(editor.rotated,item.layer_id,45)
+        assert len(scheduled)==3
+        assert all(call[1] is editor for call in scheduled)
+    finally:
+        _close(store,window,qt_app)
