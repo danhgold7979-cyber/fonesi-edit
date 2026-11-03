@@ -31,6 +31,9 @@ def test_resize_and_rotation_handle_commands_share_one_project_revision_each(tmp
         editor=window.layer_editor;editor.add_mask();layer_id=editor.selected_id
         item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==layer_id)
         assert item.show_handles is True
+        assert item.boundingRect().top()<item.rect().top()
+        assert item.shape().contains(item._rotation_handle())
+        assert item.shape().contains(next(iter(item._resize_handles().values())))
         before=window.session.revision
         editor.resized(layer_id,960,540,QPointF(960,540))
         assert window.session.revision==before+1
