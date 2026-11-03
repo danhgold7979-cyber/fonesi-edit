@@ -2,7 +2,7 @@
 import os
 import threading
 import time
-from PySide6.QtCore import QTimer,QSettings
+from PySide6.QtCore import QTimer,QSettings,QCoreApplication,QEvent
 from fonesi_edit.ui import tool_inventory as ui
 from fonesi_edit.ui.shell import MainWindow
 from fonesi_edit.storage.projects import ProjectStore
@@ -15,6 +15,26 @@ def spin(app,predicate,seconds=6):
 
 
 def text(panel,row,column):return panel.table.item(row,column).text()
+
+
+def dispose_panel(panel,app):
+    if panel.busy:
+        raise AssertionError('Cannot dispose tool panel while a worker is active')
+    panel.close();panel.deleteLater()
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents()
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+
+def dispose_window(window,app):
+    if window.background_busy:
+        raise AssertionError('Cannot dispose main window while background work is active')
+    window.close();window.deleteLater()
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents()
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents()
 
 
 def test_settings_opens_without_tools_then_first_open_scans_once_missing_not_ready(qt_app,tmp_path,monkeypatch):
@@ -34,7 +54,7 @@ def test_settings_opens_without_tools_then_first_open_scans_once_missing_not_rea
         window.navigation.setCurrentRow(0);window.navigation.setCurrentRow(7);qt_app.processEvents()
         assert len(calls)==1 and not (tmp_path/'tool-preferences.sqlite3').exists()
         assert 'COMPLETE' in panel.message.text() and window.store is store
-        window.close()
+        dispose_window(window,qt_app)
 
 
 def test_actual_unicode_candidate_and_invalid_explicit_no_fallback_read_only(qt_app,tmp_path):
@@ -49,7 +69,7 @@ def test_actual_unicode_candidate_and_invalid_explicit_no_fallback_read_only(qt_
     assert text(panel,1,2)=='—' and 'KHÔNG thay thế' in text(panel,1,6)
     assert str(alternative) in panel.candidates.toPlainText() and 'UNCHECKED' in panel.candidates.toPlainText()
     assert {p.name:p.read_bytes() for p in root.iterdir()}==before
-    panel.close()
+    dispose_panel(panel,qt_app)
 
 
 def test_close_cancels_scan_and_waits_owned_worker_without_blocking_gui(qt_app,tmp_path,monkeypatch):
@@ -70,7 +90,7 @@ def test_close_cancels_scan_and_waits_owned_worker_without_blocking_gui(qt_app,t
         release.set();spin(qt_app,lambda:not window.background_busy);timer.stop()
         assert pulses and 'PARTIAL_CANCELED' in panel.message.text()
         assert all('Chưa kiểm tra' in text(panel,r,6) for r in range(5))
-        window.close()
+        dispose_window(window,qt_app)
 
 
 def test_programmatic_input_change_cannot_display_old_capture(qt_app,tmp_path,monkeypatch):
@@ -81,7 +101,7 @@ def test_programmatic_input_change_cannot_display_old_capture(qt_app,tmp_path,mo
     panel.paths['ffmpeg'].setText(str(tmp_path/'new'));release.set();spin(qt_app,lambda:not panel.busy)
     assert 'bỏ kết quả cũ' in panel.message.text() and not panel.candidates.toPlainText()
     assert all('Chưa kiểm tra' in text(panel,r,6) for r in range(5))
-    panel.close()
+    dispose_panel(panel,qt_app)
 
 
 def test_read_failure_does_not_leak_exception_or_prevent_settings_retry(qt_app,monkeypatch):
@@ -90,7 +110,7 @@ def test_read_failure_does_not_leak_exception_or_prevent_settings_retry(qt_app,m
     panel=ui.ToolInventoryPanel();panel.system.setChecked(False);panel.start();spin(qt_app,lambda:not panel.busy)
     assert 'PRIVATE' not in panel.message.text() and 'Không hoàn tất' in panel.message.text()
     assert panel.scan_button.isEnabled() and not panel.candidates.toPlainText()
-    panel.close()
+    dispose_panel(panel,qt_app)
 
 
 def test_relative_extra_scope_refused_and_stale_worker_ignored(qt_app):
@@ -99,7 +119,7 @@ def test_relative_extra_scope_refused_and_stale_worker_ignored(qt_app):
     before=panel.message.text();old=ui.InventoryWorker({},'',False,panel)
     panel._finished(old,0)
     assert panel.message.text()==before
-    old.deleteLater();panel.close()
+    old.deleteLater();dispose_panel(panel,qt_app)
 
 
 def test_candidate_display_is_bounded_without_truncating_selected_path(qt_app):
@@ -113,7 +133,7 @@ def test_candidate_display_is_bounded_without_truncating_selected_path(qt_app):
     output=panel.candidates.toPlainText()
     assert len(output.splitlines())==65 and len(output)<40000
     assert text(panel,0,2)==candidates[0].path and '…' in output
-    panel.close()
+    dispose_panel(panel,qt_app)
 
 def test_f5_rescans_metadata_only_from_tool_table_and_rebinds_live(qt_app,tmp_path,monkeypatch):
     from PySide6.QtCore import Qt,QSettings
@@ -142,7 +162,7 @@ def test_f5_rescans_metadata_only_from_tool_table_and_rebinds_live(qt_app,tmp_pa
         assert calls[1]!=threading.get_ident()
         assert 'không chạy' in panel.message.text().lower() or 'COMPLETE' in panel.message.text()
     finally:
-        panel.close();panel.deleteLater()
+        dispose_panel(panel,qt_app)
 
 
 def test_worker_retirement_poll_timers_are_bound_to_panel_context(qt_app,monkeypatch):
