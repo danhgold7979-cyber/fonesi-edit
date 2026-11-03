@@ -2,7 +2,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, QCoreApplication, QEvent
 from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtTest import QTest
 
@@ -31,7 +31,7 @@ def test_crop_overlay_move_is_normalized_and_staged(qt_app):
     assert abs(changes[0]['left']-.25)<.01
     assert abs(changes[0]['top']-.25)<.01
     assert changes[0]['width']==.4 and changes[0]['height']==.4
-    view.close()
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
 
 
 def test_crop_overlay_corner_resize_respects_locked_ratio(qt_app):
