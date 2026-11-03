@@ -4,7 +4,7 @@ from uuid import uuid4
 import os
 import stat
 
-from PySide6.QtCore import QThread, Signal, QTimer, Qt
+from PySide6.QtCore import QThread, Signal, QTimer, Qt, QEvent
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView,
@@ -102,6 +102,8 @@ class LocalMediaDropQueue(QListWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
+        self.viewport().installEventFilter(self)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setToolTip('Kéo nhiều tệp cục bộ vào đây. Chỉ chọn tệp; không tự kiểm tra hoặc nhập.')
         self._seen=set()
@@ -171,6 +173,17 @@ class LocalMediaDropQueue(QListWidget):
         self._valid_count=0
         self._overflow_reported=False
         self.changed.emit()
+
+    def eventFilter(self,watched,event):
+        # QAbstractScrollArea delivers native drag/drop to its viewport.
+        if watched is self.viewport():
+            if event.type()==QEvent.Type.DragEnter:
+                self.dragEnterEvent(event);return True
+            if event.type()==QEvent.Type.DragMove:
+                self.dragMoveEvent(event);return True
+            if event.type()==QEvent.Type.Drop:
+                self.dropEvent(event);return True
+        return super().eventFilter(watched,event)
 
     def dragEnterEvent(self,event:QDragEnterEvent):
         if self.isEnabled() and event.mimeData().hasUrls():event.acceptProposedAction()
