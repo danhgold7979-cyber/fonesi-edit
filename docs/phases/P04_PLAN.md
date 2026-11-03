@@ -724,3 +724,32 @@ The existing `LayerBoundsItem` geometry path already handles all schema-defined 
 The new tests exposed a real selection-state defect: `_sync_selection` updated QGraphicsItem selection but did not recompute `show_handles` for already-created items. A layer selected from the existing project could therefore be selected without visible or hittable resize/rotation handles. The fix now recomputes handle visibility for the single unlocked selection, calls `prepareGeometryChange()` before changing the handle hit shape, updates the item, and keeps handles hidden for multi-selection or locked layers.
 
 Exact CI on the latest code/test checkpoint is recorded in `P04_RESULTS.md`. This closes only the Slice AL local implementation contract, not P04-02 or P04 as a whole.
+
+
+## Slice AM — one project history across Layer Editor and Timeline (P04-04, 2026-11-03)
+
+**Status before implementation:** Layer Editor has a private undo/redo snapshot stack. Timeline split/trim, crop, In/Out and marker operations commit directly through ProjectSession and cannot be undone from a shared history. A revision change from another subsystem clears the layer-only stack.
+
+### Contract
+
+- One session-scoped history is owned by MainWindow and shared by LayerEditorWorkspace and TimelinePanel.
+- Each completed CompositionPlan mutation from the current P04 layer/timeline surfaces records one immutable before/after snapshot, one label and the exact owning ProjectSession identity.
+- A mouse drag/resize/rotation remains one command on release. Inspector completed edits, layer batch operations, timeline split/trim, crop, In/Out and marker create/delete each remain one command.
+- Undo and redo restore full CompositionPlan snapshots using ProjectSession CAS and strictly increasing revision/provenance counters; they never rewind a stored revision or modify source files.
+- Undo/redo works from either Layer Editor or Timeline controls and from the existing focus-scoped Ctrl+Z/Ctrl+Shift+Z bindings in the corresponding canvas/list scopes.
+- Text inputs and numeric crop spin boxes retain native editing/IME undo behavior; shortcuts are not installed on text-entry widgets.
+- Opening a different ProjectSession clears history. An unrecorded external revision change invalidates history rather than replaying stale snapshots. Unknown/failed commit outcome clears the stack and is never retried.
+- Save/reopen must preserve the exact restored project model. History is session-local; it is not represented as persistent project data.
+
+### Implementation
+
+1. Add a small QObject-backed ProjectCommandHistory with bounded session-local undo/redo stacks, session/revision guards, CAS restoration and a changed signal.
+2. Construct it once in MainWindow and inject it into LayerEditorWorkspace and TimelinePanel.
+3. Route successful Layer Editor commits and timeline markers/range/crop/split/trim commits through the shared recorder.
+4. Replace the Layer Editor private history implementation with the shared history operation; add matching Timeline undo/redo controls and focus-scoped routing.
+5. Keep the existing shortcut IDs and persisted user remappings; update the default action labels/scope to describe Editor-wide history.
+6. Add regression coverage for layer→timeline→undo/redo across both panels, monotonic revisions, save/reopen equality, stale external revision invalidation, failed CAS refusal and existing one-drag-one-command behavior.
+
+### Acceptance boundary
+
+This slice unifies currently implemented layer/timeline project mutations. It does not implement undo for text editing or subtitle editing controls that do not yet exist, and it does not close P04-04 until all future editor subsystems are integrated and the full task acceptance gate passes.
