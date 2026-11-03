@@ -1,5 +1,6 @@
 import threading
 import time
+from PySide6.QtCore import QCoreApplication,QEvent
 from fonesi_edit.ui import tool_inventory as ui
 from fonesi_edit.ui import tool_preferences as io
 from fonesi_edit.dependencies.preferences import load_preferences,save_preferences,ToolPreferences
@@ -11,6 +12,14 @@ def spin(app,predicate):
     assert predicate();app.processEvents()
 
 
+
+def dispose_panel(panel,app):
+    if panel.busy:
+        raise AssertionError('Cannot dispose a tool inventory panel while a worker is active')
+    panel.close();panel.deleteLater()
+    QCoreApplication.sendPostedEvents(panel,QEvent.Type.DeferredDelete)
+    app.processEvents()
+
 def test_saved_explicit_missing_never_falls_back_first_open(qt_app,tmp_path,monkeypatch):
     path=tmp_path/'prefs.db';selected=str(tmp_path/'explicit-missing')
     save_preferences(path,ToolPreferences((selected,'','','',''),'',False),load_preferences(path))
@@ -21,7 +30,7 @@ def test_saved_explicit_missing_never_falls_back_first_open(qt_app,tmp_path,monk
     spin(qt_app,lambda:bool(calls) and not panel.busy)
     assert len(calls)==1 and calls[0]['configured']=={'ffmpeg':selected} and calls[0]['system_dirs']==()
     assert panel.paths['ffmpeg'].text()==selected and 'KHÔNG thay thế' in panel.table.item(0,6).text()
-    panel.first_open();assert len(calls)==1;panel.close()
+    panel.first_open();assert len(calls)==1;dispose_panel(panel,qt_app)
 
 
 def test_corrupt_preferences_do_not_launch_default_scan(qt_app,tmp_path,monkeypatch):
@@ -29,7 +38,7 @@ def test_corrupt_preferences_do_not_launch_default_scan(qt_app,tmp_path,monkeypa
     monkeypatch.setattr(ui,'discover_tools',lambda **kw:(_ for _ in ()).throw(AssertionError('fallback scan')))
     panel=ui.ToolInventoryPanel(preferences_path=path);panel.first_open();spin(qt_app,lambda:not panel.busy)
     assert panel.scan_button.isEnabled() and 'Không đọc/lưu' in panel.preference_message.text()
-    panel.first_open();qt_app.processEvents();assert not panel.busy and path.read_bytes()==b'foreign';panel.close()
+    panel.first_open();qt_app.processEvents();assert not panel.busy and path.read_bytes()==b'foreign';dispose_panel(panel,qt_app)
 
 
 def test_user_edit_during_load_suppresses_automatic_scan(qt_app,tmp_path,monkeypatch):
@@ -39,7 +48,7 @@ def test_user_edit_during_load_suppresses_automatic_scan(qt_app,tmp_path,monkeyp
     panel=ui.ToolInventoryPanel(preferences_path=tmp_path/'prefs.db');panel.first_open();spin(qt_app,entered.is_set)
     selected=str(tmp_path/'user-edit');panel.paths['ffmpeg'].setText(selected);release.set();spin(qt_app,lambda:not panel.busy)
     assert calls==[] and panel.paths['ffmpeg'].text()==selected
-    panel.first_open();qt_app.processEvents();assert calls==[];panel.close()
+    panel.first_open();qt_app.processEvents();assert calls==[];dispose_panel(panel,qt_app)
 
 
 def test_cancel_close_first_load_never_rearms_or_launches(qt_app,tmp_path,monkeypatch):
@@ -48,18 +57,18 @@ def test_cancel_close_first_load_never_rearms_or_launches(qt_app,tmp_path,monkey
     monkeypatch.setattr(io,'load_preferences',load);monkeypatch.setattr(ui,'discover_tools',lambda **kw:calls.append(kw))
     panel=ui.ToolInventoryPanel(preferences_path=tmp_path/'prefs.db');panel.first_open();spin(qt_app,entered.is_set)
     panel.cancel();panel.first_open();panel.close();assert panel.busy and panel.stopping
-    release.set();spin(qt_app,lambda:not panel.busy);assert calls==[] and not (tmp_path/'prefs.db').exists();panel.close()
+    release.set();spin(qt_app,lambda:not panel.busy);assert calls==[] and not (tmp_path/'prefs.db').exists();dispose_panel(panel,qt_app)
 
 
 def test_queued_scan_rechecks_explicit_operation_and_close(qt_app,tmp_path,monkeypatch):
     queued=[];calls=[];real=ui.QTimer.singleShot
-    def later(delay,callback):
-        if delay==0:queued.append(callback)
-        else:real(delay,callback)
+    def later(delay,*args):
+        if delay==0 and len(args)==2:queued.append(args)
+        else:real(delay,*args)
     monkeypatch.setattr(ui.QTimer,'singleShot',later);monkeypatch.setattr(ui,'discover_tools',lambda **kw:calls.append(kw))
     panel=ui.ToolInventoryPanel(preferences_path=tmp_path/'prefs.db');panel.first_open()
     spin(qt_app,lambda:bool(queued) and not panel.busy)
-    panel.cancel();queued.pop()();assert calls==[]
+    panel.cancel();context,callback=queued.pop();assert context is panel;callback();assert calls==[]
     # Cancellation cannot rearm navigation; explicit Scan remains the user's choice.
     panel.first_open();qt_app.processEvents();assert calls==[];panel.close()
 
@@ -76,4 +85,4 @@ def test_deferred_first_scan_uses_panel_as_qtimer_context(qt_app,tmp_path,monkey
     monkeypatch.setattr(ui.QTimer,'singleShot',capture)
     panel.first_open();spin(qt_app,lambda:not panel.busy)
     assert len(scheduled)==1 and scheduled[0][1] is panel
-    panel.close()
+    dispose_panel(panel,qt_app)
