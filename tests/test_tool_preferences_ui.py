@@ -50,11 +50,8 @@ def test_explicit_load_save_reopen_no_scan_trust_or_tool_execution(qt_app,tmp_pa
 def test_unknown_commit_requires_matching_owned_reload_not_replay(qt_app,tmp_path,monkeypatch):
     path=tmp_path/'tools.db';save_preferences(path,ToolPreferences(),load_preferences(path))
     panel=ToolInventoryPanel(preferences_path=path)
-    completion_threads=[];real_finished=panel._preferences_finished
-    def record_completion(worker,revision):
-        completion_threads.append(QThread.currentThread())
-        return real_finished(worker,revision)
-    panel._preferences_finished=record_completion
+    completion_threads=[]
+    panel.idle.connect(lambda:completion_threads.append(QThread.currentThread()))
     panel.load_saved();spin(qt_app,lambda:not panel.busy)
     assert completion_threads and all(thread is qt_app.thread() for thread in completion_threads)
     real=io.save_preferences;calls=[]
