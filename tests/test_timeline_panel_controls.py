@@ -109,8 +109,9 @@ def test_in_out_markers_are_half_open_transient_and_clearable(tmp_path,qt_app):
             assert '11 frame' in timeline.range_label.text()
             assert 'Out 21' in timeline.range_label.text()
             assert window.session.revision==before
-            assert any(item.toolTip()=='IN' for item in timeline.scene.items())
-            assert any(item.toolTip()=='OUT' for item in timeline.scene.items())
+            from PySide6.QtWidgets import QGraphicsTextItem
+            assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='IN' for item in timeline.scene.items())
+            assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='OUT' for item in timeline.scene.items())
             timeline.clear_range_button.click()
             assert timeline._in_frame is None and timeline._out_frame is None
             assert 'Chưa chọn vùng' in timeline.range_label.text()
