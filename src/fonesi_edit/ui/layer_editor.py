@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSpli
 
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
+from fonesi_edit.ui.shortcuts import ShortcutRegistry
 
 ANCHORS=('top_left','top_center','top_right','center_left','center','center_right',
          'bottom_left','bottom_center','bottom_right')
@@ -150,33 +151,35 @@ class LayerBoundsItem(QGraphicsRectItem):
 
 
 class LayerShortcutRouter(QObject):
-    """Route keys only from the layer tree/canvas, never from inspector inputs."""
-    def __init__(self,editor):
-        super().__init__(editor);self.editor=editor
+    """Route remappable keys only from layer tree/canvas; never from inspector inputs."""
+    def __init__(self,editor,registry):
+        super().__init__(editor);self.editor=editor;self.registry=registry
+        self.ime_preedit_active=False
 
     def eventFilter(self,watched,event):
-        if event.type()!=QEvent.Type.KeyPress or self.editor.stopping:return False
-        if event.isAutoRepeat():
-            event.accept();return True
-        key=event.key();mods=event.modifiers()
-        ctrl=bool(mods & Qt.KeyboardModifier.ControlModifier)
-        shift=bool(mods & Qt.KeyboardModifier.ShiftModifier)
-        alt=bool(mods & Qt.KeyboardModifier.AltModifier)
-        callback=None
-        if ctrl and not alt and key==Qt.Key.Key_Z and not shift:callback=self.editor.undo
-        elif ctrl and not alt and key==Qt.Key.Key_Y and not shift:callback=self.editor.redo
-        elif ctrl and not alt and key==Qt.Key.Key_G and shift:callback=self.editor.ungroup_selected
-        elif ctrl and not alt and key==Qt.Key.Key_G and not shift:callback=self.editor.group_selected
-        elif not ctrl and not shift and not alt and key==Qt.Key.Key_Delete:callback=self.editor.delete_selected
-        elif alt and not ctrl and not shift and key==Qt.Key.Key_Up:callback=lambda:self.editor.move_selected(1)
-        elif alt and not ctrl and not shift and key==Qt.Key.Key_Down:callback=lambda:self.editor.move_selected(-1)
-        if callback is None:return False
-        callback();event.accept();return True
+        if event.type()==QEvent.Type.InputMethod:
+            self.ime_preedit_active=bool(event.preeditString())
+            return False
+        if event.type()!=QEvent.Type.KeyPress or self.editor.stopping or self.ime_preedit_active:return False
+        bindings=(
+            ('layer.undo',self.editor.undo),
+            ('layer.redo',self.editor.redo),
+            ('layer.delete',self.editor.delete_selected),
+            ('layer.group',self.editor.group_selected),
+            ('layer.ungroup',self.editor.ungroup_selected),
+            ('layer.raise',lambda:self.editor.move_selected(1)),
+            ('layer.lower',lambda:self.editor.move_selected(-1)),
+        )
+        for action_id,callback in bindings:
+            if self.registry.matches(action_id,event):
+                callback();event.accept();return True
+        return False
 
 class LayerEditorWorkspace(QWidget):
     project_changed=Signal()
-    def __init__(self,get_session,parent=None):
+    def __init__(self,get_session,parent=None,shortcut_registry=None):
         super().__init__(parent);self.get_session=get_session
+        self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.selected_id=None;self.selected_ids=set();self.undo_stack=[];self.redo_stack=[]
         self.syncing=False;self.committing=False;self.stopping=False
         self.last_session=None;self.last_revision=None;self.original_transform=None
@@ -229,10 +232,10 @@ class LayerEditorWorkspace(QWidget):
         self.update_project()
 
     def _install_shortcuts(self):
-        self.shortcut_router=LayerShortcutRouter(self)
+        self.shortcut_router=LayerShortcutRouter(self,self.shortcut_registry)
         for owner in (self.layers,self.layers.viewport(),self.view,self.view.viewport()):
             owner.installEventFilter(self.shortcut_router)
-        help_text='Phím tắt (khi focus ở danh sách/canvas): Ctrl+Z/Y, Delete, Ctrl+G, Ctrl+Shift+G, Alt+Up/Down. Ô số giữ phím tắt chỉnh sửa riêng.'
+        help_text='Phím tắt có thể đổi trong Cài đặt → Phím tắt. Chỉ hoạt động khi focus ở danh sách/canvas; ô số giữ phím chỉnh sửa và IME được ưu tiên.'
         self.layers.setToolTip(help_text);self.view.setToolTip(help_text)
 
     @property
