@@ -113,7 +113,7 @@ class ShortcutRegistry(QObject):
         if action_id not in self._specs:return False
         modifiers=(Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.ShiftModifier|
                    Qt.KeyboardModifier.AltModifier|Qt.KeyboardModifier.MetaModifier)
-        combined=int(event.modifiers() & modifiers)|int(event.key())
+        combined=(event.modifiers() & modifiers).value|int(event.key())
         actual=QKeySequence(combined).toString(QKeySequence.SequenceFormat.PortableText)
         return bool(actual) and actual==self.sequence(action_id)
 
