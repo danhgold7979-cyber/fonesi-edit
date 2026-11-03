@@ -22,25 +22,32 @@ def _q(value):
 
 class PreviewWorker(QThread):
     """One explicit still-frame request; owns its decoder until retirement."""
-    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None):
+    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None,decoder_times=None):
         super().__init__(parent)
         self.source=Path(source);self.ffmpeg=Path(ffmpeg)
         self.expected_sha256=expected_sha256;self.stream_index=stream_index
-        self.decoder_time=decoder_time;self.frame=None;self.error=None;self.canceled=False;self.retirement_unknown=False
+        self.decoder_time=decoder_time;self.decoder_times=tuple(decoder_times or (decoder_time,))
+        if not 1<=len(self.decoder_times)<=4:raise ValueError('Preview worker supports one to four timestamps')
+        self.frames=[];self.frame=None;self.error=None;self.canceled=False;self.retirement_unknown=False
     def run(self):
         try:
-            self.frame=extract_preview_frame(self.source,self.ffmpeg,
-                expected_sha256=self.expected_sha256,stream_index=self.stream_index,
-                decoder_time=self.decoder_time,cancel=self.isInterruptionRequested,
-                timeout=30,max_width=1280,max_height=720)
+            for timestamp in self.decoder_times:
+                if self.isInterruptionRequested():raise PreviewCanceled('Preview sequence canceled')
+                frame=extract_preview_frame(self.source,self.ffmpeg,
+                    expected_sha256=self.expected_sha256,stream_index=self.stream_index,
+                    decoder_time=timestamp,cancel=self.isInterruptionRequested,
+                    timeout=30,max_width=1280,max_height=720)
+                self.frames.append(frame)
+            if len(self.frames)==1:self.frame=self.frames[0]
         except PreviewCanceled:
-            self.canceled=True
+            self.canceled=True;self.frames.clear()
         except PreviewRetirementUnknown as exc:
-            self.retirement_unknown=True;self.error=str(exc)
+            self.retirement_unknown=True;self.error=str(exc);self.frames.clear()
         except PreviewError as exc:
-            self.error=str(exc)
+            self.error=str(exc);self.frames.clear()
         except BaseException:
             self.error='Không thể tạo ảnh xem nhanh; không áp dụng kết quả chưa xác nhận.'
+            self.frames.clear()
 
 
 class TimelinePanel(QWidget):
@@ -94,7 +101,8 @@ class TimelinePanel(QWidget):
         self.preview_trust=QCheckBox('Tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục')
         self.preview_trust.toggled.connect(self.update_actions)
         self.preview_button=QPushButton('Xem ảnh tại playhead');self.preview_button.clicked.connect(self.request_preview)
-        for widget in (self.preview_path,self.preview_browse,self.preview_trust,self.preview_button):preview_controls.addWidget(widget)
+        self.filmstrip_button=QPushButton('Tạo filmstrip 4 ảnh');self.filmstrip_button.clicked.connect(lambda:self.request_preview(filmstrip=True))
+        for widget in (self.preview_path,self.preview_browse,self.preview_trust,self.preview_button,self.filmstrip_button):preview_controls.addWidget(widget)
         layout.addLayout(preview_controls)
         self.preview_message=QLabel('Chưa có ảnh xem nhanh. Chỉ chạy FFmpeg sau khi chọn đường dẫn và xác nhận tin cậy.')
         self.preview_message.setWordWrap(True);layout.addWidget(self.preview_message)
@@ -102,6 +110,12 @@ class TimelinePanel(QWidget):
         self.preview_image.setAlignment(Qt.AlignmentFlag.AlignCenter);self.preview_image.setMinimumSize(320,180)
         self.preview_image.setMaximumHeight(240);self.preview_image.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
         layout.addWidget(self.preview_image)
+        filmstrip_row=QHBoxLayout();self.filmstrip_labels=[]
+        for index in range(4):
+            label=QLabel(f'Ảnh {index+1}');label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setFixedSize(160,90);label.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
+            self.filmstrip_labels.append(label);filmstrip_row.addWidget(label)
+        layout.addLayout(filmstrip_row)
         self.split_button.clicked.connect(self.split_at_playhead)
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
@@ -129,6 +143,8 @@ class TimelinePanel(QWidget):
             self.preview_message.setText(message)
             self.preview_image.clear()
             self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
+            for index,label in enumerate(self.filmstrip_labels):
+                label.clear();label.setText(f'Ảnh {index+1}')
 
     def _preview_path_changed(self,_value):
         self.preview_trust.setChecked(False)
@@ -139,7 +155,7 @@ class TimelinePanel(QWidget):
         filename,_=QFileDialog.getOpenFileName(self,'Chọn FFmpeg','','FFmpeg (ffmpeg.exe ffmpeg);;Chương trình (*)')
         if filename:self.preview_path.setText(filename)
 
-    def request_preview(self):
+    def request_preview(self,filmstrip=False):
         session=self.get_session();clip=self._selected_clip()
         if self.busy or self.stopping or session is None or clip is None:return
         if session.reconciliation_required:
@@ -162,24 +178,35 @@ class TimelinePanel(QWidget):
                 raise PreviewError('Preview hiện chưa hỗ trợ clip freeze.')
             start=_q(clip['output_start']);source_in=_q(clip['source_in'])
             source_out=_q(clip['source_out']);speed=_q(clip['speed'])
-            playhead=Fraction(self._playhead,1)/self._fps
-            if not start<=playhead<start+(source_out-source_in)/speed:
-                raise PreviewError('Playhead phải nằm trong phần video đang chọn.')
-            source_time=source_in+(playhead-start)*speed
-            decoder_time=_q(stream['start_time'])+source_time
+            stream_start=_q(stream['start_time'])
+            if filmstrip:
+                source_length=source_out-source_in
+                decoder_times=tuple(stream_start+source_in+source_length*offset
+                    for offset in (Fraction(1,8),Fraction(3,8),Fraction(5,8),Fraction(7,8)))
+            else:
+                playhead=Fraction(self._playhead,1)/self._fps
+                if not start<=playhead<start+(source_out-source_in)/speed:
+                    raise PreviewError('Playhead phải nằm trong phần video đang chọn.')
+                source_time=source_in+(playhead-start)*speed
+                decoder_times=(stream_start+source_time,)
             source=resolve_asset_path(asset,session.project_base)
             expected=asset['sha256']
         except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError) as exc:
             self.preview_message.setText(str(exc) if isinstance(exc,PreviewError)
                 else 'Không xác định được asset/stream của clip; không chạy decoder.')
             return
-        self.preview_image.clear();self.preview_image.setText('Đang tạo ảnh tĩnh…')
-        worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_time,self)
+        self.preview_image.clear()
+        self.preview_image.setText('Đang tạo filmstrip…' if filmstrip else 'Đang tạo ảnh tĩnh…')
+        for index,label in enumerate(self.filmstrip_labels):
+            label.clear();label.setText(f'Ảnh {index+1}')
+        worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_times[0],self,decoder_times=decoder_times)
         self._preview_generation+=1;generation=self._preview_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
         self.preview_worker=worker
         worker.finished.connect(lambda:self._preview_finished(worker,generation))
-        self.preview_message.setText('Đang tạo một ảnh tĩnh bằng FFmpeg đã chọn. Không phát video/âm thanh và không render project.')
+        self.preview_message.setText(
+            'Đang tạo bốn ảnh tĩnh theo chiều dài clip bằng FFmpeg đã chọn; không phát video/âm thanh.'
+            if filmstrip else 'Đang tạo một ảnh tĩnh bằng FFmpeg đã chọn. Không phát video/âm thanh và không render project.')
         self.update_actions();worker.start()
 
     def _preview_finished(self,worker,generation):
@@ -194,20 +221,32 @@ class TimelinePanel(QWidget):
             self.preview_retirement_unknown=True;self.stopping=True
             self.preview_image.clear();self.preview_image.setText('Tiến trình FFmpeg chưa xác nhận đã dừng.')
             self.preview_message.setText('KHÔNG THỂ XÁC NHẬN FFmpeg và tiến trình con đã dừng. Đã khóa chạy lại và đóng ứng dụng; kiểm tra Task Manager/tiến trình hệ thống rồi khởi động lại.')
-        elif current and worker.frame is not None:
-            image=QImage.fromData(worker.frame.png,'PNG')
-            if image.isNull():
+        elif current and worker.frames:
+            images=[QImage.fromData(frame.png,'PNG') for frame in worker.frames]
+            if any(image.isNull() for image in images):
                 self.preview_image.clear();self.preview_image.setText('Không giải mã được PNG preview.')
-                self.preview_message.setText('Ảnh trả về không hợp lệ; không áp dụng cache vào project.')
-            else:
-                pixmap=QPixmap.fromImage(image)
+                self.preview_message.setText('Có ảnh trả về không hợp lệ; không áp dụng một phần kết quả.')
+            elif len(worker.frames)==1:
+                frame=worker.frames[0];pixmap=QPixmap.fromImage(images[0])
                 self.preview_image.setPixmap(pixmap.scaled(self.preview_image.size(),
                     Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
-                stamp=worker.frame.decoder_time
+                for index,label in enumerate(self.filmstrip_labels):
+                    label.clear();label.setText(f'Ảnh {index+1}')
                 self.preview_message.setText(
-                    f"Ảnh tĩnh {worker.frame.width}×{worker.frame.height} · stream {worker.frame.stream_index} · "
-                    f"timestamp decoder {stamp} · {'cache' if worker.frame.cache_hit else 'FFmpeg'}; "
+                    f"Ảnh tĩnh {frame.width}×{frame.height} · stream {frame.stream_index} · "
+                    f"timestamp decoder {frame.decoder_time} · {'cache' if frame.cache_hit else 'FFmpeg'}; "
                     'không phải preview compositor, không đồng bộ audio và không chứng minh export parity.')
+            else:
+                self.preview_image.clear();self.preview_image.setText(f'Filmstrip {len(worker.frames)} ảnh tĩnh')
+                for label,frame,image in zip(self.filmstrip_labels,worker.frames,images):
+                    pixmap=QPixmap.fromImage(image)
+                    label.setPixmap(pixmap.scaled(label.size(),Qt.AspectRatioMode.KeepAspectRatio,
+                                                  Qt.TransformationMode.SmoothTransformation))
+                    label.setToolTip(f'Stream {frame.stream_index} · decoder timestamp {frame.decoder_time}')
+                hits=sum(frame.cache_hit for frame in worker.frames)
+                self.preview_message.setText(
+                    f"Filmstrip {len(worker.frames)} ảnh · {hits} cache hit · stream {worker.frames[0].stream_index}; "
+                    'ảnh tĩnh rời rạc, không phải timeline thumbnail liên tục, playback hay A/V sync.')
         elif current and worker.error:
             self.preview_image.clear();self.preview_image.setText('Chưa có ảnh preview.')
             self.preview_message.setText(worker.error)
@@ -263,6 +302,10 @@ class TimelinePanel(QWidget):
         preview_ready=(available and preview_inside and not self.busy and not self.stopping and self.preview_trust.isChecked()
                        and bool(self.preview_path.text()) and Path(self.preview_path.text()).is_absolute())
         self.preview_button.setEnabled(preview_ready and not self.preview_retirement_unknown)
+        filmstrip_ready=(available and _q(clip['freeze_duration'])==0 and not self.busy and not self.stopping
+                         and self.preview_trust.isChecked() and bool(self.preview_path.text())
+                         and Path(self.preview_path.text()).is_absolute())
+        self.filmstrip_button.setEnabled(filmstrip_ready and not self.preview_retirement_unknown)
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
