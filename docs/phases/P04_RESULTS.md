@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** 457817662c5fb6e70038b19a84b7a52f6ee33fc6  
-**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41570055537
-**Latest code checkpoint:** 43b0d97575167c10f65968bafdf267fc8e4735ea (CI pending; not yet verified)
+**Last fully verified code checkpoint:** 3e0efdc1b5a9fb4bf5fad978ed1345956463f663  
+**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41578597866
+**Latest code checkpoint:** 3e0efdc1b5a9fb4bf5fad978ed1345956463f663 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -32,8 +32,8 @@ Implemented:
 
 Not implemented:
 - Text/logo/font asset editing and glyph parity.
-- Crop controls, resize handles, multi-select/group transforms, grid/safe-area/snap/Alt, and bring-into-frame commands.
-- Decoded source-video preview or final mask effect rendering.
+- Interactive crop handles and complete nine-anchor hit-test/export parity; crop is currently numeric-inspector editing.
+- Decoded continuous source-video preview, final mask-effect compositor and render/export.
 - Preview/export geometry parity and any successful render path.
 
 Evidence:
@@ -41,13 +41,16 @@ Evidence:
 
 ## P04-03 and P04-04 — partial implementation
 
-Layer visibility, transform lock, z-order and mask-layer undo/redo are implemented and tested. Undo/redo restores prior model values by issuing new monotonic project revisions; it does not rewind revision numbers.
+Implemented and tested: tree multi-selection, persistent group UUIDs/schema compatibility, group/ungroup, group drag, batch lock/visibility/z-order/delete, context-menu actions and layer-scoped undo/redo. Undo/redo restores prior model values by issuing new monotonic project revisions; it does not rewind revision numbers.
 
-Multi-select, grouping/ungrouping, context menus, grouped atomic transforms and a unified undo stack covering timeline, text, subtitle and all editor commands remain open.
+Still open: canvas marquee selection, group resize/rotation and a unified undo stack spanning timeline, text, subtitle and all editor commands.
 
-## P04-05 through P04-08
+## P04-05 through P04-08 — partial implementation, not accepted
 
-NOT_RUN / not accepted. Timeline/playhead/trim/split/ripple, proxy/cache/seek, complete shortcut/IME router and full tool/profile/account settings remain unimplemented or unverified.
+- **P04-05:** integer-frame playhead, split/trim-in/out, gap/ripple, zoom/scroll, transient half-open In/Out work-area markers, user-triggered four-frame filmstrip and bounded 60-second mono waveform are present. Loop playback, persistent markers, continuous timeline thumbnails/waveform, sample-boundary acceptance and synchronized A/V seek remain open.
+- **P04-06:** background still-frame/filmstrip/waveform workers, content/tool-hash-bound in-memory caches and draft/standard/high still-image quality profiles are present. Persistent encoded proxy generation, continuous playback, synchronized A/V seek, warm/cold performance and preview/render parity remain open.
+- **P04-07:** QSettings-backed shortcut registry, searchable remapping panel, conflict rejection/reset, dynamic layer/timeline/tool event routing, app Settings navigation and text/IME focus guards are present for the implemented subset. Full ED§9 action coverage and physical Vietnamese/Chinese IME certification remain open.
+- **P04-08:** metadata-only tool inventory, explicit path preferences, one-shot background first-open scan, user-selected FFmpeg/ffprobe pair self-test and table-scoped F5 rescan are present. Managed download/install/update/repair/rollback, Chrome profile/account tables, live login/bridge/rights readiness and full platform recovery workflows remain open.
 
 ## Exact hosted verification
 
@@ -66,7 +69,7 @@ The subsequent documentation-only checkpoint updates the P04 plan header and rem
 
 ## Acceptance state
 
-The machine-readable project ledger remains unchanged by this partial implementation: 13/438 child criteria PASS, 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED. P03 whole-task acceptance remains 0/9. P04 whole-task acceptance remains 0/8. Do not infer product completion from test counts.
+The machine-readable project ledger records 13/438 child criteria PASS and 425 NOT_RUN; 8/94 tasks ACCEPTED, 17 IN_PROGRESS and 69 PLANNED after reconciling all eight partially implemented P04 tasks. P03 whole-task acceptance remains 0/9. P04 whole-task acceptance remains 0/8. No P04 requirement group is accepted. Do not infer product completion from test counts.
 
 
 ## 2026-11-03 continuation — additional implementation beyond the verified checkpoint
@@ -81,7 +84,7 @@ The current branch also contains the following later code, which is **implemente
 
 Additional regression files: tests/test_layer_groups.py, tests/test_layer_group_schema.py, tests/test_layer_canvas_guides.py, tests/test_layer_canvas_handles.py and tests/test_layer_shortcuts.py. The earlier modal-menu test was replaced with a non-modal fake-menu test so CI cannot wait for user input.
 
-The latest full CI run for current code is run 41564091006 (queued at time of this checkpoint). Until it completes on Ubuntu/Windows Python 3.12/3.13, all later features above remain unverified by hosted CI. No P04 task or phase is accepted.
+These later features were subsequently verified at the exact checkpoint recorded below by the completed four-runner run 41578597866. That hosted result does not close P04 task gates or external acceptance. No P04 task or phase is accepted.
 
 
 ## Slice K — explicit still-frame preview (2026-11-03)
@@ -96,7 +99,7 @@ Implemented on develop/fonesi-full:
 - Application close waits for preview worker retirement. Unknown process/job retirement permanently locks preview and app close for that session rather than retrying or claiming safety.
 - Preview is a still image only. No playback, audio sync, exact PTS parity, crop/transform compositor, waveform/thumbnail generation or export parity.
 
-Regression coverage added: tests/test_media_preview.py and tests/test_timeline_preview_ui.py. Initial hosted run 41567567876 exposed four test failures: two shortcut tests targeted a hidden Editor page; missing absolute path escaped as FileNotFoundError; Qt returns a null QPixmap object rather than Python None. The source/test fixes are included in the current checkpoint; next CI run must confirm them. No PASS claim for this checkpoint yet.
+Regression coverage added: tests/test_media_preview.py and tests/test_timeline_preview_ui.py. Initial hosted run 41567567876 exposed four test failures: two shortcut tests targeted a hidden Editor page; missing absolute path escaped as FileNotFoundError; Qt returns a null QPixmap object rather than Python None. Those causes were corrected and the current four-runner run 41578597866 passed. The still-frame feature remains a convenience observation, not playback or render acceptance.
 
 
 ## Slice L and M — filmstrip and waveform implementation
@@ -119,6 +122,30 @@ Implemented:
 - Timeline Left/Right steps one frame; Shift+Left/Right steps ten frames; Home/End jumps to bounds.
 - Shortcuts are scoped to the relevant tree/canvas widgets. Numeric crop inputs keep their native arrow-key behavior.
 
-Regression tests: `tests/test_settings_shortcut.py`, `tests/test_timeline_shortcuts.py`. Latest code checkpoint `400aba597565922520593abc648f03ccab25eb59`; full matrix run 41571700739 is pending. The last completed full matrix remains 41570055537 at 457817662c5fb6e70038b19a84b7a52f6ee33fc6: Ubuntu 888 passed/39 skipped each; Windows 901 passed/26 skipped each; zero failures. Do not claim the newly added shortcuts passed until run 41571700739 completes.
+Regression tests include `tests/test_settings_shortcut.py`, `tests/test_timeline_shortcuts.py`, `tests/test_shortcut_registry.py`, `tests/test_layer_shortcuts.py` and `tests/test_tool_inventory_ui.py`. The current focus-routing implementation and these tests are covered by run 41578597866 at HEAD `3e0efdc1b5a9fb4bf5fad978ed1345956463f663`.
 
 P04 remains IN_PROGRESS. P04-08 is still incomplete: Ctrl+, navigation does not implement tool installation/update/repair/rollback, Chrome profiles, account readiness or full settings acceptance.
+
+
+## 2026-11-03 — deterministic shortcut routing and current hosted verification
+
+Current integrated code checkpoint: `3e0efdc1b5a9fb4bf5fad978ed1345956463f663` on `develop/fonesi-full`. The implementation replaces QShortcut-only dispatch for the relevant scopes with shared-registry KeyPress event filters:
+
+- Layer tree/canvas routing uses the Qt modifier enum's integer value, preserves IME preedit handling and clears stale preedit on focus transitions.
+- Ctrl+, routes to the existing Settings page across the main-window widget tree, does not mutate project state, remains available from numeric inspectors, and is suppressed while a text editor owns focus; QKeySequenceEdit retains capture.
+- Timeline Left/Right, Shift+Left/Right, Home/End and I/O/Escape are scoped to the clip list/canvas and their viewports. Crop spin boxes retain native Left/Right cursor and Up/Down value semantics.
+- F5 is scoped to the tool table and viewport and invokes only the existing bounded metadata scan; registry remapping takes effect at event time.
+- The Windows coordinator test helper now polls the native QThread `wait(0)` completion predicate within its five-second bound, rather than asserting once immediately after `isRunning()` changes. This is a test synchronization correction; production coordinator ownership semantics are unchanged.
+
+Exact hosted run [41578597866](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41578597866) completed SUCCESS:
+
+| Runner | Passed | Skipped | Failed | Integrity |
+|---|---:|---:|---:|---|
+| Ubuntu / Python 3.12 | 904 | 39 | 0 | PASS |
+| Ubuntu / Python 3.13 | 904 | 39 | 0 | PASS |
+| Windows / Python 3.12 | 917 | 26 | 0 | PASS |
+| Windows / Python 3.13 | 917 | 26 | 0 | PASS |
+
+Windows Python 3.12 also passed the development onedir build and scoped frozen schema/subtitle/tool-discovery/license boundary checks. The separate pinned Windows FFmpeg synthetic capability workflow was SKIPPED. These results verify the exact source and headless Qt tests plus the named packaged boundaries only; they do not establish physical Windows GUI/Explorer/IME/HiDPI acceptance, actual user FFmpeg/GPU/media corpus, Chrome session handoff, provider access, continuous playback, synchronized A/V seek or render/export parity.
+
+P04 task states are now reconciled in `docs/requirements/tasks.json`: P04-01 through P04-08 are IN_PROGRESS, not ACCEPTED. Overall: 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
