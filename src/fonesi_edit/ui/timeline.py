@@ -124,9 +124,9 @@ class TimelinePanel(QWidget):
         try:
             self.clip_list.clear()
             for clip in sorted(data['clips'],key=lambda x:(_q(x['output_start']),x['id'])):
-            start=_q(clip['output_start']);length=(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
-            row=QListWidgetItem(f"{float(start):.3f}s · {float(length):.3f}s · {clip['id'][:8]}")
-            row.setData(Qt.ItemDataRole.UserRole,clip['id']);self.clip_list.addItem(row)
+                start=_q(clip['output_start']);length=(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
+                row=QListWidgetItem(f"{float(start):.3f}s · {float(length):.3f}s · {clip['id'][:8]}")
+                row.setData(Qt.ItemDataRole.UserRole,clip['id']);self.clip_list.addItem(row)
                 if clip['id']==self.selected_clip_id:self.clip_list.setCurrentItem(row)
         finally:self.clip_list.blockSignals(blocked)
         frame_count=output_duration*self._fps
