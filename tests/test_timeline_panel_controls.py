@@ -1,5 +1,6 @@
 """Timeline playhead uses integer output frames and commits split commands once."""
 import os
+from PySide6.QtCore import QCoreApplication,QEvent
 from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
