@@ -243,6 +243,7 @@ def test_preview_quality_selects_bounded_decoder_dimensions(tmp_path,qt_app,monk
         timeline.preview_path.setText(str(Path(sys.executable).resolve()))
         timeline.preview_trust.setChecked(True)
         timeline.preview_quality.setCurrentIndex(0)
+        assert window.session.revision==1
         assert timeline.preview_button.isEnabled()
         timeline.preview_button.click()
         wait_for(qt_app,lambda:not timeline.busy and 'timestamp decoder' in timeline.preview_message.text())
@@ -268,6 +269,7 @@ def test_quality_change_discards_inflight_preview_and_invalidates_old_frame(tmp_
         timeline.preview_trust.setChecked(True)
         timeline.request_preview()
         wait_for(qt_app,entered.is_set)
+        assert timeline.preview_quality.isEnabled()
         timeline.preview_quality.setCurrentIndex(2)
         release.set()
         wait_for(qt_app,lambda:not timeline.busy)
@@ -275,6 +277,31 @@ def test_quality_change_discards_inflight_preview_and_invalidates_old_frame(tmp_
         assert pixmap is None or pixmap.isNull()
         assert 'chất lượng preview đã đổi' in timeline.preview_message.text().lower()
         assert timeline.preview_quality.currentData()==(1280,720)
+    finally:
+        release.set()
+        _close(store,window,qt_app)
+
+def test_preview_quality_change_does_not_cancel_waveform_observation(tmp_path,qt_app,monkeypatch):
+    import threading
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import AudioWaveform
+    store,window,timeline,_,_=_open(tmp_path)
+    entered=threading.Event();release=threading.Event()
+    try:
+        def slow_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+            entered.set();release.wait(2)
+            return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
+                                 8000,4,((-1.0,.5),(.1,1.0)),False)
+        monkeypatch.setattr(module,'extract_audio_waveform',slow_waveform)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.request_waveform()
+        wait_for(qt_app,entered.is_set)
+        timeline.preview_quality.setCurrentIndex(2)
+        release.set()
+        wait_for(qt_app,lambda:not timeline.busy)
+        assert timeline.waveform_widget.peaks==((-1.0,.5),(.1,1.0))
+        assert 'Waveform biên độ' in timeline.waveform_message.text()
     finally:
         release.set()
         _close(store,window,qt_app)
