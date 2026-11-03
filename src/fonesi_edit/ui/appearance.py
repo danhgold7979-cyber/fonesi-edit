@@ -135,14 +135,17 @@ def apply_appearance(app,preferences):
     pad=max(3,round(4*preferences.zoom_percent/100))
     tab_y=max(4,round(6*preferences.zoom_percent/100))
     tab_x=max(6,round(8*preferences.zoom_percent/100))
-    app.setStyleSheet(
-        "QPushButton, QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox { "
-        f"padding: {pad}px; "
-        "}"
-        "QTabBar::tab { "
-        f"padding: {tab_y}px {tab_x}px; "
-        "}"
-    )
+    if preferences.zoom_percent==100:
+        app.setStyleSheet("")
+    else:
+        app.setStyleSheet(
+            "QPushButton, QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox { "
+            f"padding: {pad}px; "
+            "}"
+            "QTabBar::tab { "
+            f"padding: {tab_y}px {tab_x}px; "
+            "}"
+        )
 
 
 class AppearanceSettingsPanel(QWidget):
