@@ -119,7 +119,9 @@ class CropEditorView(QWidget):
         self._active_handle=None;self._press=None;self._start_crop=None
         self._image_rect=QRectF()
         self.setMinimumSize(320,180);self.setMaximumHeight(260)
-        self.setMouseTracking(True)
+        self.setMouseTracking(True);self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setAccessibleName('Vùng chỉnh crop trên ảnh tĩnh')
+        self.setAccessibleDescription('Kéo vùng crop để di chuyển; kéo tám tay nắm để đổi kích thước. Nhấn Escape để hủy thao tác kéo hiện tại. Đây không phải crop preview hay render.')
         self.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
 
     def setPixmap(self,pixmap):
@@ -152,8 +154,22 @@ class CropEditorView(QWidget):
 
     def set_editing(self,enabled):
         self.editing=bool(enabled) and self.hasPixmap()
+        if not self.editing:
+            self._cancel_pointer_gesture()
         self.setCursor(Qt.CursorShape.CrossCursor if self.editing else Qt.CursorShape.ArrowCursor)
         self.update()
+
+    def _cancel_pointer_gesture(self):
+        if self._start_crop is not None:
+            self.crop=dict(self._start_crop)
+        self._active_handle=None;self._press=None;self._start_crop=None
+        self.update()
+
+    def keyPressEvent(self,event):
+        if event.key()==Qt.Key.Key_Escape and self._active_handle is not None:
+            self._cancel_pointer_gesture()
+            event.accept();return
+        super().keyPressEvent(event)
 
     def set_ratio_locked(self,enabled):
         self.ratio_locked=bool(enabled)
@@ -216,6 +232,7 @@ class CropEditorView(QWidget):
         if handle is None and crop.contains(point):handle='move'
         if handle is None:return
         self._active_handle=handle;self._press=point;self._start_crop=dict(self.crop)
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
         event.accept()
 
     def mouseMoveEvent(self,event):
@@ -259,9 +276,12 @@ class CropEditorView(QWidget):
 
     def mouseReleaseEvent(self,event):
         if self._active_handle is None:return
-        changed=dict(self.crop)
+        changed=dict(self.crop);original=self._start_crop
         self._active_handle=None;self._press=None;self._start_crop=None
-        self.crop_changed.emit(changed);event.accept()
+        if original is not None and any(abs(changed[key]-original[key])>1e-12
+                                        for key in ('left','top','width','height')):
+            self.crop_changed.emit(changed)
+        event.accept()
 
 
 class TimelinePanel(QWidget):
