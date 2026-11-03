@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** b9ad4e814c2ac636997afc4336ac421d4fd140e4  
-**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085
-**Latest code checkpoint:** b9ad4e814c2ac636997afc4336ac421d4fd140e4 (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** f151e16da2be3895346d1b57f83dfdd2ffcac825  
+**Last fully verified run:** 41606760403
+**Latest code checkpoint:** f151e16da2be3895346d1b57f83dfdd2ffcac825 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -257,3 +257,39 @@ Exact hosted clean-foundation run 41605294255 completed SUCCESS on documentation
 The first CI attempt at `dfeb4b3` had all four pytest suites pass (Linux 956/39 and Windows 969/26) but failed the plan integrity step because a historical Actions URL remained in CURRENT_STATUS.md. The URL was removed in the documentation-only commit `f124193`; the exact four-runner rerun then passed. No test assertion was weakened.
 
 Acceptance boundary: hosted Qt tests are offscreen. Physical Windows GUI, Explorer multi-select, mixed-DPI/HiDPI, physical Vietnamese/Chinese IME, actual user FFmpeg/media corpus, GPU, Chrome session/account, providers, continuous playback, synchronized A/V seek and renderer/export parity remain unaccepted or NOT_RUN. P04-01 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted.
+
+
+## Slice AC — localized Inspector accessibility metadata (P04-01, 2026-11-03)
+
+Implementation checkpoint: `a709d45620ef51ce1bb3a014be3086cdecdd24c2`; regression test checkpoint: `e733681833e741a81b2f1dfab7b0497efcf694af`.
+
+The layer Inspector now exposes localized accessible names and descriptions for all eight numeric transform fields and paired sliders. Anchor, horizontal/vertical flip, individual reset and transform-group reset controls have explicit accessible names and help text. This metadata does not change project commands or model state.
+
+Regression test: `test_inspector_controls_have_localized_accessible_names_and_help` in `tests/test_layer_editor_ui.py`.
+
+Exact four-runner run 41606760403 passed on final verification HEAD `f151e16da2be3895346d1b57f83dfdd2ffcac825`, including the accessibility implementation and tests:
+- Ubuntu Python 3.12.15: 959 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 959 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 972 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 972 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four. Windows Python 3.12 development onedir build and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+
+Acceptance boundary: Qt accessibility metadata is verified in hosted tests; no screen-reader certification or physical Windows accessibility/IME/HiDPI test is claimed. P04-01 remains IN_PROGRESS.
+
+## Slice AE — finite canvas geometry validation (P04-02, 2026-11-03)
+
+Implementation commit: `58ffe870948ef82f0d063496138aaa7d1d3c2a0b`; regression test commit: `6e65b57ffec51110f2390903308ee9ac966d6838`.
+
+The layer canvas now rejects non-finite resize dimensions, anchor coordinates, rotation angles and drag coordinates before rational conversion. Zero/negative resize dimensions are refused. Rejected edits refresh from the authoritative project model and do not advance the project revision. Valid geometry continues through the existing one-command ProjectSession CAS path.
+
+Regression tests in `tests/test_layer_canvas_handles.py`:
+- `test_invalid_canvas_geometry_is_rejected_without_project_revision`
+- `test_resize_preserves_each_of_nine_anchor_positions`
+
+Exact four-runner CI run 41606760403 passed on final verification HEAD `f151e16da2be3895346d1b57f83dfdd2ffcac825`, including these tests:
+- Ubuntu Python 3.12.15/3.13.17: 959 passed, 39 skipped, 0 failed each.
+- Windows Python 3.12.10/3.13.17: 972 passed, 26 skipped, 0 failed each.
+- Plan integrity PASS on all four. Windows Python 3.12 development onedir build and five scoped frozen CLI boundary checks PASS.
+- The separate pinned Windows FFmpeg capability workflow was not run by this foundation workflow.
+
+Acceptance boundary: synthetic/offscreen Qt tests do not prove physical mouse interaction, mixed-DPI scaling, source-video preview/crop compositor, renderer/export parity or end-user Windows acceptance. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted.
