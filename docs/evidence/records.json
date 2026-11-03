@@ -41,7 +41,7 @@
       "frame_index": 30,
       "lossless_exact": true,
       "h264_mae_255": 1.1877719907407407,
-      "h264_p99_255": 6.0,
+      "h264_p99_255": 6,
       "shift3px_rejected": true
     },
     "artifact_paths": [
@@ -97,7 +97,7 @@
       "frame_index": 30,
       "lossless_exact": true,
       "h264_mae_255": 1.079191261574074,
-      "h264_p99_255": 4.0,
+      "h264_p99_255": 4,
       "shift3px_rejected": true
     },
     "artifact_paths": [
@@ -988,6 +988,102 @@
       "Metadata scan only, no executable launch/trust/READY.",
       "No automatic registry/version lease/install or complete tool inventory acceptance.",
       "Bounded checks and deadlines between IO, not OS-call preemption."
+    ]
+  },
+  {
+    "id": "P04-05-HOSTED-TIMELINE-RANGE-41584573033",
+    "generation": "clean-2026-11-01",
+    "commit": "ff86e797b662ca118189e7a19980d45bbdfdb4a5",
+    "tree": "a5aab5ebdbac676fdda9b2876bc84e199aca5289",
+    "task_ids": [
+      "P04-05"
+    ],
+    "criterion_ids": [],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Partial In/Out range persistence only; no ED-17 criterion, task or phase acceptance.",
+    "command": "GitHub Actions clean-foundation run 41584573033; source tests, schema fixtures, Windows onedir build and scoped frozen CLI boundaries.",
+    "started_at": "2026-11-03T05:33:13Z",
+    "finished_at": "2026-11-03T05:36:55Z",
+    "environment": {
+      "targets": [
+        {
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4",
+          "qt": "6.12.0",
+          "QT_QPA_PLATFORM": "offscreen"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_composition::test_timeline_range_is_optional_and_validated_as_half_open_output_frames",
+      "tests.test_composition::test_invalid_timeline_range_fails_closed",
+      "tests.test_timeline_panel_controls::test_in_out_markers_persist_across_project_file_reopen_and_clear",
+      "tests.test_timeline_panel_controls::test_out_marker_requires_valid_in_and_strictly_later_frame",
+      "tests.test_timeline_panel_controls::test_timeline_i_o_escape_shortcuts_persist_and_clear_range"
+    ],
+    "status": "PASS",
+    "observations": {
+      "ubuntu_py312": {
+        "passed": 924,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "ubuntu_py313": {
+        "passed": 924,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312": {
+        "passed": 937,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py313": {
+        "passed": 937,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312_onedir": "PASS",
+      "windows_py312_frozen_cli_boundaries": "PASS",
+      "pinned_windows_ffmpeg_synthetic": "SKIPPED"
+    },
+    "artifact_paths": [],
+    "run_ids": [
+      41584573033
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41584573033"
+    ],
+    "limitations": [
+      "Offscreen Qt only; no physical Windows GUI, Explorer, IME or HiDPI acceptance.",
+      "Named markers, loop playback and export-range rendering remain open.",
+      "No continuous playback, synchronized A/V seek, real-media codec corpus, GPU, live Chrome or provider acceptance."
     ]
   }
 ]

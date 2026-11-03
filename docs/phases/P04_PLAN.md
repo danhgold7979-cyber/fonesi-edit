@@ -45,7 +45,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Timeline playhead/trim/split/in-out/gap/ripple/marker/zoom/scroll/loop commands.
 - **Errors/cancellation:** Trim bounds and overlaps validated; split at edge rejected; Esc leaves timeline unchanged; missing media visible.
 - **Tests and acceptance:** Boundary frame/sample tests, gap vs ripple distinction, linked A/V/sub mapping; repeated split/undo round-trip.
-- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, playhead marker, transient half-open In/Out range selection and bounded user-triggered filmstrip/waveform. Loop playback, persisted project markers, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, playhead marker, project-persisted half-open In/Out work-area range selection and bounded user-triggered filmstrip/waveform. Loop playback, persisted project markers, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-06 — proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.
 
@@ -315,3 +315,18 @@ Windows Python 3.12 also completed the development onedir build and scoped froze
 **Tests:** legacy plan without `timeline_range`; valid In-only, final-frame Out, one-frame and multi-frame half-open ranges; reject Out without In, equal/reversed bounds, negative/out-of-range frame indices, bool-as-int and unknown fields; I/O/Escape persistence and clear; project-file save/close/reopen round-trip; marker display and project revision increments exactly once per completed marker command.
 
 **Acceptance boundary:** this proves only persistent range selection and its validation. It does not implement arbitrary named timeline markers (M), loop playback, export-range rendering, synchronized A/V seek, continuous thumbnails or the full ED-17 group. P04-05/P04 remain IN_PROGRESS until all criteria and external gates pass.
+
+### Slice U hosted verification — 2026-11-03
+
+Implementation checkpoint: `ff86e797b662ca118189e7a19980d45bbdfdb4a5`. Clean-foundation run [41584573033](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41584573033) completed SUCCESS:
+
+| Runner | Passed | Skipped | Failed | Integrity |
+|---|---:|---:|---:|---|
+| Ubuntu / Python 3.12.15 | 924 | 39 | 0 | PASS |
+| Ubuntu / Python 3.13.17 | 924 | 39 | 0 | PASS |
+| Windows / Python 3.12.10 | 937 | 26 | 0 | PASS |
+| Windows / Python 3.13.17 | 937 | 26 | 0 | PASS |
+
+Windows Python 3.12 also passed the development onedir build and scoped frozen CLI boundaries. Pinned Windows FFmpeg synthetic capability was SKIPPED. Tests used QT_QPA_PLATFORM=offscreen; no physical Windows GUI/IME/HiDPI/Explorer, real-media, GPU, Chrome/provider, playback, A/V sync or render/export acceptance.
+
+P04-05 and P04 remain IN_PROGRESS; no ED-17 criterion or task is accepted by this slice.

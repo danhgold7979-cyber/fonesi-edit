@@ -30,4 +30,4 @@ The clean-foundation workflow targets actual Windows/Linux, Python3.12/3.13; pen
 runs do not establish Windows support. See [P03 evidence and limits](docs/phases/P03_RESULTS.md).
 
 
-The active integration branch is `develop/fonesi-full`; all phases remain in this repository and application. `main` is release-only and is not merged automatically. The Editor currently has a geometry-only layer workspace, local media library, frame-based timeline editing, and crop/zoom inspector under development. It does not yet decode/preview video or render/export the composition.
+The active integration branch is `develop/fonesi-full`; all phases remain in this repository and application. `main` is release-only and is not merged automatically. The Editor currently has a geometry-only layer workspace, local media library, frame-based timeline with persisted half-open In/Out work-area selection, and crop/zoom inspector. It supports explicit still-frame/filmstrip and bounded waveform observations through a user-selected FFmpeg executable, but not continuous video/audio playback, synchronized A/V seek, persistent encoded proxies, a complete composition renderer or export.

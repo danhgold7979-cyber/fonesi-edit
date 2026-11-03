@@ -47,7 +47,7 @@ Still open: canvas marquee selection, group resize/rotation and a unified undo s
 
 ## P04-05 through P04-08 — partial implementation, not accepted
 
-- **P04-05:** integer-frame playhead, split/trim-in/out, gap/ripple, zoom/scroll, transient half-open In/Out work-area markers, user-triggered four-frame filmstrip and bounded 60-second mono waveform are present. Loop playback, persistent markers, continuous timeline thumbnails/waveform, sample-boundary acceptance and synchronized A/V seek remain open.
+- **P04-05:** integer-frame playhead, split/trim-in/out, gap/ripple, zoom/scroll, project-persisted half-open In/Out work-area markers, user-triggered four-frame filmstrip and bounded 60-second mono waveform are present. Loop playback, persistent markers, continuous timeline thumbnails/waveform, sample-boundary acceptance and synchronized A/V seek remain open.
 - **P04-06:** background still-frame/filmstrip/waveform workers, content/tool-hash-bound in-memory caches and draft/standard/high still-image quality profiles are present. Persistent encoded proxy generation, continuous playback, synchronized A/V seek, warm/cold performance and preview/render parity remain open.
 - **P04-07:** QSettings-backed shortcut registry, searchable remapping panel, conflict rejection/reset, dynamic layer/timeline/tool event routing, app Settings navigation and text/IME focus guards are present for the implemented subset. Full ED§9 action coverage and physical Vietnamese/Chinese IME certification remain open.
 - **P04-08:** metadata-only tool inventory, explicit path preferences, one-shot background first-open scan, user-selected FFmpeg/ffprobe pair self-test and table-scoped F5 rescan are present. Managed download/install/update/repair/rollback, Chrome profile/account tables, live login/bridge/rights readiness and full platform recovery workflows remain open.
@@ -149,3 +149,13 @@ Exact hosted run [41578597866](https://github.com/danhgold7979-cyber/fonesi-edit
 Windows Python 3.12 also passed the development onedir build and scoped frozen schema/subtitle/tool-discovery/license boundary checks. The separate pinned Windows FFmpeg synthetic capability workflow was SKIPPED. These results verify the exact source and headless Qt tests plus the named packaged boundaries only; they do not establish physical Windows GUI/Explorer/IME/HiDPI acceptance, actual user FFmpeg/GPU/media corpus, Chrome session handoff, provider access, continuous playback, synchronized A/V seek or render/export parity.
 
 P04 task states are now reconciled in `docs/requirements/tasks.json`: P04-01 through P04-08 are IN_PROGRESS, not ACCEPTED. Overall: 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+## Slice U — project-persisted In/Out work-area range (P04-05, 2026-11-03)
+
+Implemented: optional `timeline_range` metadata in CompositionPlan v1; legacy plans remain valid. Stores integer output-frame In/Out boundaries as half-open `[In, Out)`. Strict validation checks `ceil(duration × fps)`, Out requires In, and invalid/reversed/out-of-range/bool/unknown fields are rejected. Buttons and I/O/Escape commit one CompletedCommand revision via ProjectSession; save/close/reopen restores the selection; clear removes it. Source media is untouched.
+
+Tests: `test_timeline_range_is_optional_and_validated_as_half_open_output_frames`, `test_invalid_timeline_range_fails_closed`, `test_in_out_markers_persist_across_project_file_reopen_and_clear`, `test_out_marker_requires_valid_in_and_strictly_later_frame`, and `test_timeline_i_o_escape_shortcuts_persist_and_clear_range`.
+
+Hosted run [41584573033](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41584573033) passed on the exact code checkpoint `ff86e797b662ca118189e7a19980d45bbdfdb4a5`: Ubuntu 3.12.15/3.13.17 each 924 passed, 39 skipped, 0 failed; Windows 3.12.10/3.13.17 each 937 passed, 26 skipped, 0 failed; integrity PASS all four. Windows 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic workflow SKIPPED.
+
+Acceptance boundary: this is persistent range selection only. Arbitrary named markers (M), loop playback, export-range rendering, continuous thumbnails/waveform, synchronized A/V seek and physical Windows GUI remain open. P04-05/P04 are not accepted.
