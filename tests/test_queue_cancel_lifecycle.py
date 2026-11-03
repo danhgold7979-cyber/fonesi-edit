@@ -24,9 +24,9 @@ from test_queue_view import wait_for,queue
 def test_selected_ui_cancel_retires_descendant_then_cleans_only_owned_stage(tmp_path,empty_plan,qt_app,monkeypatch):
     source=tmp_path/'source.bin';original=b'Python lifecycle fixture; NOT media codec evidence';source.write_bytes(original)
     root=tmp_path/'output';root.mkdir();foreign=root/'foreign.tmp';foreign.write_bytes(b'FOREIGN')
-    marker=tmp_path/'child-status';ready=threading.Event();shared={};errors=[];observations=[]
+    marker=tmp_path/'child-status';release=tmp_path/'release-child';ready=threading.Event();shared={};errors=[];observations=[]
     install_python_probe(monkeypatch,observations)
-    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});p.write_text("ready");time.sleep(1);p.write_text("SURVIVED")'
+    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});r=pathlib.Path({str(release)!r});p.write_text("ready");\\nwhile not r.exists():time.sleep(.01)\\np.write_text("SURVIVED")'
     parent=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(10)'
     def decoder(args,**kwargs):
         observations.append(kwargs['_retirement']);return run_owned([sys.executable,'-c',parent],**kwargs)
@@ -67,7 +67,12 @@ def test_selected_ui_cancel_retires_descendant_then_cleans_only_owned_stage(tmp_
         thread.join(3);assert not thread.is_alive() and not errors
         wait_for(qt_app,lambda:not page.progress_timer.isActive())
         assert shared['final_state']=='canceled' and len(observations)==2
-        time.sleep(1.1);assert marker.read_text()=='ready'
+        # Release a descendant only after the owned stage worker has
+        # confirmed retirement. A surviving child must then report itself.
+        release.write_text('release')
+        deadline=time.monotonic()+2
+        while marker.read_text()=='ready' and time.monotonic()<deadline:time.sleep(.01)
+        assert marker.read_text()=='ready'
         assert source.read_bytes()==original and foreign.read_bytes()==b'FOREIGN' and not (root/'final.mp4').exists()
         assert bool(list(root.glob('.fonesi-stage-*')))==(os.name!='nt')
     finally:
