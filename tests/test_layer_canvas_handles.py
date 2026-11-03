@@ -4,7 +4,7 @@ from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF,QCoreApplication,QEvent
 from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
 from fonesi_edit.storage.projects import ProjectStore,save_project_file
 from fonesi_edit.ui.shell import MainWindow
@@ -22,7 +22,7 @@ def _open(tmp_path):
 def _close(store,window,qt_app):
     window.close()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);qt_app.processEvents();store.close()
 
 
 def test_resize_and_rotation_handle_commands_share_one_project_revision_each(tmp_path,qt_app):
