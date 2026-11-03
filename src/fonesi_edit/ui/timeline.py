@@ -240,7 +240,12 @@ class TimelinePanel(QWidget):
             self.waveform_message.setText('Waveform cũ đã bị loại bỏ do đầu vào thay đổi.')
 
     def _preview_quality_changed(self,_index):
-        self._invalidate_preview('Chất lượng preview đã đổi; ảnh cũ bị loại bỏ và cache sẽ dùng khóa độ phân giải mới.')
+        self._preview_generation+=1
+        if self.preview_worker is not None:self.preview_worker.requestInterruption()
+        self.preview_message.setText('Chất lượng preview đã đổi; ảnh cũ bị loại bỏ và cache sẽ dùng khóa độ phân giải mới.')
+        self.preview_image.clear();self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
+        for index,label in enumerate(self.filmstrip_labels):
+            label.clear();label.setText(f'Ảnh {index+1}')
         self.update_actions()
 
     def _preview_path_changed(self,_value):
@@ -490,7 +495,9 @@ class TimelinePanel(QWidget):
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
-        self.preview_quality.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
+        # Quality may change during a running still-frame request; that invalidates
+        # the request generation and asks its owned worker to retire safely.
+        self.preview_quality.setEnabled(not self.stopping and not self.preview_retirement_unknown)
 
     def _refresh_crop_inspector(self):
         session=self.get_session();clip=self._selected_clip()
