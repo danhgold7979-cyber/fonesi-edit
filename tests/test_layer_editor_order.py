@@ -1,5 +1,6 @@
 """Layer ordering is durable project state, not widget-only stacking."""
 import os
+from PySide6.QtCore import QCoreApplication,QEvent
 from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
@@ -31,4 +32,4 @@ def test_layer_order_updates_z_values_and_undoes(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
