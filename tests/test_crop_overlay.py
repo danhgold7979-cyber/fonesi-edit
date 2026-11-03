@@ -46,7 +46,7 @@ def test_crop_overlay_corner_resize_respects_locked_ratio(qt_app):
     assert len(changes)==1
     assert abs(changes[0]['width']-changes[0]['height'])<1e-9
     assert abs(changes[0]['width']-.45)<.02
-    view.close()
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
 
 
 def test_crop_overlay_clamps_move_to_source_frame(qt_app):
@@ -62,4 +62,4 @@ def test_crop_overlay_clamps_move_to_source_frame(qt_app):
     assert crop['left']+crop['width']<=1+1e-9
     assert crop['top']+crop['height']<=1+1e-9
     assert crop['width']>0 and crop['height']>0
-    view.close()
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
