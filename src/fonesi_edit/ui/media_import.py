@@ -178,21 +178,19 @@ class LocalMediaDropQueue(QListWidget):
     def add_urls(self,urls):
         urls=tuple(urls)
         accepted=rejected=0
-        stopped=False
-        for index,url in enumerate(urls[:MAX_DROP_QUEUE_URLS_PER_DROP]):
-            remaining=len(urls)-index
+        bounded_urls=urls[:MAX_DROP_QUEUE_URLS_PER_DROP]
+        for index,url in enumerate(bounded_urls):
+            remaining=len(bounded_urls)-index
             if self.count()>=MAX_DROP_QUEUE_ROWS-1:
                 rejected+=remaining
                 self._refused_count+=remaining
                 self._append_overflow_summary(remaining)
-                stopped=True
                 break
             if self._valid_count>=MAX_DROP_QUEUE_FILES:
                 self._refusal(
                     'Hàng đợi',
                     f'Đã đạt giới hạn {MAX_DROP_QUEUE_FILES} tệp hợp lệ; các mục còn lại không được xếp hàng.')
                 rejected+=remaining
-                stopped=True
                 break
             detail=_drop_detail(url)
             try:
