@@ -405,7 +405,7 @@ Scope limits: hosted Qt tests used offscreen mode. This does not certify physica
 
 **Master alignment:** P04-01 Explorer multi-drag and media-library import; source clauses ED-L136 and PR-L029. This slice adds a bounded selection queue only; it does not claim batch media import or physical Explorer acceptance.
 
-**Entry checkpoint:** code HEAD 1038d0afa91bddcaca45fc00c832247451da19cb on develop/fonesi-full. Clean-foundation run 41594109888 passed all four Linux/Windows Python 3.12/3.13 runners. Documentation/evidence checkpoint 055249da73533afad0f5b6d384a4cc04a0fdcda1 also passed clean-foundation run 41595185031 on all four runners; main remains unchanged.
+**Entry checkpoint:** integrated HEAD aa6fc3066d7993a0d7008bd4c661f95654b9d269 on develop/fonesi-full. This includes the post-1038d0 QGraphicsView viewport object-identity correction; exact clean-foundation run 41596381132 passed all four Linux/Windows Python 3.12/3.13 runners. Main remains unchanged at e514b51d764d972fbf7c018e0dbdbdf964ece267.
 
 **Observed gap:** the existing LocalMediaPathEdit accepts exactly one local regular file. Multiple Explorer items are rejected, so there is no bounded review queue or per-item refusal state.
 
