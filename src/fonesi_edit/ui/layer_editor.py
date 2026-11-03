@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
 from PySide6.QtGui import QColor, QBrush, QPen
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
-    QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsItem)
+    QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsItem,QAbstractItemView,QMenu)
 
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
@@ -29,7 +29,7 @@ def offset(anchor,w,h):
     return x,y
 
 class LayerBoundsItem(QGraphicsRectItem):
-    def __init__(self,layer,width,height,moved):
+    def __init__(self,layer,width,height,moved,can_move=True):
         t=layer['transform'];w=val(t['width'])*width*val(t['scale_x']);h=val(t['height'])*height*val(t['scale_y'])
         x,y=offset(t['anchor'],w,h)
         super().__init__(QRectF(x,y,w,h))
@@ -38,7 +38,7 @@ class LayerBoundsItem(QGraphicsRectItem):
         self.setRotation(val(t['rotation']));self.setOpacity(val(t['opacity']))
         self.setZValue(layer['z']+1)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,not locked(layer))
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,can_move and not locked(layer))
         self.setData(0,self.layer_id)
         self.setToolTip(f"{layer['type']} · z={layer['z']}")
         if layer['type']=='mask':
@@ -62,7 +62,7 @@ class LayerEditorWorkspace(QWidget):
     project_changed=Signal()
     def __init__(self,get_session,parent=None):
         super().__init__(parent);self.get_session=get_session
-        self.selected_id=None;self.undo_stack=[];self.redo_stack=[]
+        self.selected_id=None;self.selected_ids=set();self.undo_stack=[];self.redo_stack=[]
         self.syncing=False;self.committing=False;self.stopping=False
         self.last_session=None;self.last_revision=None;self.original_transform=None
         root=QVBoxLayout(self)
@@ -72,12 +72,17 @@ class LayerEditorWorkspace(QWidget):
         self.add_button=QPushButton('Thêm vùng che');self.delete_button=QPushButton('Xóa layer')
         self.lock_button=QPushButton('Khóa/mở');self.hide_button=QPushButton('Ẩn/hiện')
         self.up_button=QPushButton('Đưa lên');self.down_button=QPushButton('Đưa xuống')
+        self.group_button=QPushButton('Nhóm');self.ungroup_button=QPushButton('Bỏ nhóm')
         self.undo_button=QPushButton('Hoàn tác');self.redo_button=QPushButton('Làm lại')
-        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.undo_button,self.redo_button):bar.addWidget(b)
+        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.group_button,self.ungroup_button,self.undo_button,self.redo_button):bar.addWidget(b)
         root.addLayout(bar)
         split=QSplitter(Qt.Orientation.Horizontal)
         left=QWidget();ll=QVBoxLayout(left);ll.addWidget(QLabel('Layer'))
-        self.layers=QListWidget();ll.addWidget(self.layers);split.addWidget(left)
+        self.layers=QListWidget();self.layers.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.layers.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.layers.itemSelectionChanged.connect(self.select_rows)
+        self.layers.customContextMenuRequested.connect(self.show_layer_context_menu)
+        ll.addWidget(self.layers);split.addWidget(left)
         self.scene=QGraphicsScene(self);self.view=QGraphicsView(self.scene);split.addWidget(self.view)
         right=QWidget();form=QFormLayout(right);self.spins={}
         for name,label,lo,hi in (('x','X',-10,10),('y','Y',-10,10),('width','Rộng',.0001,10),
@@ -96,8 +101,8 @@ class LayerEditorWorkspace(QWidget):
         self.add_button.clicked.connect(self.add_mask);self.delete_button.clicked.connect(self.delete_selected)
         self.lock_button.clicked.connect(self.toggle_lock);self.hide_button.clicked.connect(self.toggle_visibility)
         self.up_button.clicked.connect(lambda:self.move_selected(1));self.down_button.clicked.connect(lambda:self.move_selected(-1))
+        self.group_button.clicked.connect(self.group_selected);self.ungroup_button.clicked.connect(self.ungroup_selected)
         self.undo_button.clicked.connect(self.undo);self.redo_button.clicked.connect(self.redo)
-        self.layers.currentRowChanged.connect(self.select_row)
         self.scene.selectionChanged.connect(self.scene_selected)
         self.update_project()
 
