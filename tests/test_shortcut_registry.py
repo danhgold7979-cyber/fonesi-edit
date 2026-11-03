@@ -52,6 +52,10 @@ def test_matches_uses_qt_modifier_enum_value_for_chords(tmp_path):
                     Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.ShiftModifier)
     assert registry.matches('layer.redo',event)
     assert not registry.matches('layer.undo',event)
+    alt_event=QKeyEvent(QEvent.Type.KeyPress,Qt.Key.Key_G,
+                        Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.AltModifier)
+    registry.set_sequence('layer.group','Ctrl+Alt+G')
+    assert registry.matches('layer.group',alt_event)
 
 
 def test_shortcut_settings_panel_search_remap_conflict_and_reset(tmp_path,qt_app):
