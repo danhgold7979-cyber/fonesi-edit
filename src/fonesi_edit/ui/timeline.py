@@ -4,7 +4,7 @@ from fractions import Fraction
 
 from pathlib import Path
 from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
-from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter, QShortcut, QKeySequence
+from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
     QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox)
@@ -13,7 +13,7 @@ from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
-from fonesi_edit.ui.shortcuts import ShortcutRegistry
+from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
 
 
 def _q(value):
@@ -199,7 +199,6 @@ class TimelinePanel(QWidget):
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
         layout.addWidget(self.view)
-        self._timeline_shortcuts={}
         self._install_timeline_shortcuts()
         self.update_project()
 
@@ -215,19 +214,16 @@ class TimelinePanel(QWidget):
             ('timeline.mark_out',self.set_out_marker),
             ('timeline.clear_range',self.clear_range_markers),
         )
-        for owner in (self.clip_list,self.view):
-            for action_id,callback in bindings:
-                shortcut=QShortcut(QKeySequence(self.shortcut_registry.sequence(action_id)),owner)
-                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-                shortcut.activated.connect(callback)
-                self._timeline_shortcuts.setdefault(action_id,[]).append(shortcut)
-        self.shortcut_registry.changed.connect(self._timeline_shortcut_changed)
+        self.timeline_shortcut_router=ShortcutEventRouter(
+            self.shortcut_registry,bindings,self,
+            repeatable=('timeline.previous_frame','timeline.next_frame',
+                        'timeline.previous_10','timeline.next_10',
+                        'timeline.start','timeline.end'),
+        )
+        for owner in (self.clip_list,self.clip_list.viewport(),self.view,self.view.viewport()):
+            owner.installEventFilter(self.timeline_shortcut_router)
         help_text='Timeline: phím tắt có thể đổi trong Cài đặt → Phím tắt. Ô crop giữ phím chỉnh sửa riêng.'
         self.clip_list.setToolTip(help_text);self.view.setToolTip(help_text)
-
-    def _timeline_shortcut_changed(self,action_id):
-        for shortcut in self._timeline_shortcuts.get(action_id,()):
-            shortcut.setKey(QKeySequence(self.shortcut_registry.sequence(action_id)))
 
     def _step_playhead(self,delta):
         if self.stopping or self.playhead_slider.isSliderDown():return
