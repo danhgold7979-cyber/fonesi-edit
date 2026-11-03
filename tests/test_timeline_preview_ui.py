@@ -6,7 +6,7 @@ from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
-from PySide6.QtCore import QBuffer,QIODevice
+from PySide6.QtCore import QBuffer,QIODevice,QCoreApplication,QEvent
 from PySide6.QtGui import QImage
 from fonesi_edit.media.preview import PreviewFrame
 from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
@@ -40,7 +40,7 @@ def _open(tmp_path):
 def _close(store,window,qt_app):
     window.close()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);store.close()
 
 
 def test_preview_requires_explicit_tool_and_trust_and_displays_still_image(tmp_path,qt_app,monkeypatch):
