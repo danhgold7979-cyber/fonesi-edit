@@ -45,7 +45,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Timeline playhead/trim/split/in-out/gap/ripple/marker/zoom/scroll/loop commands.
 - **Errors/cancellation:** Trim bounds and overlaps validated; split at edge rejected; Esc leaves timeline unchanged; missing media visible.
 - **Tests and acceptance:** Boundary frame/sample tests, gap vs ripple distinction, linked A/V/sub mapping; repeated split/undo round-trip.
-- **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P04_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. Partial code exists: integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll and playhead marker. In/out markers, thumbnails, waveform, loop, sample-boundary acceptance and full audio/video seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, playhead marker, transient half-open In/Out range selection and bounded user-triggered filmstrip/waveform. Loop playback, persisted project markers, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-06 — proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.
 
@@ -217,3 +217,9 @@ Tests: each profile passes its exact bounds to the worker; changing quality duri
 Provide a QSettings-backed user preference registry for the implemented shortcut subset. The searchable Settings panel lists action, focus scope and current binding; QKeySequenceEdit captures a replacement; save rejects empty/invalid sequences and collisions in overlapping scopes without modifying the previous binding; reset selected/reset all restore documented defaults. Project files do not contain user shortcut preferences. Layer tree/canvas event routing reads the registry dynamically and does not consume keys during IME preedit or from numeric inspector fields. Timeline QShortcuts update live when their action is remapped. The app Settings shortcut also updates live. This is not the complete ED§9 map; only currently implemented actions may be offered as active bindings.
 
 Tests: QSettings persistence across registry instances; same-scope and app-global conflict rejection; failed remap leaves old value; panel search/save/reset; live layer and timeline remapping without project revision change; inspector and IME focus isolation; no default action fires after remap.
+
+## Slice R — transient timeline In/Out work-area markers
+
+Add In and Out controls plus focus-scoped I/O/Escape shortcuts. In marks the current output frame; Out marks the exclusive boundary immediately after the current frame, producing a half-open [In, Out) range. Out requires an earlier In and must not exceed the project's frame count. Invalid changes leave the prior range unchanged. A translucent region and distinct IN/OUT lines are view-only state; they do not mutate CompositionPlan or increment project revision and are cleared when the project identity closes/changes. This is a work-area selection only: no loop playback or render-range behavior is claimed.
+
+Tests: valid half-open range, one-frame range at final output frame, Out-before-In rejection, invalid Out rejection, clear/Escape, project identity reset, keyboard focus scope, and no project revision change.
