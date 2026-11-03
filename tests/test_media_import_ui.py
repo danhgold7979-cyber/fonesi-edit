@@ -148,6 +148,9 @@ def test_cancel_during_owned_probe_does_not_mutate_project(tmp_path,qt_app,monke
             panel=_panel(window,source)
             panel.add_button.click()
             wait_for(qt_app,lambda:started.is_set())
+            assert not panel.drop_queue.isEnabled()
+            assert not panel.clear_drop_button.isEnabled()
+            assert not panel.use_drop_button.isEnabled()
             panel.cancel_button.click()
             wait_for(qt_app,lambda:not panel.busy,timeout=10)
             assert window.session.revision==0
