@@ -35,6 +35,7 @@ def test_playhead_split_updates_video_and_audio_tracks_once(tmp_path,qt_app):
             data=window.session.project.plan.to_dict()
             assert len(data['clips'])==2 and len(data['audio']['clips'])==2
             assert timeline.clip_list.count()==2
+            assert timeline.selected_clip_id==addition.clip_id
             assert 'Chưa phát' not in timeline.notice.text()
         finally:
             window.close()
@@ -66,6 +67,22 @@ def test_trim_in_gap_mode_moves_left_edge_but_keeps_following_clip(tmp_path,qt_a
             following=next(x for x in data['clips'] if x['id']==two.clip_id)
             assert clip['output_start']==[1,2] and clip['source_in']==[1,2]
             assert following['output_start']==[1,1]
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()
+
+def test_playhead_stops_at_last_valid_output_frame(tmp_path,qt_app):
+    project=empty_project(NewProjectIntent('Frame boundary',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            timeline=window.timeline_panel
+            assert timeline.playhead_slider.maximum()==299
+            timeline.playhead_slider.setValue(299)
+            assert timeline.playhead_label.text().startswith('Playhead: 299 frame')
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
