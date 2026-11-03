@@ -4,15 +4,15 @@ from fractions import Fraction
 
 from pathlib import Path
 from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
-from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap
+from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
     QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
-from fonesi_edit.media.preview import (PreviewFrame,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
-    extract_preview_frame,resolve_asset_path)
+from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
+    extract_preview_frame,extract_audio_waveform,resolve_asset_path)
 
 
 def _q(value):
@@ -50,6 +50,56 @@ class PreviewWorker(QThread):
             self.frames.clear()
 
 
+
+
+class WaveformWorker(QThread):
+    """One bounded mono PCM waveform observation; no audio playback."""
+    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_start,duration,parent=None):
+        super().__init__(parent)
+        self.source=Path(source);self.ffmpeg=Path(ffmpeg);self.expected_sha256=expected_sha256
+        self.stream_index=stream_index;self.decoder_start=decoder_start;self.duration=duration
+        self.waveform=None;self.error=None;self.canceled=False;self.retirement_unknown=False
+    def run(self):
+        try:
+            self.waveform=extract_audio_waveform(self.source,self.ffmpeg,
+                expected_sha256=self.expected_sha256,stream_index=self.stream_index,
+                decoder_start=self.decoder_start,duration=self.duration,
+                cancel=self.isInterruptionRequested,timeout=30,bucket_count=256)
+        except PreviewCanceled:
+            self.canceled=True
+        except PreviewRetirementUnknown as exc:
+            self.retirement_unknown=True;self.error=str(exc)
+        except PreviewError as exc:
+            self.error=str(exc)
+        except BaseException:
+            self.error='Không thể tạo waveform; không áp dụng kết quả chưa xác nhận.'
+
+
+class WaveformWidget(QWidget):
+    """Simple min/max amplitude envelope; deliberately not an audio meter."""
+    def __init__(self,parent=None):
+        super().__init__(parent);self.peaks=()
+        self.setMinimumSize(320,72);self.setMaximumHeight(96)
+    def set_peaks(self,peaks):
+        self.peaks=tuple(peaks);self.update()
+    def clear(self):
+        self.peaks=();self.update()
+    def paintEvent(self,event):
+        painter=QPainter(self)
+        painter.fillRect(self.rect(),QColor('#111820'))
+        if not self.peaks:
+            painter.setPen(QPen(QColor('#aab6c5')))
+            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'Chưa có waveform')
+            painter.end();return
+        painter.setPen(QPen(QColor('#75b7a2'),1))
+        middle=self.height()/2;amplitude=max(1,middle-5);width=max(1,self.width())
+        count=len(self.peaks)
+        for index,(low,high) in enumerate(self.peaks):
+            x=int((index+.5)*width/count)
+            y1=int(middle-high*amplitude);y2=int(middle-low*amplitude)
+            painter.drawLine(x,y1,x,y2)
+        painter.end()
+
 class TimelinePanel(QWidget):
     project_changed=Signal()
     idle=Signal()
@@ -60,7 +110,8 @@ class TimelinePanel(QWidget):
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0
-        self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None;self.stopping=False
+        self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
+        self.waveform_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Chưa có phát video/âm thanh, thumbnail/waveform tự động hoặc render.')
@@ -102,7 +153,8 @@ class TimelinePanel(QWidget):
         self.preview_trust.toggled.connect(self.update_actions)
         self.preview_button=QPushButton('Xem ảnh tại playhead');self.preview_button.clicked.connect(self.request_preview)
         self.filmstrip_button=QPushButton('Tạo filmstrip 4 ảnh');self.filmstrip_button.clicked.connect(lambda:self.request_preview(filmstrip=True))
-        for widget in (self.preview_path,self.preview_browse,self.preview_trust,self.preview_button,self.filmstrip_button):preview_controls.addWidget(widget)
+        self.waveform_button=QPushButton('Tạo waveform audio · 60s');self.waveform_button.clicked.connect(self.request_waveform)
+        for widget in (self.preview_path,self.preview_browse,self.preview_trust,self.preview_button,self.filmstrip_button,self.waveform_button):preview_controls.addWidget(widget)
         layout.addLayout(preview_controls)
         self.preview_message=QLabel('Chưa có ảnh xem nhanh. Chỉ chạy FFmpeg sau khi chọn đường dẫn và xác nhận tin cậy.')
         self.preview_message.setWordWrap(True);layout.addWidget(self.preview_message)
@@ -116,6 +168,10 @@ class TimelinePanel(QWidget):
             label.setFixedSize(160,90);label.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
             self.filmstrip_labels.append(label);filmstrip_row.addWidget(label)
         layout.addLayout(filmstrip_row)
+        self.waveform_message=QLabel('Waveform chỉ là biên độ audio; chưa có phát âm thanh hoặc đồng bộ A/V.')
+        self.waveform_message.setWordWrap(True);layout.addWidget(self.waveform_message)
+        self.waveform_widget=WaveformWidget(self);self.waveform_widget.setStyleSheet('border:1px solid #56616f;')
+        layout.addWidget(self.waveform_widget)
         self.split_button.clicked.connect(self.split_at_playhead)
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
@@ -133,18 +189,20 @@ class TimelinePanel(QWidget):
 
     @property
     def busy(self):
-        return self.preview_worker is not None or self.preview_retirement_unknown
+        return self.preview_worker is not None or self.waveform_worker is not None or self.preview_retirement_unknown
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
         self._preview_generation+=1
-        if self.preview_worker is not None:
-            self.preview_worker.requestInterruption()
+        if self.preview_worker is not None:self.preview_worker.requestInterruption()
+        if self.waveform_worker is not None:self.waveform_worker.requestInterruption()
         if hasattr(self,'preview_message'):
             self.preview_message.setText(message)
             self.preview_image.clear()
             self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
             for index,label in enumerate(self.filmstrip_labels):
                 label.clear();label.setText(f'Ảnh {index+1}')
+            self.waveform_widget.clear()
+            self.waveform_message.setText('Waveform cũ đã bị loại bỏ do đầu vào thay đổi.')
 
     def _preview_path_changed(self,_value):
         self.preview_trust.setChecked(False)
@@ -154,6 +212,78 @@ class TimelinePanel(QWidget):
     def choose_preview_ffmpeg(self):
         filename,_=QFileDialog.getOpenFileName(self,'Chọn FFmpeg','','FFmpeg (ffmpeg.exe ffmpeg);;Chương trình (*)')
         if filename:self.preview_path.setText(filename)
+
+    def _selected_audio_clip(self,data=None):
+        session=self.get_session();clip=self._selected_clip()
+        if session is None or clip is None:return None
+        data=session.project.plan.to_dict() if data is None else data
+        return next((x for x in data['audio']['clips']
+                     if x['asset_id']==clip['asset_id'] and x.get('role')=='original'),None)
+
+    def request_waveform(self):
+        session=self.get_session();clip=self._selected_clip()
+        if self.busy or self.stopping or session is None or clip is None:return
+        if session.reconciliation_required:
+            self.waveform_message.setText('Project cần đối soát; không chạy waveform.')
+            return
+        if not self.preview_trust.isChecked():
+            self.waveform_message.setText('Cần xác nhận tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục.')
+            return
+        ffmpeg=Path(self.preview_path.text())
+        if not ffmpeg.is_absolute():
+            self.waveform_message.setText('Chọn đường dẫn FFmpeg tuyệt đối; không tự tìm công cụ thay thế.')
+            return
+        try:
+            data=session.project.plan.to_dict()
+            asset=next(x for x in data['assets'] if x['id']==clip['asset_id'])
+            audio_clip=self._selected_audio_clip(data)
+            if audio_clip is None:raise PreviewError('Clip không có audio gốc tương ứng.')
+            stream_index=audio_clip['audio_stream_index']
+            stream=next(x for x in asset['probe']['streams']
+                        if x['index']==stream_index and x['type']=='audio')
+            source_in=_q(audio_clip['source_in']);source_out=_q(audio_clip['source_out'])
+            speed=_q(audio_clip['speed'])
+            duration=min((source_out-source_in)/speed,Fraction(60))
+            decoder_start=_q(stream['start_time'])+source_in
+            source=resolve_asset_path(asset,session.project_base)
+            expected=asset['sha256']
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError) as exc:
+            self.waveform_message.setText(str(exc) if isinstance(exc,PreviewError)
+                else 'Không xác định được audio stream; không chạy decoder.')
+            return
+        self.waveform_widget.clear()
+        self.waveform_message.setText('Đang giải mã tối đa 60 giây audio thành waveform; không phát âm thanh.')
+        worker=WaveformWorker(source,ffmpeg,expected,stream_index,decoder_start,duration,self)
+        self._preview_generation+=1;generation=self._preview_generation
+        self._preview_revision=session.revision;self._preview_clip_id=clip['id']
+        self.waveform_worker=worker
+        worker.finished.connect(lambda:self._waveform_finished(worker,generation))
+        self.update_actions();worker.start()
+
+    def _waveform_finished(self,worker,generation):
+        if self.waveform_worker is not worker:return
+        if not worker.wait(0):
+            QTimer.singleShot(10,lambda:self._waveform_finished(worker,generation))
+            return
+        session=self.get_session()
+        current=(generation==self._preview_generation and not self.stopping and session is not None
+                 and session.revision==self._preview_revision and self.selected_clip_id==self._preview_clip_id)
+        if worker.retirement_unknown:
+            self.preview_retirement_unknown=True;self.stopping=True
+            self.waveform_widget.clear()
+            self.waveform_message.setText('KHÔNG THỂ XÁC NHẬN FFmpeg và tiến trình con đã dừng. Đã khóa chạy lại và đóng ứng dụng; kiểm tra Task Manager/tiến trình hệ thống rồi khởi động lại.')
+        elif current and worker.waveform is not None:
+            waveform=worker.waveform;self.waveform_widget.set_peaks(waveform.peaks)
+            self.waveform_message.setText(
+                f"Waveform biên độ · stream {waveform.stream_index} · {waveform.sample_rate} Hz · "
+                f"{waveform.sample_count} samples · {len(waveform.peaks)} bins · "
+                f"{float(waveform.duration):.2f}s tối đa 60s · {'cache' if waveform.cache_hit else 'FFmpeg'}; "
+                'không phải loudness/clipping meter, playback, A/V sync hay render.')
+        elif current and worker.error:
+            self.waveform_widget.clear();self.waveform_message.setText(worker.error)
+        elif current and worker.canceled:
+            self.waveform_message.setText('Đã dừng waveform; không thay đổi project.')
+        self.waveform_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
 
     def request_preview(self,filmstrip=False):
         session=self.get_session();clip=self._selected_clip()
@@ -306,6 +436,11 @@ class TimelinePanel(QWidget):
                          and self.preview_trust.isChecked() and bool(self.preview_path.text())
                          and Path(self.preview_path.text()).is_absolute())
         self.filmstrip_button.setEnabled(filmstrip_ready and not self.preview_retirement_unknown)
+        audio_clip=self._selected_audio_clip() if available else None
+        waveform_ready=(available and audio_clip is not None and not self.busy and not self.stopping
+                        and self.preview_trust.isChecked() and bool(self.preview_path.text())
+                        and Path(self.preview_path.text()).is_absolute())
+        self.waveform_button.setEnabled(waveform_ready and not self.preview_retirement_unknown)
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
