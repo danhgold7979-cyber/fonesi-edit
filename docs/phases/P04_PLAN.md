@@ -662,3 +662,31 @@ This slice validates Qt hit-test and callback ownership for geometry controls on
 ### Acceptance boundary
 
 These are synthetic Qt event-path tests, not physical Windows mouse/HiDPI acceptance. They do not prove preview/export geometry parity or a rendered crop/text/logo result.
+
+
+## Slice AK — anchor-preserving interactive resize geometry (P04-02)
+
+### Finding from Slice AJ
+The real viewport event path exposed a production geometry defect: resizing the southeast handle while the transform anchor is centered expanded the rectangle from one edge but then moved the canonical anchor position. Direct model-level resize tests had not exercised this pointer-path invariant. The failure is not resolved by loosening expected coordinates.
+
+### Contract
+- The selected transform anchor remains at the exact same scene position through every completed resize gesture.
+- Resize dimensions are derived from handle direction, pointer delta and anchor alignment:
+  - left/right and top/bottom anchors keep the anchor-side edge fixed;
+  - center anchors expand symmetrically, so a handle displacement changes the corresponding full extent by twice that displacement;
+  - dragging the handle coincident with the selected anchor does not change that axis.
+- The updated local rectangle is reconstructed from the canonical anchor offset, not by stretching one edge and inferring a new anchor position afterward.
+- Minimum extent is bounded and geometry never flips through zero.
+- One gesture still commits one ProjectSession revision; cancel/locked/group behavior remains unchanged.
+- The test oracle derives the requested delta from integer viewport coordinates mapped back to scene coordinates. It does not use arbitrary tolerance to hide a geometry defect.
+
+### Tests
+- Real QGraphicsView viewport resize on a centered anchor preserves canonical x/y and changes width/height symmetrically.
+- Real viewport resize across all nine anchors preserves the local origin/scene anchor; test each available opposite handle direction.
+- Handle coincident with anchor is a no-op on that axis.
+- Minimum-size clamping and invalid/locked/group refusal remain intact.
+- Existing real viewport rotation test compares to the exact angle implied by quantized viewport endpoints.
+- Run focused canvas tests, plan integrity and exact four-runner CI.
+
+### Acceptance boundary
+This fixes normalized layer geometry interaction only. It does not implement text/logo content, source-video crop compositing, preview/export parity or physical Windows pointer/HiDPI acceptance.
