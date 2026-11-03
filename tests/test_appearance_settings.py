@@ -152,3 +152,42 @@ def test_oversized_window_geometry_is_ignored_without_touching_other_preferences
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
         window.deleteLater()
         qt_app.processEvents()
+
+
+def test_inspector_mode_persists_across_window_restart_and_appearance_reset(qt_app,tmp_path):
+    settings=_settings(tmp_path/'inspector-mode.ini')
+    settings.setValue('editor/inspector_advanced',True)
+    with ProjectStore(tmp_path/'projects.sqlite3') as store:
+        first=MainWindow(store,ui_settings=settings)
+        assert first.layer_editor.inspector_advanced.isChecked()
+
+        first.appearance_settings.reset_button.click()
+        assert settings.value('editor/inspector_advanced') is True
+
+        first.layer_editor.inspector_advanced.setChecked(False)
+        assert settings.value('editor/inspector_advanced') is False
+        first.close()
+        wait_for(qt_app,lambda:not first.background_busy and not first.isVisible())
+        first.deleteLater()
+        qt_app.processEvents()
+
+        second=MainWindow(store,ui_settings=settings)
+        assert not second.layer_editor.inspector_advanced.isChecked()
+        second.layer_editor.inspector_advanced.setChecked(True)
+        assert settings.value('editor/inspector_advanced') is True
+        second.close()
+        wait_for(qt_app,lambda:not second.background_busy and not second.isVisible())
+        second.deleteLater()
+        qt_app.processEvents()
+
+
+def test_malformed_inspector_mode_defaults_to_basic(qt_app,tmp_path):
+    settings=_settings(tmp_path/'malformed-inspector-mode.ini')
+    settings.setValue('editor/inspector_advanced','sometimes')
+    with ProjectStore(tmp_path/'projects.sqlite3') as store:
+        window=MainWindow(store,ui_settings=settings)
+        assert not window.layer_editor.inspector_advanced.isChecked()
+        window.close()
+        wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+        window.deleteLater()
+        qt_app.processEvents()
