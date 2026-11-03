@@ -3,14 +3,15 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** 3e0efdc1b5a9fb4bf5fad978ed1345956463f663  
-**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41578597866
-**Latest code checkpoint:** 3e0efdc1b5a9fb4bf5fad978ed1345956463f663 (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** 78ff11a8fb45e08dc9806b015e5f2f94475476db  
+**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41589895118
+**Latest code checkpoint:** 78ff11a8fb45e08dc9806b015e5f2f94475476db (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
 Implemented:
 - Native Editor tabs for layer workspace, media library and read-only media inspection.
+- Numeric transform inspector with paired bounded sliders, explicit unit/range labels, per-property reset, anchor/flip reset and full transform-group reset. Slider drag is one project command on release; keyboard steps are individual commands.
 - Explicit one-file local media import using a user-selected, explicitly trusted ffprobe executable.
 - Hash-bound media identity, typed observation, non-render-ready library record and project-session revision CAS.
 - Cancellation/close wait for owned process retirement; stale project/session or changed source cannot silently commit.
@@ -18,6 +19,7 @@ Implemented:
 
 Evidence:
 - tests/test_media_import_ui.py, tests/test_media_import_drop.py, tests/test_project_media_library.py.
+- tests/test_layer_editor_ui.py covers slider/spin synchronization, drag/keyboard commit counts, per-property/group resets, anchor/flip reset and locked-control disablement.
 - The UI import tests use synthetic probe metadata plus a real owned child-process lifecycle fixture; this is not actual codec or media validity acceptance.
 - Physical Windows Explorer, HiDPI, IME, multi-file drop, theme and layout persistence remain open.
 
@@ -172,3 +174,14 @@ Regression coverage: test_timeline_markers_are_optional_navigation_metadata_not_
 Hosted run 41588026020 completed SUCCESS on exact HEAD fad21b7a1a1b77e5e967145721b6974e8f7375bd: Ubuntu Python 3.12.15 and 3.13.17 each 938 passed, 39 skipped, 0 failed; Windows Python 3.12.10 and 3.13.17 each 951 passed, 26 skipped, 0 failed; integrity PASS on all four. Windows Python 3.12 also passed the actual development onedir build and scoped frozen schema/subtitle/tool-discovery/license boundaries. The pinned Windows FFmpeg synthetic capability workflow was SKIPPED.
 
 Scope limits: hosted Qt tests ran offscreen. Physical Windows GUI, Vietnamese/Chinese IME, Explorer and HiDPI, marker rename/drag, loop playback, export-range renderer behavior, continuous thumbnails/waveform and synchronized A/V seek remain NOT_RUN. ED-17.04 and ED-19.26 remain NOT_RUN; P04-05/P04-07 and P04 remain IN_PROGRESS. No task/criterion/phase acceptance is inferred from this partial slice.
+## Slice X — layer inspector slider synchronization and reset controls (P04-01, 2026-11-03)
+
+Code checkpoint: 78ff11a8fb45e08dc9806b015e5f2f94475476db on develop/fonesi-full.
+
+Implemented paired sliders for x, y, width, height, scale_x, scale_y, rotation and opacity; explicit unit/range labels; per-property reset; anchor and flip resets; and a full transform-group reset. Mouse slider drag commits exactly once on release, while keyboard slider steps commit one completed command each. Spin-box edits remain supported. Reset on an already-default transform is a no-op. Locked or non-single-selection inspector states disable sliders and reset actions.
+
+Regression coverage in tests/test_layer_editor_ui.py: test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once; test_inspector_property_and_group_resets_commit_once_and_preserve_other_fields; test_anchor_and_flip_individual_resets_restore_only_selected_property; existing lock/undo/save/reopen coverage remains enabled.
+
+Hosted clean-foundation run 41589895118 completed SUCCESS on exact HEAD 78ff11a8fb45e08dc9806b015e5f2f94475476db: Ubuntu Python 3.12.15/3.13.17 each 941 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 954 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 development onedir build and scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+Acceptance boundary: Basic/Advanced mode, property search, complete tooltip/disabled-reason mapping, theme/font-size/HiDPI persistence, multi-file Explorer drag/drop and physical Windows GUI remain open. ED-01.02/.03 and P04-01 are NOT accepted. Hosted Qt tests used offscreen mode; this is not physical Windows user-device acceptance.
