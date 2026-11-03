@@ -187,8 +187,8 @@ def test_viewport_pointer_drag_on_resize_handle_commits_one_geometry_command(tmp
         start=editor.view.mapFromScene(item.mapToScene(handle))
         end=editor.view.mapFromScene(item.mapToScene(handle+QPointF(60,45)))
         scene_start=editor.view.mapToScene(start);scene_end=editor.view.mapToScene(end)
-        expected_width=480+(scene_end.x()-scene_start.x())
-        expected_height=180+(scene_end.y()-scene_start.y())
+        expected_width=480+2*(scene_end.x()-scene_start.x())
+        expected_height=180+2*(scene_end.y()-scene_start.y())
         before=window.session.revision
         QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
         QTest.mouseMove(editor.view.viewport(),QPoint(end))
@@ -229,5 +229,46 @@ def test_viewport_pointer_drag_on_rotation_handle_commits_one_geometry_command(t
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
         assert isclose(transform['rotation'][0]/transform['rotation'][1],expected_rotation,abs_tol=0.02)
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_viewport_resize_preserves_each_of_nine_transform_anchors(tmp_path,qt_app):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask();layer_id=editor.selected_id
+        opposite_handles={
+            'top_left':'se','top_center':'se','top_right':'sw',
+            'center_left':'se','center':'se','center_right':'sw',
+            'bottom_left':'ne','bottom_center':'ne','bottom_right':'nw',
+        }
+        for anchor,name in opposite_handles.items():
+            data=editor.data()
+            layer=next(x for x in data['layers'] if x['id']==layer_id)
+            layer['transform']['anchor']=anchor
+            layer['transform']['width']=[1,4]
+            layer['transform']['height']=[1,6]
+            editor.selected_id=layer_id;editor.selected_ids={layer_id}
+            assert editor.commit(data,'fixture anchor')
+            item=next(x for x in editor.scene.items() if getattr(x,'layer_id',None)==layer_id)
+            handle=item._resize_handles()[name]
+            dx=20 if 'e' in name else (-20 if 'w' in name else 0)
+            dy=15 if 's' in name else (-15 if 'n' in name else 0)
+            start=editor.view.mapFromScene(item.mapToScene(handle))
+            end=editor.view.mapFromScene(item.mapToScene(handle+QPointF(dx,dy)))
+            before=window.session.revision
+            x_before=window.session.project.plan.to_dict()['layers'][0]['transform']['x']
+            y_before=window.session.project.plan.to_dict()['layers'][0]['transform']['y']
+            QTest.mousePress(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            QTest.mouseMove(editor.view.viewport(),QPoint(end))
+            QTest.mouseRelease(editor.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            qt_app.processEvents()
+            assert window.session.revision==before+1,anchor
+            transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+            assert transform['anchor']==anchor
+            assert transform['x']==x_before and transform['y']==y_before,anchor
+            assert transform['width']!=[1,4] and transform['height']!=[1,6],anchor
     finally:
         _close(store,window,qt_app)
