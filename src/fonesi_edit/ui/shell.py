@@ -19,6 +19,7 @@ from fonesi_edit.ui.account_metadata import AccountMetadataPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel,ShortcutEventRouter
 from fonesi_edit.ui.appearance import AppearanceSettingsPanel
+from fonesi_edit.ui.project_history import ProjectCommandHistory
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -34,6 +35,7 @@ class MainWindow(QMainWindow):
         self.shortcut_settings=ShortcutSettingsPanel(self.shortcut_registry,self)
         self.project = None
         self.session = None
+        self.project_history=ProjectCommandHistory(lambda:self.session,self)
         self._close_requested=False
         self.coordinator_host=None
         self._coordinator_error=None
@@ -55,9 +57,9 @@ class MainWindow(QMainWindow):
         self.media_import.idle.connect(self._queue_idle)
         self.media_import.project_changed.connect(self._project_changed)
         self.media_import.state_changed.connect(self._project_actions)
-        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self,self.shortcut_registry,self.ui_settings)
+        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self,self.shortcut_registry,self.ui_settings,self.project_history)
         self.layer_editor.project_changed.connect(self._project_changed)
-        self.timeline_panel=TimelinePanel(lambda:self.session,self,self.shortcut_registry)
+        self.timeline_panel=TimelinePanel(lambda:self.session,self,self.shortcut_registry,self.project_history)
         self.timeline_panel.project_changed.connect(self._project_changed)
         self.timeline_panel.idle.connect(self._queue_idle)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3',
