@@ -264,7 +264,7 @@ class TimelinePanel(QWidget):
         self.get_session=get_session
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
-        self._last_project_id=None;self._crop_original=None;self._crop_revision=None
+        self._last_project_id=None;self._crop_original=None;self._crop_revision=None;self._crop_overlay_pending=False
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0;self._waveform_generation=0
         self._in_frame=None;self._out_frame=None;self._frame_total=0;self.selected_marker_id=None
@@ -308,7 +308,7 @@ class TimelinePanel(QWidget):
         for name,label in (('left','Trái'),('top','Trên'),('width','Rộng'),('height','Cao')):
             spin=QDoubleSpinBox();spin.setDecimals(8);spin.setSingleStep(0.01)
             spin.setRange(0.00000001 if name in ('width','height') else 0.0,1.0)
-            spin.editingFinished.connect(self.apply_crop)
+            spin.editingFinished.connect(self.stage_crop_from_spins)
             self.crop_spins[name]=spin;crop_form.addRow(label,spin)
         crop_widget=QWidget();crop_widget.setLayout(crop_form);layout.addWidget(crop_widget)
         zoom_row=QHBoxLayout();zoom_row.addWidget(QLabel('Zoom timeline'))
@@ -337,10 +337,23 @@ class TimelinePanel(QWidget):
         layout.addLayout(preview_controls)
         self.preview_message=QLabel('Chưa có ảnh xem nhanh. Chỉ chạy FFmpeg sau khi chọn đường dẫn và xác nhận tin cậy.')
         self.preview_message.setWordWrap(True);layout.addWidget(self.preview_message)
-        self.preview_image=QLabel('Ảnh tĩnh — chưa có preview')
-        self.preview_image.setAlignment(Qt.AlignmentFlag.AlignCenter);self.preview_image.setMinimumSize(320,180)
-        self.preview_image.setMaximumHeight(240);self.preview_image.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
+        self.preview_image=CropEditorView(self)
+        self.preview_image.setText('Ảnh tĩnh — chưa có preview')
+        self.preview_image.crop_changed.connect(self._crop_overlay_changed)
         layout.addWidget(self.preview_image)
+        crop_tools=QHBoxLayout()
+        self.crop_edit_toggle=QCheckBox('Chỉnh crop trên ảnh tĩnh')
+        self.crop_grid_check=QCheckBox('Lưới 1/3');self.crop_grid_check.setChecked(True)
+        self.crop_ratio_lock=QCheckBox('Khóa tỷ lệ')
+        self.crop_apply_button=QPushButton('Xác nhận crop')
+        self.crop_cancel_button=QPushButton('Hủy crop')
+        for widget in (self.crop_edit_toggle,self.crop_grid_check,self.crop_ratio_lock,self.crop_apply_button,self.crop_cancel_button):crop_tools.addWidget(widget)
+        layout.addLayout(crop_tools)
+        self.crop_edit_toggle.toggled.connect(self.preview_image.set_editing)
+        self.crop_grid_check.toggled.connect(self.preview_image.set_grid)
+        self.crop_ratio_lock.toggled.connect(self.preview_image.set_ratio_locked)
+        self.crop_apply_button.clicked.connect(self.apply_crop)
+        self.crop_cancel_button.clicked.connect(self.cancel_crop)
         filmstrip_row=QHBoxLayout();self.filmstrip_labels=[]
         for index in range(4):
             label=QLabel(f'Ảnh {index+1}');label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -682,6 +695,8 @@ class TimelinePanel(QWidget):
             self.preview_message.setText(str(exc) if isinstance(exc,PreviewError)
                 else 'Không xác định được asset/stream của clip; không chạy decoder.')
             return
+        self.cancel_crop()
+        self.crop_edit_toggle.setChecked(False)
         self.preview_image.clear()
         self.preview_image.setText('Đang tạo filmstrip…' if filmstrip else 'Đang tạo ảnh tĩnh…')
         for index,label in enumerate(self.filmstrip_labels):
@@ -722,8 +737,8 @@ class TimelinePanel(QWidget):
                 self.preview_message.setText('Có ảnh trả về không hợp lệ; không áp dụng một phần kết quả.')
             elif len(worker.frames)==1:
                 frame=worker.frames[0];pixmap=QPixmap.fromImage(images[0])
-                self.preview_image.setPixmap(pixmap.scaled(self.preview_image.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
+                self.preview_image.setPixmap(pixmap)
+                self._refresh_crop_inspector()
                 for index,label in enumerate(self.filmstrip_labels):
                     label.clear();label.setText(f'Ảnh {index+1}')
                 self.preview_message.setText(
@@ -757,6 +772,7 @@ class TimelinePanel(QWidget):
         item=self.clip_list.item(row) if row>=0 else None
         selected=None if item is None else item.data(Qt.ItemDataRole.UserRole)
         if selected!=self.selected_clip_id:
+            self.crop_edit_toggle.setChecked(False)
             self.selected_clip_id=selected
             self._invalidate_preview('Clip đã đổi; ảnh preview cũ đã bị loại bỏ.')
         self._refresh_crop_inspector()
@@ -785,6 +801,9 @@ class TimelinePanel(QWidget):
         self.trim_out_button.setEnabled(available and inside)
         crop_enabled=available
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
+        self.crop_edit_toggle.setEnabled(crop_enabled and self.preview_image.hasPixmap() and not self.busy and not self.stopping)
+        self.crop_apply_button.setEnabled(crop_enabled and self._crop_overlay_pending and not self.busy and not self.stopping)
+        self.crop_cancel_button.setEnabled(crop_enabled and self._crop_overlay_pending and not self.busy and not self.stopping)
         self.fit_button.setEnabled(session is not None)
         self.zoom_slider.setEnabled(session is not None)
         markers_ready=session is not None and not self.stopping
@@ -823,16 +842,43 @@ class TimelinePanel(QWidget):
         enabled=clip is not None and session is not None and not session.reconciliation_required
         self._crop_revision=None if session is None else session.revision
         self._crop_original=None if clip is None else deepcopy(clip['crop'])
+        self._crop_overlay_pending=False
         for name,spin in self.crop_spins.items():
             spin.setEnabled(enabled)
             if clip is not None:
-                spin.setValue(float(_q(clip['crop'][name])))
+                spin.blockSignals(True);spin.setValue(float(_q(clip['crop'][name])));spin.blockSignals(False)
+        if clip is not None:
+            self.preview_image.set_crop(clip['crop'])
+        self.crop_apply_button.setEnabled(False)
+        self.crop_cancel_button.setEnabled(False)
+        if not self.preview_image.hasPixmap():
+            self.crop_edit_toggle.setChecked(False)
+
+    def stage_crop_from_spins(self):
+        if self._crop_original is None:return
+        staged={name:self.crop_spins[name].value() for name in ('left','top','width','height')}
+        self.preview_image.set_crop(staged)
+        self._crop_overlay_pending=True
+        self.crop_apply_button.setEnabled(True);self.crop_cancel_button.setEnabled(True)
+        self.action_message.setText('Crop đang chỉnh tạm; nhấn Xác nhận để lưu hoặc Hủy để khôi phục.')
+
+    def _crop_overlay_changed(self,crop):
+        if not self.crop_edit_toggle.isChecked() or self._crop_original is None:return
+        for name in ('left','top','width','height'):
+            spin=self.crop_spins[name];spin.blockSignals(True);spin.setValue(crop[name]);spin.blockSignals(False)
+        self._crop_overlay_pending=True
+        self.crop_apply_button.setEnabled(True);self.crop_cancel_button.setEnabled(True)
+        self.action_message.setText('Crop đang chỉnh tạm trên ảnh tĩnh; chưa thay đổi project.')
+
+    def cancel_crop(self):
+        self._refresh_crop_inspector()
+        self.action_message.setText('Đã hủy thay đổi crop chưa xác nhận; project không đổi.')
 
     def apply_crop(self):
         session=self.get_session();clip=self._selected_clip()
         if session is None or clip is None or session.reconciliation_required:return
         if self._crop_revision!=session.revision:
-            self.action_message.setText('Project đã đổi trong lúc mở inspector; đã tải lại crop, hãy kiểm tra trước khi sửa tiếp.')
+            self.action_message.setText('Project đã đổi trong lúc mở inspector; thay đổi crop tạm bị hủy và dữ liệu mới được tải lại.')
             self._refresh_crop_inspector();return
         data=session.project.plan.to_dict()
         target=next((x for x in data['clips'] if x['id']==self.selected_clip_id),None)
@@ -855,7 +901,8 @@ class TimelinePanel(QWidget):
         except Exception:
             self.action_message.setText('Crop không hợp lệ hoặc project đã đổi; dữ liệu đã lưu không bị thay đổi. Kiểm tra lại bốn cạnh.')
             return
-        self.action_message.setText('Đã lưu crop chuẩn hóa; chưa có crop preview hoặc render.')
+        self._refresh_crop_inspector()
+        self.action_message.setText('Đã lưu crop chuẩn hóa. Ảnh tĩnh chỉ hiển thị khung crop; chưa có crop compositor hoặc render.')
         self.project_changed.emit()
 
     def _zoom_changed(self,value):
