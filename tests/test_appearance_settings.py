@@ -76,12 +76,14 @@ def test_main_window_restores_geometry_navigation_and_tab_selection(qt_app,tmp_p
         first.show()
         first.navigation.setCurrentRow(3)
         first.editor_tabs.setCurrentIndex(2)
+        first.settings_tabs.setCurrentIndex(3)
         first.close()
         wait_for(qt_app,lambda:not first.background_busy and not first.isVisible())
         settings.sync()
 
         assert int(settings.value('window/navigation_index'))==3
         assert int(settings.value('window/editor_tab'))==2
+        assert int(settings.value('window/settings_tab'))==3
         assert isinstance(settings.value('window/geometry'),QByteArray)
         assert isinstance(settings.value('window/state'),QByteArray)
         first.deleteLater()
@@ -91,10 +93,35 @@ def test_main_window_restores_geometry_navigation_and_tab_selection(qt_app,tmp_p
         second.show()
         assert second.navigation.currentRow()==3
         assert second.editor_tabs.currentIndex()==2
+        assert second.settings_tabs.currentIndex()==3
         assert second.width()>=1300 and second.height()>=800
         second.close()
         wait_for(qt_app,lambda:not second.background_busy and not second.isVisible())
         second.deleteLater()
+        qt_app.processEvents()
+
+
+def test_pending_close_does_not_persist_unaccepted_window_layout(qt_app,tmp_path):
+    class RunningHost:
+        def __init__(self):self.running=True
+        def isRunning(self):return self.running
+        def requestInterruption(self):pass
+
+    settings=_settings(tmp_path/'pending-close.ini')
+    with ProjectStore(tmp_path/'projects.sqlite3') as store:
+        window=MainWindow(store,ui_settings=settings)
+        window.resize(1420,900)
+        window.show()
+        host=RunningHost()
+        window.coordinator_host=host
+        window.close()
+        assert window.isVisible()
+        assert settings.value('window/geometry') is None
+        host.running=False
+        window.close()
+        wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+        assert isinstance(settings.value('window/geometry'),QByteArray)
+        window.deleteLater()
         qt_app.processEvents()
 
 
