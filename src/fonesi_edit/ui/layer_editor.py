@@ -7,7 +7,7 @@ from uuid import uuid4
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject, QEvent
 from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
-    QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
+    QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,QSlider,
     QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
 
 from fonesi_edit.domain.composition import CompositionPlan
@@ -17,6 +17,13 @@ from fonesi_edit.ui.shortcuts import ShortcutRegistry
 ANCHORS=('top_left','top_center','top_right','center_left','center','center_right',
          'bottom_left','bottom_center','bottom_right')
 LOCKABLE={'x','y','width','height','scale_x','scale_y','rotation','opacity','anchor','flip_x','flip_y'}
+TRANSFORM_DEFAULTS={
+    'x':[1,2],'y':[1,2],'width':[1,4],'height':[1,6],
+    'scale_x':[1,1],'scale_y':[1,1],'rotation':[0,1],'opacity':[1,1],
+    'anchor':'center','flip_x':False,'flip_y':False,
+}
+SLIDER_SCALES={'x':100,'y':100,'width':10000,'height':10000,
+               'scale_x':1000,'scale_y':1000,'rotation':10,'opacity':1000}
 
 def val(pair): return float(Fraction(pair[0],pair[1]))
 def pair(value):
@@ -210,17 +217,55 @@ class LayerEditorWorkspace(QWidget):
         self.layers.customContextMenuRequested.connect(self.show_layer_context_menu)
         ll.addWidget(self.layers);split.addWidget(left)
         self.scene=QGraphicsScene(self);self.view=QGraphicsView(self.scene);split.addWidget(self.view)
-        right=QWidget();form=QFormLayout(right);self.spins={}
-        for name,label,lo,hi in (('x','X',-10,10),('y','Y',-10,10),('width','Rộng',.0001,10),
-            ('height','Cao',.0001,10),('scale_x','Tỷ lệ X',.0001,100),('scale_y','Tỷ lệ Y',.0001,100),
-            ('rotation','Xoay',-36000,36000),('opacity','Độ mờ',0,1)):
-            s=QDoubleSpinBox();s.setDecimals(4);s.setRange(lo,hi);s.setSingleStep(.01)
-            s.editingFinished.connect(self.apply_inspector);self.spins[name]=s;form.addRow(label,s)
+        right=QWidget();form=QFormLayout(right)
+        self.spins={};self.sliders={};self.slider_scales={};self.reset_buttons={}
+        fields=(
+            ('x','X (tỷ lệ khung)',-10,10),
+            ('y','Y (tỷ lệ khung)',-10,10),
+            ('width','Rộng (tỷ lệ khung)',.0001,10),
+            ('height','Cao (tỷ lệ khung)',.0001,10),
+            ('scale_x','Tỷ lệ X (×)',.0001,100),
+            ('scale_y','Tỷ lệ Y (×)',.0001,100),
+            ('rotation','Xoay (°)',-36000,36000),
+            ('opacity','Độ mờ (0–1)',0,1),
+        )
+        for name,label,lo,hi in fields:
+            scale=SLIDER_SCALES[name]
+            spin=QDoubleSpinBox();spin.setDecimals(4);spin.setRange(lo,hi);spin.setSingleStep(.01);spin.setFixedWidth(88)
+            slider=QSlider(Qt.Orientation.Horizontal);slider.setRange(round(lo*scale),round(hi*scale))
+            slider.setSingleStep(max(1,round(.01*scale)));slider.setPageStep(max(1,round(.1*scale)))
+            slider.setMinimumWidth(72)
+            reset=QPushButton('↺');reset.setFixedWidth(30)
+            reset.setAccessibleName(f'Đặt lại {label}')
+            reset.setToolTip(f'Đặt lại {label.lower()} về mặc định')
+            row=QWidget();row_layout=QHBoxLayout(row);row_layout.setContentsMargins(0,0,0,0);row_layout.setSpacing(4)
+            row_layout.addWidget(slider,1);row_layout.addWidget(spin);row_layout.addWidget(reset)
+            spin.editingFinished.connect(self.apply_inspector)
+            slider.valueChanged.connect(lambda value,key=name:self._slider_value_changed(key,value))
+            slider.sliderReleased.connect(self.apply_inspector)
+            reset.clicked.connect(lambda _checked=False,key=name:self.reset_inspector_property(key))
+            self.spins[name]=spin;self.sliders[name]=slider;self.slider_scales[name]=scale;self.reset_buttons[name]=reset
+            form.addRow(label,row)
         self.anchor=QComboBox();self.anchor.addItems(ANCHORS);self.anchor.activated.connect(self.apply_inspector)
-        form.addRow('Điểm neo',self.anchor)
+        self.reset_anchor_button=QPushButton('↺');self.reset_anchor_button.setToolTip('Đặt lại điểm neo')
+        anchor_row=QWidget();anchor_layout=QHBoxLayout(anchor_row);anchor_layout.setContentsMargins(0,0,0,0)
+        anchor_layout.addWidget(self.anchor,1);anchor_layout.addWidget(self.reset_anchor_button)
+        self.reset_anchor_button.clicked.connect(lambda:self.reset_inspector_property('anchor'))
+        form.addRow('Điểm neo',anchor_row)
         self.flip_x=QCheckBox('Lật ngang');self.flip_y=QCheckBox('Lật dọc')
         self.flip_x.toggled.connect(self.apply_inspector);self.flip_y.toggled.connect(self.apply_inspector)
-        form.addRow(self.flip_x);form.addRow(self.flip_y)
+        self.reset_flip_x_button=QPushButton('↺');self.reset_flip_y_button=QPushButton('↺')
+        self.reset_flip_x_button.setToolTip('Đặt lại lật ngang');self.reset_flip_y_button.setToolTip('Đặt lại lật dọc')
+        flip_x_row=QWidget();flip_x_layout=QHBoxLayout(flip_x_row);flip_x_layout.setContentsMargins(0,0,0,0)
+        flip_x_layout.addWidget(self.flip_x,1);flip_x_layout.addWidget(self.reset_flip_x_button)
+        flip_y_row=QWidget();flip_y_layout=QHBoxLayout(flip_y_row);flip_y_layout.setContentsMargins(0,0,0,0)
+        flip_y_layout.addWidget(self.flip_y,1);flip_y_layout.addWidget(self.reset_flip_y_button)
+        self.reset_flip_x_button.clicked.connect(lambda:self.reset_inspector_property('flip_x'))
+        self.reset_flip_y_button.clicked.connect(lambda:self.reset_inspector_property('flip_y'))
+        form.addRow(flip_x_row);form.addRow(flip_y_row)
+        self.reset_transform_button=QPushButton('Đặt lại toàn bộ biến đổi')
+        self.reset_transform_button.clicked.connect(self.reset_inspector_transform)
+        form.addRow(self.reset_transform_button)
         self.status=QLabel('Chưa chọn layer.');self.status.setWordWrap(True);form.addRow(self.status)
         split.addWidget(right);split.setStretchFactor(0,1);split.setStretchFactor(1,4);split.setStretchFactor(2,1)
         root.addWidget(split)
@@ -274,7 +319,10 @@ class LayerEditorWorkspace(QWidget):
         single=selected[0] if len(selected)==1 else None
         edit=single is not None and not locked(single) and ready
         for s in self.spins.values():s.setEnabled(edit)
+        for slider in self.sliders.values():slider.setEnabled(edit)
+        for button in self.reset_buttons.values():button.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
+        for button in (self.reset_anchor_button,self.reset_flip_x_button,self.reset_flip_y_button,self.reset_transform_button):button.setEnabled(edit)
         has_selection=bool(selected) and ready
         for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.bring_button):
             b.setEnabled(has_selection)
@@ -354,12 +402,38 @@ class LayerEditorWorkspace(QWidget):
         try:
             if layer is not None:
                 t=layer['transform'];self.original_transform=deepcopy(t)
-                for name,s in self.spins.items():s.setValue(val(t[name]))
+                for name,s in self.spins.items():
+                    value=val(t[name]);s.setValue(value)
+                    self.sliders[name].setValue(round(value*self.slider_scales[name]))
                 self.anchor.setCurrentText(t['anchor'])
                 self.flip_x.setChecked(t['flip_x']);self.flip_y.setChecked(t['flip_y'])
             else:
                 self.original_transform=None
         finally:self.syncing=False
+
+    def _slider_value_changed(self,name,value):
+        if self.syncing:return
+        self.syncing=True
+        try:self.spins[name].setValue(value/self.slider_scales[name])
+        finally:self.syncing=False
+        # Mouse drags are a single gesture; keyboard steps remain single commands.
+        if not self.sliders[name].isSliderDown():self.apply_inspector()
+
+    def reset_inspector_property(self,name):
+        data=self.data();layer=self.selected(data)
+        if layer is None or locked(layer):return
+        default=deepcopy(TRANSFORM_DEFAULTS[name])
+        if layer['transform'][name]==default:return
+        layer['transform'][name]=default
+        self.commit(data,f'đặt lại {name}')
+
+    def reset_inspector_transform(self):
+        data=self.data();layer=self.selected(data)
+        if layer is None or locked(layer):return
+        defaults=deepcopy(TRANSFORM_DEFAULTS)
+        if all(layer['transform'].get(name)==value for name,value in defaults.items()):return
+        layer['transform'].update(defaults)
+        self.commit(data,'đặt lại toàn bộ biến đổi layer')
 
     def _sync_selection(self,ids,primary=None):
         data=self.data()
