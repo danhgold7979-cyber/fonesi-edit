@@ -72,7 +72,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Settings tables and truthful scan/path/check/install-all/update/repair/rollback, Chrome login/readiness actions.
 - **Errors/cancellation:** Stale background scan ignored; cancel install per component; explicit path invalid visible; locked profile not forced.
 - **Tests and acceptance:** Qt state walkthrough missing/busy/fail/success, Ctrl+, and F5 scope, repeated clicks; actual Windows tool/Chrome test remains required.
-- **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P04_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. NOT IMPLEMENTED as a complete task. Existing P03 tool inventory/profile models do not satisfy the full settings UI, verified install/update/repair/rollback and Chrome/account readiness requirements. Current outcome NOT_RUN.
+- **Evidence:** Partial settings code exists: metadata-only tool inventory, explicit path preferences, bounded background name scan, user-selected pair self-test and focus-scoped F5 rescan. The shared Settings page also exposes shortcut remapping. No download/install-all/update/repair/rollback, Chrome profile/account table, login readiness or full platform recovery workflow is implemented. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## Phase gate
 Every task acceptance above and corresponding master gate must pass. Unit/mock evidence does not close live/Windows/GPU/Chrome acceptance. Keep LOCAL_VERIFIED, BLOCKED_EXTERNAL and ACCEPTED distinct. Submit independent review and one aggregate checkpoint after affected tests; do not mark whole phase complete from a working slice.
@@ -223,3 +223,7 @@ Tests: QSettings persistence across registry instances; same-scope and app-globa
 Add In and Out controls plus focus-scoped I/O/Escape shortcuts. In marks the current output frame; Out marks the exclusive boundary immediately after the current frame, producing a half-open [In, Out) range. Out requires an earlier In and must not exceed the project's frame count. Invalid changes leave the prior range unchanged. A translucent region and distinct IN/OUT lines are view-only state; they do not mutate CompositionPlan or increment project revision and are cleared when the project identity closes/changes. This is a work-area selection only: no loop playback or render-range behavior is claimed.
 
 Tests: valid half-open range, one-frame range at final output frame, Out-before-In rejection, invalid Out rejection, clear/Escape, project identity reset, keyboard focus scope, and no project revision change.
+
+## Slice S — F5 metadata-only tool inventory rescan
+
+Bind F5 only to the tool inventory table and its child focus. It reuses the existing bounded background metadata scan, never launches a candidate executable, never grants trust, and never affects a real Chrome window. The action is registered in the shared shortcut preferences and can be remapped with the same conflict checks/live rebinding. Tests cover table-focus activation, no activation from unrelated settings/Chrome scope, live remapping and worker execution off the UI thread. This does not implement installation, update, repair, rollback or Chrome/account workflows.
