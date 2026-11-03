@@ -178,3 +178,55 @@ def test_filmstrip_failure_discards_partial_frames(tmp_path,qt_app,monkeypatch):
         assert 'Filmstrip 4 ảnh' not in timeline.preview_image.text()
     finally:
         _close(store,window,qt_app)
+
+def test_waveform_uses_matching_original_audio_stream_and_displays_bounded_bins(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import AudioWaveform
+    store,window,timeline,source,payload=_open(tmp_path)
+    try:
+        calls=[]
+        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+            calls.append((path,stream_index,decoder_start,duration,bucket_count))
+            return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
+                                 8000,4,((-1.0,-.5),(.5,1.0)),False)
+        monkeypatch.setattr(module,'extract_audio_waveform',fake_waveform)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        assert timeline.waveform_button.isEnabled()
+        timeline.waveform_button.click()
+        wait_for(qt_app,lambda:not timeline.busy and 'Waveform biên độ' in timeline.waveform_message.text())
+        assert len(calls)==1
+        assert calls[0][0]==source and calls[0][1]==5
+        assert calls[0][2]==Fraction(0) and calls[0][3]==Fraction(1)
+        assert calls[0][4]==256
+        assert timeline.waveform_widget.peaks==((-1.0,-.5),(.5,1.0))
+        assert source.read_bytes()==payload
+        assert 'không phải loudness' in timeline.waveform_message.text().lower()
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_waveform_stale_result_is_discarded_when_playhead_changes(tmp_path,qt_app,monkeypatch):
+    import threading
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import AudioWaveform
+    store,window,timeline,_,_=_open(tmp_path)
+    try:
+        entered=threading.Event();release=threading.Event()
+        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+            entered.set();release.wait(2)
+            return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
+                                 8000,4,((-1.0,1.0),)*32,False)
+        monkeypatch.setattr(module,'extract_audio_waveform',fake_waveform)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.request_waveform()
+        wait_for(qt_app,entered.is_set)
+        timeline.playhead_slider.setValue(16)
+        release.set()
+        wait_for(qt_app,lambda:not timeline.busy)
+        assert timeline.waveform_widget.peaks==()
+        assert 'waveform cũ đã bị loại bỏ' in timeline.waveform_message.text().lower()
+    finally:
+        release.set()
+        _close(store,window,qt_app)
