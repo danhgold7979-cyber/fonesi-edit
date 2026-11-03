@@ -33,6 +33,15 @@ class Observation:
     # Persisted status is historical observation, not fresh auth/browser permission.
 
 
+@dataclass(frozen=True)
+class AccountSnapshot:
+    profiles: tuple[Observation,...]
+    profile_total: int
+    bindings: tuple[Observation,...]
+    binding_total: int
+    defaults: tuple[tuple[str,str],...]
+
+
 def _matches(db,version):
     if db.execute("SELECT 1 FROM sqlite_master WHERE type!='table' AND name NOT LIKE 'sqlite_%'").fetchone():return False
     actual=dict(db.execute("SELECT name,sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"))
@@ -58,6 +67,94 @@ def _decode(table,payload):
 
 
 class AccountStore:
+    @staticmethod
+    def read_snapshot(path,*,profile_limit=100,binding_limit=200):
+        """Read an existing owned store without creating, migrating or writing it.
+
+        Immutable mode is used only when no WAL/rollback journal exists. If a
+        writer is active, defer the view rather than create SQLite sidecars or
+        present a stale main-database snapshot as current.
+        """
+        if (type(profile_limit) is not int or not 1<=profile_limit<=500 or
+                type(binding_limit) is not int or not 1<=binding_limit<=1000):
+            raise AccountStoreError('Account snapshot bounds are invalid')
+        target=Path(path).absolute()
+        try:info=target.lstat()
+        except FileNotFoundError:return None
+        if (not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode) or
+                getattr(info,'st_file_attributes',0)&0x400):
+            raise AccountStoreError('Account database must be regular/non-reparse')
+        flags=os.O_RDONLY|getattr(os,'O_BINARY',0)|getattr(os,'O_NOFOLLOW',0)
+        fd=None;db=None
+        try:
+            fd=os.open(target,flags)
+            opened=os.fstat(fd);named=target.lstat()
+            identity=(opened.st_dev,opened.st_ino)
+            if (not opened.st_ino or identity!=(named.st_dev,named.st_ino) or
+                    not stat.S_ISREG(opened.st_mode) or getattr(named,'st_file_attributes',0)&0x400):
+                raise AccountStoreError('Account database identity changed')
+            def sidecar_exists(suffix):
+                sidecar=target.with_name(target.name+suffix)
+                try:sidecar.lstat();return True
+                except FileNotFoundError:return False
+            if sidecar_exists('-wal') or sidecar_exists('-journal'):
+                raise AccountStoreError('Account store is busy; read-only snapshot deferred')
+            if not owns_database(target,APPLICATION_ID,SCHEMA_HASH):
+                raise AccountStoreError('Unowned/foreign account store; left unchanged')
+            before=(named.st_dev,named.st_ino,named.st_size,named.st_mtime_ns)
+            uri=target.as_uri()+'?mode=ro&immutable=1'
+            db=sqlite3.connect(uri,uri=True,timeout=1,isolation_level=None)
+            db.execute('PRAGMA query_only=ON')
+            if (db.execute('PRAGMA application_id').fetchone()[0]!=APPLICATION_ID or
+                    db.execute('PRAGMA user_version').fetchone()[0]!=VERSION or
+                    not _matches(db,VERSION)):
+                raise AccountStoreError('Foreign/newer/corrupt account store; no migration performed')
+            if db.execute('PRAGMA foreign_key_check').fetchone() is not None:
+                raise AccountStoreError('Account store relationship check failed')
+            profile_total=db.execute('SELECT count(*) FROM profiles').fetchone()[0]
+            binding_total=db.execute('SELECT count(*) FROM bindings').fetchone()[0]
+            if type(profile_total) is not int or type(binding_total) is not int:
+                raise AccountStoreError('Account row counts are invalid')
+            profiles=[]
+            for row in db.execute(
+                    'SELECT id,substr(payload,1,8193),version,observed_at FROM profiles '
+                    'ORDER BY observed_at DESC,id LIMIT ?',(profile_limit,)):
+                value=_decode('profiles',row[1])
+                if (value.id!=row[0] or type(row[2]) is not int or row[2]<1 or
+                        type(row[3]) is not int or row[3]<0):
+                    raise AccountStoreError('Account profile identity/version mismatch')
+                profiles.append(Observation(value,row[2],row[3]))
+            bindings=[]
+            for row in db.execute(
+                    'SELECT id,profile_id,platform,substr(payload,1,8193),version,observed_at FROM bindings '
+                    'ORDER BY observed_at DESC,id LIMIT ?',(binding_limit,)):
+                value=_decode('bindings',row[3])
+                if ((value.id,value.profile_id,value.platform)!=(row[0],row[1],row[2]) or
+                        type(row[4]) is not int or row[4]<1 or
+                        type(row[5]) is not int or row[5]<0):
+                    raise AccountStoreError('Account binding identity/version mismatch')
+                bindings.append(Observation(value,row[4],row[5]))
+            defaults=[]
+            for row in db.execute(
+                    'SELECT d.platform,d.binding_id,b.platform FROM defaults d '
+                    'LEFT JOIN bindings b ON b.id=d.binding_id ORDER BY d.platform'):
+                if (row[0] not in PLATFORMS or row[1] is None or row[2]!=row[0]):
+                    raise AccountStoreError('Default binding identity mismatch')
+                defaults.append((row[0],row[1]))
+            after=target.lstat();opened_after=os.fstat(fd)
+            if ((after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns)!=before or
+                    (opened_after.st_dev,opened_after.st_ino)!=identity or
+                    sidecar_exists('-wal') or sidecar_exists('-journal')):
+                raise AccountStoreError('Account database changed during read; snapshot discarded')
+            return AccountSnapshot(tuple(profiles),profile_total,tuple(bindings),binding_total,tuple(defaults))
+        except AccountStoreError:
+            raise
+        except (OSError,sqlite3.Error,ValueError,TypeError,KeyError) as exc:
+            raise AccountStoreError('Account snapshot unavailable; database left unchanged') from exc
+        finally:
+            if db is not None:db.close()
+            if fd is not None:os.close(fd)
+
     def __init__(self,path):
         self.path=Path(path).absolute();self.db=None;self.fd=None
         self.path.parent.mkdir(parents=True,exist_ok=True)
