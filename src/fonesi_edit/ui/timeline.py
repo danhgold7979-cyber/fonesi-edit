@@ -43,6 +43,7 @@ class PreviewWorker(QThread):
 
 class TimelinePanel(QWidget):
     project_changed=Signal()
+    idle=Signal()
     def __init__(self,get_session,parent=None):
         super().__init__(parent)
         self.get_session=get_session
@@ -213,11 +214,16 @@ class TimelinePanel(QWidget):
 
     def _select_clip(self,row):
         item=self.clip_list.item(row) if row>=0 else None
-        self.selected_clip_id=None if item is None else item.data(Qt.ItemDataRole.UserRole)
+        selected=None if item is None else item.data(Qt.ItemDataRole.UserRole)
+        if selected!=self.selected_clip_id:
+            self.selected_clip_id=selected
+            self._invalidate_preview('Clip đã đổi; ảnh preview cũ đã bị loại bỏ.')
         self._refresh_crop_inspector()
         self.update_actions()
 
     def _playhead_changed(self,value):
+        if value!=self._playhead:
+            self._invalidate_preview('Playhead đã đổi; yêu cầu ảnh tĩnh mới nếu cần.')
         self._playhead=value
         time=Fraction(value,1)/self._fps
         self.playhead_label.setText(f'Playhead: {value} frame · {float(time):.3f}s')
@@ -240,6 +246,12 @@ class TimelinePanel(QWidget):
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
         self.fit_button.setEnabled(session is not None)
         self.zoom_slider.setEnabled(session is not None)
+        preview_ready=(available and not self.busy and not self.stopping and self.preview_trust.isChecked()
+                       and bool(self.preview_path.text()) and Path(self.preview_path.text()).is_absolute())
+        self.preview_button.setEnabled(preview_ready)
+        self.preview_path.setEnabled(not self.busy and not self.stopping)
+        self.preview_browse.setEnabled(not self.busy and not self.stopping)
+        self.preview_trust.setEnabled(not self.busy and not self.stopping)
 
     def _refresh_crop_inspector(self):
         session=self.get_session();clip=self._selected_clip()
@@ -323,6 +335,13 @@ class TimelinePanel(QWidget):
 
     def update_project(self):
         session=self.get_session()
+        if session is None:
+            if self._last_revision is not None:self._invalidate_preview('Project đã đóng; preview cũ bị loại bỏ.')
+            self._last_revision=None
+        else:
+            if self._last_revision is not None and session.revision!=self._last_revision:
+                self._invalidate_preview('Project đã thay đổi; preview cũ bị loại bỏ.')
+            self._last_revision=session.revision
         self.scene.clear();self._playhead_marker=None
         if session is None:
             self._last_project_id=None;self.selected_clip_id=None;self._playhead=0
