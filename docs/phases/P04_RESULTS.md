@@ -3,8 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Code checkpoint:** 6e4b905b36f271c0f4a585365ebebd23dfd5b6bc  
-**Verification:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41490203672
+**Last fully verified code checkpoint:** 8b26775559c3158497f3282b01412ffeb275b6af  
+**Last fully verified run:** https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41562878790
+**Latest code checkpoint:** 9ac2bdfb8b9f0311a0ac14974830253d52c3ff77 (CI queued; not yet verified)
 
 ## P04-01 — partial implementation
 
@@ -66,3 +67,18 @@ The subsequent documentation-only checkpoint updates the P04 plan header and rem
 ## Acceptance state
 
 The machine-readable project ledger remains unchanged by this partial implementation: 13/438 child criteria PASS, 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED. P03 whole-task acceptance remains 0/9. P04 whole-task acceptance remains 0/8. Do not infer product completion from test counts.
+
+
+## 2026-11-03 continuation — additional implementation beyond the verified checkpoint
+
+The current branch also contains the following later code, which is **implemented but not yet covered by a completed four-runner CI result**:
+
+- **P04-02:** canvas 5% grid, 90% safe-area overlay, snap at 0.05 normalized increments, Alt bypass, atomic bring-into-frame, single-layer resize handles and rotation handle. Locked layers hide handles; multi-selection hides individual handles. Crop remains a numeric inspector; no source-video pixel preview or export parity.
+- **P04-03:** persistent group UUIDs with schema compatibility, multi-select, group auto-selection, atomic group drag (including hidden members), group/ungroup, batch lock/visibility/z-order/delete and context-menu actions.
+- **P04-04:** focus-scoped layer undo/redo; still not a unified history spanning timeline, subtitle, text and every editor subsystem.
+- **P04-05:** integer-frame playhead, split, trim-in/out, gap/ripple and timeline zoom/scroll. Thumbnail, waveform, loop and marker editing remain open.
+- **P04-07:** initial focus-scoped shortcuts Ctrl+Z/Y, Delete, Ctrl+G, Ctrl+Shift+G, Alt+Up/Down. User remapping, conflict resolution and physical Vietnamese/Chinese IME acceptance remain open.
+
+Additional regression files: tests/test_layer_groups.py, tests/test_layer_group_schema.py, tests/test_layer_canvas_guides.py, tests/test_layer_canvas_handles.py and tests/test_layer_shortcuts.py. The earlier modal-menu test was replaced with a non-modal fake-menu test so CI cannot wait for user input.
+
+The latest full CI run for current code is run 41564091006 (queued at time of this checkpoint). Until it completes on Ubuntu/Windows Python 3.12/3.13, all later features above remain unverified by hosted CI. No P04 task or phase is accepted.

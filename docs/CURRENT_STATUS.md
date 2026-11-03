@@ -93,3 +93,20 @@ accepted child count stays 13/438.
 The sole integration branch is develop/fonesi-full in danhgold7979-cyber/fonesi-edit; main remains unchanged. The current code checkpoint 6e4b905b36f271c0f4a585365ebebd23dfd5b6bc passed hosted CI run 41490203672: Ubuntu Python 3.12/3.13 each 815 passed, 39 skipped, 0 failed; Windows Python 3.12/3.13 each 828 passed, 26 skipped, 0 failed. Windows Python 3.12 also passed five scoped frozen CLI checks. See docs/phases/P04_RESULTS.md for exact scope and limits.
 
 P04 now has partial code for explicit local media import/drop and a geometry-only mask-layer workspace with numeric transforms, canvas move, lock, visibility, z-order and session-local undo/redo. This is not a complete editor: text/logo/font editing, crop/resize handles, multi-select/group, timeline/playhead/trim/split, proxy/seek, renderer/export, preview parity and actual user-device Windows/codec acceptance remain open. P04 whole-task acceptance is 0/8. P03 whole-task acceptance remains 0/9. Do not infer completion from the hosted test count.
+
+
+## P04 implementation checkpoint — 2026-11-03
+
+Integrated code checkpoint: `9ac2bdfb8b9f0311a0ac14974830253d52c3ff77` on `develop/fonesi-full`. P04 remains IN_PROGRESS; no P04 task or phase is accepted.
+
+Additional Editor work now present on the branch:
+- Timeline: integer output-frame playhead, exact-rational split/trim, synchronized source-audio splitting, gap/ripple distinction, crop inspector, zoom/fit/scroll and playhead marker.
+- Layer workspace: persistent UUID groups, multi-selection, atomic batch lock/hide/delete/reorder, group drag including hidden members, right-click actions, group undo/redo.
+- Canvas: 5% grid, 90% safe-area guide, normalized snap with Alt bypass, atomic bring-into-frame, eight resize handles and a rotation handle.
+- Focus-scoped shortcuts: Ctrl+Z/Y, Delete, Ctrl+G, Ctrl+Shift+G and Alt+Up/Down only under the layer tree/canvas; inspector spin boxes are outside those shortcut scopes.
+
+The last fully completed four-runner source verification is run 41562878790 at code checkpoint 8b26775559c3158497f3282b01412ffeb275b6af: Ubuntu Python 3.12/3.13 each 849 passed, 39 skipped, 0 failed; Windows Python 3.12/3.13 each 862 passed, 26 skipped, 0 failed. This run includes the initial persistent group/multi-selection implementation, but predates the later grid/snap, resize/rotation handle and keyboard-shortcut additions.
+
+Later test runs encountered two old modal context-menu test attempts that remained in progress. The context-menu regression test was changed to use a non-modal fake menu at commit e1427e05172de646c5e4e4e3a7ec7b40cd997747. The latest full run for the current code is queued as run 41564091006; it has not produced a test result yet. Do not claim latest code CI PASS until all four matrix jobs finish.
+
+Acceptance denominators remain unchanged: 13/438 child criteria PASS, 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED; P03 whole-task acceptance 0/9 and P04 whole-task acceptance 0/8. P04-06 proxy/cache/seek, P04-07 remapping/conflict UI and physical IME verification, P04-08 complete settings/tool/profile/account UI, full video preview/render parity and physical Windows user-device acceptance remain open.
