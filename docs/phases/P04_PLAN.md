@@ -615,3 +615,26 @@ This slice validates safe staging and normalized geometry only. It does not add 
 ### Acceptance boundary
 
 This slice implements positional keyboard nudging only. It does not add text/logo content editing, snap guides for keyboard movement, preview/export parity or physical HiDPI/IME certification.
+
+
+## Slice AI — complete single-layer handle hit testing and deferred callback ownership (P04-02)
+
+### Contract
+
+- Every one of the eight resize handles and the rotation handle must be included in the selected layer's actual QGraphicsItem hit-test shape, not merely painted.
+- Hit-test geometry must remain aligned with the visible handle after the layer's normalized transform, rotation and canvas zoom.
+- Locked layers and group multi-selection continue to hide/disable individual handles; their model cannot be mutated through a hidden handle.
+- Resize/rotate/move completion callbacks are dispatched on the owning LayerEditorWorkspace QObject context. If the Editor is destroyed before the queued callback is dispatched, Qt must discard the callback rather than invoke a stale QGraphicsItem/editor reference.
+- A completed handle gesture still produces one ProjectSession CAS command. No source media or unrelated layer is changed.
+
+### Tests
+
+- Scene hit-test all eight resize handle centers and the rotation handle on a selected unlocked layer.
+- Confirm locked and group-selected layers do not expose individual handles to scene hit testing.
+- Verify callbacks use the bound editor QObject context; widget teardown with a queued callback must not invoke a deleted object.
+- Keep existing normalized resize, rotation, non-finite input, nine-anchor preservation, lock and one-command tests.
+- Run focused canvas tests, plan integrity and exact four-runner CI.
+
+### Acceptance boundary
+
+This slice validates Qt hit-test and callback ownership for geometry controls only. It does not certify physical Windows pointer/HiDPI interaction, text/logo editing, decoded crop compositor or renderer/export parity.
