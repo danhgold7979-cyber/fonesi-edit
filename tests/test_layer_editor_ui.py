@@ -69,6 +69,7 @@ def test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once(tmp_p
         window=MainWindow(store);window.show()
         try:
             window.open_project(path)
+            window.navigation.setCurrentRow(3)
             editor=window.layer_editor;editor.add_mask()
             slider=editor.sliders['x']
             before=window.session.revision
@@ -99,6 +100,7 @@ def test_inspector_property_and_group_resets_commit_once_and_preserve_other_fiel
         window=MainWindow(store);window.show()
         try:
             window.open_project(path)
+            window.navigation.setCurrentRow(3)
             editor=window.layer_editor;editor.add_mask()
             editor.spins['x'].setValue(0.75)
             editor.spins['y'].setValue(0.25)
@@ -143,6 +145,7 @@ def test_anchor_and_flip_individual_resets_restore_only_selected_property(tmp_pa
         window=MainWindow(store);window.show()
         try:
             window.open_project(path)
+            window.navigation.setCurrentRow(3)
             editor=window.layer_editor;editor.add_mask()
             editor.anchor.setCurrentText('top_left');editor.apply_inspector()
             editor.flip_x.setChecked(True)
