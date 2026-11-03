@@ -243,7 +243,7 @@ class TimelinePanel(QWidget):
                         if x['index']==stream_index and x['type']=='audio')
             source_in=_q(audio_clip['source_in']);source_out=_q(audio_clip['source_out'])
             speed=_q(audio_clip['speed'])
-            duration=min((source_out-source_in)/speed,Fraction(60))
+            duration=min(source_out-source_in,Fraction(60))
             decoder_start=_q(stream['start_time'])+source_in
             source=resolve_asset_path(asset,session.project_base)
             expected=asset['sha256']

@@ -259,7 +259,7 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
         type(stream_index) is not int or not 0<=stream_index<=2**31-1 or
         type(decoder_start) is not Fraction or type(duration) is not Fraction or
         not 0<duration<=60 or type(timeout) not in (int,float) or not 0<timeout<=120 or
-        type(bucket_count) is not int or not 32<=bucket_count<=512):
+        type(bucket_count) is not int or not 1<=bucket_count<=512):
         raise PreviewError('Explicit bounded waveform inputs required')
     if cancel():raise PreviewCanceled('Waveform canceled before input inspection')
     try:_regular_tree(source);_regular_tree(ffmpeg)
