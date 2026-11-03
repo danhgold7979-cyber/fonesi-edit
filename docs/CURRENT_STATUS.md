@@ -338,3 +338,35 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Remaining P04 gates: complete nine-anchor interactive hit testing and preview/export geometry parity; text/logo/font content editing; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; complete Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real-media codec corpus, GPU and crop compositor/export parity. Hosted offscreen Qt tests do not close these gates.
 
 Next: continue P04-02 with complete nine-anchor hit testing and remaining geometry edge cases; then continue P04-03/04 integration in dependency order. Keep all work on this branch. Do not merge `main`, and do not mark P04-02 or P04 complete until full acceptance criteria and external evidence are met.
+
+
+## Latest verified implementation checkpoint — 2026-11-03 17:05 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch `main` remains unchanged. Exact verified code HEAD: `e010b8767e8334e2a56efa5573707ff8139dddbd`. The current results/status documentation commits are documentation-only.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 55%** (manual task-scope estimate, not test coverage or acceptance). Task estimates: P04-01 78%, P04-02 65%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance is 0/8.
+
+P04-02 additions since the previous verified checkpoint:
+- Interactive crop gesture hardening: Escape or disabling crop edit restores the exact starting crop; no-op clicks do not stage a change.
+- Ratio-locked edge/corner resizing preserves aspect ratio at source boundaries by stopping at the largest valid in-bounds rectangle.
+- Canvas arrow/Shift+arrow nudge moves selected unlocked layers by exactly one/ten output pixels using exact rational project dimensions, independent of view zoom. Group members move atomically in one project revision. Tree and numeric Inspector retain native arrow behavior.
+- All eight resize handle centers and the rotation handle are included in the selected layer's actual scene hit-test shape. Group-selected and transform-locked layers do not expose individual handle hit targets.
+- Move/resize/rotate completion callbacks are now queued with the owning LayerEditorWorkspace QObject context. Qt discards a pending callback if the Editor is destroyed before dispatch.
+- Regression tests cover crop cancellation/no-op/boundary ratio, pixel nudging, group atomicity, focus scope, handle hit targets and callback ownership.
+
+The P03 tool inventory first-open callback is also bound to the owning panel QObject context, and the Qt test fixtures now dispose panels/windows after worker retirement and flush deferred QObject deletion. This resolved the earlier full-suite Qt fatal abort diagnostics without removing assertions or storage fault-injection coverage.
+
+Exact GitHub Actions clean-foundation run 41614862113 completed SUCCESS on exact code HEAD `e010b8767e8334e2a56efa5573707ff8139dddbd`:
+- Ubuntu Python 3.12.15: 978 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 978 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 991 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 991 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow was not run.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS and 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8. No P04 task is accepted by this CI.
+
+Remaining P04 gates: text/logo/font content editing; complete nine-anchor interactive hit-test beyond the eight resize handles and preview/export geometry parity; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; complete Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real-media codec corpus, GPU and crop compositor/export parity.
+
+Next: continue P04-02 with remaining geometry/anchor behavior and integration tests, then advance P04-03/04 in dependency order. Keep all changes on `develop/fonesi-full`; do not merge `main`. Do not mark P04-02 or P04 complete until the full task and external acceptance gates pass.
