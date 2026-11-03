@@ -529,6 +529,8 @@ class TimelinePanel(QWidget):
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
         self.fit_button.setEnabled(session is not None)
         self.zoom_slider.setEnabled(session is not None)
+        markers_ready=session is not None and not self.stopping
+        for button in (self.set_in_button,self.set_out_button,self.clear_range_button):button.setEnabled(markers_ready)
         preview_inside=False
         if available:
             preview_start=_q(clip['output_start'])
@@ -758,7 +760,6 @@ class TimelinePanel(QWidget):
                 region=QGraphicsRectItem(QRectF(in_x,20,max(1,out_x-in_x),170))
                 region.setBrush(QBrush(QColor(75,145,215,45)))
                 region.setPen(QPen(Qt.PenStyle.NoPen));region.setZValue(-50)
-                region.setFlag(region.GraphicsItemFlag.ItemIsSelectable,False)
                 region.setAcceptedMouseButtons(Qt.MouseButton.NoButton);self.scene.addItem(region)
             in_line=QGraphicsRectItem(QRectF(in_x-1,18,2,174))
             in_line.setBrush(QBrush(QColor('#70d6a5')));in_line.setPen(QPen(Qt.PenStyle.NoPen))
