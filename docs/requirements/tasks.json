@@ -206,49 +206,49 @@
   {
     "id": "P04-01",
     "scope": "panel/theme/HiDPI/cỡ chữ UI, drag từ Explorer, media/inspector, slider/ô số/reset.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-02",
     "scope": "chọn/kéo/resize/xoay logo/chữ/vùng che, crop; neo/tọa độ tương đối, lưới/safe area/snap/Alt và đưa về khung.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-03",
     "scope": "đa chọn/nhóm/khóa/ẩn/thứ tự layer; tránh kéo nhầm; menu ngữ cảnh.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-04",
     "scope": "undo/redo, một drag một lệnh; inspector và canvas dùng cùng model, save/open giữ đúng.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-05",
     "scope": "timeline/playhead/trim/split/in-out/gap/ripple/marker, thumbnail/waveform, zoom/scroll/loop.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-06",
     "scope": "proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-07",
     "scope": "shortcut theo focus, remap/xung đột/trợ giúp; nhập Việt/Trung không kích hoạt player/canvas.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {
     "id": "P04-08",
     "scope": "UI Cài đặt tool scan/path/check/download/install-all/update/repair/rollback có progress; Chrome/profile/account tables, Ctrl+, và readiness với nút khắc phục đúng lỗi.",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "plan": "docs/phases/P04_PLAN.md"
   },
   {

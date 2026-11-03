@@ -1,6 +1,6 @@
 # P04 — Task-specific clean implementation plan
 
-Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_PROGRESS; P04-01 through P04-07 have partial implementation, including layer groups, timeline editing, still-frame preview and focus-scoped shortcuts; no P04 task or phase is accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
+Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_PROGRESS; P04-01 through P04-08 have partial implementation, including layer groups, timeline editing, still-frame preview and focus-scoped shortcuts; no P04 task or phase is accepted. Read master and mapped source clauses before code. No legacy runtime evidence is accepted. Contract files in docs/contracts are normative; any unresolved engine/provider gate remains explicit. Each row below is a separate task contract, not a generic checklist.
 
 ## P04-01 — panel/theme/HiDPI/cỡ chữ UI, drag từ Explorer, media/inspector, slider/ô số/reset.
 
@@ -63,7 +63,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Shortcut router/remap/conflict/help UI with IME guard.
 - **Errors/cancellation:** Text input/preedit owns keys; duplicate binding rejected or explicit resolution; Escape first cancels current operation.
 - **Tests and acceptance:** Qt focus and repeated navigation tests for every shortcut; Vietnamese/Chinese physical IME separately NOT_RUN if unavailable.
-- **Evidence:** Partial code now includes a persistent QSettings shortcut registry, searchable settings panel, user remapping for implemented actions, conflict rejection across overlapping focus scopes, reset-to-default and live rebinding. Layer event routing is limited to tree/canvas and ignores IME preedit; timeline QShortcuts remain scoped to timeline list/canvas. Full ED§9 action coverage, per-OS shortcut conflicts, physical Vietnamese/Chinese IME certification and complete player/global shortcut routing remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Partial code includes a persistent QSettings registry, searchable remapping panel, overlapping-scope conflict rejection, reset-to-default and live event-filter routing. Layer shortcuts remain limited to tree/canvas with IME preedit protection; timeline routing is limited to clip-list/canvas and their viewports; application Settings is available across the main-window widget tree while text editors and key-sequence capture retain their input; F5 is limited to the tool table. The implemented subset is not the full ED§9 map. Physical Vietnamese/Chinese IME certification, OS-specific shortcut conflict review, all remaining player/timeline actions and full global shortcut coverage remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-08 — UI Cài đặt tool scan/path/check/download/install-all/update/repair/rollback có progress; Chrome/profile/account tables, Ctrl+, và readiness với nút khắc phục đúng lỗi.
 
@@ -200,11 +200,11 @@ Tests: exact selected audio stream and decoder start, rational duration cap, PCM
 
 ## Slice N — application-wide Settings navigation shortcut
 
-Use Ctrl+, to focus the existing Preset/Cài đặt navigation page (index 7); do not create a second Settings window or duplicate settings model. The shortcut is registered with WidgetWithChildrenShortcut on the main window, so it is available from editor controls while preserving the single shared Settings page. It must not change project/session state. Test from a focused numeric inspector, verify navigation/page indices and project identity/revision remain unchanged. This is only the navigation shortcut; P04-08 tool install/update/repair/Chrome/profile/account readiness remains incomplete.
+Use Ctrl+, to focus the existing Preset/Cài đặt navigation page (index 7); do not create a second Settings window or duplicate settings model. A shared-registry KeyPress event filter is installed on the main-window widget tree. It is available from numeric inspectors, suppresses the registered chord while a text editor owns focus, and leaves QKeySequenceEdit capture available. It must not change project/session state. Test from navigation and a focused numeric inspector, and verify text-focus exclusion, navigation/page indices and project identity/revision. This is only navigation; P04-08 tool install/update/repair/Chrome/profile/account readiness remains incomplete.
 
 ## Slice O — focus-scoped timeline frame-navigation shortcuts
 
-Bind Left/Right to one output frame, Shift+Left/Right to ten frames, and Home/End to the timeline bounds. Register only on the clip list and timeline canvas with WidgetWithChildrenShortcut; do not consume arrow keys from crop/numeric inputs or other text editors. Navigation changes only the playhead/UI state, not the project revision. Tests cover frame bounds, exact step sizes, Home/End and numeric-input isolation. Playback/spacebar, J/K/L transport and remapping remain unimplemented.
+Bind Left/Right to one output frame, Shift+Left/Right to ten frames, and Home/End to the timeline bounds. A shared-registry KeyPress event filter is installed only on the clip list, its viewport, the timeline canvas and its viewport; crop/numeric inputs and text editors remain outside that scope. Navigation changes only playhead/UI state, not project revision. Tests cover frame bounds, exact step sizes, Home/End and native numeric-input isolation. Playback/spacebar, J/K/L transport and the complete ED§9 action map remain unimplemented.
 
 ## Slice P — still-preview quality selection and resolution-bound cache
 
@@ -214,7 +214,7 @@ Tests: each profile passes its exact bounds to the worker; changing quality duri
 
 ## Slice Q — persistent shortcut remapping, conflict detection and live rebinding
 
-Provide a QSettings-backed user preference registry for the implemented shortcut subset. The searchable Settings panel lists action, focus scope and current binding; QKeySequenceEdit captures a replacement; save rejects empty/invalid sequences and collisions in overlapping scopes without modifying the previous binding; reset selected/reset all restore documented defaults. Project files do not contain user shortcut preferences. Layer tree/canvas event routing reads the registry dynamically and does not consume keys during IME preedit or from numeric inspector fields. Timeline QShortcuts update live when their action is remapped. The app Settings shortcut also updates live. This is not the complete ED§9 map; only currently implemented actions may be offered as active bindings.
+Provide a QSettings-backed user preference registry for the implemented shortcut subset. The searchable Settings panel lists action, focus scope and current binding; QKeySequenceEdit captures a replacement; save rejects empty/invalid sequences and collisions in overlapping scopes without modifying the previous binding; reset selected/reset all restore documented defaults. Project files do not contain user shortcut preferences. Layer tree/canvas event routing reads the registry dynamically and does not consume keys during IME preedit or from numeric inspector fields. Timeline and tool-inventory event filters read the registry at event time, so remapping applies immediately. The app Settings shortcut also updates live while respecting text-entry and key-capture focus. This is not the complete ED§9 map; only currently implemented actions may be offered as active bindings.
 
 Tests: QSettings persistence across registry instances; same-scope and app-global conflict rejection; failed remap leaves old value; panel search/save/reset; live layer and timeline remapping without project revision change; inspector and IME focus isolation; no default action fires after remap.
 
@@ -244,7 +244,7 @@ Bind F5 only to the tool inventory table and its child focus. It reuses the exis
 
 **Entry checkpoint:** `fd1b097c125810f86e7b7895a1c20961c6d57d3a`; run `41576103614`. Four runners reduced the suite from 10 to 6 failures. Remaining failures: Ctrl+, app navigation, custom Alt+Ctrl layer remap, timeline frame/In-Out shortcuts, F5 table rescan, and a crop test that incorrectly expects Right Arrow to increment a QDoubleSpinBox.
 
-**Root-cause direction:** Qt shortcut-map activation is not reliable for the current offscreen/hosted focus tests and fails to demonstrate the required target-widget focus scope. Replace QShortcut-only dispatch for Settings, timeline and tool inventory with explicit KeyPress event filters installed on the exact intended widgets and their viewport children. App Settings must be available across the main-window widget tree but must not steal input from text editors, key-sequence capture or numeric spin boxes. Timeline dispatch is restricted to clip-list/canvas widgets; crop spin boxes stay outside that filter. F5 dispatch is restricted to the tool table and viewport and continues to call only the existing bounded metadata worker. All routers read the shared registry at event time so remaps take effect immediately.
+**Root-cause direction:** Qt shortcut-map activation is not reliable for the current offscreen/hosted focus tests and fails to demonstrate the required target-widget focus scope. Replace QShortcut-only dispatch for Settings, timeline and tool inventory with explicit KeyPress event filters installed on the exact intended widgets and their viewport children. App Settings must be available across the main-window widget tree, including numeric inspectors, but must not steal registered chords from text editors or key-sequence capture. Timeline dispatch is restricted to clip-list/canvas widgets; crop spin boxes stay outside that filter. F5 dispatch is restricted to the tool table and viewport and continues to call only the existing bounded metadata worker. All routers read the shared registry at event time so remaps take effect immediately.
 
 **Layer remap hardening:** preserve the existing layer-only router and IME preedit guard; clear stale preedit state on focus transitions and retain explicit Ctrl+Alt event coverage. No layer shortcut is installed on numeric inspectors or globally.
 
@@ -258,3 +258,17 @@ Bind F5 only to the tool inventory table and its child focus. It reuses the exis
 Run `41577723521` passed Linux Python 3.12/3.13 (904 passed, 39 skipped each) and Windows Python 3.13 (917 passed, 26 skipped); Windows Python 3.12 had 916 passed, 26 skipped and one teardown assertion in `test_desktop_coordinator_host`. The host had already reported `isRunning() == false`, but the test called `wait(0)` only once and asserted immediately. Correct the helper to poll the actual `wait(0)` completion predicate within its existing five-second bound; retain the requirement that the native thread is joined before teardown.
 
 Clarify application shortcut scope: Ctrl+, must work from the numeric inspector as required by Slice N. It does not collide with the spin box's native arrow keys. Continue suppressing it while a text editor or QKeySequenceEdit owns focus, including when Qt propagates a key event to a parent widget. The timeline's Left/Right and Up/Down numeric semantics remain isolated by the timeline's exact installed scopes.
+
+
+### Exact hosted verification for deterministic focus routing — 2026-11-03
+
+Current code checkpoint: `3e0efdc1b5a9fb4bf5fad978ed1345956463f663`. Clean-foundation run [41578597866](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41578597866) completed SUCCESS on all four runners:
+
+| Runner | Passed | Skipped | Failed | Integrity |
+|---|---:|---:|---:|---|
+| Ubuntu / Python 3.12 | 904 | 39 | 0 | PASS |
+| Ubuntu / Python 3.13 | 904 | 39 | 0 | PASS |
+| Windows / Python 3.12 | 917 | 26 | 0 | PASS |
+| Windows / Python 3.13 | 917 | 26 | 0 | PASS |
+
+Windows Python 3.12 also completed the development onedir build and scoped frozen CLI boundary checks. The separate pinned Windows FFmpeg synthetic capability workflow was SKIPPED. This is hosted source/Qt and scoped packaged-boundary evidence, not physical user-device GUI, live Chrome, provider, GPU, codec-corpus, playback or render/export acceptance. No P04 task or phase is accepted.
