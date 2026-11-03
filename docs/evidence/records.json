@@ -1191,5 +1191,110 @@
       "ED-19.26 remains NOT_RUN because physical IME/target focus certification is not complete.",
       "No renderer/export parity, real-media codec corpus, GPU, live Chrome or provider acceptance."
     ]
+  },
+  {
+    "id": "P04-HOSTED-INSPECTOR-BASIC-ADVANCED-41594109888",
+    "generation": "clean-2026-11-01",
+    "commit": "1038d0afa91bddcaca45fc00c832247451da19cb",
+    "tree": "ae36634fa7ce71068cd45bac66b5a549e1e36437",
+    "task_ids": [
+      "P04-01"
+    ],
+    "criterion_ids": [],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Partial layer-inspector Basic/Advanced mode, property search, slider/reset and disabled-reason behavior plus GUI-thread worker completion; no ED-01.02/.03/.04, P04-01 task or P04 phase acceptance.",
+    "command": "GitHub Actions clean-foundation run 41594109888; full source foundation, actual Windows development onedir build and scoped frozen CLI boundary checks.",
+    "started_at": "2026-11-03T07:06:25Z",
+    "finished_at": "2026-11-03T07:11:39Z",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "1038d0afa91bddcaca45fc00c832247451da19cb",
+          "source_tree": "ae36634fa7ce71068cd45bac66b5a549e1e36437",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "1038d0afa91bddcaca45fc00c832247451da19cb",
+          "source_tree": "ae36634fa7ce71068cd45bac66b5a549e1e36437",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "1038d0afa91bddcaca45fc00c832247451da19cb",
+          "source_tree": "ae36634fa7ce71068cd45bac66b5a549e1e36437",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "1038d0afa91bddcaca45fc00c832247451da19cb",
+          "source_tree": "ae36634fa7ce71068cd45bac66b5a549e1e36437",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4",
+          "QT_QPA_PLATFORM": "offscreen"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_layer_editor_ui::test_inspector_basic_advanced_search_units_and_tooltips",
+      "tests.test_layer_editor_ui::test_inspector_disabled_reasons_follow_multi_selection_and_lock",
+      "tests.test_layer_editor_ui::test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once",
+      "tests.test_layer_editor_ui::test_inspector_property_and_group_resets_commit_once_and_preserve_other_fields",
+      "tests.test_layer_editor_ui::test_anchor_and_flip_individual_resets_restore_only_selected_property",
+      "tests.test_tool_preferences_ui::test_unknown_commit_requires_matching_owned_reload_not_replay"
+    ],
+    "status": "PASS",
+    "observations": {
+      "ubuntu_py312": {
+        "passed": 943,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "ubuntu_py313": {
+        "passed": 943,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312": {
+        "passed": 956,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py313": {
+        "passed": 956,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312_onedir_build": "PASS",
+      "windows_py312_frozen_cli_boundaries": {
+        "status": "PASS",
+        "completed_cases": 5
+      },
+      "pinned_windows_ffmpeg_synthetic": "SKIPPED"
+    },
+    "artifact_paths": [],
+    "run_ids": [
+      41594109888
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41594109888"
+    ],
+    "limitations": [
+      "Qt tests used QT_QPA_PLATFORM=offscreen; no physical Windows GUI, Explorer, HiDPI or Vietnamese/Chinese IME acceptance.",
+      "Basic/Advanced mode preference is not persisted; theme, font-size and layout persistence remain open.",
+      "Multi-file Explorer drag/drop and full inspector property coverage across future effect panels remain open.",
+      "ED-01.02/.03/.04 remain NOT_RUN; no P04-01 task or P04 phase acceptance."
+    ]
   }
 ]
