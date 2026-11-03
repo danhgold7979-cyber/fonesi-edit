@@ -53,7 +53,7 @@ class TimelinePanel(QWidget):
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None;self.stopping=False
         layout=QVBoxLayout(self)
-        self.notice=QLabel('Timeline có playhead theo frame, tách và trim theo thời gian hữu tỷ. Chưa có phát lại, thumbnail, waveform hoặc render.')
+        self.notice=QLabel('Timeline có playhead theo frame, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Chưa có phát video/âm thanh, thumbnail/waveform tự động hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
         self.summary=QLabel('Chưa có clip trong timeline.')
         self.summary.setTextFormat(Qt.TextFormat.PlainText);layout.addWidget(self.summary)
@@ -246,7 +246,13 @@ class TimelinePanel(QWidget):
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
         self.fit_button.setEnabled(session is not None)
         self.zoom_slider.setEnabled(session is not None)
-        preview_ready=(available and not self.busy and not self.stopping and self.preview_trust.isChecked()
+        preview_inside=False
+        if available:
+            preview_start=_q(clip['output_start'])
+            preview_end=preview_start+(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])
+            preview_time=Fraction(self._playhead,1)/self._fps
+            preview_inside=preview_start<=preview_time<preview_end and _q(clip['freeze_duration'])==0
+        preview_ready=(available and preview_inside and not self.busy and not self.stopping and self.preview_trust.isChecked()
                        and bool(self.preview_path.text()) and Path(self.preview_path.text()).is_absolute())
         self.preview_button.setEnabled(preview_ready)
         self.preview_path.setEnabled(not self.busy and not self.stopping)
