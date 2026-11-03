@@ -353,3 +353,18 @@ Regression tests cover optional legacy compatibility, digest behavior, malformed
 Exact hosted clean-foundation run 41588026020 passed on HEAD fad21b7a1a1b77e5e967145721b6974e8f7375bd: Ubuntu Python 3.12.15/3.13.17 each 938 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 951 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 This remains partial hosted offscreen Qt evidence. It does not certify physical Vietnamese/Chinese IME, Windows user-device GUI, loop playback, marker rename/drag, continuous thumbnails/waveform, synchronized A/V seek, export-range rendering or the complete ED-17/ED-19 assertions. No task/criterion/phase acceptance is claimed.
+## Slice X — layer inspector slider synchronization and reset controls (P04-01)
+
+**Master alignment:** P04-01 inspector numeric/slider/reset; requirements ED-01.02/.03 and source clauses PR-L029, ED-L009, ED-L033. This is a partial inspector slice, not full P04-01 or ED-01 acceptance.
+
+**Entry checkpoint:** integrated HEAD 11b5dc6d2706240cb511ee47a27f520bc2c7146b on develop/fonesi-full. Latest exact clean-foundation run 41588961987 passed all four Linux/Windows Python 3.12/3.13 runners; Windows 3.12 onedir and scoped frozen boundaries passed. Main remains unchanged.
+
+**Observed gap:** LayerEditorWorkspace exposes numeric QDoubleSpinBox controls but no paired sliders or per-property/group reset. P04-01 and ED-L009 explicitly require numeric controls alongside sliders and reset controls.
+
+**Design:** preserve the existing spin-box API and canonical rational model. Add a bounded QSlider for each numeric transform property (x, y, width, height, scale_x, scale_y, rotation, opacity) with explicit integer-to-domain scaling. Spin edits commit on editingFinished. Mouse slider drags update the spin continuously but commit exactly once on slider release; keyboard slider steps commit one completed command per step. Programmatic refresh must block feedback and never mutate the project.
+
+**Reset behavior:** each numeric property gets an explicit reset action to its documented layer default; anchor and flip controls also get individual reset actions; one group reset restores the complete default transform in one ProjectSession revision. Reset on an already-default value is a no-op. Locked layers, no selection, multi-selection and reconciliation-required sessions must keep inspector edits/sliders/resets disabled.
+
+**Tests:** numeric spin↔slider round-trip; mouse drag multiple values produces one project revision; keyboard slider step produces one revision; per-property reset preserves unrelated rational fields; group reset restores x/y/width/height/scale/rotation/opacity/anchor/flip; default reset is no-op; lock and selection states disable both sliders and reset controls; undo/redo and save/reopen preserve the committed transform.
+
+**Acceptance boundary:** this slice does not implement Basic/Advanced mode, property search, complete tooltip/disabled-reason coverage, theme/font-size/HiDPI persistence, multi-file Explorer drag/drop or physical Windows GUI/HiDPI acceptance. ED-01.02/.03 and P04-01 remain NOT_RUN/IN_PROGRESS until their full assertions and GUI evidence are complete.
