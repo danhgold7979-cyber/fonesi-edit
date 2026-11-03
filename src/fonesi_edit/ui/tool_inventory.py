@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from PySide6.QtCore import QThread, Signal, QTimer, Qt
+from PySide6.QtGui import QShortcut,QKeySequence
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QFormLayout,QLineEdit,QLabel,
     QCheckBox,QPushButton,QHBoxLayout,QTableWidget,QTableWidgetItem,QPlainTextEdit,
     QAbstractItemView)
@@ -9,6 +10,7 @@ from fonesi_edit.dependencies.discovery import discover_tools,system_search_dirs
 
 from fonesi_edit.dependencies.preferences import ToolPreferences
 from .tool_preferences import PreferenceWorker,reconciles
+from .shortcuts import ShortcutRegistry
 
 ROLES = {'ffmpeg':'Dựng/chuyển đổi media','ffprobe':'Đọc thông tin media',
          'yt-dlp':'Tải theo connector hỗ trợ','gallery-dl':'Tải theo connector hỗ trợ',
@@ -35,8 +37,9 @@ class InventoryWorker(QThread):
 
 class ToolInventoryPanel(QWidget):
     idle=Signal()
-    def __init__(self,parent=None,*,preferences_path=None):
+    def __init__(self,parent=None,*,preferences_path=None,shortcut_registry=None):
         super().__init__(parent);self.worker=None;self.stopping=False;self.revision=0
+        self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.preferences_path=preferences_path;self.preference_worker=None
         self.saved_snapshot=None;self.saved_revision=None;self.uncertain_save=None
         self.first_open_attempted=False;self.navigation_generation=0
@@ -67,6 +70,11 @@ class ToolInventoryPanel(QWidget):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setMinimumHeight(180);layout.addWidget(self.table)
+        self.scan_shortcut=QShortcut(QKeySequence(self.shortcut_registry.sequence('tools.rescan')),self.table)
+        self.scan_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.scan_shortcut.activated.connect(self.start)
+        self.shortcut_registry.changed.connect(self._shortcut_changed)
+        self.table.setToolTip('F5 quét lại tên tệp trong bảng công cụ; không chạy hoặc cấp tin cậy cho executable.')
         self.candidates=QPlainTextEdit();self.candidates.setReadOnly(True)
         self.candidates.document().setMaximumBlockCount(1024);self.candidates.setMaximumHeight(110)
         layout.addWidget(self.candidates)
@@ -77,6 +85,10 @@ class ToolInventoryPanel(QWidget):
         self.preference_message=QLabel('Chưa đọc cấu hình; đường dẫn đang sửa chỉ thuộc phiên này.')
         self.preference_message.setWordWrap(True);self.preference_message.setTextFormat(Qt.PlainText)
         layout.addWidget(self.preference_message);self.clear_rows();self.update_actions()
+    def _shortcut_changed(self,action_id):
+        if action_id=='tools.rescan':
+            self.scan_shortcut.setKey(QKeySequence(self.shortcut_registry.sequence(action_id)))
+
     @property
     def busy(self):return self.worker is not None or self.preference_worker is not None
     def clear_rows(self):
