@@ -160,6 +160,8 @@ class ShortcutSettingsPanel(QWidget):
         self.items.blockSignals(False)
         if self.items.currentRow()<0 and self.items.count():
             self.items.setCurrentRow(0)
+        elif self.items.currentRow()>=0:
+            self.select_row(self.items.currentRow())
         if not self.items.count():
             self._selected_id=None
             self.action_label.setText('Không có kết quả.')
