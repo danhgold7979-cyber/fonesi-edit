@@ -4,6 +4,7 @@ from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
+from PySide6.QtCore import QCoreApplication,QEvent
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
@@ -29,7 +30,7 @@ def _window(tmp_path,qt_app):
 def _close(window,store,qt_app):
     window.close()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);store.close()
 
 
 def test_crop_inspector_commits_valid_rectangle_and_preserves_exact_untouched_fields(tmp_path,qt_app):
