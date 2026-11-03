@@ -557,6 +557,10 @@ class TimelinePanel(QWidget):
         if self.preview_worker is not None:self.preview_worker.requestInterruption()
         if self.waveform_worker is not None:self.waveform_worker.requestInterruption()
         if hasattr(self,'preview_message'):
+            if hasattr(self,'crop_edit_toggle'):
+                self.crop_edit_toggle.setChecked(False)
+            if getattr(self,'_crop_overlay_pending',False) and hasattr(self,'crop_cancel_button'):
+                self.cancel_crop()
             self.preview_message.setText(message)
             self.preview_image.clear()
             self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
@@ -568,6 +572,8 @@ class TimelinePanel(QWidget):
     def _preview_quality_changed(self,_index):
         self._preview_generation+=1
         if self.preview_worker is not None:self.preview_worker.requestInterruption()
+        self.crop_edit_toggle.setChecked(False)
+        if self._crop_overlay_pending:self.cancel_crop()
         self.preview_message.setText('Chất lượng preview đã đổi; ảnh cũ bị loại bỏ và cache sẽ dùng khóa độ phân giải mới.')
         self.preview_image.clear();self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
         for index,label in enumerate(self.filmstrip_labels):
@@ -891,7 +897,8 @@ class TimelinePanel(QWidget):
             if abs(shown-exact)>Fraction(1,100000000):
                 target['crop'][name]=[shown.numerator,shown.denominator]
                 changed=True
-        if not changed:return
+        if not changed:
+            self._refresh_crop_inspector();return
         expected=session.revision
         data['revision']=expected+1
         data['provenance']['project_revision']=expected+1
@@ -900,7 +907,7 @@ class TimelinePanel(QWidget):
             session.commit(CompletedCommand(session.project.with_plan(plan),expected))
         except Exception:
             self.action_message.setText('Crop không hợp lệ hoặc project đã đổi; dữ liệu đã lưu không bị thay đổi. Kiểm tra lại bốn cạnh.')
-            return
+            self._refresh_crop_inspector();return
         self._refresh_crop_inspector()
         self.action_message.setText('Đã lưu crop chuẩn hóa. Ảnh tĩnh chỉ hiển thị khung crop; chưa có crop compositor hoặc render.')
         self.project_changed.emit()
