@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSpli
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui.shortcuts import ShortcutRegistry
+from fonesi_edit.ui.project_history import ProjectCommandHistory
 
 ANCHORS=('top_left','top_center','top_right','center_left','center','center_right',
          'bottom_left','bottom_center','bottom_right')
@@ -224,10 +225,13 @@ class LayerShortcutRouter(QObject):
 
 class LayerEditorWorkspace(QWidget):
     project_changed=Signal()
-    def __init__(self,get_session,parent=None,shortcut_registry=None,ui_settings=None):
+    def __init__(self,get_session,parent=None,shortcut_registry=None,ui_settings=None,history=None):
         super().__init__(parent);self.get_session=get_session;self.ui_settings=ui_settings
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
-        self.selected_id=None;self.selected_ids=set();self.undo_stack=[];self.redo_stack=[]
+        self.history=history or ProjectCommandHistory(get_session,self)
+        self.undo_stack=self.history.undo_stack;self.redo_stack=self.history.redo_stack
+        self.history.changed.connect(self.update_actions)
+        self.selected_id=None;self.selected_ids=set()
         self.syncing=False;self.committing=False;self.stopping=False
         self.last_session=None;self.last_revision=None;self.original_transform=None
         root=QVBoxLayout(self)
@@ -397,8 +401,8 @@ class LayerEditorWorkspace(QWidget):
 
     def update_actions(self):
         session=self.get_session();ready=session is not None and not session.reconciliation_required and not self.stopping
-        self.add_button.setEnabled(ready);self.undo_button.setEnabled(ready and bool(self.undo_stack))
-        self.redo_button.setEnabled(ready and bool(self.redo_stack))
+        self.add_button.setEnabled(ready);self.undo_button.setEnabled(ready and self.history.can_undo())
+        self.redo_button.setEnabled(ready and self.history.can_redo())
         selected=self.selected_layers()
         single=selected[0] if len(selected)==1 else None
         edit=single is not None and not locked(single) and ready
@@ -435,12 +439,11 @@ class LayerEditorWorkspace(QWidget):
 
     def update_project(self):
         session=self.get_session()
+        self.history.sync()
         if session is None:
-            self.last_session=None;self.last_revision=None;self.undo_stack.clear();self.redo_stack.clear()
+            self.last_session=None;self.last_revision=None
             self.selected_id=None;self.selected_ids.clear();self.layers.clear();self.scene.clear();self.scene.setSceneRect(QRectF(0,0,640,360))
             self.update_actions();return
-        if not self.committing and (session is not self.last_session or session.revision!=self.last_revision):
-            self.undo_stack.clear();self.redo_stack.clear()
         self.last_session=session;self.last_revision=session.revision
         data=session.project.plan.to_dict();W=data['output']['width'];H=data['output']['height']
         valid_ids={x['id'] for x in data['layers']}
@@ -753,7 +756,7 @@ class LayerEditorWorkspace(QWidget):
             self.status.setText(f'Không xác nhận thay đổi ({label}); không tự gửi lại.')
             self.update_project();return False
         finally:self.committing=False
-        self.undo_stack.append(before);self.redo_stack.clear()
+        self.history.record(before,session,expected,label)
         self.last_session=session;self.last_revision=session.revision
         self.update_project();self.project_changed.emit()
         self.status.setText(f'Đã lưu {label}; chưa có kết quả render.')
@@ -902,18 +905,12 @@ class LayerEditorWorkspace(QWidget):
     def redo(self):self._history(False)
 
     def _history(self,is_undo):
+        changed=self.history.undo() if is_undo else self.history.redo()
+        if not changed:
+            self.status.setText('Không thể hoàn tác/làm lại: lịch sử đã hết hạn hoặc project cần đối soát.')
+            self.update_actions()
+            return
         session=self.get_session()
-        source=self.undo_stack if is_undo else self.redo_stack
-        target=self.redo_stack if is_undo else self.undo_stack
-        if session is None or not source or session.reconciliation_required:return
-        current=session.project.plan.to_dict();restored=deepcopy(source[-1])
-        restored['revision']=session.revision+1;restored['provenance']['project_revision']=session.revision+1
-        try:
-            plan=CompositionPlan.parse(restored);self.committing=True
-            session.commit(CompletedCommand(session.project.with_plan(plan),session.revision))
-        except Exception:
-            self.status.setText('Không xác nhận hoàn tác/làm lại; không tự gửi lại.');return
-        finally:self.committing=False
-        source.pop();target.append(current)
-        self.last_session=session;self.last_revision=session.revision
+        self.last_session=session;self.last_revision=None if session is None else session.revision
         self.update_project();self.project_changed.emit()
+        self.status.setText('Đã hoàn tác/làm lại chỉnh sửa project; revision vẫn tăng đơn điệu.')
