@@ -173,9 +173,13 @@ def _validate(data):
         _require(b<=_q(st['duration'],p) and start+length<=duration,p,'Audio exceeds selected stream/output')
         _require(-1<=_q(c['pan'],p+'/pan')<=1,p+'/pan','Pan outside[-1,1]')
         fi,fo=(_positive(c[k],p+'/'+k,True) for k in ['fade_in','fade_out']);_require(fi<=length and fo<=length,p,'Fade exceeds audio clip')
-    layer_ids={l['id'] for l in data['layers']};cue_ids=set();cue_refs=[]
+    layer_ids={l['id'] for l in data['layers']};cue_ids=set();cue_refs=[];group_counts={}
     for i,l in enumerate(data['layers']):
         p=f'/layers/{i}';register(l,p);_transform(l['transform'],p+'/transform');last=Fraction(0)
+        group_id=l.get('group_id')
+        if group_id is not None:
+            _require(isinstance(group_id,str) and bool(group_id),p+'/group_id','Invalid layer group ID')
+            group_counts[group_id]=group_counts.get(group_id,0)+1
         for j,interval in enumerate(l['intervals']):
             a,b=_interval(interval['start'],interval['end'],p+f'/intervals/{j}',duration);_require(a>=last,p+'/intervals','Intervals overlap/out of order');last=b
         style,content=l['style'],l['content']
@@ -219,6 +223,8 @@ def _validate(data):
             _require(0<=effective<=duration,kp,'Keyframe time outside output');key=(k['property'],effective);_require(key not in seen,kp,'Duplicate effective keyframe time');seen.add(key)
             if k['property'] in {'width','height','scale_x','scale_y'}:_require(value>0,kp,'Size/scale must be positive')
             if k['property']=='opacity':_require(0<=value<=1,kp,'Opacity outside[0,1]')
+    for group_id,count in group_counts.items():
+        _require(count>=2,'/layers','A layer group must contain at least two members')
     for ref,path in cue_refs:_require(ref is None or ref in cue_ids,path,'Missing source cue reference')
     for i,d in enumerate(data['audio']['master']['ducking']):
         p=f'/audio/master/ducking/{i}';_interval(d['start'],d['end'],p,duration);targets=set(d['target_audio_clip_ids']);sources=set(d['sidechain_audio_clip_ids'])
