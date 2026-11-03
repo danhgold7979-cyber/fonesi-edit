@@ -230,3 +230,30 @@ Exact hosted clean-foundation run [41601897085](https://github.com/danhgold7979-
 - Integrity/plan check PASS on all four runners. Windows Python 3.12 also passed the development onedir build and five scoped frozen CLI schema/subtitle/tool-discovery/license checks. Separate pinned Windows FFmpeg capability workflow remains SKIPPED.
 
 Acceptance boundary: hosted Qt tests are offscreen. Physical Windows GUI, Explorer multi-select, mixed-DPI/HiDPI, physical Vietnamese/Chinese IME, live FFmpeg/media corpus, GPU, Chrome session/account, providers, continuous playback, synchronized A/V seek and renderer/export parity remain unaccepted or NOT_RUN. P04-01 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted.
+
+
+## Slice AB — persistent Basic/Advanced Inspector mode (P04-01, 2026-11-03)
+
+Implementation commit: `dfeb4b32caecf12b6d85906eb4ff008a084caebe` on `develop/fonesi-full`. Documentation-only verification checkpoint: `f12419341dec4890b980fcbf5383e209703b2eb7`.
+
+The Editor now receives the existing user-level QSettings store from MainWindow. The Inspector's Basic/Advanced checkbox reads the allow-listed boolean preference `editor/inspector_advanced` on construction and persists user toggles. Missing or malformed values fall back to Basic; legacy callers that do not inject a settings store remain backward-compatible and default to Basic. The preference is independent of project/session data and survives application window reconstruction. Appearance reset is scoped to the `appearance` settings group and preserves the Inspector preference.
+
+Regression coverage added to `tests/test_appearance_settings.py`:
+- Advanced mode restores from user settings.
+- Appearance reset does not clear Inspector mode.
+- Switching back to Basic persists and restores Basic.
+- Toggling back to Advanced persists.
+- Malformed stored values fail closed to Basic.
+
+Exact hosted clean-foundation run 41605294255 completed SUCCESS on documentation checkpoint `f12419341dec4890b980fcbf5383e209703b2eb7`; source code under test is unchanged from implementation commit `dfeb4b32caecf12b6d85906eb4ff008a084caebe`:
+- Ubuntu Python 3.12.15: 956 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 956 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 969 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 969 passed, 26 skipped, 0 failed.
+- Preserved plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- The separate pinned Windows FFmpeg capability workflow was SKIPPED. Windows 3.13 did not run the onedir/frozen-only steps by workflow design.
+
+The first CI attempt at `dfeb4b3` had all four pytest suites pass (Linux 956/39 and Windows 969/26) but failed the plan integrity step because a historical Actions URL remained in CURRENT_STATUS.md. The URL was removed in the documentation-only commit `f124193`; the exact four-runner rerun then passed. No test assertion was weakened.
+
+Acceptance boundary: hosted Qt tests are offscreen. Physical Windows GUI, Explorer multi-select, mixed-DPI/HiDPI, physical Vietnamese/Chinese IME, actual user FFmpeg/media corpus, GPU, Chrome session/account, providers, continuous playback, synchronized A/V seek and renderer/export parity remain unaccepted or NOT_RUN. P04-01 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted.
