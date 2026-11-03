@@ -62,3 +62,18 @@ def test_queued_scan_rechecks_explicit_operation_and_close(qt_app,tmp_path,monke
     panel.cancel();queued.pop()();assert calls==[]
     # Cancellation cannot rearm navigation; explicit Scan remains the user's choice.
     panel.first_open();qt_app.processEvents();assert calls==[];panel.close()
+
+
+def test_deferred_first_scan_uses_panel_as_qtimer_context(qt_app,tmp_path,monkeypatch):
+    calls=[];monkeypatch.setattr(ui,'discover_tools',lambda **kw:calls.append(kw))
+    panel=ui.ToolInventoryPanel(preferences_path=tmp_path/'prefs.db')
+    real=ui.QTimer.singleShot;scheduled=[]
+    def capture(*args):
+        if len(args)==3 and args[0]==0 and args[1] is panel:
+            scheduled.append(args)
+            return
+        return real(*args)
+    monkeypatch.setattr(ui.QTimer,'singleShot',capture)
+    panel.first_open();spin(qt_app,lambda:not panel.busy)
+    assert len(scheduled)==1 and scheduled[0][1] is panel
+    panel.close()
