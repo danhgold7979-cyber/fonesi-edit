@@ -60,9 +60,11 @@ def test_unknown_commit_requires_matching_owned_reload_not_replay(qt_app,tmp_pat
     real=io.save_preferences;calls=[]
     def unknown(*args,**kwargs):
         calls.append(1)
-        def fail(stage):
-            if stage=='after_commit':raise OSError('private SQLite detail')
-        return real(*args,**kwargs,fault=fail)
+        # Let the real transaction commit and close cleanly, then inject the
+        # ambiguous UI result. Storage-level after-COMMIT fault injection is
+        # covered separately by the synchronous storage tests.
+        real(*args,**kwargs)
+        raise PreferencesUnknown('Injected post-commit outcome requires reload')
     monkeypatch.setattr(io,'save_preferences',unknown)
     selected=str(tmp_path/'ffmpeg');panel.paths['ffmpeg'].setText(selected);panel.save_current();spin(qt_app,lambda:not panel.busy)
     assert panel.uncertain_save and not panel.save_button.isEnabled() and 'private' not in panel.preference_message.text()
