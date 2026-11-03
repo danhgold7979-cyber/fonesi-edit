@@ -766,3 +766,21 @@ retirement. Only then detach the queue route, clear host reference and
 re-enable explicit retry. A deterministic delayed-refusal QThread regression
 must prove the retry button stays disabled through teardown. No job replay,
 ownership bypass or complete P03-task claim follows.
+
+
+## Slice P03-08 — bind worker-retirement polling timers to the owning Settings panel
+
+### Finding
+A Python 3.13 hosted run repeatedly segfaulted inside QApplication.processEvents while a tool-preference worker was being reconciled in `test_unknown_commit_requires_matching_owned_reload_not_replay`. The worker-completion slots are QObject-bound, but the 10 ms QTimer polling retries in `_finished` and `_preferences_finished` were scheduled without a QObject context. A pending lambda could therefore outlive the ToolInventoryPanel that owns the worker/UI state.
+
+### Contract
+- Every deferred retry that calls a ToolInventoryPanel method is scheduled with the panel as the QTimer context.
+- If the panel is destroyed before dispatch, Qt discards the callback; no method is invoked on a deleted wrapper.
+- Worker retirement remains confirmed with `wait(0)`; no premature worker deletion, forced terminate, thread blocking or UI mutation from worker thread.
+- Retry cadence and operation identity/revision guards remain unchanged.
+- Existing first-open scan timer already uses the panel context and remains so.
+
+### Tests
+- Force the first `wait(0)` result to false for both inventory and preference workers; assert the scheduled timer receives the exact panel QObject context and unchanged worker/revision.
+- Keep close/cancel/worker-retirement tests and all preference after-COMMIT reconciliation tests.
+- Run focused tool inventory/preferences Qt tests, plan integrity and four-runner clean-foundation CI, especially Ubuntu Python 3.13.
