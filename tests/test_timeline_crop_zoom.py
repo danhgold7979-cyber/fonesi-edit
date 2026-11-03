@@ -245,7 +245,7 @@ def test_confirmed_overlay_crop_survives_project_save_and_reopen(tmp_path,qt_app
         assert reopened.session.project.plan.to_dict()['clips'][0]['crop']==expected
         reopened.close()
         wait_for(qt_app,lambda:not reopened.background_busy and not reopened.isVisible())
-        reopened.deleteLater();QCoreApplication.sendPostedEvents(reopened,QEvent.Type.DeferredDelete)
+        reopened.deleteLater();QCoreApplication.sendPostedEvents(reopened,QEvent.Type.DeferredDelete);reopened=None
     finally:
         for current in (reopened,window):
             if current is not None:
