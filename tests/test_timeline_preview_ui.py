@@ -230,3 +230,51 @@ def test_waveform_stale_result_is_discarded_when_playhead_changes(tmp_path,qt_ap
     finally:
         release.set()
         _close(store,window,qt_app)
+
+def test_preview_quality_selects_bounded_decoder_dimensions(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    store,window,timeline,source,payload=_open(tmp_path)
+    try:
+        calls=[]
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+            calls.append((max_width,max_height))
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.preview_quality.setCurrentIndex(0)
+        assert timeline.preview_button.isEnabled()
+        timeline.preview_button.click()
+        wait_for(qt_app,lambda:not timeline.busy and 'timestamp decoder' in timeline.preview_message.text())
+        assert calls==[(320,180)]
+        assert '320×180' in timeline.preview_quality.currentText()
+        assert source.read_bytes()==payload
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_quality_change_discards_inflight_preview_and_invalidates_old_frame(tmp_path,qt_app,monkeypatch):
+    import threading
+    import fonesi_edit.ui.timeline as module
+    store,window,timeline,_,_=_open(tmp_path)
+    entered=threading.Event();release=threading.Event()
+    try:
+        def slow_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+            entered.set()
+            release.wait(2)
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',slow_extract)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.request_preview()
+        wait_for(qt_app,entered.is_set)
+        timeline.preview_quality.setCurrentIndex(2)
+        release.set()
+        wait_for(qt_app,lambda:not timeline.busy)
+        pixmap=timeline.preview_image.pixmap()
+        assert pixmap is None or pixmap.isNull()
+        assert 'chất lượng preview đã đổi' in timeline.preview_message.text().lower()
+        assert timeline.preview_quality.currentData()==(1280,720)
+    finally:
+        release.set()
+        _close(store,window,qt_app)
