@@ -44,7 +44,7 @@ def test_tree_shortcuts_group_undo_redo_and_delete(tmp_path,qt_app):
         QTest.keyClick(editor.layers,Qt.Key.Key_Z,Qt.KeyboardModifier.ControlModifier)
         assert window.session.revision==before+2
         assert all('group_id' not in x for x in window.session.project.plan.to_dict()['layers'])
-        QTest.keyClick(editor.layers,Qt.Key.Key_Y,Qt.KeyboardModifier.ControlModifier)
+        QTest.keyClick(editor.layers,Qt.Key.Key_Z,Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.ShiftModifier)
         assert window.session.revision==before+3
         editor._sync_selection({first},first)
         QTest.keyClick(editor.layers,Qt.Key.Key_Delete)
