@@ -72,7 +72,8 @@ def test_unknown_commit_retires_without_replay(queue):
 def test_real_owner_thread_receives_cancel_during_owned_child(queue,tmp_path):
     repo,jobs=queue;ready=threading.Event();finished=threading.Event();shared={};errors=[]
     marker=tmp_path/'descendant.txt'
-    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});p.write_text("ready");time.sleep(.6);p.write_text("SURVIVED")'
+    release=tmp_path/'release-descendant.txt'
+    child=f'import pathlib,time;p=pathlib.Path({str(marker)!r});r=pathlib.Path({str(release)!r});p.write_text("ready");\nwhile not r.exists():time.sleep(.01)\np.write_text("SURVIVED")'
     parent=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(10)'
     def runner():
         own=None
@@ -104,7 +105,12 @@ def test_real_owner_thread_receives_cancel_during_owned_child(queue,tmp_path):
         if 'inbox' in shared:shared['inbox'].close()
         thread.join(10)
     assert not thread.is_alive() and not errors
-    time.sleep(.7)
+    # Release a surviving descendant only after the owned runner has
+    # reported retirement. This handshake avoids a wall-clock race between
+    # child startup and cancellation while still detecting any escaped child.
+    release.write_text('release')
+    deadline=time.monotonic()+2
+    while marker.read_text()=='ready' and time.monotonic()<deadline:time.sleep(.01)
     assert marker.read_text()=='ready' and repo.get(jobs[0].id).state=='canceled'
 
 
