@@ -346,8 +346,17 @@ class LayerEditorWorkspace(QWidget):
         for name,button in self.reset_buttons.items():button.setToolTip(f'Đặt lại {name}; {reason}')
         for slider in self.sliders.values():slider.setEnabled(edit)
         for button in self.reset_buttons.values():button.setEnabled(edit)
-        self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
-        for button in (self.reset_anchor_button,self.reset_flip_x_button,self.reset_flip_y_button,self.reset_transform_button):button.setEnabled(edit)
+        self.anchor.setEnabled(edit);self.anchor.setToolTip(f'Điểm neo; {reason}')
+        self.flip_x.setEnabled(edit);self.flip_x.setToolTip(f'Lật ngang; {reason}')
+        self.flip_y.setEnabled(edit);self.flip_y.setToolTip(f'Lật dọc; {reason}')
+        special_resets=(
+            (self.reset_anchor_button,'Đặt lại điểm neo'),
+            (self.reset_flip_x_button,'Đặt lại lật ngang'),
+            (self.reset_flip_y_button,'Đặt lại lật dọc'),
+            (self.reset_transform_button,'Đặt lại toàn bộ biến đổi'),
+        )
+        for button,label in special_resets:
+            button.setEnabled(edit);button.setToolTip(f'{label}; {reason}')
         has_selection=bool(selected) and ready
         for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.bring_button):
             b.setEnabled(has_selection)
@@ -447,6 +456,7 @@ class LayerEditorWorkspace(QWidget):
     def _inspector_disabled_reason(self):
         session=self.get_session()
         if session is None:return 'Mở hoặc tạo dự án trước khi chỉnh thuộc tính.'
+        if self.stopping:return 'Ứng dụng đang đóng; không thể chỉnh thuộc tính.'
         if session.reconciliation_required:return 'Dự án cần đối soát; thao tác chỉnh sửa đang tạm khóa.'
         selected=self.selected_layers()
         if not selected:return 'Chọn một layer trong danh sách hoặc canvas để chỉnh thuộc tính.'
