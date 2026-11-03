@@ -181,6 +181,18 @@ class LayerShortcutRouter(QObject):
             ('layer.raise',lambda:self.editor.move_selected(1)),
             ('layer.lower',lambda:self.editor.move_selected(-1)),
         )
+        if watched in (self.editor.view,self.editor.view.viewport()):
+            nudges=(
+                ('layer.nudge_left',-1,0),('layer.nudge_right',1,0),
+                ('layer.nudge_up',0,-1),('layer.nudge_down',0,1),
+                ('layer.nudge_left_10',-10,0),('layer.nudge_right_10',10,0),
+                ('layer.nudge_up_10',0,-10),('layer.nudge_down_10',0,10),
+            )
+            for action_id,dx,dy in nudges:
+                if self.registry.matches(action_id,event):
+                    if not event.isAutoRepeat():
+                        self.editor.nudge_selected(dx,dy)
+                    event.accept();return True
         for action_id,callback in bindings:
             if self.registry.matches(action_id,event):
                 if event.isAutoRepeat():event.accept();return True
@@ -603,6 +615,29 @@ class LayerEditorWorkspace(QWidget):
             self.update_project();return
         self.selected_id=layer_id;self.selected_ids={layer_id}
         self.commit(data,'xoay layer trên canvas')
+
+
+    def nudge_selected(self,dx,dy):
+        session=self.get_session();data=self.data()
+        if (session is None or data is None or session.reconciliation_required or
+                self.stopping or not self.selected_ids):
+            return False
+        ids=self.expand_group_ids(self.selected_ids,data)
+        layers={layer['id']:layer for layer in data['layers']}
+        if not ids or any(layer_id not in layers or locked(layers[layer_id]) for layer_id in ids):
+            return False
+        width=data['output']['width'];height=data['output']['height']
+        if type(width) is not int or type(height) is not int or width<=0 or height<=0:
+            return False
+        delta_x=Fraction(dx,width);delta_y=Fraction(dy,height)
+        for layer_id in ids:
+            transform=layers[layer_id]['transform']
+            x=Fraction(transform['x'][0],transform['x'][1])+delta_x
+            y=Fraction(transform['y'][0],transform['y'][1])+delta_y
+            transform['x']=[x.numerator,x.denominator]
+            transform['y']=[y.numerator,y.denominator]
+        self.selected_ids=ids
+        return self.commit(data,'dịch layer theo pixel đầu ra')
 
     def dragged(self,layer_id,position,origin=None,alt=False):
         data=self.data()
