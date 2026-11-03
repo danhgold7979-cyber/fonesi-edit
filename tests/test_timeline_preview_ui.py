@@ -1,0 +1,121 @@
+"""Still-frame preview UI requires explicit FFmpeg trust and rejects stale worker results."""
+import os
+import sys
+from pathlib import Path
+from fractions import Fraction
+
+os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
+
+from PySide6.QtCore import QBuffer,QIODevice
+from PySide6.QtGui import QImage
+from fonesi_edit.media.preview import PreviewFrame
+from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
+from fonesi_edit.storage.projects import ProjectStore,save_project_file
+from fonesi_edit.storage.timeline_commands import add_video_clip
+from fonesi_edit.ui.shell import MainWindow
+from test_queue_view import wait_for
+from test_timeline_import_ui import _record,_scan
+
+
+def _png():
+    image=QImage(16,9,QImage.Format.Format_RGBA8888)
+    image.fill(0xff336699)
+    buffer=QBuffer();buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    assert image.save(buffer,'PNG')
+    return bytes(buffer.data())
+
+
+def _open(tmp_path):
+    project=empty_project(NewProjectIntent('Still preview',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    store=ProjectStore(tmp_path/'store.db')
+    window=MainWindow(store);window.show();window.open_project(path)
+    source=tmp_path/'clip.mp4';record,payload=_record(source)
+    addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
+    window.session.commit(addition.command);window._project_changed()
+    timeline=window.timeline_panel;timeline.clip_list.setCurrentRow(0);timeline.playhead_slider.setValue(15)
+    return store,window,timeline,source,payload
+
+
+def _close(store,window,qt_app):
+    window.close()
+    wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+    window.deleteLater();store.close()
+
+
+def test_preview_requires_explicit_tool_and_trust_and_displays_still_image(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    store,window,timeline,source,payload=_open(tmp_path)
+    try:
+        calls=[]
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+            calls.append((path,tool,expected_sha256,stream_index,decoder_time))
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
+        assert not timeline.preview_button.isEnabled()
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        assert not timeline.preview_trust.isChecked()
+        timeline.preview_trust.setChecked(True)
+        assert timeline.preview_button.isEnabled()
+        timeline.preview_button.click()
+        wait_for(qt_app,lambda:not timeline.busy and timeline.preview_image.pixmap() is not None)
+        assert len(calls)==1
+        assert calls[0][0]==source and calls[0][3]==3
+        assert calls[0][4]==Fraction(12,25)  # stream start -1/50 + source time 1/2
+        assert 'ảnh tĩnh' in timeline.preview_message.text().lower()
+        assert 'không đồng bộ audio' in timeline.preview_message.text().lower()
+        assert source.read_bytes()==payload
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_preview_path_change_revokes_trust_and_playhead_change_discards_old_result(tmp_path,qt_app,monkeypatch):
+    import threading
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import PreviewCanceled
+    store,window,timeline,source,_=_open(tmp_path)
+    try:
+        entered=threading.Event();release=threading.Event()
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,**kwargs):
+            entered.set()
+            release.wait(2)
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
+        tool=str(Path(sys.executable).resolve())
+        timeline.preview_path.setText(tool);timeline.preview_trust.setChecked(True)
+        timeline.request_preview()
+        wait_for(qt_app,entered.is_set)
+        timeline.playhead_slider.setValue(16)
+        release.set()
+        wait_for(qt_app,lambda:not timeline.busy)
+        assert timeline.preview_image.pixmap() is None
+        assert 'playhead đã đổi' in timeline.preview_message.text().lower()
+
+        timeline.preview_trust.setChecked(True)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve().parent/'other-ffmpeg'))
+        assert not timeline.preview_trust.isChecked()
+        assert not timeline.preview_button.isEnabled()
+    finally:
+        release.set()
+        _close(store,window,qt_app)
+
+
+def test_application_shutdown_waits_for_preview_worker(tmp_path,qt_app,monkeypatch):
+    import threading
+    import fonesi_edit.ui.timeline as module
+    store,window,timeline,source,_=_open(tmp_path)
+    entered=threading.Event();release=threading.Event()
+    def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,**kwargs):
+        entered.set()
+        while not release.wait(.01):
+            if cancel():raise module.PreviewCanceled('cancelled')
+        return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+    monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
+    timeline.preview_path.setText(str(Path(sys.executable).resolve()));timeline.preview_trust.setChecked(True)
+    timeline.request_preview()
+    wait_for(qt_app,entered.is_set)
+    window.close()
+    assert window.isVisible() and window.background_busy
+    release.set()
+    wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+    window.deleteLater();store.close()
