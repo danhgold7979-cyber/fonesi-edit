@@ -589,3 +589,29 @@ This slice verifies programmatic accessibility metadata and existing keyboard se
 ### Acceptance boundary
 
 This slice validates safe staging and normalized geometry only. It does not add decoded-pixel crop composition, playback or export parity, and does not accept P04-02/P04.
+
+
+## Slice AH — focus-scoped pixel-step layer nudge (P04-02/P04-07)
+
+### Contract
+
+- With a single unlocked layer or a selected unlocked group and canvas focus, arrow keys move the selected object(s) by exactly one output pixel in normalized project coordinates; Shift+arrow moves exactly ten output pixels.
+- The nudge is independent of canvas zoom, viewport size and device pixel ratio because the delta is derived from CompositionPlan output width/height, not widget coordinates.
+- One key press commits exactly one ProjectSession CompletedCommand revision. Auto-repeat is consumed to avoid unbounded repeated commands unless an explicit repeat policy is added later.
+- Shortcuts are installed only on the canvas/viewports, not the layer list or numeric inspector; list navigation and spin-box editing retain native behavior.
+- If there is no selection, the project is reconciling/stopping, or any selected target is transform-locked, no project mutation occurs.
+- Group selection uses the same atomic normalized delta for every member and one project revision.
+- New defaults use the existing remappable shortcut registry and must not conflict with timeline arrow navigation because scopes are disjoint.
+
+### Tests
+
+- Exact one-pixel and ten-pixel normalized deltas for portrait and landscape output.
+- Same output-pixel movement at two canvas zoom levels / viewport sizes.
+- Group nudge is atomic and preserves relative offsets.
+- Locked/missing selection and key auto-repeat do not mutate the project.
+- Layer tree arrow keys remain native; numeric inspector arrow keys remain native.
+- Run focused shortcut/layer tests, plan integrity and exact four-runner CI.
+
+### Acceptance boundary
+
+This slice implements positional keyboard nudging only. It does not add text/logo content editing, snap guides for keyboard movement, preview/export parity or physical HiDPI/IME certification.
