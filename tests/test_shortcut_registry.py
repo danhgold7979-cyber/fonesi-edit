@@ -44,6 +44,16 @@ def test_shortcut_registry_persists_preferences_and_rejects_scope_conflicts(tmp_
     assert second.sequence('layer.undo')=='Ctrl+Z'
 
 
+def test_matches_uses_qt_modifier_enum_value_for_chords(tmp_path):
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtCore import QEvent
+    registry=ShortcutRegistry(settings=_settings(tmp_path/'matches.ini'))
+    event=QKeyEvent(QEvent.Type.KeyPress,Qt.Key.Key_Z,
+                    Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.ShiftModifier)
+    assert registry.matches('layer.redo',event)
+    assert not registry.matches('layer.undo',event)
+
+
 def test_shortcut_settings_panel_search_remap_conflict_and_reset(tmp_path,qt_app):
     registry=ShortcutRegistry(settings=_settings(tmp_path/'panel.ini'))
     panel=ShortcutSettingsPanel(registry);panel.show()
