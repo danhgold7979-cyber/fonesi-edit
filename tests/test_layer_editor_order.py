@@ -21,7 +21,7 @@ def test_layer_order_updates_z_values_and_undoes(tmp_path,qt_app):
             editor.add_mask();first=window.session.project.plan.to_dict()['layers'][0]['id']
             editor.add_mask();second=window.session.project.plan.to_dict()['layers'][1]['id']
             assert window.session.revision==2
-            editor.move_selected(1)
+            editor.move_selected(-1)  # move the selected layer behind the lower-z layer
             ordered=sorted(window.session.project.plan.to_dict()['layers'],key=lambda x:x['z'])
             assert [x['id'] for x in ordered]==[second,first]
             assert [x['z'] for x in ordered]==[0,1]
