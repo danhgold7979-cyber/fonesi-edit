@@ -581,6 +581,11 @@ class LayerEditorWorkspace(QWidget):
                     is_selected=item.layer_id in ids
                     item.setSelected(is_selected)
                     layer=next(x for x in data['layers'] if x['id']==item.layer_id)
+                    show_handles=(len(ids)==1 and is_selected and not locked(layer))
+                    if item.show_handles!=show_handles:
+                        item.prepareGeometryChange()
+                        item.show_handles=show_handles
+                    item.update()
                     item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
                                  not locked(layer) and (not selected_locked if is_selected else True))
         finally:self.syncing=False
