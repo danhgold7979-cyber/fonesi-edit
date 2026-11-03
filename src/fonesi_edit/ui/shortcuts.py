@@ -87,7 +87,7 @@ class ShortcutRegistry(QObject):
 
     def _overlap(self,first,second):
         a=self._specs[first][1];b=self._specs[second][1]
-        return a==b or a=='Ứng dụng' or b=='Ứng dụng'
+        return a==b or a in {'Ứng dụng','Editor'} or b in {'Ứng dụng','Editor'}
 
     def set_sequence(self,action_id,sequence):
         if action_id not in self._specs:raise ShortcutError('Unknown shortcut action')
