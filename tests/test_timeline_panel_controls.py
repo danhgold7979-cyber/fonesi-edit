@@ -88,12 +88,12 @@ def test_playhead_stops_at_last_valid_output_frame(tmp_path,qt_app):
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater()
 
-def test_in_out_markers_are_half_open_transient_and_clearable(tmp_path,qt_app):
+def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt_app):
     project=empty_project(NewProjectIntent('Timeline range markers',1920,1080,Fraction(30),Fraction(10)))
     path=tmp_path/'project.json';save_project_file(path,project)
     record=_record(tmp_path/'marker.mp4',b'marker clip')
     with ProjectStore(tmp_path/'store.db') as store:
-        window=MainWindow(store);window.show()
+        window=MainWindow(store);reopened=None;window.show()
         try:
             window.open_project(path)
             addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
@@ -103,23 +103,41 @@ def test_in_out_markers_are_half_open_transient_and_clearable(tmp_path,qt_app):
             timeline.playhead_slider.setValue(10)
             timeline.set_in_button.click()
             assert timeline._in_frame==10 and timeline._out_frame is None
+            assert window.session.revision==before+1
+            assert window.session.project.plan.to_dict()['timeline_range']=={'in_frame':10,'out_frame':None}
             timeline.playhead_slider.setValue(20)
             timeline.set_out_button.click()
             assert timeline._out_frame==21
             assert '11 frame' in timeline.range_label.text()
             assert 'Out 21' in timeline.range_label.text()
-            assert window.session.revision==before
+            assert window.session.revision==before+2
+            assert window.session.project.plan.to_dict()['timeline_range']=={'in_frame':10,'out_frame':21}
             from PySide6.QtWidgets import QGraphicsTextItem
             assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='IN' for item in timeline.scene.items())
             assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='OUT' for item in timeline.scene.items())
-            timeline.clear_range_button.click()
-            assert timeline._in_frame is None and timeline._out_frame is None
-            assert 'Chưa chọn vùng' in timeline.range_label.text()
-            assert window.session.revision==before
-        finally:
+            window.session.save()
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater()
+
+            reopened=MainWindow(store);reopened.show();reopened.open_project(path)
+            restored=reopened.timeline_panel
+            assert restored._in_frame==10 and restored._out_frame==21
+            assert '11 frame' in restored.range_label.text()
+            assert reopened.session.project.plan.to_dict()['timeline_range']=={'in_frame':10,'out_frame':21}
+            before_clear=reopened.session.revision
+            restored.clear_range_button.click()
+            assert restored._in_frame is None and restored._out_frame is None
+            assert 'Chưa chọn vùng' in restored.range_label.text()
+            assert reopened.session.revision==before_clear+1
+            assert 'timeline_range' not in reopened.session.project.plan.to_dict()
+            reopened.session.save()
+        finally:
+            for current in (reopened,window):
+                if current is not None:
+                    current.close()
+                    wait_for(qt_app,lambda current=current:not current.background_busy and not current.isVisible())
+                    current.deleteLater()
 
 
 def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
@@ -145,7 +163,7 @@ def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
             window.deleteLater()
 
 
-def test_timeline_i_o_escape_shortcuts_set_and_clear_range_without_project_edits(tmp_path,qt_app):
+def test_timeline_i_o_escape_shortcuts_persist_and_clear_range(tmp_path,qt_app):
     project=empty_project(NewProjectIntent('Timeline marker shortcuts',1920,1080,Fraction(30),Fraction(10)))
     path=tmp_path/'project.json';save_project_file(path,project)
     record=_record(tmp_path/'shortcut-marker.mp4',b'marker shortcut')
@@ -163,12 +181,15 @@ def test_timeline_i_o_escape_shortcuts_set_and_clear_range_without_project_edits
             from PySide6.QtCore import Qt
             QTest.keyClick(timeline.clip_list,Qt.Key.Key_I)
             assert timeline._in_frame==10
+            assert window.session.revision==before+1
             timeline.playhead_slider.setValue(20)
             QTest.keyClick(timeline.clip_list,Qt.Key.Key_O)
             assert timeline._out_frame==21
+            assert window.session.revision==before+2
             QTest.keyClick(timeline.clip_list,Qt.Key.Key_Escape)
             assert timeline._in_frame is None and timeline._out_frame is None
-            assert window.session.revision==before
+            assert window.session.revision==before+3
+            assert 'timeline_range' not in window.session.project.plan.to_dict()
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
