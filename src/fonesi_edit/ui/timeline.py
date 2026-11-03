@@ -3,6 +3,7 @@ from copy import deepcopy
 from fractions import Fraction
 
 from pathlib import Path
+from uuid import uuid4
 from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
@@ -116,7 +117,7 @@ class TimelinePanel(QWidget):
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0;self._waveform_generation=0
-        self._in_frame=None;self._out_frame=None;self._frame_total=0
+        self._in_frame=None;self._out_frame=None;self._frame_total=0;self.selected_marker_id=None
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
         self.waveform_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
@@ -140,6 +141,17 @@ class TimelinePanel(QWidget):
         for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
         layout.addLayout(controls)
         self.action_message=QLabel('');self.action_message.setWordWrap(True);layout.addWidget(self.action_message)
+        marker_controls=QHBoxLayout()
+        self.add_marker_button=QPushButton('Thêm marker (M)')
+        self.remove_marker_button=QPushButton('Xóa marker chọn')
+        self.marker_count_label=QLabel('Chưa có marker')
+        marker_controls.addWidget(self.add_marker_button);marker_controls.addWidget(self.remove_marker_button)
+        marker_controls.addWidget(self.marker_count_label);layout.addLayout(marker_controls)
+        self.marker_list=QListWidget();self.marker_list.setMaximumHeight(88)
+        self.marker_list.currentRowChanged.connect(self._select_timeline_marker)
+        layout.addWidget(self.marker_list)
+        self.add_marker_button.clicked.connect(self.add_timeline_marker)
+        self.remove_marker_button.clicked.connect(self.remove_timeline_marker)
         crop_title=QLabel('Crop clip — tọa độ chuẩn hóa 0..1')
         layout.addWidget(crop_title)
         crop_form=QFormLayout();self.crop_spins={}
@@ -212,6 +224,7 @@ class TimelinePanel(QWidget):
             ('timeline.end',lambda:self.playhead_slider.setValue(self.playhead_slider.maximum())),
             ('timeline.mark_in',self.set_in_marker),
             ('timeline.mark_out',self.set_out_marker),
+            ('timeline.add_marker',self.add_timeline_marker),
             ('timeline.clear_range',self.clear_range_markers),
         )
         self.timeline_shortcut_router=ShortcutEventRouter(
@@ -220,15 +233,100 @@ class TimelinePanel(QWidget):
                         'timeline.previous_10','timeline.next_10',
                         'timeline.start','timeline.end'),
         )
-        for owner in (self.clip_list,self.clip_list.viewport(),self.view,self.view.viewport()):
+        for owner in (self.clip_list,self.clip_list.viewport(),self.marker_list,self.marker_list.viewport(),self.view,self.view.viewport()):
             owner.installEventFilter(self.timeline_shortcut_router)
-        help_text='Timeline: phím tắt có thể đổi trong Cài đặt → Phím tắt. Ô crop giữ phím chỉnh sửa riêng.'
+        help_text='Timeline: M thêm marker; I/O đặt vùng; phím tắt có thể đổi trong Cài đặt. Ô crop giữ phím chỉnh sửa riêng.'
         self.clip_list.setToolTip(help_text);self.view.setToolTip(help_text)
 
     def _step_playhead(self,delta):
         if self.stopping or self.playhead_slider.isSliderDown():return
         self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
             min(self.playhead_slider.maximum(),self.playhead_slider.value()+delta)))
+
+    def _select_timeline_marker(self,row):
+        item=self.marker_list.item(row) if row>=0 else None
+        if item is None:
+            self.selected_marker_id=None
+            self.update_actions()
+            return
+        marker_id=item.data(Qt.ItemDataRole.UserRole)
+        self.selected_marker_id=marker_id
+        session=self.get_session()
+        if session is not None:
+            marker=next((x for x in session.project.plan.to_dict().get('timeline_markers',[])
+                         if x['id']==marker_id),None)
+            if marker is not None:self.playhead_slider.setValue(marker['frame'])
+        self.update_actions()
+
+    def _commit_timeline_markers(self,markers):
+        session=self.get_session()
+        if session is None or self.stopping:return False
+        if session.reconciliation_required:
+            self.action_message.setText('Project cần đối soát; không thay đổi timeline markers.')
+            return False
+        expected=session.revision
+        data=session.project.plan.to_dict()
+        if markers:data['timeline_markers']=markers
+        else:data.pop('timeline_markers',None)
+        data['revision']=expected+1
+        data['provenance']['project_revision']=expected+1
+        try:
+            plan=CompositionPlan.parse(data)
+            session.commit(CompletedCommand(session.project.with_plan(plan),expected))
+        except Exception:
+            self.action_message.setText('Không xác nhận được thay đổi marker; project không được tự gửi lại.')
+            return False
+        self.project_changed.emit()
+        return True
+
+    def add_timeline_marker(self):
+        session=self.get_session()
+        if session is None or self.stopping:return
+        if session.reconciliation_required:
+            self.action_message.setText('Project cần đối soát; không thêm marker.')
+            return
+        markers=list(session.project.plan.to_dict().get('timeline_markers',[]))
+        if len(markers)>=1000:
+            self.action_message.setText('Đã đạt giới hạn 1000 marker của project.')
+            return
+        frame=self._playhead
+        if any(marker['frame']==frame for marker in markers):
+            self.action_message.setText('Frame hiện tại đã có marker; hãy chuyển playhead tới frame khác.')
+            return
+        used={marker['label'] for marker in markers}
+        number=1
+        while f'M{number}' in used:number+=1
+        marker={'id':str(uuid4()),'frame':frame,'label':f'M{number}'}
+        markers.append(marker)
+        previous=self.selected_marker_id
+        self.selected_marker_id=marker['id']
+        if not self._commit_timeline_markers(markers):
+            self.selected_marker_id=previous
+            return
+        self.action_message.setText(f"Đã lưu marker {marker['label']} tại frame {frame}.")
+
+    def remove_timeline_marker(self):
+        session=self.get_session()
+        if session is None or self.stopping:return
+        if session.reconciliation_required:
+            self.action_message.setText('Project cần đối soát; không xóa marker.')
+            return
+        if self.selected_marker_id is None:
+            self.action_message.setText('Chọn marker cần xóa trong danh sách trước.')
+            return
+        markers=list(session.project.plan.to_dict().get('timeline_markers',[]))
+        remaining=[marker for marker in markers if marker['id']!=self.selected_marker_id]
+        if len(remaining)==len(markers):
+            self.selected_marker_id=None
+            self.action_message.setText('Marker đã không còn trong project; danh sách sẽ được làm mới.')
+            self.update_project()
+            return
+        removed=self.selected_marker_id
+        self.selected_marker_id=None
+        if not self._commit_timeline_markers(remaining):
+            self.selected_marker_id=removed
+            return
+        self.action_message.setText('Đã xóa marker khỏi project.')
 
     def _commit_range_markers(self,in_frame,out_frame):
         session=self.get_session()
@@ -541,6 +639,10 @@ class TimelinePanel(QWidget):
         self.zoom_slider.setEnabled(session is not None)
         markers_ready=session is not None and not self.stopping
         for button in (self.set_in_button,self.set_out_button,self.clear_range_button):button.setEnabled(markers_ready)
+        timeline_markers=[] if session is None else session.project.plan.to_dict().get('timeline_markers',[])
+        marker_ready=markers_ready and not session.reconciliation_required
+        self.add_marker_button.setEnabled(marker_ready and len(timeline_markers)<1000)
+        self.remove_marker_button.setEnabled(marker_ready and any(x['id']==self.selected_marker_id for x in timeline_markers))
         preview_inside=False
         if available:
             preview_start=_q(clip['output_start'])
@@ -658,8 +760,12 @@ class TimelinePanel(QWidget):
         self.scene.clear();self._playhead_marker=None
         if session is None:
             self._last_project_id=None;self.selected_clip_id=None;self._playhead=0
-            self._in_frame=None;self._out_frame=None;self._frame_total=0
+            self._in_frame=None;self._out_frame=None;self._frame_total=0;self.selected_marker_id=None
             self.range_label.setText('Chưa chọn vùng In/Out')
+            blocked=self.marker_list.blockSignals(True)
+            try:self.marker_list.clear()
+            finally:self.marker_list.blockSignals(blocked)
+            self.marker_count_label.setText('Chưa có marker')
             self._crop_original=None;self._crop_revision=None;self._fit_transform=None
             self.scene.setSceneRect(QRectF(0,0,1000,180))
             blocked=self.clip_list.blockSignals(True)
@@ -675,7 +781,7 @@ class TimelinePanel(QWidget):
         if self._last_project_id != data['id']:
             if self._last_project_id is not None:self._invalidate_preview('Project identity changed; previous preview discarded.')
             self._last_project_id=data['id'];self.selected_clip_id=None;self._playhead=0
-            self._in_frame=None;self._out_frame=None
+            self._in_frame=None;self._out_frame=None;self.selected_marker_id=None
         output_duration=_q(data['output']['duration'])
         self._fps=_q(data['output']['fps'])
         blocked=self.clip_list.blockSignals(True)
@@ -694,6 +800,19 @@ class TimelinePanel(QWidget):
         self._in_frame=None if stored_range is None else stored_range['in_frame']
         self._out_frame=None if stored_range is None else stored_range['out_frame']
         self.range_label.setText(self._range_label())
+        timeline_markers=data.get('timeline_markers',[])
+        marker_ids={marker['id'] for marker in timeline_markers}
+        if self.selected_marker_id not in marker_ids:self.selected_marker_id=None
+        blocked=self.marker_list.blockSignals(True)
+        try:
+            self.marker_list.clear()
+            for marker in sorted(timeline_markers,key=lambda x:(x['frame'],x['id'])):
+                item=QListWidgetItem(f"{marker['label']} · frame {marker['frame']}")
+                item.setData(Qt.ItemDataRole.UserRole,marker['id'])
+                self.marker_list.addItem(item)
+                if marker['id']==self.selected_marker_id:self.marker_list.setCurrentItem(item)
+        finally:self.marker_list.blockSignals(blocked)
+        self.marker_count_label.setText(f'{len(timeline_markers)} marker' if timeline_markers else 'Chưa có marker')
         max_frame=max(0,frame_total-1)
         blocked=self.playhead_slider.blockSignals(True)
         try:
@@ -786,6 +905,15 @@ class TimelinePanel(QWidget):
             self.scene.addItem(out_line)
             out_text=QGraphicsTextItem('OUT');out_text.setDefaultTextColor(QColor('#f08a8a'))
             out_text.setPos(out_x+2,18);out_text.setZValue(9001);self.scene.addItem(out_text)
+        for marker in sorted(timeline_markers,key=lambda x:(x['frame'],x['id'])):
+            marker_x=left+float(Fraction(marker['frame'],1)/self._fps)*scale
+            marker_line=QGraphicsRectItem(QRectF(marker_x-1,20,2,170))
+            marker_line.setBrush(QBrush(QColor('#e6b44a')));marker_line.setPen(QPen(Qt.PenStyle.NoPen))
+            marker_line.setZValue(8800);marker_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            marker_line.setToolTip(f"{marker['label']} · frame {marker['frame']}")
+            self.scene.addItem(marker_line)
+            marker_text=QGraphicsTextItem(marker['label']);marker_text.setDefaultTextColor(QColor('#e6b44a'))
+            marker_text.setPos(marker_x+2,188);marker_text.setZValue(8801);self.scene.addItem(marker_text)
         self._playhead_marker=QGraphicsRectItem(QRectF(0,18,2,174))
         self._playhead_marker.setBrush(QBrush(QColor('#f4d35e')))
         self._playhead_marker.setPen(QPen(Qt.PenStyle.NoPen))
