@@ -112,3 +112,32 @@ def test_candidate_display_is_bounded_without_truncating_selected_path(qt_app):
     assert len(output.splitlines())==65 and len(output)<40000
     assert text(panel,0,2)==candidates[0].path and '…' in output
     panel.close()
+
+def test_f5_rescans_metadata_only_from_tool_table_and_rebinds_live(qt_app,tmp_path,monkeypatch):
+    from PySide6.QtCore import Qt,QSettings
+    from PySide6.QtTest import QTest
+    from fonesi_edit.ui.shortcuts import ShortcutRegistry
+    calls=[];real=ui.discover_tools
+    def scan(**kwargs):
+        calls.append(threading.get_ident())
+        return real(**kwargs)
+    monkeypatch.setattr(ui,'discover_tools',scan)
+    monkeypatch.setattr(ui,'system_search_dirs',lambda:())
+    registry=ShortcutRegistry(settings=QSettings(str(tmp_path/'shortcuts.ini'),QSettings.Format.IniFormat))
+    panel=ui.ToolInventoryPanel(shortcut_registry=registry)
+    panel.system.setChecked(False);panel.show()
+    try:
+        panel.table.setFocus()
+        QTest.keyClick(panel.table,Qt.Key.Key_F5)
+        spin(qt_app,lambda:not panel.busy)
+        assert len(calls)==1 and calls[0]!=threading.get_ident()
+        registry.set_sequence('tools.rescan','Ctrl+Alt+R')
+        QTest.keyClick(panel.table,Qt.Key.Key_F5)
+        qt_app.processEvents()
+        assert len(calls)==1
+        QTest.keyClick(panel.table,Qt.Key.Key_R,Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.AltModifier)
+        spin(qt_app,lambda:not panel.busy and len(calls)==2)
+        assert calls[1]!=threading.get_ident()
+        assert 'không chạy' in panel.message.text().lower() or 'COMPLETE' in panel.message.text()
+    finally:
+        panel.close();panel.deleteLater()
