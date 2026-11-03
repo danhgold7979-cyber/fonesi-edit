@@ -5,7 +5,7 @@ from math import atan2,degrees
 from uuid import uuid4
 
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
-from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath, QShortcut, QKeySequence
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
     QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
@@ -199,7 +199,25 @@ class LayerEditorWorkspace(QWidget):
         self.safe_check.toggled.connect(lambda _checked:self.update_project())
         self.undo_button.clicked.connect(self.undo);self.redo_button.clicked.connect(self.redo)
         self.scene.selectionChanged.connect(self.scene_selected)
+        self._shortcuts=[]
+        self._install_shortcuts()
         self.update_project()
+
+    def _install_shortcuts(self):
+        bindings=(
+            ('Ctrl+Z',self.undo),('Ctrl+Y',self.redo),('Delete',self.delete_selected),
+            ('Ctrl+G',self.group_selected),('Ctrl+Shift+G',self.ungroup_selected),
+            ('Alt+Up',lambda:self.move_selected(1)),
+            ('Alt+Down',lambda:self.move_selected(-1)),
+        )
+        for owner in (self.layers,self.view):
+            for sequence,callback in bindings:
+                shortcut=QShortcut(QKeySequence(sequence),owner)
+                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+                shortcut.activated.connect(callback)
+                self._shortcuts.append(shortcut)
+        help_text='Phím tắt (khi focus ở danh sách/canvas): Ctrl+Z/Y, Delete, Ctrl+G, Ctrl+Shift+G, Alt+Up/Down. Ô số giữ phím tắt chỉnh sửa riêng.'
+        self.layers.setToolTip(help_text);self.view.setToolTip(help_text)
 
     @property
     def busy(self):return False
