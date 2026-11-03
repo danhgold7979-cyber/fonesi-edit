@@ -10,6 +10,37 @@ def test_valid_models_roundtrip(fixture,request):
     assert CompositionPlan.parse(p.canonical_json)==p
     assert p.to_dict()==data
 
+def test_timeline_range_is_optional_and_validated_as_half_open_output_frames(empty_plan):
+    # Legacy plans remain valid; persisted work-area metadata is optional.
+    assert 'timeline_range' not in empty_plan
+    assert CompositionPlan.parse(empty_plan).to_dict()==empty_plan
+
+    empty_plan['timeline_range']={'in_frame':29,'out_frame':30}
+    parsed=CompositionPlan.parse(empty_plan)
+    assert parsed.to_dict()['timeline_range']=={'in_frame':29,'out_frame':30}
+
+    empty_plan['timeline_range']={'in_frame':29,'out_frame':None}
+    assert CompositionPlan.parse(empty_plan).to_dict()['timeline_range']=={'in_frame':29,'out_frame':None}
+
+
+@pytest.mark.parametrize('timeline_range',[
+    {'in_frame':None,'out_frame':10},
+    {'in_frame':None,'out_frame':None},
+    {'in_frame':0,'out_frame':0},
+    {'in_frame':10,'out_frame':9},
+    {'in_frame':30,'out_frame':None},
+    {'in_frame':0,'out_frame':31},
+    {'in_frame':True,'out_frame':2},
+    {'in_frame':0,'out_frame':False},
+    {'in_frame':0},
+    {'in_frame':0,'out_frame':2,'unexpected':'field'},
+])
+def test_invalid_timeline_range_fails_closed(empty_plan,timeline_range):
+    empty_plan['timeline_range']=timeline_range
+    with pytest.raises(PlanError):
+        CompositionPlan.parse(empty_plan)
+
+
 def test_no_unchecked_constructor():
     with pytest.raises(TypeError):CompositionPlan('{}',())
 
