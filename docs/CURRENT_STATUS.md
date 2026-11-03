@@ -221,3 +221,30 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Open P04 gates include physical Windows GUI/Explorer/HiDPI/IME, full effect-property catalog, interactive crop and text/logo editing, unified editor history, timeline loop/marker rename-drag, persistent encoded proxies, continuous playback and synchronized A/V seek, full Settings installer/update/repair/rollback and Chrome profile/account readiness, plus renderer/export parity. External live provider, GPU and real-media evidence remain separate.
 
 Next implementation slice: continue P04-01 by auditing appearance/window settings against the full UX contract and filling any remaining persistence/focus/accessibility gaps before moving to the next independently implementable P04 task. Do not mark P04-01 or P04 complete until its full task and external acceptance criteria are evidenced.
+
+
+## Latest verified checkpoint — 2026-11-03 15:45 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch `main` remains unchanged. Latest verified implementation commit: `dfeb4b32caecf12b6d85906eb4ff008a084caebe`. Exact four-runner verification commit: `f12419341dec4890b980fcbf5383e209703b2eb7`. The current documentation reconciliation is separate from source code.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 53%** (manual task-scope estimate, not test coverage or acceptance). Task estimates: P04-01 75%, P04-02 50%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance is 0/8.
+
+P04-01 additions since the previous checkpoint:
+- Appearance preferences persist theme, base font size and in-app zoom in the user settings store; reset remains scoped to appearance.
+- Main-window geometry/state, navigation row, Editor tab and Settings tab persist with corrupt/oversized geometry fallback and pending-close safety.
+- Inspector Basic/Advanced mode now persists independently under `editor/inspector_advanced`. Missing/malformed values default to Basic; legacy direct workspace construction remains compatible; appearance reset preserves this preference. Regression tests cover persistence, reset isolation and malformed values.
+
+Exact GitHub Actions clean-foundation run 41605294255 completed SUCCESS on verification commit `f12419341dec4890b980fcbf5383e209703b2eb7` (source code unchanged from `dfeb4b32caecf12b6d85906eb4ff008a084caebe`):
+- Ubuntu Python 3.12.15: 956 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 956 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 969 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 969 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners. Windows Python 3.12 development onedir build PASS and five scoped frozen CLI boundary checks PASS. Separate pinned Windows FFmpeg capability workflow SKIPPED.
+
+The first attempt at the new Inspector tests passed pytest on all four runners but failed the plan-integrity step because a historical Actions URL remained in CURRENT_STATUS.md. The URL was removed in `f124193`; the exact four-runner rerun then passed. No assertions or product guards were weakened.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS and 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+Open P04 gates remain: physical Windows GUI/Explorer/HiDPI/IME, complete Inspector/effect property catalog, interactive crop and text/logo editing, unified editor history, timeline loop and marker rename/drag, persistent encoded proxies, continuous playback and synchronized A/V seek, complete Settings installer/update/repair/rollback and Chrome profile/account readiness, plus renderer/export parity. Live provider, GPU and real-media evidence remain separate.
+
+Next: continue P04-01 with the remaining property/disabled-state coverage and accessibility/layout behavior, then continue P04-02 geometry/crop interactions. Do not mark P04-01 or P04 complete until all task and external acceptance criteria are evidenced.
