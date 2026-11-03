@@ -221,7 +221,7 @@ class ToolInventoryPanel(QWidget):
         self.preference_worker=None;self.preference_revision=None;worker.deleteLater();self.update_actions();self.idle.emit()
         if auto_eligible and self.saved_snapshot==applied:
             applied_revision=self.revision;expected=applied.value
-            QTimer.singleShot(0,lambda:self._first_scan(auto_generation,applied_revision,expected))
+            QTimer.singleShot(0,self,lambda:self._first_scan(auto_generation,applied_revision,expected))
     def request_stop(self):self.stopping=True;self.cancel();self.update_actions()
     def closeEvent(self,event):
         self.request_stop()
