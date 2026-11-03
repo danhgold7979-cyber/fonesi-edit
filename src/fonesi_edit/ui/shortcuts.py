@@ -1,9 +1,9 @@
 """User-remappable, focus-scoped shortcut registry and searchable settings panel."""
-from PySide6.QtCore import QObject, QSettings, Qt, Signal
+from PySide6.QtCore import QObject, QSettings, Qt, Signal, QEvent
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QListWidget,QListWidgetItem,
-    QKeySequenceEdit,QPushButton,QFormLayout,
+    QKeySequenceEdit,QPushButton,QFormLayout,QAbstractSpinBox,QPlainTextEdit,QTextEdit,
 )
 
 
@@ -116,6 +116,37 @@ class ShortcutRegistry(QObject):
         combined=(event.modifiers() & modifiers).value|int(event.key())
         actual=QKeySequence(combined).toString(QKeySequence.SequenceFormat.PortableText)
         return bool(actual) and actual==self.sequence(action_id)
+
+
+class ShortcutEventRouter(QObject):
+    """Dispatch shared-registry shortcuts only from explicitly installed focus scopes."""
+    def __init__(self,registry,bindings,parent=None,*,ignore_text_entry=False,repeatable=()):
+        super().__init__(parent)
+        self.registry=registry
+        self.bindings=tuple(bindings)
+        self.ignore_text_entry=ignore_text_entry
+        self.repeatable=frozenset(repeatable)
+
+    def _is_text_entry(self,watched):
+        if not self.ignore_text_entry:return False
+        current=watched
+        text_types=(QLineEdit,QTextEdit,QPlainTextEdit,QAbstractSpinBox,QKeySequenceEdit)
+        while current is not None:
+            if isinstance(current,text_types):return True
+            parent=getattr(current,'parentWidget',None)
+            current=parent() if parent is not None else None
+        return False
+
+    def eventFilter(self,watched,event):
+        if event.type()!=QEvent.Type.KeyPress or self._is_text_entry(watched):return False
+        for action_id,callback in self.bindings:
+            if not self.registry.matches(action_id,event):continue
+            if event.isAutoRepeat() and action_id not in self.repeatable:
+                event.accept();return True
+            callback()
+            event.accept()
+            return True
+        return False
 
 
 class ShortcutSettingsPanel(QWidget):
