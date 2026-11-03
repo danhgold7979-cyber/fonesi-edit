@@ -44,6 +44,8 @@ def _portable(sequence):
         raise ShortcutError('A Qt key sequence or text sequence is required')
     if value.isEmpty():
         raise ShortcutError('Shortcut cannot be empty')
+    if value.count()!=1:
+        raise ShortcutError('Only one key chord per shortcut is supported in this editor slice')
     normalized=value.toString(QKeySequence.SequenceFormat.PortableText)
     if not normalized:
         raise ShortcutError('Shortcut cannot be empty')
