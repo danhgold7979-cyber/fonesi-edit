@@ -1,10 +1,11 @@
 """Basic layer list and numeric transform editor backed by ProjectSession CAS."""
 from copy import deepcopy
 from fractions import Fraction
+from math import atan2,degrees
 from uuid import uuid4
 
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
-from PySide6.QtGui import QColor, QBrush, QPen
+from PySide6.QtGui import QColor, QBrush, QPen, QPainter
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
     QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
@@ -29,11 +30,13 @@ def offset(anchor,w,h):
     return x,y
 
 class LayerBoundsItem(QGraphicsRectItem):
-    def __init__(self,layer,width,height,moved,can_move=True):
+    def __init__(self,layer,width,height,moved,can_move=True,resized=None,rotated=None,show_handles=True):
         t=layer['transform'];w=val(t['width'])*width*val(t['scale_x']);h=val(t['height'])*height*val(t['scale_y'])
         x,y=offset(t['anchor'],w,h)
         super().__init__(QRectF(x,y,w,h))
-        self.layer_id=layer['id'];self.moved=moved;self.pressed=None
+        self.layer_id=layer['id'];self.moved=moved;self.resized=resized;self.rotated=rotated
+        self.anchor=t['anchor'];self.show_handles=show_handles;self.pressed=None
+        self.resize_state=None;self.rotate_state=None
         self.setPos(val(t['x'])*width,val(t['y'])*height)
         self.setRotation(val(t['rotation']));self.setOpacity(val(t['opacity']))
         self.setZValue(layer['z']+1)
@@ -46,11 +49,84 @@ class LayerBoundsItem(QGraphicsRectItem):
         else:fill=QColor(90,170,240,45);edge=QColor(90,190,255)
         self.setBrush(QBrush(fill));self.setPen(QPen(edge,2,Qt.PenStyle.DashLine))
 
+    def _resize_handles(self):
+        r=self.rect();cx=r.center().x();cy=r.center().y()
+        return {
+            'nw':r.topLeft(),'n':QPointF(cx,r.top()),'ne':r.topRight(),
+            'e':QPointF(r.right(),cy),'se':r.bottomRight(),
+            's':QPointF(cx,r.bottom()),'sw':r.bottomLeft(),'w':QPointF(r.left(),cy),
+        }
+
+    def _rotation_handle(self):
+        r=self.rect()
+        return QPointF(r.center().x(),r.top()-24)
+
+    def paint(self,painter,option,widget=None):
+        super().paint(painter,option,widget)
+        if not self.isSelected() or not self.show_handles:return
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+        painter.setPen(QPen(QColor('#17212b'),1))
+        painter.setBrush(QBrush(QColor('#f5f7fa')))
+        for point in self._resize_handles().values():
+            painter.drawRect(QRectF(point.x()-4,point.y()-4,8,8))
+        handle=self._rotation_handle()
+        painter.setBrush(QBrush(QColor('#f4d35e')))
+        painter.drawLine(QPointF(self.rect().center().x(),self.rect().top()),handle)
+        painter.drawEllipse(handle,6,6)
+        painter.restore()
+
     def mousePressEvent(self,event):
+        if self.isSelected() and self.show_handles:
+            point=QPointF(event.pos())
+            for name,handle in self._resize_handles().items():
+                if (point-handle).manhattanLength()<=12:
+                    self.resize_state={'handle':name,'start':point,'rect':QRectF(self.rect())}
+                    self.pressed=None;event.accept();return
+            rotation_handle=self._rotation_handle()
+            if (point-rotation_handle).manhattanLength()<=12:
+                anchor_scene=self.mapToScene(QPointF(0,0))
+                vector=event.scenePos()-anchor_scene
+                self.rotate_state={'start_angle':degrees(atan2(vector.y(),vector.x())),
+                                   'start_rotation':self.rotation()}
+                self.pressed=None;event.accept();return
         self.pressed=QPointF(self.pos())
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self,event):
+        if self.resize_state is not None:
+            state=self.resize_state;name=state['handle'];original=state['rect']
+            delta=QPointF(event.pos())-state['start']
+            left,right=original.left(),original.right()
+            top,bottom=original.top(),original.bottom()
+            if 'w' in name:left=min(right-12,left+delta.x())
+            if 'e' in name:right=max(left+12,right+delta.x())
+            if 'n' in name:top=min(bottom-12,top+delta.y())
+            if 's' in name:bottom=max(top+12,bottom+delta.y())
+            self.setRect(QRectF(QPointF(left,top),QPointF(right,bottom)))
+            self.update();event.accept();return
+        if self.rotate_state is not None:
+            anchor_scene=self.mapToScene(QPointF(0,0))
+            vector=event.scenePos()-anchor_scene
+            angle=degrees(atan2(vector.y(),vector.x()))
+            delta=(angle-self.rotate_state['start_angle']+180)%360-180
+            self.setRotation(self.rotate_state['start_rotation']+delta)
+            self.update();event.accept();return
+        super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self,event):
+        if self.resize_state is not None:
+            rect=QRectF(self.rect());state=self.resize_state;self.resize_state=None
+            ox,oy=offset(self.anchor,rect.width(),rect.height())
+            anchor_scene=self.mapToScene(QPointF(rect.left()-ox,rect.top()-oy))
+            if self.resized is not None:
+                QTimer.singleShot(0,lambda:self.resized(self.layer_id,rect.width(),rect.height(),anchor_scene))
+            event.accept();return
+        if self.rotate_state is not None:
+            rotation=self.rotation();self.rotate_state=None
+            if self.rotated is not None:
+                QTimer.singleShot(0,lambda:self.rotated(self.layer_id,rotation))
+            event.accept();return
         super().mouseReleaseEvent(event)
         if self.pressed is not None and self.pos()!=self.pressed:
             layer_id=self.layer_id;position=QPointF(self.pos());origin=QPointF(self.pressed)
@@ -190,7 +266,8 @@ class LayerEditorWorkspace(QWidget):
             for layer in data['layers']:
                 if not layer['visible']:continue
                 can_move=not selected_locked if layer['id'] in self.selected_ids else not locked(layer)
-                item=LayerBoundsItem(layer,W,H,self.dragged,can_move)
+                show_handles=len(self.selected_ids)==1 and layer['id'] in self.selected_ids
+                item=LayerBoundsItem(layer,W,H,self.dragged,can_move,self.resized,self.rotated,show_handles)
                 self.scene.addItem(item)
                 if layer['id'] in self.selected_ids:item.setSelected(True)
             self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
@@ -265,6 +342,30 @@ class LayerEditorWorkspace(QWidget):
         ids={x.layer_id for x in items}
         primary=items[-1].layer_id if items else None
         self._sync_selection(ids,primary)
+
+    def resized(self,layer_id,width_px,height_px,anchor_scene):
+        data=self.data()
+        if data is None:return
+        layer=next((x for x in data['layers'] if x['id']==layer_id),None)
+        if layer is None or locked(layer):self.update_project();return
+        t=layer['transform'];W=data['output']['width'];H=data['output']['height']
+        sx=Fraction(t['scale_x'][0],t['scale_x'][1]);sy=Fraction(t['scale_y'][0],t['scale_y'][1])
+        if sx<=0 or sy<=0:self.update_project();return
+        t['width']=pair(Fraction(str(width_px))/(W*sx))
+        t['height']=pair(Fraction(str(height_px))/(H*sy))
+        t['x']=pair(Fraction(str(anchor_scene.x()))/W)
+        t['y']=pair(Fraction(str(anchor_scene.y()))/H)
+        self.selected_id=layer_id;self.selected_ids={layer_id}
+        self.commit(data,'đổi kích thước layer trên canvas')
+
+    def rotated(self,layer_id,rotation):
+        data=self.data()
+        if data is None:return
+        layer=next((x for x in data['layers'] if x['id']==layer_id),None)
+        if layer is None or locked(layer):self.update_project();return
+        layer['transform']['rotation']=pair(rotation)
+        self.selected_id=layer_id;self.selected_ids={layer_id}
+        self.commit(data,'xoay layer trên canvas')
 
     def dragged(self,layer_id,position,origin=None,alt=False):
         data=self.data()
