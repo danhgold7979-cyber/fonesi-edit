@@ -272,3 +272,18 @@ Current code checkpoint: `3e0efdc1b5a9fb4bf5fad978ed1345956463f663`. Clean-found
 | Windows / Python 3.13 | 917 | 26 | 0 | PASS |
 
 Windows Python 3.12 also completed the development onedir build and scoped frozen CLI boundary checks. The separate pinned Windows FFmpeg synthetic capability workflow was SKIPPED. This is hosted source/Qt and scoped packaged-boundary evidence, not physical user-device GUI, live Chrome, provider, GPU, codec-corpus, playback or render/export acceptance. No P04 task or phase is accepted.
+
+
+## P04-08 slice T — read-only profile/account metadata tables
+
+**Dependencies:** P03-09 owned metadata repository exists as a partial local capability; no live Chrome/profile path or authenticated handoff is available. This slice consumes only persisted BrowserProfile/Binding observations and does not claim to create or control Chrome profiles.
+
+**Input:** Existing user-data `accounts.sqlite3` created explicitly by the account domain. Missing store is a normal empty state, not permission to initialize it.
+
+**Output/interface:** A third Settings tab with separate profile and platform-binding tables. Display profile label/ownership and last-recorded browser state; display platform identity, profile association, last-recorded web/bridge states, default binding and observation timestamps. Every status is labelled last-known metadata, not a live browser/authentication check. Do not display profile paths, credential references, cookies, passwords or session material.
+
+**Storage boundary:** Add a read-only bounded snapshot API to AccountStore. It must return no-store when the file is absent without creating the parent/database/receipt; require regular non-reparse file identity, valid ownership receipt, exact application/schema identity and valid bounded payloads; reject active WAL/rollback-journal state rather than create sidecars or read stale data; open SQLite immutable/read-only; never migrate, initialize, register ownership, update defaults or write rows. Recheck file identity and stable metadata after reading. Cap profile/binding rows and report truncation explicitly.
+
+**Lifecycle:** Read on a background QThread only after the user opens Settings or presses Refresh. Ignore stale completions, sanitize errors, and make MainWindow close wait for actual worker retirement. No Chrome process, network, cookie access, login prompt, profile-directory operation or account rebind is permitted in this slice.
+
+**Regression/acceptance:** missing-store no-create; existing owned-store typed snapshot and byte/sidecar invariance; foreign/unmarked/corrupt/newer/WAL-active refusal without modification; bounds and default-binding integrity; Qt background-thread rendering, refresh, close/cancel and error state. This slice is partial P04-08 evidence only; AUTH-01.01, AUTH-04.01/.04 and live Chrome/profile/login/bridge gates remain NOT_RUN. Do not accept P04-08 or any AUTH group.
