@@ -23,7 +23,7 @@ def _open(tmp_path):
 def _close(store,window,qt_app):
     window.close()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);qt_app.processEvents();store.close()
 
 
 def test_tree_shortcuts_group_undo_redo_and_delete(tmp_path,qt_app):
