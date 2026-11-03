@@ -227,7 +227,7 @@ def test_crop_overlay_pending_edit_is_discarded_when_clip_changes(tmp_path,qt_ap
 def test_confirmed_overlay_crop_survives_project_save_and_reopen(tmp_path,qt_app):
     from PySide6.QtGui import QPixmap
     store,window,_=_window(tmp_path,qt_app)
-    path=tmp_path/'project.json'
+    reopened=None;path=tmp_path/'project.json'
     try:
         panel=window.timeline_panel
         panel.preview_image.setPixmap(QPixmap(400,200))
@@ -240,14 +240,16 @@ def test_confirmed_overlay_crop_survives_project_save_and_reopen(tmp_path,qt_app
         window.session.save()
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);window=None
         reopened=MainWindow(store);reopened.show();reopened.open_project(path)
         assert reopened.session.project.plan.to_dict()['clips'][0]['crop']==expected
         reopened.close()
         wait_for(qt_app,lambda:not reopened.background_busy and not reopened.isVisible())
         reopened.deleteLater();QCoreApplication.sendPostedEvents(reopened,QEvent.Type.DeferredDelete)
     finally:
-        if window.isVisible():
-            window.close()
-            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+        for current in (reopened,window):
+            if current is not None:
+                current.close()
+                wait_for(qt_app,lambda current=current:not current.background_busy and not current.isVisible())
+                current.deleteLater();QCoreApplication.sendPostedEvents(current,QEvent.Type.DeferredDelete)
         store.close()
