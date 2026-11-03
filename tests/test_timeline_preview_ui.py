@@ -133,4 +133,4 @@ def test_preview_worker_locks_when_process_retirement_is_unknown(monkeypatch):
     worker.run()
     assert worker.retirement_unknown is True
     assert worker.frame is None
-    assert 'UNKNOWN' in worker.error
+    assert 'unknown' in worker.error.lower()

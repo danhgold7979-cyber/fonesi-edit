@@ -174,7 +174,8 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
         type(max_height) is not int or not 1<=max_height<=720):
         raise PreviewError('Explicit bounded still-preview inputs required')
     if cancel():raise PreviewCanceled('Preview canceled before input inspection')
-    _regular_tree(source);_regular_tree(ffmpeg)
+    try:_regular_tree(source);_regular_tree(ffmpeg)
+    except OSError:raise PreviewError('Preview source or FFmpeg is missing/inaccessible') from None
     if not os.access(ffmpeg,os.X_OK):raise PreviewError('Explicit FFmpeg executable is not executable')
     source_hash,source_signature=_hash_pinned(source,tool=False,cancel=cancel)
     if source_hash!=expected_sha256:raise PreviewError('Source content no longer matches the project asset hash')
