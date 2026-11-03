@@ -20,10 +20,8 @@ def test_ctrl_comma_opens_existing_settings_page_and_preserves_project(tmp_path,
     try:
         assert window.navigation.currentRow()==0
         page_count=window.pages.count()
-        window.navigation.setCurrentRow(3)
-        target=window.timeline_panel.clip_list
-        target.setFocus()
-        QTest.keyClick(target,Qt.Key.Key_Comma,Qt.KeyboardModifier.ControlModifier)
+        window.navigation.setFocus()
+        QTest.keyClick(window.navigation,Qt.Key.Key_Comma,Qt.KeyboardModifier.ControlModifier)
         assert window.navigation.currentRow()==7
         assert window.pages.currentIndex()==7
         assert window.pages.count()==page_count
