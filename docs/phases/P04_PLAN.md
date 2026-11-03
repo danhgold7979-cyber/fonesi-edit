@@ -454,3 +454,49 @@ Scope limits: drag/drop was tested with synthetic Qt QMimeData events on hosted 
 **Tests:** allow-listed settings save/reopen; invalid settings fallback; live palette/font/zoom changes; reset appearance without deleting shortcut/window keys; main-window geometry/navigation/tab save-close-reopen; corrupt/oversized geometry fallback; pending close does not persist an unaccepted layout; default system palette can be restored after Dark/Light.
 
 **Acceptance boundary:** this slice does not certify physical Windows Explorer, mixed-DPI monitor movement, OS high-contrast, per-monitor scaling transitions or Windows user-device layout. It does not persist Basic/Advanced inspector mode (tracked separately), nor implement a complete future effect-property catalog. ED-01.01/.02/.03 and P04-01 remain NOT_RUN/IN_PROGRESS until the complete requirement map and physical GUI evidence are met.
+
+## Slice AB — persist Basic/Advanced Inspector mode (P04-01)
+
+**Status before implementation:** planned as the next bounded P04-01 slice; existing Inspector mode is session-only.  
+**Master alignment:** P04-01 (panel/UI preferences) and P04-04 (UI state must not mutate the project model).  
+**Dependencies:** existing `MainWindow.ui_settings` QSettings instance; no new dependency or schema migration.
+
+### Contract
+
+- Input: the user's Basic/Advanced selection in the layer Inspector.
+- Output: a boolean user-interface preference stored under the dedicated `editor/inspector_advanced` key in the existing user QSettings store.
+- Default: Basic mode when the key is absent or malformed.
+- Lifecycle: load the preference when the Editor workspace is constructed; persist only when the user changes the checkbox; a subsequent MainWindow/Editor construction restores it.
+- Isolation: do not write the preference to CompositionPlan, ProjectStore, autosave, undo history or project files. Switching projects must not change it. Appearance reset must not clear it.
+- Failure behavior: a QSettings write error must not change the in-memory UI mode into a false persisted-success claim; show/retain the selected state with no project mutation, and do not crash the Editor.
+- Compatibility: callers that construct LayerEditorWorkspace without an explicit settings object continue to receive the Basic default; existing project files remain byte-compatible.
+
+### Implementation
+
+1. Pass the existing MainWindow user settings object into LayerEditorWorkspace.
+2. Read and validate the allow-listed boolean setting before the first inspector filter pass.
+3. Connect user toggles to a small persistence handler; keep search/filter operations side-effect free.
+4. Keep the preference outside project/session command paths.
+
+### Tests and acceptance
+
+- Default Basic mode when no key exists.
+- Persist Advanced and restore it in a newly constructed MainWindow.
+- Persist Basic after switching back and restore it on the next construction.
+- Malformed stored value falls back to Basic.
+- Switching/opening projects does not change the preference or project revision.
+- Appearance reset does not remove the Inspector mode key.
+- Existing callers without injected settings retain backward-compatible defaults.
+- Run focused Inspector/UI tests, `scripts/check_plan.py`, then the exact four-runner clean-foundation workflow. Hosted/offscreen tests do not replace physical Windows GUI/HiDPI acceptance.
+
+### Artifacts
+
+- `src/fonesi_edit/ui/layer_editor.py`
+- `src/fonesi_edit/ui/shell.py`
+- `tests/test_layer_editor_ui.py`
+- `tests/test_appearance_settings.py`
+- `docs/phases/P04_RESULTS.md` and `docs/CURRENT_STATUS.md` after exact CI evidence.
+
+### Acceptance boundary
+
+This slice can close only its own local implementation contract after tests and CI pass. It does not accept P04-01 or P04, and it does not establish physical Windows GUI/IME/HiDPI behavior.
