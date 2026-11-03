@@ -87,7 +87,7 @@ def resolve_asset_path(asset:dict,project_base:Path|str)->Path:
         try:
             resolved=candidate.resolve(strict=True)
             resolved.relative_to(root.resolve(strict=True))
-        except (OSError,ValueError):
+        except (OSError,ValueError,RuntimeError):
             raise PreviewError('Project-relative asset escapes its project folder or is missing') from None
     elif base=='absolute':
         candidate=Path(value)
