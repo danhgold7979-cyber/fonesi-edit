@@ -5,7 +5,7 @@ from math import atan2,degrees
 from uuid import uuid4
 
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
-from PySide6.QtGui import QColor, QBrush, QPen, QPainter
+from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
     QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
@@ -48,6 +48,18 @@ class LayerBoundsItem(QGraphicsRectItem):
             rgba=layer['style']['color'];fill=QColor(*rgba);fill.setAlpha(min(110,rgba[3]));edge=QColor(245,190,80)
         else:fill=QColor(90,170,240,45);edge=QColor(90,190,255)
         self.setBrush(QBrush(fill));self.setPen(QPen(edge,2,Qt.PenStyle.DashLine))
+
+    def boundingRect(self):
+        return super().boundingRect().adjusted(-10,-38,10,10)
+
+    def shape(self):
+        path=super().shape()
+        if self.isSelected() and self.show_handles:
+            for point in self._resize_handles().values():
+                path.addRect(QRectF(point.x()-7,point.y()-7,14,14))
+            handle=self._rotation_handle()
+            path.addEllipse(handle,10,10)
+        return path
 
     def _resize_handles(self):
         r=self.rect();cx=r.center().x();cy=r.center().y()
