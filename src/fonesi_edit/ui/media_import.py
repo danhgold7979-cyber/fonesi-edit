@@ -7,7 +7,8 @@ import stat
 from PySide6.QtCore import QThread, Signal, QTimer, Qt
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView)
+    QPushButton, QCheckBox, QFileDialog, QTableWidget, QTableWidgetItem, QAbstractItemView,
+    QListWidget, QListWidgetItem)
 
 from fonesi_edit.domain.media_library import MediaRecord, MediaPath, validate_observation
 from fonesi_edit.media.probe import inspect_media, fingerprint, ProbeCanceled, ProbeError
@@ -86,6 +87,105 @@ class LocalMediaPathEdit(QLineEdit):
             return
         self.setText(str(path))
         self.dropped.emit(str(path))
+        event.acceptProposedAction()
+
+
+MAX_DROP_QUEUE_FILES=64
+MAX_DROP_QUEUE_ROWS=128
+
+
+class LocalMediaDropQueue(QListWidget):
+    """Bounded local-file review queue; dropping never probes or imports."""
+    changed=Signal()
+    summary=Signal(int,int)
+
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setToolTip('Kéo nhiều tệp cục bộ vào đây. Chỉ chọn tệp; không tự kiểm tra hoặc nhập.')
+        self._seen=set()
+        self._valid_count=0
+        self._overflow_reported=False
+
+    @staticmethod
+    def _candidate(url):
+        if not url.isLocalFile():
+            raise ValueError('Chỉ nhận tệp cục bộ; URL mạng bị từ chối.')
+        raw=url.toLocalFile()
+        try:encoded=raw.encode('utf-8')
+        except UnicodeEncodeError as exc:raise ValueError('Đường dẫn tệp không hợp lệ.') from exc
+        if (not raw or '\\x00' in raw or len(raw)>32768 or len(encoded)>131072 or
+                raw.startswith(('\\\\\\\\','//'))):
+            raise ValueError('Đường dẫn rỗng, quá dài hoặc không phải đường dẫn cục bộ.')
+        path=Path(raw)
+        if not path.is_absolute():raise ValueError('Đường dẫn phải tuyệt đối.')
+        _regular_original(path)
+        return path
+
+    def _refusal(self,label,reason,tooltip=None):
+        item=QListWidgetItem(f'Từ chối · {label} — {reason}')
+        item.setData(Qt.ItemDataRole.UserRole,None)
+        item.setData(Qt.ItemDataRole.UserRole+1,'REFUSED')
+        item.setToolTip(tooltip or reason)
+        self.addItem(item)
+
+    def add_urls(self,urls):
+        accepted=rejected=0
+        for index,url in enumerate(urls):
+            if self.count()>=MAX_DROP_QUEUE_ROWS:
+                rejected+=len(urls)-index
+                break
+            if self._valid_count>=MAX_DROP_QUEUE_FILES:
+                if not self._overflow_reported:
+                    self._refusal('Hàng đợi','Đã đạt giới hạn 64 tệp hợp lệ; các mục còn lại không được xếp hàng.')
+                    self._overflow_reported=True
+                rejected+=len(urls)-index
+                break
+            try:
+                path=self._candidate(url)
+            except (OSError,ValueError,ProbeError) as exc:
+                label=url.fileName() or ('URL không cục bộ' if not url.isLocalFile() else 'Tệp không hợp lệ')
+                self._refusal(label,str(exc))
+                rejected+=1
+                continue
+            key=os.path.normcase(os.path.normpath(str(path)))
+            if key in self._seen:
+                self._refusal(path.name,'Tệp trùng lặp trong hàng đợi',str(path))
+                rejected+=1
+                continue
+            self._seen.add(key);self._valid_count+=1
+            item=QListWidgetItem(f'Chờ chọn · {path.name}')
+            item.setData(Qt.ItemDataRole.UserRole,str(path))
+            item.setData(Qt.ItemDataRole.UserRole+1,'PENDING')
+            item.setToolTip(str(path))
+            self.addItem(item)
+            accepted+=1
+        self.changed.emit()
+        self.summary.emit(accepted,rejected)
+        return accepted,rejected
+
+    def clear_queue(self):
+        self.clear()
+        self._seen.clear()
+        self._valid_count=0
+        self._overflow_reported=False
+        self.changed.emit()
+
+    def dragEnterEvent(self,event:QDragEnterEvent):
+        if self.isEnabled() and event.mimeData().hasUrls():event.acceptProposedAction()
+        else:event.ignore()
+
+    def dragMoveEvent(self,event):
+        if self.isEnabled() and event.mimeData().hasUrls():event.acceptProposedAction()
+        else:event.ignore()
+
+    def dropEvent(self,event:QDropEvent):
+        if not self.isEnabled() or not event.mimeData().hasUrls():
+            event.ignore()
+            return
+        # Invalid entries are still consumed and rendered as refusal rows.
+        self.add_urls(event.mimeData().urls())
         event.acceptProposedAction()
 
 
@@ -206,6 +306,20 @@ class MediaImportPanel(QWidget):
             row.addWidget(field)
             row.addWidget(button)
             layout.addLayout(row)
+        layout.addWidget(QLabel('Hàng đợi tệp kéo thả — tối đa 64 tệp hợp lệ; nhập từng tệp có xác nhận'))
+        self.drop_queue=LocalMediaDropQueue(self)
+        self.drop_queue.setMinimumHeight(96)
+        self.drop_queue.changed.connect(self.update_actions)
+        self.drop_queue.summary.connect(self._drop_queue_summary)
+        self.drop_queue.currentRowChanged.connect(self.update_actions)
+        layout.addWidget(self.drop_queue)
+        drop_buttons=QHBoxLayout()
+        self.use_drop_button=QPushButton('Dùng tệp đã chọn')
+        self.clear_drop_button=QPushButton('Xóa hàng đợi')
+        self.use_drop_button.clicked.connect(self.use_selected_drop)
+        self.clear_drop_button.clicked.connect(self.clear_drop_queue)
+        drop_buttons.addWidget(self.use_drop_button);drop_buttons.addWidget(self.clear_drop_button)
+        layout.addLayout(drop_buttons)
         self.trust = QCheckBox('Tôi cho phép chạy chính tệp ffprobe đã chọn, không tự thay công cụ')
         layout.addWidget(self.trust)
         self.add_button = QPushButton('Kiểm tra và thêm vào thư viện dự án')
@@ -264,8 +378,10 @@ class MediaImportPanel(QWidget):
     def update_actions(self, *_):
         session = self.get_session()
         available = not self.busy and not self.stopping and not self.revoked
-        for control in (self.source, self.tool, self.source_button, self.tool_button, self.trust):
+        for control in (self.source,self.tool,self.source_button,self.tool_button,self.trust,self.drop_queue):
             control.setEnabled(available)
+        self.use_drop_button.setEnabled(available and self._selected_drop_path() is not None)
+        self.clear_drop_button.setEnabled(available and self.drop_queue.count()>0)
         self.add_button.setEnabled(available and session is not None and
             not session.reconciliation_required and self.trust.isChecked() and
             bool(self.source.text()) and bool(self.tool.text()))
@@ -275,6 +391,27 @@ class MediaImportPanel(QWidget):
         active_worker=self.worker if self.worker is not None else self.timeline_worker
         self.cancel_button.setEnabled(active_worker is not None and not self.stopping and
             not active_worker.isInterruptionRequested())
+
+    def _selected_drop_path(self):
+        item=self.drop_queue.currentItem()
+        return None if item is None else item.data(Qt.ItemDataRole.UserRole)
+
+    def use_selected_drop(self):
+        path=self._selected_drop_path()
+        if not path:
+            self.message.setText('Chọn một tệp hợp lệ trong hàng đợi trước. Không có media nào được nhập.')
+            return
+        self.source.setText(path)
+        self.message.setText('Đã chọn tệp từ hàng đợi. Chưa chạy kiểm tra hoặc nhập; hãy rà soát rồi bấm nút nhập.')
+        self.update_actions()
+
+    def clear_drop_queue(self):
+        self.drop_queue.clear_queue()
+        self.message.setText('Đã xóa hàng đợi tệp kéo thả. Thư viện dự án không thay đổi.')
+        self.update_actions()
+
+    def _drop_queue_summary(self,accepted,rejected):
+        self.message.setText(f'Đã xếp {accepted} tệp hợp lệ; {rejected} mục bị từ chối hoặc trùng. Chưa chạy kiểm tra hay nhập media.')
 
     def _selected_record(self):
         session=self.get_session()
