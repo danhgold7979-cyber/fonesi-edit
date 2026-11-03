@@ -113,7 +113,7 @@ class TimelinePanel(QWidget):
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
-        self._zoom_percent=100;self._last_revision=None;self._preview_generation=0
+        self._zoom_percent=100;self._last_revision=None;self._preview_generation=0;self._waveform_generation=0
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
         self.waveform_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
@@ -227,7 +227,7 @@ class TimelinePanel(QWidget):
         return self.preview_worker is not None or self.waveform_worker is not None or self.preview_retirement_unknown
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
-        self._preview_generation+=1
+        self._preview_generation+=1;self._waveform_generation+=1
         if self.preview_worker is not None:self.preview_worker.requestInterruption()
         if self.waveform_worker is not None:self.waveform_worker.requestInterruption()
         if hasattr(self,'preview_message'):
@@ -298,7 +298,7 @@ class TimelinePanel(QWidget):
         self.waveform_widget.clear()
         self.waveform_message.setText('Đang giải mã tối đa 60 giây audio thành waveform; không phát âm thanh.')
         worker=WaveformWorker(source,ffmpeg,expected,stream_index,decoder_start,duration,self)
-        self._preview_generation+=1;generation=self._preview_generation
+        self._waveform_generation+=1;generation=self._waveform_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
         self.waveform_worker=worker
         worker.finished.connect(lambda:self._waveform_finished(worker,generation))
@@ -310,7 +310,7 @@ class TimelinePanel(QWidget):
             QTimer.singleShot(10,lambda:self._waveform_finished(worker,generation))
             return
         session=self.get_session()
-        current=(generation==self._preview_generation and not self.stopping and session is not None
+        current=(generation==self._waveform_generation and not self.stopping and session is not None
                  and session.revision==self._preview_revision and self.selected_clip_id==self._preview_clip_id)
         if worker.retirement_unknown:
             self.preview_retirement_unknown=True;self.stopping=True
