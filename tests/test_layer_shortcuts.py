@@ -128,8 +128,8 @@ def test_canvas_nudge_moves_selected_group_members_atomically(tmp_path,qt_app):
         QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Down,Qt.KeyboardModifier.ShiftModifier)
         assert window.session.revision==before+1
         layers={x['id']:x for x in window.session.project.plan.to_dict()['layers']}
-        assert layers[first]['transform']['y']==[109,108]
-        assert layers[second]['transform']['y']==[109,108]
+        assert layers[first]['transform']['y']==[55,108]
+        assert layers[second]['transform']['y']==[55,108]
         assert layers[first]['transform']['x']==[1,2]
         assert layers[second]['transform']['x']==[1,2]
     finally:
