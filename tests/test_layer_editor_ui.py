@@ -7,7 +7,7 @@ os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from fonesi_edit.storage.project_creation import NewProjectIntent, empty_project
 from fonesi_edit.storage.projects import ProjectStore, save_project_file, load_project_file
 from fonesi_edit.ui.shell import MainWindow
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QCoreApplication,QEvent
 from PySide6.QtTest import QTest
 from test_queue_view import wait_for
 
@@ -60,7 +60,7 @@ def test_mask_layer_add_numeric_edit_undo_redo_and_save_reopen(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once(tmp_path,qt_app):
@@ -91,7 +91,7 @@ def test_inspector_slider_drag_commits_once_and_keyboard_step_commits_once(tmp_p
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_inspector_property_and_group_resets_commit_once_and_preserve_other_fields(tmp_path,qt_app):
@@ -136,7 +136,7 @@ def test_inspector_property_and_group_resets_commit_once_and_preserve_other_fiel
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_anchor_and_flip_individual_resets_restore_only_selected_property(tmp_path,qt_app):
@@ -162,7 +162,7 @@ def test_anchor_and_flip_individual_resets_restore_only_selected_property(tmp_pa
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_inspector_basic_advanced_search_units_and_tooltips(tmp_path,qt_app):
@@ -211,7 +211,7 @@ def test_inspector_basic_advanced_search_units_and_tooltips(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_inspector_disabled_reasons_follow_multi_selection_and_lock(tmp_path,qt_app):
@@ -247,7 +247,7 @@ def test_inspector_disabled_reasons_follow_multi_selection_and_lock(tmp_path,qt_
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_transform_lock_visibility_and_undo_are_model_changes(tmp_path,qt_app):
@@ -283,7 +283,7 @@ def test_transform_lock_visibility_and_undo_are_model_changes(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_delete_layer_never_deletes_any_source_file(tmp_path,qt_app):
@@ -304,7 +304,7 @@ def test_delete_layer_never_deletes_any_source_file(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_external_revision_change_invalidates_session_undo_history(tmp_path,qt_app):
@@ -331,7 +331,7 @@ def test_external_revision_change_invalidates_session_undo_history(tmp_path,qt_a
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_inspector_controls_have_localized_accessible_names_and_help(tmp_path,qt_app):
@@ -368,4 +368,4 @@ def test_inspector_controls_have_localized_accessible_names_and_help(tmp_path,qt
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
