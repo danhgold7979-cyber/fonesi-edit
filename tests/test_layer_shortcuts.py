@@ -108,7 +108,7 @@ def test_canvas_arrow_nudges_one_and_ten_output_pixels_independent_of_zoom(tmp_p
         QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Right,Qt.KeyboardModifier.ShiftModifier)
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
-        assert transform['x']==[969,1920]
+        assert transform['x']==[323,640]
         assert transform['y']==[1,2]
         assert editor.selected_id==layer_id
     finally:
