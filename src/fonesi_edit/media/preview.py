@@ -20,6 +20,10 @@ class PreviewCanceled(PreviewError):
     pass
 
 
+class PreviewRetirementUnknown(PreviewError):
+    """A child/job may remain active; the UI must lock further preview/close."""
+
+
 @dataclass(frozen=True)
 class PreviewFrame:
     png:bytes
@@ -192,7 +196,14 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
           '-f','image2pipe','-vcodec','png','pipe:1']
     try:result=run_owned(args,cancel=cancel,timeout=timeout,max_output_bytes=_MAX_PNG_BYTES)
     except ProcessCanceled as exc:raise PreviewCanceled('Preview decoder canceled; owned process retired') from exc
-    except (ProcessError,OSError) as exc:raise PreviewError('Preview decoder failed or retirement was not confirmed') from exc
+    except ProcessError as exc:
+        message=str(exc).lower()
+        if any(token in message for token in ('unconfirmed','quiescence query','job remains active',
+                'pipe retirement timed out','terminatejobobject failed','closehandle failed',
+                'suspended-child retirement failed')):
+            raise PreviewRetirementUnknown('FFmpeg process retirement is UNKNOWN; do not retry or close the application.') from None
+        raise PreviewError('Preview decoder failed; no frame was accepted') from None
+    except OSError as exc:raise PreviewError('Preview decoder could not be started') from None
     if cancel():raise PreviewCanceled('Preview canceled after decoder retirement')
     if result.returncode!=0:raise PreviewError('FFmpeg did not produce a preview frame')
     if _signature(source)!=source_signature or _signature(ffmpeg)!=tool_signature:
