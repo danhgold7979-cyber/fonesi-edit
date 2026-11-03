@@ -4,7 +4,7 @@ from fractions import Fraction
 
 from pathlib import Path
 from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
-from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
+from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter, QShortcut, QKeySequence
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
     QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog)
@@ -179,7 +179,32 @@ class TimelinePanel(QWidget):
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
         layout.addWidget(self.view)
+        self._timeline_shortcuts=[]
+        self._install_timeline_shortcuts()
         self.update_project()
+
+    def _install_timeline_shortcuts(self):
+        bindings=(
+            ('Left',lambda:self._step_playhead(-1)),
+            ('Right',lambda:self._step_playhead(1)),
+            ('Shift+Left',lambda:self._step_playhead(-10)),
+            ('Shift+Right',lambda:self._step_playhead(10)),
+            ('Home',lambda:self.playhead_slider.setValue(self.playhead_slider.minimum())),
+            ('End',lambda:self.playhead_slider.setValue(self.playhead_slider.maximum())),
+        )
+        for owner in (self.clip_list,self.view):
+            for sequence,callback in bindings:
+                shortcut=QShortcut(QKeySequence(sequence),owner)
+                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+                shortcut.activated.connect(callback)
+                self._timeline_shortcuts.append(shortcut)
+        help_text='Timeline: ←/→ từng frame, Shift+←/→ 10 frame, Home/End đầu/cuối. Ô crop giữ phím chỉnh sửa riêng.'
+        self.clip_list.setToolTip(help_text);self.view.setToolTip(help_text)
+
+    def _step_playhead(self,delta):
+        if self.stopping or self.playhead_slider.isSliderDown():return
+        self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
+            min(self.playhead_slider.maximum(),self.playhead_slider.value()+delta)))
 
     def _selected_clip(self):
         session=self.get_session()
