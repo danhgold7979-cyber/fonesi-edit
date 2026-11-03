@@ -113,7 +113,7 @@ def test_group_drag_moves_visible_and_hidden_members_by_same_delta(tmp_path,qt_a
         before={x['id']:x['transform'] for x in _layers(window)}
         revision=window.session.revision
         from PySide6.QtCore import QPointF
-        editor.dragged(first,QPointF(600,500),QPointF(500,400))
+        editor.dragged(first,QPointF(692,508),QPointF(500,400))
         assert window.session.revision==revision+1
         after={x['id']:x['transform'] for x in _layers(window)}
         assert after[first]['x']==[3,5] and after[first]['y']==[3,5]
