@@ -71,3 +71,48 @@ def test_group_selection_hides_individual_resize_handles_and_locked_layer_refuse
         assert transform['width']==[1,4] and transform['rotation']==[0,1]
     finally:
         _close(store,window,qt_app)
+
+
+def test_invalid_canvas_geometry_is_rejected_without_project_revision(tmp_path,qt_app):
+    from math import inf,nan
+    from PySide6.QtCore import QPointF
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask();layer_id=editor.selected_id
+        revision=window.session.revision
+        editor.resized(layer_id,nan,540,QPointF(960,540))
+        assert window.session.revision==revision
+        editor.resized(layer_id,960,inf,QPointF(960,540))
+        assert window.session.revision==revision
+        editor.resized(layer_id,960,540,QPointF(nan,540))
+        assert window.session.revision==revision
+        editor.rotated(layer_id,nan)
+        assert window.session.revision==revision
+        editor.rotated(layer_id,inf)
+        assert window.session.revision==revision
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['width']==[1,4] and transform['height']==[1,6]
+        assert transform['rotation']==[0,1]
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_resize_preserves_each_of_nine_anchor_positions(tmp_path,qt_app):
+    from fonesi_edit.ui.layer_editor import ANCHORS
+    store,window=_open(tmp_path)
+    try:
+        editor=window.layer_editor;editor.add_mask();layer_id=editor.selected_id
+        for anchor in ANCHORS:
+            data=editor.data()
+            layer=next(x for x in data['layers'] if x['id']==layer_id)
+            layer['transform']['anchor']=anchor
+            editor.commit(data,'fixture anchor')
+            before=window.session.project.plan.to_dict()['layers'][0]['transform']
+            anchor_x=before['x'];anchor_y=before['y']
+            editor.resized(layer_id,960,540,QPointF(960,540))
+            after=window.session.project.plan.to_dict()['layers'][0]['transform']
+            assert after['anchor']==anchor
+            assert after['x']==anchor_x and after['y']==anchor_y
+            assert after['width']==[1,2] and after['height']==[1,2]
+    finally:
+        _close(store,window,qt_app)
