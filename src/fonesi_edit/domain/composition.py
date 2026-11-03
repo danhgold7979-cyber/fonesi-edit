@@ -87,7 +87,21 @@ def _transform(t,path):
 
 def _validate(data):
     _rational_walk(data)
-    warnings=[];duration=_positive(data['output']['duration'],'/output/duration');_positive(data['output']['fps'],'/output/fps')
+    warnings=[];duration=_positive(data['output']['duration'],'/output/duration');fps=_positive(data['output']['fps'],'/output/fps')
+    frame_count=duration*fps
+    frame_total=(frame_count.numerator+frame_count.denominator-1)//frame_count.denominator
+    timeline_range=data.get('timeline_range')
+    if timeline_range is not None:
+        in_frame=timeline_range['in_frame'];out_frame=timeline_range['out_frame']
+        _require(type(in_frame) is int or in_frame is None,'/timeline_range/in_frame','In frame must be an integer or null')
+        _require(type(out_frame) is int or out_frame is None,'/timeline_range/out_frame','Out frame must be an integer or null')
+        _require(in_frame is not None or out_frame is not None,'/timeline_range','Empty timeline range must be omitted')
+        _require(out_frame is None or in_frame is not None,'/timeline_range/out_frame','Out marker requires an In marker')
+        if in_frame is not None:
+            _require(0<=in_frame<frame_total,'/timeline_range/in_frame','In marker must identify an existing output frame')
+        if out_frame is not None:
+            _require(1<=out_frame<=frame_total,'/timeline_range/out_frame','Out marker must be within the half-open output boundary')
+            _require(out_frame>in_frame,'/timeline_range/out_frame','Out marker must be strictly after In')
     if data['output']['pixel_format']=='yuv420p':
         _require(data['output']['width']%2==0 and data['output']['height']%2==0,'/output','yuv420p requires even dimensions')
     ids=set()
