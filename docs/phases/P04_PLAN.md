@@ -690,3 +690,24 @@ The real viewport event path exposed a production geometry defect: resizing the 
 
 ### Acceptance boundary
 This fixes normalized layer geometry interaction only. It does not implement text/logo content, source-video crop compositing, preview/export parity or physical Windows pointer/HiDPI acceptance.
+
+
+## Slice AL — verify shared canvas transforms for text and logo layers (P04-02)
+
+### Contract
+- Existing schema-valid `text` and `logo` layers use the same canvas selection, normalized transform, resize/rotation handles and ProjectSession command path as mask layers.
+- A completed pointer resize on a selected text or logo layer commits exactly one revision, preserves layer type/content/style/asset reference and preserves the selected transform anchor.
+- A completed rotation commits exactly one revision and changes only the transform rotation; it must not mutate text content, font references, logo image identity or crop style.
+- Locked text/logo layers expose no individual transform handles and refuse pointer/numeric mutation.
+- This slice does not add text editing, logo import, font rendering, image decoding, crop compositing or export rendering. It verifies geometry manipulation of existing valid model layers only.
+
+### Implementation and tests
+1. Construct a synthetic schema-valid project containing one text layer with an explicit font reference and one logo layer with an explicit image asset reference.
+2. Exercise actual QGraphicsView viewport press/move/release resize on each type.
+3. Assert one ProjectSession revision per gesture, canonical anchor x/y preservation, normalized extent change, unchanged type/content/style/asset binding and save/reopen equality.
+4. Exercise rotation on both types and assert only the rotation transform changes.
+5. Exercise locked-layer refusal and hidden handle hit targets.
+6. Run focused canvas tests, plan integrity and four-runner clean-foundation CI.
+
+### Acceptance boundary
+This verifies P04-02 geometry interaction for existing text/logo model objects. It does not certify glyph layout, font coverage, logo decode, renderer parity or physical Windows pointer/HiDPI behavior.
