@@ -276,3 +276,31 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Open P04 gates: full effect-property catalog and disabled-reason mapping; interactive crop handles and text/logo content editing; complete nine-anchor hit-test and renderer parity; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; full Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; source-media codec corpus, GPU and renderer/export parity. Hosted offscreen tests do not close these gates.
 
 Next: continue P04-02 with a bounded interactive crop-handle slice that operates on the selected clip's canonical normalized crop and preserves source media; keep crop visualization explicitly distinct from crop rendering/export. Then continue remaining P04 tasks in dependency order. Do not mark P04-01, P04-02 or P04 complete until their complete task gates pass.
+
+
+## Latest verified implementation checkpoint — 2026-11-03 16:20 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch `main` unchanged. Exact verified code HEAD: `6697dc4fe5d9b58677ac09769ba013900fd1c1a7`. Results/status documentation commits after this code HEAD do not change source code. Clean-foundation run 41610524340 completed SUCCESS on the exact code HEAD.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 55%** (manual task-scope estimate, not test coverage or acceptance). Task estimates: P04-01 78%, P04-02 58%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance 0/8.
+
+P04-02 now has an interactive normalized crop overlay on the explicit still-frame surface: shaded outside region, thirds grid, eight resize handles, move, edge/corner resize, source-frame clamping, minimum extent and optional ratio lock. Gestures and numeric edits are staged; Confirm commits one canonical crop update via ProjectSession CAS, while Cancel leaves project revision unchanged. Staged edits are discarded on stale revision, selected clip change, preview invalidation or quality change. Crop view is explicitly not a compositor or renderer; source media is not modified.
+
+P04-01 remains implemented with appearance/layout/Inspector preference persistence and localized accessibility metadata. P04-02 also retains non-finite geometry rejection and nine-anchor resize regression coverage.
+
+Exact four-runner run 41610524340:
+- Ubuntu Python 3.12.15: 964 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 964 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 977 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 977 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow not run.
+
+During development, hosted diagnostics caught and corrected crop move extent loss, QLabel API compatibility gaps, a stale assertion phrase and Qt deferred-widget cleanup issues. The final four-runner result above supersedes those failed/cancelled diagnostics. No assertions or product safety guards were weakened.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+Remaining P04 gates: full effect-property catalog and disabled-reason mapping; text/logo content editing; complete nine-anchor hit testing and preview/export geometry parity; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; full Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real media codec corpus, GPU and crop compositor/export parity. Hosted offscreen CI does not close these gates.
+
+Next: finish P04-02 with geometry parity and crop acceptance tests, then proceed to P04-03/04 integration work in dependency order. Keep preview/crop geometry separate from actual render until P07 provides the compositor. Do not mark any P04 task or phase complete before its full acceptance gate.
