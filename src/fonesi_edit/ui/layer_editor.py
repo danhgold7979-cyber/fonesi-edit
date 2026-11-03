@@ -172,6 +172,7 @@ class LayerShortcutRouter(QObject):
         )
         for action_id,callback in bindings:
             if self.registry.matches(action_id,event):
+                if event.isAutoRepeat():event.accept();return True
                 callback();event.accept();return True
         return False
 
