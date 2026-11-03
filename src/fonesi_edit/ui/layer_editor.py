@@ -116,46 +116,75 @@ class LayerEditorWorkspace(QWidget):
         data=self.data() if data is None else data
         return None if data is None else next((x for x in data['layers'] if x['id']==self.selected_id),None)
 
+    def selected_layers(self,data=None):
+        data=self.data() if data is None else data
+        if data is None:return []
+        return [x for x in data['layers'] if x['id'] in self.selected_ids]
+
+    @staticmethod
+    def expand_group_ids(ids,data):
+        layers=data['layers'];selected=set(ids)
+        group_ids={x.get('group_id') for x in layers if x['id'] in selected and x.get('group_id')}
+        if group_ids:
+            selected.update(x['id'] for x in layers if x.get('group_id') in group_ids)
+        return selected
+
     def update_actions(self):
         session=self.get_session();ready=session is not None and not session.reconciliation_required and not self.stopping
         self.add_button.setEnabled(ready);self.undo_button.setEnabled(ready and bool(self.undo_stack))
         self.redo_button.setEnabled(ready and bool(self.redo_stack))
-        layer=self.selected();edit=layer is not None and not locked(layer) and not self.stopping
+        selected=self.selected_layers()
+        single=selected[0] if len(selected)==1 else None
+        edit=single is not None and not locked(single) and ready
         for s in self.spins.values():s.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
-        for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button):b.setEnabled(layer is not None and not self.stopping)
-        if layer is None:self.status.setText('Chưa chọn layer.')
-        else:self.status.setText(('Đã khóa biến đổi' if locked(layer) else 'Có thể chỉnh sửa')+
-                                 (' · đang ẩn' if not layer['visible'] else ' · đang hiện'))
+        has_selection=bool(selected) and ready
+        for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button):
+            b.setEnabled(has_selection)
+        group_ids={x.get('group_id') for x in selected if x.get('group_id')}
+        self.group_button.setEnabled(ready and len(selected)>=2 and len(group_ids)!=1)
+        self.ungroup_button.setEnabled(has_selection and bool(group_ids))
+        if not selected:self.status.setText('Chưa chọn layer.')
+        elif len(selected)>1:self.status.setText(f'Đã chọn {len(selected)} layer · thao tác sẽ áp dụng đồng thời.')
+        else:self.status.setText(('Đã khóa biến đổi' if locked(single) else 'Có thể chỉnh sửa')+
+                                 (' · đang ẩn' if not single['visible'] else ' · đang hiện'))
 
     def update_project(self):
         session=self.get_session()
         if session is None:
             self.last_session=None;self.last_revision=None;self.undo_stack.clear();self.redo_stack.clear()
-            self.selected_id=None;self.layers.clear();self.scene.clear();self.scene.setSceneRect(QRectF(0,0,640,360))
+            self.selected_id=None;self.selected_ids.clear();self.layers.clear();self.scene.clear();self.scene.setSceneRect(QRectF(0,0,640,360))
             self.update_actions();return
         if not self.committing and (session is not self.last_session or session.revision!=self.last_revision):
             self.undo_stack.clear();self.redo_stack.clear()
         self.last_session=session;self.last_revision=session.revision
         data=session.project.plan.to_dict();W=data['output']['width'];H=data['output']['height']
+        valid_ids={x['id'] for x in data['layers']}
+        self.selected_ids.intersection_update(valid_ids)
+        if self.selected_id not in valid_ids:self.selected_id=next(iter(self.selected_ids),None)
+        self.selected_ids=self.expand_group_ids(self.selected_ids,data)
+        if self.selected_id is None and self.selected_ids:self.selected_id=next(iter(self.selected_ids))
+        selected_locked=any(locked(x) for x in data['layers'] if x['id'] in self.selected_ids)
         self.syncing=True
         try:
             self.layers.clear()
             for layer in sorted(data['layers'],key=lambda x:(x['z'],x['id'])):
+                group=layer.get('group_id')
+                group_label=f" · nhóm {group[:6]}" if group else ''
                 row=QListWidgetItem(f"{layer['z']} · {layer['type']} · "+
-                    ('ẩn' if not layer['visible'] else 'hiện')+' · '+('khóa' if locked(layer) else 'mở'))
+                    ('ẩn' if not layer['visible'] else 'hiện')+' · '+('khóa' if locked(layer) else 'mở')+group_label)
                 row.setData(Qt.ItemDataRole.UserRole,layer['id']);self.layers.addItem(row)
-                if layer['id']==self.selected_id:self.layers.setCurrentItem(row)
-            if self.selected_id not in {x['id'] for x in data['layers']}:self.selected_id=None
+                if layer['id'] in self.selected_ids:row.setSelected(True)
             self.scene.clear();self.scene.setSceneRect(QRectF(0,0,W,H))
             bg=QGraphicsRectItem(QRectF(0,0,W,H));bg.setBrush(QBrush(QColor('#202832')))
             bg.setPen(QPen(QColor('#d0d7de'),2));bg.setZValue(-10000)
             bg.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,False);self.scene.addItem(bg)
             for layer in data['layers']:
                 if not layer['visible']:continue
-                item=LayerBoundsItem(layer,W,H,self.dragged)
+                can_move=not selected_locked if layer['id'] in self.selected_ids else not locked(layer)
+                item=LayerBoundsItem(layer,W,H,self.dragged,can_move)
                 self.scene.addItem(item)
-                if layer['id']==self.selected_id:item.setSelected(True)
+                if layer['id'] in self.selected_ids:item.setSelected(True)
             self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
         finally:self.syncing=False
         self.set_inspector(self.selected(data));self.update_actions()
