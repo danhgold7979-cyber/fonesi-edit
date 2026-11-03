@@ -4,7 +4,7 @@ from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QCoreApplication,QEvent
 from PySide6.QtTest import QTest
 from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
 from fonesi_edit.storage.projects import ProjectStore,save_project_file
@@ -23,7 +23,7 @@ def _open(tmp_path):
 def _close(store,window,qt_app):
     window.close()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);store.close()
 
 
 def test_tree_shortcuts_group_undo_redo_and_delete(tmp_path,qt_app):
