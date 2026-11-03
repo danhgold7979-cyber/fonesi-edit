@@ -16,6 +16,21 @@
       "type": "integer",
       "minimum": 0
     },
+    "timeline_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "in_frame": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "out_frame": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        }
+      },
+      "required": ["in_frame", "out_frame"]
+    },
     "output": {
       "$ref": "#/$defs/output"
     },
