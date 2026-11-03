@@ -61,8 +61,14 @@ def test_timeline_crop_numeric_field_keeps_native_arrow_keys(tmp_path,qt_app):
         timeline.crop_spins['left'].setValue(.25)
         timeline.crop_spins['left'].setFocus()
         before=timeline.playhead_slider.value()
-        QTest.keyClick(timeline.crop_spins['left'],Qt.Key.Key_Right)
+        spin=timeline.crop_spins['left']
+        initial=spin.value()
+        # Left/Right move the native spin-box text cursor; Up increments its value.
+        QTest.keyClick(spin,Qt.Key.Key_Right)
         assert timeline.playhead_slider.value()==before
-        assert timeline.crop_spins['left'].value()>.25
+        assert spin.value()==initial
+        QTest.keyClick(spin,Qt.Key.Key_Up)
+        assert timeline.playhead_slider.value()==before
+        assert spin.value()>initial
     finally:
         _close(store,window,qt_app)
