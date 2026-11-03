@@ -1,6 +1,7 @@
 """Qt timeline import uses a synthetic frame map plus a real owned child lifecycle."""
 import json
 import os
+from PySide6.QtCore import QCoreApplication,QEvent
 import sys
 import uuid
 from fractions import Fraction
@@ -93,7 +94,7 @@ def test_selected_library_media_becomes_video_and_audio_timeline_tracks(tmp_path
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_incomplete_frame_scan_does_not_commit_timeline(tmp_path,qt_app,monkeypatch):
@@ -121,4 +122,4 @@ def test_incomplete_frame_scan_does_not_commit_timeline(tmp_path,qt_app,monkeypa
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
