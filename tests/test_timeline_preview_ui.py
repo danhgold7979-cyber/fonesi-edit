@@ -134,3 +134,47 @@ def test_preview_worker_locks_when_process_retirement_is_unknown(monkeypatch):
     assert worker.retirement_unknown is True
     assert worker.frame is None
     assert 'unknown' in worker.error.lower()
+
+def test_filmstrip_generates_four_rational_frames_and_reuses_explicit_source(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    store,window,timeline,source,payload=_open(tmp_path)
+    try:
+        calls=[]
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+            calls.append(decoder_time)
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        assert timeline.filmstrip_button.isEnabled()
+        timeline.filmstrip_button.click()
+        wait_for(qt_app,lambda:not timeline.busy and 'Filmstrip 4 ảnh' in timeline.preview_message.text())
+        assert calls==[Fraction(21,200),Fraction(71,200),Fraction(121,200),Fraction(171,200)]
+        for label in timeline.filmstrip_labels:
+            pixmap=label.pixmap()
+            assert pixmap is not None and not pixmap.isNull()
+        assert source.read_bytes()==payload
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_filmstrip_failure_discards_partial_frames(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import PreviewError
+    store,window,timeline,_,_=_open(tmp_path)
+    try:
+        calls=[]
+        def fail_third(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+            calls.append(decoder_time)
+            if len(calls)==3:raise PreviewError('synthetic third frame failure')
+            return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
+        monkeypatch.setattr(module,'extract_preview_frame',fail_third)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.filmstrip_button.click()
+        wait_for(qt_app,lambda:not timeline.busy and 'synthetic third frame failure' in timeline.preview_message.text())
+        assert len(calls)==3
+        assert all(label.pixmap() is None or label.pixmap().isNull() for label in timeline.filmstrip_labels)
+        assert 'Filmstrip 4 ảnh' not in timeline.preview_image.text()
+    finally:
+        _close(store,window,qt_app)
