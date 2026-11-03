@@ -298,3 +298,20 @@ Windows Python 3.12 also completed the development onedir build and scoped froze
 **Correction:** walk the QObject/widget parent chain to locate the containing QTabWidget, then assert the metadata panel's tab index and expected label. Preserve the existing main-window page index and missing-store no-create assertions. Do not replace the shell's eight-area QStackedWidget or remove the Settings QTabWidget.
 
 **Acceptance:** targeted account metadata UI tests and all four clean-foundation runners pass on the exact resulting HEAD. P04-08 and P04 remain IN_PROGRESS; live Chrome/profile/login/bridge gates remain NOT_RUN.
+
+
+## Slice U — persist timeline In/Out work-area markers (P04-05)
+
+**Master alignment:** P04-05 timeline/playhead/trim/split/In-Out/marker; requirement ED-17 (especially ED-17.02/04); source contract `docs/EDITOR_SPEC.md` sections 7.1–7.2 and ED§9 shortcuts I/O/Escape. This is a narrow continuation, not whole P04-05 acceptance.
+
+**Entry checkpoint:** `c91c3f86abee50fa082db0eab5aa453a486dda57`; exact clean-foundation run `41581386658` passed all four runners (Ubuntu 3.12/3.13: 913 passed, 39 skipped each; Windows 3.12/3.13: 926 passed, 26 skipped each). The pinned Windows FFmpeg synthetic workflow was skipped.
+
+**Observed gap:** the existing In/Out range is held only in `TimelinePanel._in_frame/_out_frame`, resets on project switch/reopen and does not survive project-file save/open. The current UI correctly models a half-open frame interval but does not persist it.
+
+**Design:** add an optional strict `timeline_range` object to CompositionPlan v1 for backward-compatible reads of existing plans. It stores integer output-frame boundaries `in_frame` and `out_frame` (nullable while the user has set only In); the interval is half-open `[In, Out)`. Validate against `ceil(output.duration × output.fps)`: In must identify an existing frame, Out must be in 1..frame_total, Out requires In, and Out must be greater than In. An empty range is represented by omitting the object. Do not alter project envelope/database schema versions or existing project files.
+
+**Implementation:** I/O/Escape and the buttons issue one ordinary `CompletedCommand` revision through `ProjectSession.commit`; the shared plan is the single source of truth. Reopen reconstructs the markers from the validated plan. Saving the project file retains them. A failed/uncertain commit must not optimistically change UI state or replay the write. The selected range remains UI/export-range metadata within the composition; it does not mutate source media or trim clips.
+
+**Tests:** legacy plan without `timeline_range`; valid In-only, final-frame Out, one-frame and multi-frame half-open ranges; reject Out without In, equal/reversed bounds, negative/out-of-range frame indices, bool-as-int and unknown fields; I/O/Escape persistence and clear; project-file save/close/reopen round-trip; marker display and project revision increments exactly once per completed marker command.
+
+**Acceptance boundary:** this proves only persistent range selection and its validation. It does not implement arbitrary named timeline markers (M), loop playback, export-range rendering, synchronized A/V seek, continuous thumbnails or the full ED-17 group. P04-05/P04 remain IN_PROGRESS until all criteria and external gates pass.
