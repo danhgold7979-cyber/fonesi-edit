@@ -45,7 +45,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Timeline playhead/trim/split/in-out/gap/ripple/marker/zoom/scroll/loop commands.
 - **Errors/cancellation:** Trim bounds and overlaps validated; split at edge rejected; Esc leaves timeline unchanged; missing media visible.
 - **Tests and acceptance:** Boundary frame/sample tests, gap vs ripple distinction, linked A/V/sub mapping; repeated split/undo round-trip.
-- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, playhead marker, project-persisted half-open In/Out work-area range selection and bounded user-triggered filmstrip/waveform. Loop playback, persisted project markers, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, playhead marker, project-persisted half-open In/Out work-area range selection and bounded user-triggered filmstrip/waveform. Arbitrary named timeline markers, loop playback, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-06 — proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.
 
@@ -330,3 +330,18 @@ Implementation checkpoint: `ff86e797b662ca118189e7a19980d45bbdfdb4a5`. Clean-fou
 Windows Python 3.12 also passed the development onedir build and scoped frozen CLI boundaries. Pinned Windows FFmpeg synthetic capability was SKIPPED. Tests used QT_QPA_PLATFORM=offscreen; no physical Windows GUI/IME/HiDPI/Explorer, real-media, GPU, Chrome/provider, playback, A/V sync or render/export acceptance.
 
 P04-05 and P04 remain IN_PROGRESS; no ED-17 criterion or task is accepted by this slice.
+## Slice V — persistent named timeline markers and M shortcut (P04-05/P04-07)
+
+**Master alignment:** P04-05 timeline marker behavior; P04-07 focus-scoped shortcut behavior; source clauses ED-L125 (timeline marker), ED-L174 (M adds marker); child criteria ED-17.04 and ED-19.26. This is a partial slice, not whole task or criterion acceptance.
+
+**Entry checkpoint:** `5af6ffdcdcd75a025f48760f438b7171b1847bdb`; clean-foundation run `41585646476` passed all four runners. The prior exact code checkpoint `ff86e797b662ca118189e7a19980d45bbdfdb4a5` also verified persisted In/Out range selection.
+
+**Observed gap:** the timeline supports persisted In/Out range selection and frame navigation but has no independent named marker object or M action, although ED§7 and ED§9 require markers.
+
+**Design:** add optional `timeline_markers` to CompositionPlan v1. Each marker has a globally unique UUID, one output-frame index and a bounded non-empty label; cap at 1000 markers and allow at most one marker per frame in this slice. Existing plans without the field remain valid. Marker IDs/labels/positions are navigation/editor metadata and must be excluded from `render_content_digest`; the In/Out work area remains render-range input and stays included.
+
+**UI/behavior:** add marker at the current playhead with default labels M1, M2…; show markers in the timeline scene and a selectable list; selecting a marker seeks the playhead without changing the project; remove the selected marker explicitly. The M shortcut is registered/remappable and dispatched only from Timeline list/canvas scopes; it must not activate from crop/text/key-sequence inputs. Every add/remove is one CompletedCommand revision. Save/open restores markers. Source media is never modified.
+
+**Tests:** legacy plan without markers; valid first/final-frame markers; reject bool/out-of-range/duplicate-frame/duplicate-ID/blank/control-character/overlong/unknown-field data; adding/removing markers leaves render-content digest unchanged; M focus scope and live remap; selection seeks without project revision; add/save/close/reopen/remove round-trip and one revision per mutation.
+
+**Acceptance boundary:** this slice does not implement loop playback, marker editing/dragging, export markers as render instructions, continuous thumbnails/waveform or synchronized A/V seek. ED-17.04 and ED-19.26 remain NOT_RUN until all their assertions and required GUI evidence are met. P04-05/P04 remain IN_PROGRESS.
