@@ -106,6 +106,156 @@ class WaveformWidget(QWidget):
             painter.drawLine(x,y1,x,y2)
         painter.end()
 
+class CropEditorView(QWidget):
+    """Normalized crop overlay on a user-requested still frame; never renders a crop."""
+    crop_changed=Signal(object)
+
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.pixmap=QPixmap()
+        self.message='Ảnh tĩnh — chưa có preview'
+        self.crop={'left':0.0,'top':0.0,'width':1.0,'height':1.0}
+        self.grid=True;self.editing=False;self.ratio_locked=False
+        self._active_handle=None;self._press=None;self._start_crop=None
+        self._image_rect=QRectF()
+        self.setMinimumSize(320,180);self.setMaximumHeight(260)
+        self.setMouseTracking(True)
+        self.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
+
+    def setPixmap(self,pixmap):
+        self.pixmap=QPixmap(pixmap);self.message=''
+        self.update()
+
+    def clear(self):
+        self.pixmap=QPixmap();self.update()
+
+    def setText(self,text):
+        self.message=str(text);self.update()
+
+    def hasPixmap(self):
+        return not self.pixmap.isNull()
+
+    def set_crop(self,crop):
+        self.crop={key:float(_q(crop[key])) if isinstance(crop[key],(list,tuple)) else float(crop[key])
+                   for key in ('left','top','width','height')}
+        self.update()
+
+    def set_grid(self,enabled):
+        self.grid=bool(enabled);self.update()
+
+    def set_editing(self,enabled):
+        self.editing=bool(enabled) and self.hasPixmap()
+        self.setCursor(Qt.CursorShape.CrossCursor if self.editing else Qt.CursorShape.ArrowCursor)
+        self.update()
+
+    def set_ratio_locked(self,enabled):
+        self.ratio_locked=bool(enabled)
+
+    def _fit_rect(self):
+        if not self.hasPixmap():return QRectF()
+        margin=8
+        available=QRectF(self.rect()).adjusted(margin,margin,-margin,-margin)
+        scale=min(available.width()/self.pixmap.width(),available.height()/self.pixmap.height())
+        width=self.pixmap.width()*scale;height=self.pixmap.height()*scale
+        return QRectF(available.center().x()-width/2,available.center().y()-height/2,width,height)
+
+    def _crop_rect(self):
+        r=self._image_rect
+        return QRectF(r.left()+self.crop['left']*r.width(),
+                      r.top()+self.crop['top']*r.height(),
+                      self.crop['width']*r.width(),self.crop['height']*r.height())
+
+    def _handles(self,rect):
+        cx=rect.center().x();cy=rect.center().y()
+        return {'nw':rect.topLeft(),'n':QPointF(cx,rect.top()),'ne':rect.topRight(),
+                'e':QPointF(rect.right(),cy),'se':rect.bottomRight(),'s':QPointF(cx,rect.bottom()),
+                'sw':rect.bottomLeft(),'w':QPointF(rect.left(),cy)}
+
+    def paintEvent(self,event):
+        painter=QPainter(self);painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+        painter.fillRect(self.rect(),QColor('#111820'))
+        if not self.hasPixmap():
+            painter.setPen(QPen(QColor('#aab6c5')))
+            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,self.message)
+            painter.end();return
+        self._image_rect=self._fit_rect()
+        painter.drawPixmap(self._image_rect,self.pixmap,QRectF(self.pixmap.rect()))
+        crop=self._crop_rect();image=self._image_rect
+        shade=QColor(0,0,0,145)
+        painter.fillRect(QRectF(image.left(),image.top(),image.width(),max(0,crop.top()-image.top())),shade)
+        painter.fillRect(QRectF(image.left(),crop.bottom(),image.width(),max(0,image.bottom()-crop.bottom())),shade)
+        painter.fillRect(QRectF(image.left(),crop.top(),max(0,crop.left()-image.left()),crop.height()),shade)
+        painter.fillRect(QRectF(crop.right(),crop.top(),max(0,image.right()-crop.right()),crop.height()),shade)
+        painter.setPen(QPen(QColor('#f4d35e'),2))
+        painter.drawRect(crop)
+        if self.grid:
+            painter.setPen(QPen(QColor(245,245,245,150),1,Qt.PenStyle.DashLine))
+            for fraction in (1/3,2/3):
+                x=crop.left()+crop.width()*fraction;y=crop.top()+crop.height()*fraction
+                painter.drawLine(QPointF(x,crop.top()),QPointF(x,crop.bottom()))
+                painter.drawLine(QPointF(crop.left(),y),QPointF(crop.right(),y))
+        if self.editing:
+            painter.setPen(QPen(QColor('#17212b'),1));painter.setBrush(QColor('#f5f7fa'))
+            for point in self._handles(crop).values():
+                painter.drawRect(QRectF(point.x()-4,point.y()-4,8,8))
+        painter.end()
+
+    def mousePressEvent(self,event):
+        if not self.editing or not self.hasPixmap():return
+        point=QPointF(event.position())
+        crop=self._crop_rect()
+        handle=next((name for name,p in self._handles(crop).items()
+                     if (point-p).manhattanLength()<=13),None)
+        if handle is None and crop.contains(point):handle='move'
+        if handle is None:return
+        self._active_handle=handle;self._press=point;self._start_crop=dict(self.crop)
+        event.accept()
+
+    def mouseMoveEvent(self,event):
+        if self._active_handle is None or self._start_crop is None:return
+        point=QPointF(event.position());image=self._image_rect
+        if image.width()<=0 or image.height()<=0:return
+        start=self._start_crop;handle=self._active_handle
+        dx=(point.x()-self._press.x())/image.width()
+        dy=(point.y()-self._press.y())/image.height()
+        left=start['left'];top=start['top'];right=left+start['width'];bottom=top+start['height']
+        minimum=.01
+        if handle=='move':
+            left=max(0,min(1-start['width'],left+dx))
+            top=max(0,min(1-start['height'],top+dy))
+        else:
+            if 'w' in handle:left=max(0,min(right-minimum,left+dx))
+            if 'e' in handle:right=min(1,max(left+minimum,right+dx))
+            if 'n' in handle:top=max(0,min(bottom-minimum,top+dy))
+            if 's' in handle:bottom=min(1,max(top+minimum,bottom+dy))
+            if self.ratio_locked:
+                ratio=max(minimum,start['width'])/max(minimum,start['height'])
+                if handle in ('nw','ne','sw','se'):
+                    width=right-left;height=bottom-top
+                    if width/max(height,minimum)>ratio:height=width/ratio
+                    else:width=height*ratio
+                    if 'w' in handle:left=right-width
+                    else:right=left+width
+                    if 'n' in handle:top=bottom-height
+                    else:bottom=top+height
+                elif 'e' in handle or 'w' in handle:
+                    height=(right-left)/ratio;center=(start['top']+start['height']/2)
+                    top=max(0,min(1-height,center-height/2));bottom=top+height
+                else:
+                    width=(bottom-top)*ratio;center=(start['left']+start['width']/2)
+                    left=max(0,min(1-width,center-width/2));right=left+width
+            left=max(0,min(left,1-minimum));top=max(0,min(top,1-minimum))
+            right=max(left+minimum,min(1,right));bottom=max(top+minimum,min(1,bottom))
+        self.crop={'left':left,'top':top,'width':right-left,'height':bottom-top}
+        self.update();event.accept()
+
+    def mouseReleaseEvent(self,event):
+        if self._active_handle is None:return
+        changed=dict(self.crop)
+        self._active_handle=None;self._press=None;self._start_crop=None
+        self.crop_changed.emit(changed);event.accept()
+
+
 class TimelinePanel(QWidget):
     project_changed=Signal()
     idle=Signal()
