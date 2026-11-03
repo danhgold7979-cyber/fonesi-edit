@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** f151e16da2be3895346d1b57f83dfdd2ffcac825  
-**Last fully verified run:** 41606760403
-**Latest code checkpoint:** f151e16da2be3895346d1b57f83dfdd2ffcac825 (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** 6697dc4fe5d9b58677ac09769ba013900fd1c1a7  
+**Last fully verified run:** 41610524340
+**Latest code checkpoint:** 6697dc4fe5d9b58677ac09769ba013900fd1c1a7 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -293,3 +293,35 @@ Exact four-runner CI run 41606760403 passed on final verification HEAD `f151e16d
 - The separate pinned Windows FFmpeg capability workflow was not run by this foundation workflow.
 
 Acceptance boundary: synthetic/offscreen Qt tests do not prove physical mouse interaction, mixed-DPI scaling, source-video preview/crop compositor, renderer/export parity or end-user Windows acceptance. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted.
+
+
+## Slice AF — interactive normalized crop overlay (P04-02, 2026-11-03)
+
+Implementation commits include `52a846b09f5f8ced214a53d31626094048086cc1` (crop overlay widget), `d42e7e827dbdc22e8dc2038daad6477500dd054d` (Timeline integration), `dedc23533d023416ec392bf77706e714ad19e702` (discard staged crop on preview invalidation), `f211b26f089df1e6064595e90e3d436affb569ba` (preserve crop extent on move), and `cc8134fb4d17158131ba4942cf2d82ff540296dd` (QImage-backed crop surface). The integrated code is covered by final verification HEAD `6697dc4fe5d9b58677ac09769ba013900fd1c1a7`.
+
+Implemented:
+- Dedicated still-frame crop surface, keeping crop geometry separate from the timeline graphics scene.
+- Normalized crop rectangle over a still frame, shaded outside region, optional thirds grid and eight resize handles.
+- Move, edge/corner resize, minimum extent and source-frame clamping.
+- Optional ratio lock for edge/corner resizing.
+- Staged crop edits from overlay gestures and numeric inspector; explicit Confirm commits one normalized crop change through ProjectSession CAS; Cancel discards staged edits without changing project revision.
+- Stale revision, clip selection change, playhead/source preview invalidation and quality change discard staged crop rather than applying it to a different source frame/session.
+- Save message explicitly states that crop preview/compositor/render is not implemented. Source media bytes are not modified.
+
+Tests added/updated:
+- `tests/test_crop_overlay.py`: normalized move, ratio-locked corner resize, source-frame clamping.
+- `tests/test_timeline_crop_zoom.py`: crop stage/cancel preserves revision; Confirm commits exactly one revision and updates canonical normalized crop; existing numeric inspector validation, stale-revision, save/reopen and zoom tests remain.
+- `tests/test_timeline_preview_ui.py` and other Qt UI tests now flush deferred widget deletion before leaving GUI fixtures to keep the long-lived QApplication test lifecycle deterministic.
+
+Initial hosted diagnostics found three issues: the move gesture reduced crop extent due to stale right/bottom edges; crop compatibility methods `pixmap()`/`text()` were missing after replacing QLabel; and one integration test expected the previous status wording. These were corrected, and the crop surface uses QImage backing. A subsequent Python 3.13 offscreen run also exposed Qt teardown aborts during later tests; the affected GUI test fixtures now flush deferred QObject deletion. Final evidence below is from the later exact four-runner run, not the failed diagnostic attempts.
+
+Exact hosted clean-foundation run 41610524340 completed SUCCESS on HEAD `6697dc4fe5d9b58677ac09769ba013900fd1c1a7`:
+- Ubuntu Python 3.12.15: 964 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 964 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 977 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 977 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow not run.
+
+Acceptance boundary: this slice edits canonical normalized crop geometry over an explicit still frame only. It does not crop decoded video pixels, implement a preview compositor, support continuous playback or establish crop/export parity. Physical mouse, mixed-DPI/HiDPI and end-user Windows acceptance remain NOT_RUN. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted.
