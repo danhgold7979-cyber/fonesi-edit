@@ -195,3 +195,29 @@ P04-01 now includes numeric/slider inspector controls and resets, Basic/Advanced
 Exact hosted clean-foundation run 41599687098 completed SUCCESS on exact HEAD 2cc8a50dad9fa1ceb9c89c6a52857a814761393b: Ubuntu Python 3.12.15/3.13.17 each 948 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 961 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and five scoped frozen CLI boundary checks PASS. Pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 Hosted Qt drag/drop evidence is synthetic/offscreen, not physical Windows Explorer acceptance. Global acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child criteria PASS, 425 NOT_RUN; 0/95 requirement groups accepted. P04 whole-task acceptance remains 0/8.
+
+## Latest verified checkpoint — 2026-11-03 15:30 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch: `main` remains unchanged. Code HEAD verified before this status-only update: `b9ad4e814c2ac636997afc4336ac421d4fd140e4`. The exact code HEAD passed clean-foundation run [41601897085](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085). The following documentation update is a separate commit and does not change source code.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 53%** (manual task-scope estimate; not test coverage or acceptance). Task estimates used: P04-01 70%, P04-02 50%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance is 0/8.
+
+New P04-01 evidence on code HEAD `b9ad4e814c2ac636997afc4336ac421d4fd140e4`:
+- Appearance settings: system/light/dark theme, allow-listed base font sizes and in-app zoom; preferences persist in the user settings store, not project files.
+- Live palette/font/control-spacing application; reset is scoped to appearance and preserves shortcut/window preferences.
+- Main-window geometry/state, navigation, Editor tab and Settings tab persist; corrupt/oversized geometry falls back to defaults.
+- Pending close while coordinator work is active does not persist layout before close acceptance.
+- Qt owns OS DPI/HiDPI scaling. Hosted offscreen tests do not certify physical mixed-DPI behavior.
+
+Exact GitHub Actions run [41601897085](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41601897085), on the exact code HEAD:
+- Ubuntu Python 3.12.15: 954 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 954 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 967 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 967 passed, 26 skipped, 0 failed.
+- Plan/integrity check PASS on all four runners. Windows Python 3.12 development onedir build and five scoped frozen CLI boundary checks PASS. The separate pinned Windows FFmpeg capability workflow is SKIPPED.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS and 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8. These counts are not increased by the latest UI tests or CI.
+
+Open P04 gates include physical Windows GUI/Explorer/HiDPI/IME, full effect-property catalog, interactive crop and text/logo editing, unified editor history, timeline loop/marker rename-drag, persistent encoded proxies, continuous playback and synchronized A/V seek, full Settings installer/update/repair/rollback and Chrome profile/account readiness, plus renderer/export parity. External live provider, GPU and real-media evidence remain separate.
+
+Next implementation slice: continue P04-01 by auditing appearance/window settings against the full UX contract and filling any remaining persistence/focus/accessibility gaps before moving to the next independently implementable P04 task. Do not mark P04-01 or P04 complete until its full task and external acceptance criteria are evidenced.
