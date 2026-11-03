@@ -500,3 +500,31 @@ Scope limits: drag/drop was tested with synthetic Qt QMimeData events on hosted 
 ### Acceptance boundary
 
 This slice can close only its own local implementation contract after tests and CI pass. It does not accept P04-01 or P04, and it does not establish physical Windows GUI/IME/HiDPI behavior.
+
+
+## Slice AC — accessible names and keyboard-facing Inspector controls (P04-01)
+
+**Status before implementation:** numeric Inspector controls and reset actions exist; accessible naming is only partially applied to search, reset buttons and the overall disabled-state label.  
+**Master alignment:** P04-01 panel/inspector usability; P04-07 focus and keyboard semantics.  
+**Dependencies:** existing Qt Inspector widgets and translated Vietnamese property labels.
+
+### Contract
+
+- Every editable transform spin box and paired slider has a stable, localized accessible name that identifies the property and unit.
+- Anchor combo and horizontal/vertical flip checkboxes have explicit accessible names and concise help text.
+- Basic/Advanced toggle exposes its checked state through the native checkbox semantics and retains its existing tooltip.
+- Every reset action has an accessible name and a tooltip describing the affected property; reset-transform remains a separate group action.
+- Names must not depend on widget objectName, internal snake_case IDs, or visual label association alone.
+- No behavior, command count, project revision, or stored CompositionPlan field changes from adding accessibility metadata.
+- Existing keyboard editing, focus routing, IME guard and disabled-reason behavior remain unchanged.
+
+### Implementation
+
+1. Apply localized accessible names to each spin box and slider using the existing Vietnamese field label and unit.
+2. Apply names/help text to anchor, flip controls and group reset.
+3. Add Qt tests asserting names are non-empty, distinct, localized and mapped to the correct property; assert controls remain enabled/disabled under existing lock and selection states.
+4. Run focused Inspector tests, plan integrity and exact four-runner CI.
+
+### Acceptance boundary
+
+This slice verifies programmatic accessibility metadata and existing keyboard semantics in hosted Qt tests. It does not claim screen-reader certification, physical Windows accessibility inspection, HiDPI or IME acceptance, and it does not close P04-01/P04.
