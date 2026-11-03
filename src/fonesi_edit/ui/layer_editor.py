@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal
 from PySide6.QtGui import QColor, QBrush, QPen
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,
-    QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsItem,QAbstractItemView,QMenu)
+    QGraphicsView,QGraphicsScene,QGraphicsRectItem,QGraphicsLineItem,QGraphicsItem,QAbstractItemView,QMenu)
 
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
@@ -54,7 +54,8 @@ class LayerBoundsItem(QGraphicsRectItem):
         super().mouseReleaseEvent(event)
         if self.pressed is not None and self.pos()!=self.pressed:
             layer_id=self.layer_id;position=QPointF(self.pos());origin=QPointF(self.pressed)
-            QTimer.singleShot(0,lambda:self.moved(layer_id,position,origin))
+            alt=bool(event.modifiers() & Qt.KeyboardModifier.AltModifier)
+            QTimer.singleShot(0,lambda:self.moved(layer_id,position,origin,alt))
         self.pressed=None
 
 
@@ -73,8 +74,11 @@ class LayerEditorWorkspace(QWidget):
         self.lock_button=QPushButton('Khóa/mở');self.hide_button=QPushButton('Ẩn/hiện')
         self.up_button=QPushButton('Đưa lên');self.down_button=QPushButton('Đưa xuống')
         self.group_button=QPushButton('Nhóm');self.ungroup_button=QPushButton('Bỏ nhóm')
+        self.bring_button=QPushButton('Đưa vào khung')
+        self.grid_check=QCheckBox('Lưới 5%');self.safe_check=QCheckBox('Safe area 90%')
+        self.snap_check=QCheckBox('Snap (Alt bỏ qua)');self.snap_check.setChecked(True)
         self.undo_button=QPushButton('Hoàn tác');self.redo_button=QPushButton('Làm lại')
-        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.group_button,self.ungroup_button,self.undo_button,self.redo_button):bar.addWidget(b)
+        for b in (self.add_button,self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.group_button,self.ungroup_button,self.bring_button,self.grid_check,self.safe_check,self.snap_check,self.undo_button,self.redo_button):bar.addWidget(b)
         root.addLayout(bar)
         split=QSplitter(Qt.Orientation.Horizontal)
         left=QWidget();ll=QVBoxLayout(left);ll.addWidget(QLabel('Layer'))
@@ -102,6 +106,8 @@ class LayerEditorWorkspace(QWidget):
         self.lock_button.clicked.connect(self.toggle_lock);self.hide_button.clicked.connect(self.toggle_visibility)
         self.up_button.clicked.connect(lambda:self.move_selected(1));self.down_button.clicked.connect(lambda:self.move_selected(-1))
         self.group_button.clicked.connect(self.group_selected);self.ungroup_button.clicked.connect(self.ungroup_selected)
+        self.bring_button.clicked.connect(self.bring_into_frame)
+        self.grid_check.toggled.connect(self.update_project);self.safe_check.toggled.connect(self.update_project)
         self.undo_button.clicked.connect(self.undo);self.redo_button.clicked.connect(self.redo)
         self.scene.selectionChanged.connect(self.scene_selected)
         self.update_project()
@@ -139,7 +145,7 @@ class LayerEditorWorkspace(QWidget):
         for s in self.spins.values():s.setEnabled(edit)
         self.anchor.setEnabled(edit);self.flip_x.setEnabled(edit);self.flip_y.setEnabled(edit)
         has_selection=bool(selected) and ready
-        for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button):
+        for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button,self.bring_button):
             b.setEnabled(has_selection)
         group_ids={x.get('group_id') for x in selected if x.get('group_id')}
         already_one_group=bool(group_ids) and all(x.get('group_id') in group_ids for x in selected) and len(group_ids)==1
@@ -180,6 +186,7 @@ class LayerEditorWorkspace(QWidget):
             bg=QGraphicsRectItem(QRectF(0,0,W,H));bg.setBrush(QBrush(QColor('#202832')))
             bg.setPen(QPen(QColor('#d0d7de'),2));bg.setZValue(-10000)
             bg.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,False);self.scene.addItem(bg)
+            self._draw_canvas_guides(W,H)
             for layer in data['layers']:
                 if not layer['visible']:continue
                 can_move=not selected_locked if layer['id'] in self.selected_ids else not locked(layer)
@@ -189,6 +196,26 @@ class LayerEditorWorkspace(QWidget):
             self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
         finally:self.syncing=False
         self.set_inspector(self.selected(data));self.update_actions()
+
+    def _draw_canvas_guides(self,width,height):
+        if self.grid_check.isChecked():
+            pen=QPen(QColor(120,145,170,85),1,Qt.PenStyle.DotLine)
+            for index in range(1,20):
+                x=width*index/20;y=height*index/20
+                for x1,y1,x2,y2 in ((x,0,x,height),(0,y,width,y)):
+                    line=QGraphicsLineItem(x1,y1,x2,y2)
+                    line.setPen(pen);line.setZValue(-9000)
+                    line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,False)
+                    line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                    self.scene.addItem(line)
+        if self.safe_check.isChecked():
+            safe=QGraphicsRectItem(QRectF(width*.05,height*.05,width*.9,height*.9))
+            safe.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            safe.setPen(QPen(QColor(235,190,90,180),2,Qt.PenStyle.DashLine))
+            safe.setZValue(-8999)
+            safe.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,False)
+            safe.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            self.scene.addItem(safe)
 
     def set_inspector(self,layer):
         self.syncing=True
@@ -239,7 +266,7 @@ class LayerEditorWorkspace(QWidget):
         primary=items[-1].layer_id if items else None
         self._sync_selection(ids,primary)
 
-    def dragged(self,layer_id,position,origin=None):
+    def dragged(self,layer_id,position,origin=None,alt=False):
         data=self.data()
         if data is None:return
         layers={x['id']:x for x in data['layers']}
@@ -250,6 +277,13 @@ class LayerEditorWorkspace(QWidget):
         if origin is not None:
             dx=Fraction(str(position.x()-origin.x()))/width
             dy=Fraction(str(position.y()-origin.y()))/height
+            primary=layers[layer_id]['transform']
+            current_x=Fraction(primary['x'][0],primary['x'][1])+dx
+            current_y=Fraction(primary['y'][0],primary['y'][1])+dy
+            if self.snap_check.isChecked() and not alt:
+                step=Fraction(1,20)
+                dx=(round(current_x/step)*step)-Fraction(primary['x'][0],primary['x'][1])
+                dy=(round(current_y/step)*step)-Fraction(primary['y'][0],primary['y'][1])
             for selected_id in ids:
                 transform=layers[selected_id]['transform']
                 transform['x']=pair(Fraction(transform['x'][0],transform['x'][1])+dx)
@@ -260,6 +294,40 @@ class LayerEditorWorkspace(QWidget):
             layer['transform']['y']=pair(position.y()/height)
         self.selected_ids=ids;self.selected_id=layer_id
         self.commit(data,'di chuyển nhóm layer' if len(ids)>1 else 'di chuyển layer')
+
+    def bring_into_frame(self):
+        data=self.data()
+        if data is None:return
+        targets=self._selected_targets(data)
+        if not targets:return
+        for layer in targets:
+            if locked(layer):
+                self.status.setText('Nhóm có layer bị khóa; không thay đổi layer nào.')
+                return
+        changes={}
+        for layer in targets:
+            t=layer['transform']
+            w=Fraction(t['width'][0],t['width'][1])*Fraction(t['scale_x'][0],t['scale_x'][1])
+            h=Fraction(t['height'][0],t['height'][1])*Fraction(t['scale_y'][0],t['scale_y'][1])
+            if w>1 or h>1:
+                self.status.setText('Layer lớn hơn khung đầu ra; không thể đưa toàn bộ vào khung nếu không resize.')
+                return
+            x=Fraction(t['x'][0],t['x'][1]);y=Fraction(t['y'][0],t['y'][1])
+            ox=Fraction(0) if t['anchor'].endswith('left') else (-w if t['anchor'].endswith('right') else -w/2)
+            oy=Fraction(0) if t['anchor'].startswith('top') else (-h if t['anchor'].startswith('bottom') else -h/2)
+            left=x+ox;top=y+oy
+            if left<0:x-=left
+            elif left+w>1:x-=left+w-1
+            if top<0:y-=top
+            elif top+h>1:y-=top+h-1
+            changes[layer['id']]=(x,y)
+        changed=False
+        for layer in targets:
+            x,y=changes[layer['id']];t=layer['transform']
+            nx,ny=pair(x),pair(y)
+            if t['x']!=nx or t['y']!=ny:
+                t['x'],t['y']=nx,ny;changed=True
+        if changed:self.commit(data,'đưa layer vào khung')
 
     def select_row(self,row):
         if self.syncing:return
@@ -336,11 +404,12 @@ class LayerEditorWorkspace(QWidget):
         menu.addSeparator()
         raise_action=menu.addAction('Đưa lên trên')
         lower_action=menu.addAction('Đưa xuống dưới')
+        bring_action=menu.addAction('Đưa vào khung')
         delete_action=menu.addAction('Xóa layer đã chọn')
         group_action.setEnabled(self.group_button.isEnabled())
         ungroup_action.setEnabled(self.ungroup_button.isEnabled())
         selected=bool(self.selected_ids)
-        for action in (lock_action,visibility_action,raise_action,lower_action,delete_action):
+        for action in (lock_action,visibility_action,raise_action,lower_action,bring_action,delete_action):
             action.setEnabled(selected and not self.stopping)
         chosen=menu.exec(self.layers.viewport().mapToGlobal(position))
         if chosen is group_action:self.group_selected()
@@ -349,6 +418,7 @@ class LayerEditorWorkspace(QWidget):
         elif chosen is visibility_action:self.toggle_visibility()
         elif chosen is raise_action:self.move_selected(1)
         elif chosen is lower_action:self.move_selected(-1)
+        elif chosen is bring_action:self.bring_into_frame()
         elif chosen is delete_action:self.delete_selected()
 
     def move_selected(self,direction):
