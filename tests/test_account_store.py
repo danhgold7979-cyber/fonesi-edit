@@ -162,3 +162,61 @@ def test_source_rights_cannot_cross_identity_generation_or_account(tmp_path):
         with pytest.raises(KeyError):store.source_access(b.id,'channel-A')
         with pytest.raises(AccountStoreError):store.save_access(b.id,access,expected_binding_version=2,observed_at=2)
         assert store.db.execute('SELECT count(*) FROM access').fetchone()[0]==1 # old observation retained, never used as current
+
+
+
+def test_read_snapshot_missing_store_never_creates_path_or_receipt(tmp_path):
+    directory=tmp_path/'not-created'
+    path=directory/'accounts.sqlite3'
+    assert AccountStore.read_snapshot(path) is None
+    assert not directory.exists()
+    assert not path.exists()
+    assert not path.with_name(path.name+'.fonesi-owner').exists()
+
+
+def test_read_snapshot_is_bounded_typed_and_does_not_mutate_owned_store(tmp_path):
+    path=tmp_path/'accounts.sqlite3'
+    p=profile()
+    b=Binding(str(uuid.uuid4()),p.id,'youtube','identity-A',display_name='Kênh A',
+              web=WebState.VALID,web_checked_at=150)
+    with AccountStore(path) as store:
+        store.save(p,observed_at=100)
+        saved=store.save(b,observed_at=200)
+        store.set_default('youtube',b.id,expected_version=saved.version)
+    before=path.read_bytes()
+    receipt=path.with_name(path.name+'.fonesi-owner').read_bytes()
+    names={x.name for x in tmp_path.iterdir()}
+    snapshot=AccountStore.read_snapshot(path,profile_limit=1,binding_limit=1)
+    assert snapshot is not None
+    assert snapshot.profile_total==1 and len(snapshot.profiles)==1
+    assert snapshot.binding_total==1 and len(snapshot.bindings)==1
+    assert snapshot.profiles[0].value==p
+    assert snapshot.bindings[0].value==b
+    assert snapshot.defaults==(('youtube',b.id),)
+    assert path.read_bytes()==before
+    assert path.with_name(path.name+'.fonesi-owner').read_bytes()==receipt
+    assert {x.name for x in tmp_path.iterdir()}==names
+
+
+def test_read_snapshot_refuses_active_wal_without_modifying_store(tmp_path):
+    path=tmp_path/'accounts.sqlite3'
+    store=AccountStore(path)
+    try:
+        p=profile();store.save(p,observed_at=1)
+        wal=path.with_name(path.name+'-wal')
+        assert wal.exists()
+        before=path.read_bytes();wal_before=wal.read_bytes()
+        with pytest.raises(AccountStoreError,match='busy'):
+            AccountStore.read_snapshot(path)
+        assert path.read_bytes()==before and wal.read_bytes()==wal_before
+    finally:
+        store.close()
+
+
+def test_read_snapshot_refuses_unowned_file_without_adoption_or_mutation(tmp_path):
+    path=tmp_path/'foreign.db';path.write_bytes(b'foreign-account-store-sentinel')
+    before=path.read_bytes()
+    with pytest.raises(AccountStoreError,match='regular|unowned|foreign'):
+        AccountStore.read_snapshot(path)
+    assert path.read_bytes()==before
+    assert not path.with_name(path.name+'.fonesi-owner').exists()
