@@ -1017,6 +1017,7 @@ class TimelinePanel(QWidget):
     def _apply_timeline_edit(self,action):
         session=self.get_session();clip=self._selected_clip()
         if session is None or clip is None:return
+        before=session.project.plan.to_dict();expected=session.revision
         playhead=Fraction(self._playhead,1)/self._fps
         try:
             if action=='split':
@@ -1031,6 +1032,7 @@ class TimelinePanel(QWidget):
         except Exception:
             self.action_message.setText('Không xác nhận được chỉnh sửa timeline; không tự gửi lại.')
             return
+        self.history.record(before,session,expected,f'timeline {action}')
         self.action_message.setText('Đã lưu chỉnh sửa timeline theo frame/rational time. Chưa phát hoặc render.')
         self.project_changed.emit()
 
