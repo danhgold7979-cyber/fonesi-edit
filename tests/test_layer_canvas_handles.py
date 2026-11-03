@@ -1,6 +1,7 @@
 """Canvas handles commit normalized resize/rotation through the shared project CAS."""
 import os
 from fractions import Fraction
+from math import isclose
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
@@ -192,8 +193,10 @@ def test_viewport_pointer_drag_on_resize_handle_commits_one_geometry_command(tmp
         qt_app.processEvents()
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
-        assert transform['width']==[9,32]
-        assert transform['height']==[5,24]
+        # QGraphicsView maps the requested scene endpoint to integer viewport
+        # coordinates. Assert output-pixel geometry with a sub-pixel tolerance.
+        assert isclose(transform['width'][0]/transform['width'][1]*1920,540,abs_tol=1.5)
+        assert isclose(transform['height'][0]/transform['height'][1]*1080,225,abs_tol=1.5)
         assert transform['x']==[1,2] and transform['y']==[1,2]
     finally:
         _close(store,window,qt_app)
@@ -217,6 +220,6 @@ def test_viewport_pointer_drag_on_rotation_handle_commits_one_geometry_command(t
         qt_app.processEvents()
         assert window.session.revision==before+1
         transform=window.session.project.plan.to_dict()['layers'][0]['transform']
-        assert transform['rotation']==[90,1]
+        assert isclose(transform['rotation'][0]/transform['rotation'][1],90,abs_tol=1.0)
     finally:
         _close(store,window,qt_app)
