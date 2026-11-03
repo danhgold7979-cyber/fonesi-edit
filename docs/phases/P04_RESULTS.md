@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** 6697dc4fe5d9b58677ac09769ba013900fd1c1a7  
-**Last fully verified run:** 41610524340
-**Latest code checkpoint:** 6697dc4fe5d9b58677ac09769ba013900fd1c1a7 (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** b12e71b34f511537e55c49a0eb0aedd5741dd719  
+**Last fully verified run:** 41613864373
+**Latest code checkpoint:** b12e71b34f511537e55c49a0eb0aedd5741dd719 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -32,14 +32,24 @@ Implemented:
 - Transform lock, visibility and z-order controls.
 - Exact rational preservation for untouched transform fields.
 
-Not implemented:
+Implemented in subsequent P04-02 slices:
+- Interactive normalized crop overlay on the explicit still-frame surface: shaded outside region, thirds grid, move, eight edge/corner handles, minimum extent, source-frame clamping and optional ratio lock.
+- Crop gestures and numeric inspector edits are staged. Confirm commits one canonical crop update through ProjectSession CAS; Cancel, Escape, clip/source/quality invalidation and stale revision discard staged edits without mutating the project. A no-op click does not create a crop change.
+- Ratio-locked edge/corner resizing preserves the initial ratio at source boundaries; the handle stops at the largest valid rectangle instead of distorting the ratio.
+- Canvas keyboard nudge: arrow keys move selected unlocked layer/group by one output pixel; Shift+arrow moves ten output pixels. The normalized delta is derived from CompositionPlan output dimensions, independent of canvas zoom. Group members move atomically in one project revision. Shortcuts are scoped to canvas focus; tree and numeric inspector retain native arrows.
+- Crop surface has accessible name/description and keyboard focus for Escape cancellation.
+- Non-finite resize/anchor/rotation/drag inputs and zero/negative resize extents are rejected before rational conversion; nine-anchor resize preservation is covered.
+
+Still not implemented:
 - Text/logo/font asset editing and glyph parity.
-- Interactive crop handles and complete nine-anchor hit-test/export parity; crop is currently numeric-inspector editing.
-- Decoded continuous source-video preview, final mask-effect compositor and render/export.
-- Preview/export geometry parity and any successful render path.
+- Complete nine-anchor interactive hit-test and preview/export geometry parity.
+- Decoded continuous source-video preview, final mask-effect compositor, crop pixel compositor and render/export.
+- Persistent preview/export parity or any successful render path.
 
 Evidence:
-- tests/test_layer_editor_ui.py, tests/test_layer_canvas_drag.py, tests/test_layer_editor_order.py, tests/test_layer_editor_precision.py.
+- Layer geometry: tests/test_layer_editor_ui.py, tests/test_layer_canvas_drag.py, tests/test_layer_editor_order.py, tests/test_layer_editor_precision.py, tests/test_layer_canvas_handles.py.
+- Crop: tests/test_crop_overlay.py and tests/test_timeline_crop_zoom.py.
+- Keyboard nudge/focus isolation: tests/test_layer_shortcuts.py.
 
 ## P04-03 and P04-04 — partial implementation
 
@@ -325,3 +335,45 @@ Exact hosted clean-foundation run 41610524340 completed SUCCESS on HEAD `6697dc4
 - Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow not run.
 
 Acceptance boundary: this slice edits canonical normalized crop geometry over an explicit still frame only. It does not crop decoded video pixels, implement a preview compositor, support continuous playback or establish crop/export parity. Physical mouse, mixed-DPI/HiDPI and end-user Windows acceptance remain NOT_RUN. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted.
+
+
+## Slice AG — crop gesture cancellation and ratio-safe source boundaries (P04-02, 2026-11-03)
+
+Implementation commits: `43469e2e5f9b65fda23ffca1ff5f1a1e31ceeb2a` (gesture cancellation/no-op behavior) and `2a54d5bb063d656def08d45db8e21e9d9686bf34` (ratio-preserving source-boundary resize). Regression commits: `fb2254fb6648ef87db97d0d2fdc30a5c56c8fbb0` and `55647be8b306249e56c86d8bcbe4c7f97bcfe8fb`.
+
+The crop overlay now cancels an active pointer gesture on Escape or when crop edit mode is disabled. Cancellation restores the exact starting crop and emits no staged update. Press/release without movement is a no-op. The crop surface receives keyboard focus on pointer interaction and exposes localized accessible name/description.
+
+Ratio-locked edge and corner resizing now compute the largest rectangle that fits inside the normalized source frame while retaining the initial width/height ratio. When the source boundary prevents the requested pointer movement, the crop handle stops at the valid extent; it does not stretch one axis to fill the frame.
+
+Tests in `tests/test_crop_overlay.py` cover Escape, disable-mid-drag, no-op click and ratio-lock at a source boundary. These tests supplement the earlier move, resize, clamp, confirm/cancel, stale revision and save/reopen cases.
+
+## Slice AH — focus-scoped output-pixel layer nudge (P04-02/P04-07, 2026-11-03)
+
+Implementation commits: `c29ae331fddb8b956380d2e5e77ea6220cdfbb3b` (remappable default bindings) and `62e9e7911952221dfcda0cedc47d7a90a1e0f90a` (normalized model nudge). Test corrections and lifecycle cleanup: `bbdc739aa851fb885af8262bbf7fa7445485fd4e`, `bf021decc6774a0767395812c5c5727ac4a36477`, `881467e215663014f1cddf22b3c85bfa66aa97b4`, `55df931a3fdd932192f987443c5121087dda523a`, `cbd522077887ff9569b3b8e3ae26948cc66012c0`.
+
+The shared shortcut registry now provides remappable canvas actions for Left/Right/Up/Down (one output pixel) and Shift+arrows (ten output pixels). The router handles these only on the canvas and viewport, consumes key auto-repeat rather than creating an unbounded command stream, and leaves layer-tree and numeric Inspector keyboard semantics unchanged. `nudge_selected` uses exact rational deltas of `dx/output.width` and `dy/output.height`, applies one atomic CompletedCommand to all selected group members, and refuses empty, locked, stopping or reconciling selections.
+
+Tests in `tests/test_layer_shortcuts.py` verify one/ten-pixel movement, canonical reduced rational values, zoom independence, group atomicity, lock refusal and focus boundaries. Widget cleanup flushes deferred deletion before closing the associated ProjectStore.
+
+## CI lifecycle correction — first-open tool inventory and Qt fixture cleanup (P03/P04 regression, 2026-11-03)
+
+Implementation commit: `bcda845f96da3ab178c5659a3f3ae4a4fd77ffd7`; test commits: `9490799617a35a25f652fe8e5cca20ff23846128` and `b12e71b34f511537e55c49a0eb0aedd5741dd719`.
+
+A queued automatic first-scan callback is now scheduled with the tool-inventory panel as its QObject context. Qt therefore owns the callback lifetime and discards it when the panel is destroyed. The callback still rechecks cancellation, navigation generation, project revision and explicit user-edited values before starting metadata-only scan. The first-open test asserts the panel context is supplied. Test fixtures now dispose completed tool panels and layer-editor windows after worker retirement and flush deferred QObject deletion.
+
+The prior full-matrix diagnostic on commit `55df931a3fdd932192f987443c5121087dda523a` exposed Qt/Python fatal aborts during later tool-preference/first-open tests. The UI test for an ambiguous post-commit result was separated from the lower-level SQLite after-COMMIT fault-injection tests; storage fault-injection coverage remains at the storage layer. The panel-bound timer and explicit fixture disposal were then verified by the final full matrix below. No product assertion, storage guard or process-lifecycle rule was disabled.
+
+## Exact hosted verification — crop hardening, pixel nudge and Qt lifecycle (2026-11-03)
+
+Clean-foundation run [41613864373](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41613864373) completed SUCCESS on exact HEAD `b12e71b34f511537e55c49a0eb0aedd5741dd719`:
+
+| Runner | Passed | Skipped | Failed |
+|---|---:|---:|---:|
+| Ubuntu / Python 3.12.15 | 975 | 39 | 0 |
+| Ubuntu / Python 3.13.17 | 975 | 39 | 0 |
+| Windows / Python 3.12.10 | 988 | 26 | 0 |
+| Windows / Python 3.13.17 | 988 | 26 | 0 |
+
+Plan integrity PASS on all four runners. Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS. Windows Python 3.13 onedir/frozen-only steps were skipped by workflow design. The separate pinned Windows FFmpeg capability workflow was not run.
+
+Acceptance boundary: hosted Qt tests use offscreen mode. This does not certify physical Windows mouse interaction, mixed-DPI/HiDPI, screen readers, Vietnamese/Chinese IME, real FFmpeg/media corpus, GPU, Chrome/account handoff, live providers, continuous playback, synchronized A/V seek, crop compositor or renderer/export parity. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
