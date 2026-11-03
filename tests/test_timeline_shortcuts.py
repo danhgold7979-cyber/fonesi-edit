@@ -19,7 +19,8 @@ def _open(tmp_path):
     path=tmp_path/'project.json';save_project_file(path,project)
     store=ProjectStore(tmp_path/'store.db')
     window=MainWindow(store);window.show();window.open_project(path)
-    record=_record(tmp_path/'clip.mp4',b'timeline shortcut media')
+    window.navigation.setCurrentRow(3)
+    record,_payload=_record(tmp_path/'clip.mp4')
     addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
     window.session.commit(addition.command);window._project_changed()
     timeline=window.timeline_panel
