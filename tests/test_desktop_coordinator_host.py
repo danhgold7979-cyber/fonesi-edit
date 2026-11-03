@@ -22,8 +22,10 @@ def _host_from(repo):
 
 
 def _settled(qt_app, host):
-    wait_for(qt_app, lambda: not host.isRunning(), timeout=5)
-    assert host.wait(0)
+    # Poll the native join result itself; isRunning() can become false just
+    # before the Windows thread handle is fully joinable.
+    wait_for(qt_app, lambda: host.wait(0), timeout=5)
+    assert not host.isRunning()
     qt_app.processEvents()
 
 
