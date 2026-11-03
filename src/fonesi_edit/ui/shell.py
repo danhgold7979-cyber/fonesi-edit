@@ -56,7 +56,8 @@ class MainWindow(QMainWindow):
         self.timeline_panel=TimelinePanel(lambda:self.session,self,self.shortcut_registry)
         self.timeline_panel.project_changed.connect(self._project_changed)
         self.timeline_panel.idle.connect(self._queue_idle)
-        self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
+        self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3',
+            shortcut_registry=self.shortcut_registry)
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
         self.tool_pair.idle.connect(self._queue_idle)
