@@ -248,3 +248,31 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Open P04 gates remain: physical Windows GUI/Explorer/HiDPI/IME, complete Inspector/effect property catalog, interactive crop and text/logo editing, unified editor history, timeline loop and marker rename/drag, persistent encoded proxies, continuous playback and synchronized A/V seek, complete Settings installer/update/repair/rollback and Chrome profile/account readiness, plus renderer/export parity. Live provider, GPU and real-media evidence remain separate.
 
 Next: continue P04-01 with the remaining property/disabled-state coverage and accessibility/layout behavior, then continue P04-02 geometry/crop interactions. Do not mark P04-01 or P04 complete until all task and external acceptance criteria are evidenced.
+
+
+## Latest verified implementation checkpoint — 2026-11-03 16:00 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; integration branch: `develop/fonesi-full`; release branch `main` unchanged. Verified code checkpoint: `f151e16da2be3895346d1b57f83dfdd2ffcac825`. Latest results/status reconciliation commits are documentation-only and do not change source code. Exact hosted clean-foundation run: 41606760403, completed SUCCESS on the exact verification HEAD.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 54%** (manual task-scope estimate, not test coverage or acceptance). Task estimates: P04-01 78%, P04-02 53%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance 0/8.
+
+New implementation:
+- P04-01: localized accessible names/descriptions for eight transform numeric fields and sliders; accessible names/help for anchor, flip and reset controls. Previously implemented user appearance persistence, window/navigation/tab layout persistence and Inspector Basic/Advanced preference persistence remain intact.
+- P04-02: canvas rejects non-finite resize dimensions, anchor coordinates, rotation and drag coordinates before rational conversion; zero/negative resize dimensions are refused. Invalid geometry does not advance ProjectSession revision. Added nine-anchor resize-preservation coverage.
+
+Exact four-runner CI run 41606760403:
+- Ubuntu Python 3.12.15: 959 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 959 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 972 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 972 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps were skipped by workflow design. The separate pinned Windows FFmpeg capability workflow was not run.
+
+The initial test run for canvas validation was superseded by the final exact four-runner run above; final HEAD evidence is the only current PASS record. No assertions or product guards were weakened.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+Open P04 gates: full effect-property catalog and disabled-reason mapping; interactive crop handles and text/logo content editing; complete nine-anchor hit-test and renderer parity; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; full Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; source-media codec corpus, GPU and renderer/export parity. Hosted offscreen tests do not close these gates.
+
+Next: continue P04-02 with a bounded interactive crop-handle slice that operates on the selected clip's canonical normalized crop and preserves source media; keep crop visualization explicitly distinct from crop rendering/export. Then continue remaining P04 tasks in dependency order. Do not mark P04-01, P04-02 or P04 complete until their complete task gates pass.
