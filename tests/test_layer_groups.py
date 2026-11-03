@@ -181,23 +181,28 @@ def test_tree_extended_selection_auto_expands_existing_group(tmp_path,qt_app):
 
 def test_context_menu_group_action_uses_same_atomic_command(tmp_path,qt_app,monkeypatch):
     from PySide6.QtCore import QPoint
-    from PySide6.QtWidgets import QMenu
+    from fonesi_edit.ui import layer_editor as layer_editor_module
+    class FakeAction:
+        def __init__(self,label):self.label=label;self.enabled=True
+        def text(self):return self.label
+        def setEnabled(self,value):self.enabled=value
+    class FakeMenu:
+        def __init__(self,parent):self.items=[]
+        def addAction(self,label):
+            action=FakeAction(label);self.items.append(action);return action
+        def addSeparator(self):self.items.append(None)
+        def exec(self,position):
+            return next(x for x in self.items if x is not None and x.text()=='Nhóm các layer đã chọn')
+    monkeypatch.setattr(layer_editor_module,'QMenu',FakeMenu)
     store,window,_=_open(tmp_path)
     try:
         editor=window.layer_editor
         first,second=_add(editor,2)
         editor._sync_selection({first,second},first)
-        chosen={}
-        def choose_group(menu,position):
-            action=next(x for x in menu.actions() if x.text()=='Nhóm các layer đã chọn')
-            chosen['action']=action.text()
-            return action
-        monkeypatch.setattr(QMenu,'exec',choose_group)
         before=window.session.revision
         editor.show_layer_context_menu(QPoint(1,1))
         layers={x['id']:x for x in _layers(window)}
         assert window.session.revision==before+1
-        assert chosen['action']=='Nhóm các layer đã chọn'
         assert layers[first]['group_id']==layers[second]['group_id']
     finally:
         _close(store,window,qt_app)
