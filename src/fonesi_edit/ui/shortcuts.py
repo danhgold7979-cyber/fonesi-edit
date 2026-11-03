@@ -35,6 +35,7 @@ DEFAULT_SHORTCUTS=(
     ('timeline.end','Tới frame cuối','Timeline','End'),
     ('timeline.mark_in','Đặt điểm In','Timeline','I'),
     ('timeline.mark_out','Đặt điểm Out','Timeline','O'),
+    ('timeline.add_marker','Thêm marker','Timeline','M'),
     ('timeline.clear_range','Xóa vùng In/Out','Timeline','Escape'),
 )
 

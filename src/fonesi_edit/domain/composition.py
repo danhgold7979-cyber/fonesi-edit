@@ -107,6 +107,15 @@ def _validate(data):
     ids=set()
     def register(obj,path):
         _require(obj['id'] not in ids,path+'/id','Duplicate object ID','duplicate_id');ids.add(obj['id'])
+    marker_frames=set()
+    for i,marker in enumerate(data.get('timeline_markers',[])):
+        mp=f'/timeline_markers/{i}';register(marker,mp)
+        frame=marker['frame'];label=marker['label']
+        _require(type(frame) is int and 0<=frame<frame_total,mp+'/frame','Marker frame must identify an existing output frame')
+        _require(frame not in marker_frames,mp+'/frame','Only one timeline marker is allowed per output frame')
+        marker_frames.add(frame)
+        _require(label==label.strip() and bool(label),mp+'/label','Marker label must be non-empty and trimmed')
+        _require(not any(ord(ch)<32 or ord(ch)==127 for ch in label),mp+'/label','Marker label cannot contain control characters')
     assets={};fonts={};clips={};audio={}
     content_records={}
     def consistent_content(obj, key, path):
@@ -289,7 +298,7 @@ class CompositionPlan:
 
     def render_content_digest(self, renderer_build_hash: str) -> str:
         _require(isinstance(renderer_build_hash,str) and re.fullmatch('[a-f0-9]{64}',renderer_build_hash) is not None,'renderer_build_hash','Pinned renderer/tool build hash required')
-        d=self.to_dict();d.pop('id');d.pop('revision');d.pop('provenance')
+        d=self.to_dict();d.pop('id');d.pop('revision');d.pop('provenance');d.pop('timeline_markers',None)
         # IDs only link records. Canonical tokens preserve actual order/references and z tie order.
         aliases={a['id']:'asset:'+a['sha256'] for a in d['assets']}
         aliases.update({f['id']:'font:'+f['sha256']+':'+str(f['face_index']) for f in d['fonts']})
