@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, QSettings, Qt, Signal, QEvent
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QListWidget,QListWidgetItem,
-    QKeySequenceEdit,QPushButton,QFormLayout,QAbstractSpinBox,QPlainTextEdit,QTextEdit,
+    QKeySequenceEdit,QPushButton,QFormLayout,QPlainTextEdit,QTextEdit,QApplication,
 )
 
 
@@ -129,12 +129,15 @@ class ShortcutEventRouter(QObject):
 
     def _is_text_entry(self,watched):
         if not self.ignore_text_entry:return False
-        current=watched
-        text_types=(QLineEdit,QTextEdit,QPlainTextEdit,QAbstractSpinBox,QKeySequenceEdit)
-        while current is not None:
-            if isinstance(current,text_types):return True
-            parent=getattr(current,'parentWidget',None)
-            current=parent() if parent is not None else None
+        text_types=(QLineEdit,QTextEdit,QPlainTextEdit,QKeySequenceEdit)
+        # Inspect both the event receiver and actual focus widget: Qt may propagate
+        # an unhandled key to a parent after the child filter has returned False.
+        for candidate in (watched,QApplication.focusWidget()):
+            current=candidate
+            while current is not None:
+                if isinstance(current,text_types):return True
+                parent=getattr(current,'parentWidget',None)
+                current=parent() if parent is not None else None
         return False
 
     def eventFilter(self,watched,event):
