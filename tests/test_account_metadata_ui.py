@@ -117,8 +117,12 @@ def test_main_window_settings_tab_mounts_metadata_panel_without_creating_store(q
         window.navigation.setCurrentRow(7)
         spin(qt_app,lambda:not window.background_busy)
         tabs=window.account_metadata.parentWidget()
+        while tabs is not None and not isinstance(tabs,QTabWidget):
+            tabs=tabs.parentWidget()
         assert isinstance(tabs,QTabWidget)
-        assert tabs.indexOf(window.account_metadata)>=0
+        tab_index=tabs.indexOf(window.account_metadata)
+        assert tab_index>=0
+        assert tabs.tabText(tab_index)=='Hồ sơ / Tài khoản — metadata'
         assert window.pages.currentIndex()==7
         assert not (tmp_path/'accounts.sqlite3').exists()
         assert 'không tạo' in window.account_metadata.status.text().lower()
