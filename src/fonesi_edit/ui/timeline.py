@@ -169,10 +169,11 @@ class TimelinePanel(QWidget):
             decoder_time=_q(stream['start_time'])+source_time
             source=resolve_asset_path(asset,session.project_base)
             expected=asset['sha256']
-        except (StopIteration,KeyError,ValueError,PreviewError) as exc:
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError) as exc:
             self.preview_message.setText(str(exc) if isinstance(exc,PreviewError)
                 else 'Không xác định được asset/stream của clip; không chạy decoder.')
             return
+        self.preview_image.clear();self.preview_image.setText('Đang tạo ảnh tĩnh…')
         worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_time,self)
         self._preview_generation+=1;generation=self._preview_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
@@ -371,6 +372,7 @@ class TimelinePanel(QWidget):
             return
         data=session.project.plan.to_dict()
         if self._last_project_id != data['id']:
+            if self._last_project_id is not None:self._invalidate_preview('Project identity changed; previous preview discarded.')
             self._last_project_id=data['id'];self.selected_clip_id=None;self._playhead=0
         output_duration=_q(data['output']['duration'])
         self._fps=_q(data['output']['fps'])

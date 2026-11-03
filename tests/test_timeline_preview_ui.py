@@ -58,7 +58,9 @@ def test_preview_requires_explicit_tool_and_trust_and_displays_still_image(tmp_p
         timeline.preview_trust.setChecked(True)
         assert timeline.preview_button.isEnabled()
         timeline.preview_button.click()
-        wait_for(qt_app,lambda:not timeline.busy and timeline.preview_image.pixmap() is not None)
+        wait_for(qt_app,lambda:not timeline.busy and 'timestamp decoder' in timeline.preview_message.text())
+        displayed=timeline.preview_image.pixmap()
+        assert displayed is not None and not displayed.isNull()
         assert len(calls)==1
         assert calls[0][0]==source and calls[0][3]==3
         assert calls[0][4]==Fraction(12,25)  # stream start -1/50 + source time 1/2
@@ -88,7 +90,8 @@ def test_preview_path_change_revokes_trust_and_playhead_change_discards_old_resu
         timeline.playhead_slider.setValue(16)
         release.set()
         wait_for(qt_app,lambda:not timeline.busy)
-        assert timeline.preview_image.pixmap() is None
+        stale_pixmap=timeline.preview_image.pixmap()
+        assert stale_pixmap is None or stale_pixmap.isNull()
         assert 'playhead đã đổi' in timeline.preview_message.text().lower()
 
         timeline.preview_trust.setChecked(True)
@@ -119,3 +122,15 @@ def test_application_shutdown_waits_for_preview_worker(tmp_path,qt_app,monkeypat
     release.set()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
     window.deleteLater();store.close()
+
+def test_preview_worker_locks_when_process_retirement_is_unknown(monkeypatch):
+    import fonesi_edit.ui.timeline as timeline_module
+    from fonesi_edit.media.preview import PreviewRetirementUnknown
+    def unknown(*args,**kwargs):
+        raise PreviewRetirementUnknown('retirement unknown')
+    monkeypatch.setattr(timeline_module,'extract_preview_frame',unknown)
+    worker=timeline_module.PreviewWorker('/tmp/source.mp4','/tmp/ffmpeg','a'*64,0,Fraction(0))
+    worker.run()
+    assert worker.retirement_unknown is True
+    assert worker.frame is None
+    assert 'UNKNOWN' in worker.error

@@ -110,3 +110,10 @@ The last fully completed four-runner source verification is run 41562878790 at c
 Later test runs encountered two old modal context-menu test attempts that remained in progress. The context-menu regression test was changed to use a non-modal fake menu at commit e1427e05172de646c5e4e4e3a7ec7b40cd997747. The latest full run for the current code is queued as run 41564091006; it has not produced a test result yet. Do not claim latest code CI PASS until all four matrix jobs finish.
 
 Acceptance denominators remain unchanged: 13/438 child criteria PASS, 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED; P03 whole-task acceptance 0/9 and P04 whole-task acceptance 0/8. P04-06 proxy/cache/seek, P04-07 remapping/conflict UI and physical IME verification, P04-08 complete settings/tool/profile/account UI, full video preview/render parity and physical Windows user-device acceptance remain open.
+
+
+## P04 still-frame preview and CI correction — 2026-11-03
+
+Added explicit, background, content-bound still-frame preview with an in-memory bounded cache and safe application shutdown. Preview is not playback/render and does not prove audio synchronization, frame parity, crop/transform parity or codec support. Unknown process retirement locks preview and application close instead of allowing retry.
+
+Latest completed diagnostic before the correction commit: run 41567567876 failed on both Linux Python 3.12/3.13 with 4 failures / 873 passes / 39 skips. The failures were test/UI issues: the keyboard shortcut tests left the Editor page hidden, absolute missing source path leaked FileNotFoundError, and a null Qt QPixmap was compared to None. The current branch includes fixes and must be re-run through all four matrix jobs. Windows results for that failed run were still running at the time and must not be counted as PASS.

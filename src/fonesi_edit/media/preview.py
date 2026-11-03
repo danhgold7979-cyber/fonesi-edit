@@ -97,7 +97,8 @@ def resolve_asset_path(asset:dict,project_base:Path|str)->Path:
         candidate=Path(value)
         if not candidate.is_absolute():raise PreviewError('Absolute asset path required')
     else:raise PreviewError('Unknown asset path base')
-    _regular_tree(candidate)
+    try:_regular_tree(candidate)
+    except OSError:raise PreviewError('Asset path is missing or inaccessible') from None
     return candidate
 
 
@@ -189,7 +190,8 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
             _FRAME_CACHE.pop(key,None);_FRAME_CACHE_SIZE-=len(cached.png)
     if cancel():raise PreviewCanceled('Preview canceled before decoder launch')
     args=[str(ffmpeg),'-nostdin','-hide_banner','-loglevel','error',
-          '-protocol_whitelist','file,pipe','-i',str(source),
+          '-max_alloc','67108864','-filter_threads','1','-protocol_whitelist','file,pipe',
+          '-threads','1','-i',str(source),
           '-ss',_timestamp(decoder_time),'-map',f'0:{stream_index}',
           '-an','-sn','-dn','-frames:v','1','-threads','1',
           '-vf',f'scale=w={max_width}:h={max_height}:force_original_aspect_ratio=decrease',

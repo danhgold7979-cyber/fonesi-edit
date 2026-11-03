@@ -29,6 +29,7 @@ def _close(store,window,qt_app):
 def test_tree_shortcuts_group_undo_redo_and_delete(tmp_path,qt_app):
     store,window=_open(tmp_path)
     try:
+        window.navigation.setCurrentRow(3)
         editor=window.layer_editor
         editor.add_mask();first=editor.selected_id
         editor.add_mask();second=editor.selected_id
@@ -55,6 +56,7 @@ def test_tree_shortcuts_group_undo_redo_and_delete(tmp_path,qt_app):
 def test_numeric_inspector_keeps_native_ctrl_z_and_does_not_trigger_layer_undo(tmp_path,qt_app):
     store,window=_open(tmp_path)
     try:
+        window.navigation.setCurrentRow(3)
         editor=window.layer_editor;editor.add_mask()
         before=window.session.revision
         editor.spins['x'].setValue(0.6);editor.apply_inspector()
@@ -71,6 +73,7 @@ def test_numeric_inspector_keeps_native_ctrl_z_and_does_not_trigger_layer_undo(t
 def test_canvas_focus_shortcut_moves_selected_layer_forward(tmp_path,qt_app):
     store,window=_open(tmp_path)
     try:
+        window.navigation.setCurrentRow(3)
         editor=window.layer_editor
         editor.add_mask();first=editor.selected_id
         editor.add_mask();second=editor.selected_id

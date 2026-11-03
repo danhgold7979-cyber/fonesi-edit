@@ -82,3 +82,18 @@ The current branch also contains the following later code, which is **implemente
 Additional regression files: tests/test_layer_groups.py, tests/test_layer_group_schema.py, tests/test_layer_canvas_guides.py, tests/test_layer_canvas_handles.py and tests/test_layer_shortcuts.py. The earlier modal-menu test was replaced with a non-modal fake-menu test so CI cannot wait for user input.
 
 The latest full CI run for current code is run 41564091006 (queued at time of this checkpoint). Until it completes on Ubuntu/Windows Python 3.12/3.13, all later features above remain unverified by hosted CI. No P04 task or phase is accepted.
+
+
+## Slice K — explicit still-frame preview (2026-11-03)
+
+Implemented on develop/fonesi-full:
+- Explicit absolute FFmpeg path and per-path trust checkbox; no PATH discovery, auto-execution, download or installation.
+- Project-relative/absolute asset resolution with symlink/reparse component refusal.
+- Background owned worker, content-hash pinning for source and executable, single selected stream, exact rational decoder timestamp and one PNG output.
+- In-memory LRU cache keyed by source/tool SHA256, stream, timestamp, dimensions and algorithm version; capped at 64 entries / 48 MiB.
+- Bounded PNG dimensions/bytes and FFmpeg thread/allocation controls.
+- Stale project/clip/playhead requests are discarded; changing tool path revokes trust.
+- Application close waits for preview worker retirement. Unknown process/job retirement permanently locks preview and app close for that session rather than retrying or claiming safety.
+- Preview is a still image only. No playback, audio sync, exact PTS parity, crop/transform compositor, waveform/thumbnail generation or export parity.
+
+Regression coverage added: tests/test_media_preview.py and tests/test_timeline_preview_ui.py. Initial hosted run 41567567876 exposed four test failures: two shortcut tests targeted a hidden Editor page; missing absolute path escaped as FileNotFoundError; Qt returns a null QPixmap object rather than Python None. The source/test fixes are included in the current checkpoint; next CI run must confirm them. No PASS claim for this checkpoint yet.
