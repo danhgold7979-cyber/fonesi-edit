@@ -142,7 +142,8 @@ class LayerEditorWorkspace(QWidget):
         for b in (self.delete_button,self.lock_button,self.hide_button,self.up_button,self.down_button):
             b.setEnabled(has_selection)
         group_ids={x.get('group_id') for x in selected if x.get('group_id')}
-        self.group_button.setEnabled(ready and len(selected)>=2 and len(group_ids)!=1)
+        already_one_group=bool(group_ids) and all(x.get('group_id') in group_ids for x in selected) and len(group_ids)==1
+        self.group_button.setEnabled(ready and len(selected)>=2 and not already_one_group)
         self.ungroup_button.setEnabled(has_selection and bool(group_ids))
         if not selected:self.status.setText('Chưa chọn layer.')
         elif len(selected)>1:self.status.setText(f'Đã chọn {len(selected)} layer · thao tác sẽ áp dụng đồng thời.')
@@ -293,39 +294,112 @@ class LayerEditorWorkspace(QWidget):
                 'anchor':'center','flip_x':False,'flip_y':False},
             'style':{'mode':'color','amount':[0,1],'feather_px':[0,1],'radius_px':[0,1],'color':[0,0,0,180]},
             'content':None,'keyframes':[],'visible':True,'locked_fields':[]})
-        self.selected_id=layer_id;self.commit(data,'thêm vùng che')
+        self.selected_id=layer_id;self.selected_ids={layer_id};self.commit(data,'thêm vùng che')
+
+    def _selected_targets(self,data):
+        ids=self.expand_group_ids(self.selected_ids,data)
+        return [x for x in data['layers'] if x['id'] in ids]
+
+    def group_selected(self):
+        data=self.data()
+        if data is None:return
+        targets=self._selected_targets(data)
+        if len(targets)<2:return
+        group_id=str(uuid4())
+        for layer in targets:layer['group_id']=group_id
+        self.selected_ids={x['id'] for x in targets};self.selected_id=next(iter(sorted(self.selected_ids)))
+        self.commit(data,'nhóm layer')
+
+    def ungroup_selected(self):
+        data=self.data()
+        if data is None:return
+        targets=self._selected_targets(data)
+        grouped=[x for x in targets if x.get('group_id')]
+        if not grouped:return
+        for layer in targets:layer.pop('group_id',None)
+        self.selected_ids={x['id'] for x in targets};self.selected_id=next(iter(sorted(self.selected_ids)))
+        self.commit(data,'bỏ nhóm layer')
+
+    def show_layer_context_menu(self,position):
+        item=self.layers.itemAt(position)
+        if item is not None and item not in self.layers.selectedItems():
+            self._sync_selection({item.data(Qt.ItemDataRole.UserRole)},item.data(Qt.ItemDataRole.UserRole))
+        menu=QMenu(self)
+        group_action=menu.addAction('Nhóm các layer đã chọn')
+        ungroup_action=menu.addAction('Bỏ nhóm')
+        menu.addSeparator()
+        lock_action=menu.addAction('Khóa/mở biến đổi')
+        visibility_action=menu.addAction('Ẩn/hiện')
+        menu.addSeparator()
+        raise_action=menu.addAction('Đưa lên trên')
+        lower_action=menu.addAction('Đưa xuống dưới')
+        delete_action=menu.addAction('Xóa layer đã chọn')
+        group_action.setEnabled(self.group_button.isEnabled())
+        ungroup_action.setEnabled(self.ungroup_button.isEnabled())
+        selected=bool(self.selected_ids)
+        for action in (lock_action,visibility_action,raise_action,lower_action,delete_action):
+            action.setEnabled(selected and not self.stopping)
+        chosen=menu.exec(self.layers.viewport().mapToGlobal(position))
+        if chosen is group_action:self.group_selected()
+        elif chosen is ungroup_action:self.ungroup_selected()
+        elif chosen is lock_action:self.toggle_lock()
+        elif chosen is visibility_action:self.toggle_visibility()
+        elif chosen is raise_action:self.move_selected(1)
+        elif chosen is lower_action:self.move_selected(-1)
+        elif chosen is delete_action:self.delete_selected()
 
     def move_selected(self,direction):
         data=self.data()
-        if data is None or self.selected_id is None:return
+        if data is None or not self.selected_ids or direction not in (-1,1):return
         ordered=sorted(data['layers'],key=lambda x:(x['z'],x['id']))
-        index=next((i for i,x in enumerate(ordered) if x['id']==self.selected_id),None)
-        if index is None:return
-        target=max(0,min(len(ordered)-1,index-direction))
-        if target==index:return
-        layer=ordered.pop(index);ordered.insert(target,layer)
+        ids=self.expand_group_ids(self.selected_ids,data)
+        indices=[i for i,x in enumerate(ordered) if x['id'] in ids]
+        if not indices:return
+        changed=False
+        if direction>0:
+            for index in reversed(indices):
+                if index<len(ordered)-1 and ordered[index+1]['id'] not in ids:
+                    ordered[index],ordered[index+1]=ordered[index+1],ordered[index]
+                    changed=True
+        else:
+            for index in indices:
+                if index>0 and ordered[index-1]['id'] not in ids:
+                    ordered[index],ordered[index-1]=ordered[index-1],ordered[index]
+                    changed=True
+        if not changed:return
         for z,item in enumerate(ordered):item['z']=z
         data['layers']=ordered
-        self.commit(data,'đổi thứ tự layer')
+        self.selected_ids=ids;self.commit(data,'đổi thứ tự layer')
 
     def delete_selected(self):
         data=self.data()
-        if data is None or self.selected_id is None:return
-        data['layers']=[x for x in data['layers'] if x['id']!=self.selected_id]
-        self.selected_id=None;self.commit(data,'xóa layer khỏi project')
+        if data is None or not self.selected_ids:return
+        ids=self.expand_group_ids(self.selected_ids,data)
+        data['layers']=[x for x in data['layers'] if x['id'] not in ids]
+        self.selected_ids=set();self.selected_id=None
+        self.commit(data,'xóa layer khỏi project')
 
     def toggle_lock(self):
-        data=self.data();layer=self.selected(data)
-        if layer is None:return
-        locks=set(layer['locked_fields'])
-        if 'transform' in locks:locks.remove('transform')
-        else:locks.add('transform')
-        layer['locked_fields']=sorted(locks);self.commit(data,'khóa biến đổi')
+        data=self.data()
+        if data is None:return
+        targets=self._selected_targets(data)
+        if not targets:return
+        all_locked=all('transform' in set(x['locked_fields']) or locked(x) for x in targets)
+        for layer in targets:
+            locks=set(layer['locked_fields'])
+            if all_locked:locks.discard('transform')
+            else:locks.add('transform')
+            layer['locked_fields']=sorted(locks)
+        self.commit(data,'khóa/mở biến đổi layer')
 
     def toggle_visibility(self):
-        data=self.data();layer=self.selected(data)
-        if layer is None:return
-        layer['visible']=not layer['visible'];self.commit(data,'ẩn/hiện layer')
+        data=self.data()
+        if data is None:return
+        targets=self._selected_targets(data)
+        if not targets:return
+        make_visible=not all(x['visible'] for x in targets)
+        for layer in targets:layer['visible']=make_visible
+        self.commit(data,'ẩn/hiện layer')
 
     def apply_inspector(self):
         if self.syncing:return
