@@ -27,6 +27,27 @@ def test_ctrl_comma_opens_existing_settings_page_and_preserves_project(tmp_path,
         assert window.pages.count()==page_count
         assert window.session.project==project
         assert window.navigation.item(7).text()=='Preset/Cài đặt'
+
+        # Ctrl+, is application-scoped and remains available from numeric inspector.
+        window.navigation.setCurrentRow(3)
+        editor=window.layer_editor
+        editor.add_mask()
+        numeric=editor.spins['x']
+        numeric.setFocus()
+        revision=window.session.revision
+        QTest.keyClick(numeric,Qt.Key.Key_Comma,Qt.KeyboardModifier.ControlModifier)
+        assert window.navigation.currentRow()==7
+        assert window.pages.currentIndex()==7
+        assert window.session.revision==revision
+
+        # Text entry owns its keys; a propagated Ctrl+, must not navigate away.
+        window.navigation.setCurrentRow(3)
+        timeline=window.timeline_panel
+        timeline.parentWidget().setCurrentIndex(1)
+        timeline.preview_path.setFocus()
+        QTest.keyClick(timeline.preview_path,Qt.Key.Key_Comma,Qt.KeyboardModifier.ControlModifier)
+        assert window.navigation.currentRow()==3
+        assert window.pages.currentIndex()==3
     finally:
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
