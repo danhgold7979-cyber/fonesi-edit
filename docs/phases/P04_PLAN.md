@@ -401,3 +401,18 @@ Regression tests: test_inspector_basic_advanced_search_units_and_tooltips; test_
 Exact hosted clean-foundation run 41594109888 (https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41594109888) completed SUCCESS on HEAD 1038d0afa91bddcaca45fc00c832247451da19cb: Ubuntu Python 3.12.15/3.13.17 each 943 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 956 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build PASS and frozen schema/subtitle/read-only tool-discovery/license boundary checks PASS (5 cases). The pinned Windows FFmpeg synthetic capability workflow was SKIPPED.
 
 Scope limits: hosted Qt tests used offscreen mode. This does not certify physical Windows Explorer, HiDPI, IME, theme/layout persistence or multi-file drag/drop. Basic/Advanced preference is not persisted. ED-01.02/.03/.04 remain NOT_RUN; P04-01/P04 remain IN_PROGRESS. No task/criterion/phase acceptance is claimed.
+## Slice Z — bounded multi-file Explorer drop queue with explicit one-at-a-time import (P04-01)
+
+**Master alignment:** P04-01 Explorer multi-drag and media-library import; source clauses ED-L136 and PR-L029. This slice adds a bounded selection queue only; it does not claim batch media import or physical Explorer acceptance.
+
+**Entry checkpoint:** code HEAD 1038d0afa91bddcaca45fc00c832247451da19cb on develop/fonesi-full. Clean-foundation run 41594109888 passed all four Linux/Windows Python 3.12/3.13 runners. Documentation/evidence checkpoint 055249da73533afad0f5b6d384a4cc04a0fdcda1 also passed clean-foundation run 41595185031 on all four runners; main remains unchanged.
+
+**Observed gap:** the existing LocalMediaPathEdit accepts exactly one local regular file. Multiple Explorer items are rejected, so there is no bounded review queue or per-item refusal state.
+
+**Design:** add a separate LocalMediaDropQueue list that accepts up to 64 local file URLs per drop/session. Validate each path independently: absolute local path, UTF-8 and path-length bounds, regular file only, no symlink/reparse point, no directory, no UNC/network URL. Deduplicate normalized path identities. Each accepted item is displayed as pending explicit selection; each invalid/duplicate/overflow item is retained as a visible refusal row with a short reason and full path in its tooltip. The existing one-file source selector remains compatible.
+
+**Safety and interaction:** dropping never runs ffprobe, changes project/library revision or copies/modifies source files. The user selects one valid queued item and explicitly chooses 'Dùng tệp đã chọn' to populate the existing single-source field; the existing explicit trust checkbox and 'Kiểm tra và thêm' action remain mandatory. Import remains one file per worker, preventing concurrent writer/process ambiguity. Queue is bounded and ephemeral, not project data.
+
+**Tests:** two or more valid files populate separate queue rows without import; mixed valid/remote/directory/missing/reparse items retain valid rows and visibly refuse invalid ones; duplicates and >64 entries are bounded; selecting a queued item only populates the source field; project revision/library and source bytes remain unchanged until explicit import; existing one-file LocalMediaPathEdit behavior remains unchanged; busy/close disables queue interaction.
+
+**Acceptance boundary:** this slice does not implement batch/parallel import, directory recursion, network shares, physical Windows Explorer drag/drop, file-format/codec support or full P04-01 acceptance. ED-L136 and P04-01 remain NOT_RUN/IN_PROGRESS until real Windows Explorer multi-select, HiDPI and unsupported-item behavior are tested on a user device.
