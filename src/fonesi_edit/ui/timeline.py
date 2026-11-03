@@ -1,19 +1,44 @@
-"""Read-only exact-time timeline overview; no playback, trim or render claim."""
+"""Exact-time timeline editing with explicit, still-frame-only source preview."""
 from copy import deepcopy
 from fractions import Fraction
 
-from PySide6.QtCore import QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QBrush, QPen
+from pathlib import Path
+from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
+from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
-    QDoubleSpinBox,QFormLayout)
+    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
+from fonesi_edit.media.preview import (PreviewFrame,PreviewError,PreviewCanceled,
+    extract_preview_frame,resolve_asset_path)
 
 
 def _q(value):
     return Fraction(value[0],value[1])
+
+
+
+class PreviewWorker(QThread):
+    """One explicit still-frame request; owns its decoder until retirement."""
+    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None):
+        super().__init__(parent)
+        self.source=Path(source);self.ffmpeg=Path(ffmpeg)
+        self.expected_sha256=expected_sha256;self.stream_index=stream_index
+        self.decoder_time=decoder_time;self.frame=None;self.error=None;self.canceled=False
+    def run(self):
+        try:
+            self.frame=extract_preview_frame(self.source,self.ffmpeg,
+                expected_sha256=self.expected_sha256,stream_index=self.stream_index,
+                decoder_time=self.decoder_time,cancel=self.isInterruptionRequested,
+                timeout=30,max_width=1280,max_height=720)
+        except PreviewCanceled:
+            self.canceled=True
+        except PreviewError as exc:
+            self.error=str(exc)
+        except BaseException:
+            self.error='Không thể tạo ảnh xem nhanh; không áp dụng kết quả chưa xác nhận.'
 
 
 class TimelinePanel(QWidget):
@@ -24,7 +49,8 @@ class TimelinePanel(QWidget):
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
-        self._zoom_percent=100
+        self._zoom_percent=100;self._last_revision=None;self._preview_generation=0
+        self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None;self.stopping=False
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, tách và trim theo thời gian hữu tỷ. Chưa có phát lại, thumbnail, waveform hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
