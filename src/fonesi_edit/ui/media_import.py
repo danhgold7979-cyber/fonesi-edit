@@ -176,7 +176,7 @@ class LocalMediaDropQueue(QListWidget):
 
     def eventFilter(self,watched,event):
         # QAbstractScrollArea delivers native drag/drop to its viewport.
-        if watched is self.viewport():
+        if watched == self.viewport():
             if event.type()==QEvent.Type.DragEnter:
                 self.dragEnterEvent(event);return True
             if event.type()==QEvent.Type.DragMove:
