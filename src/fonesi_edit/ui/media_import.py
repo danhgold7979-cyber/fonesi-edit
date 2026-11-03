@@ -183,6 +183,7 @@ class LocalMediaDropQueue(QListWidget):
             remaining=len(urls)-index
             if self.count()>=MAX_DROP_QUEUE_ROWS-1:
                 rejected+=remaining
+                self._refused_count+=remaining
                 self._append_overflow_summary(remaining)
                 stopped=True
                 break
