@@ -7,7 +7,7 @@ from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter, QShortcut, QKeySequence
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
-    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog)
+    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
@@ -22,12 +22,16 @@ def _q(value):
 
 class PreviewWorker(QThread):
     """One explicit still-frame request; owns its decoder until retirement."""
-    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None,decoder_times=None):
+    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None,decoder_times=None,
+                 max_width=1280,max_height=720):
         super().__init__(parent)
         self.source=Path(source);self.ffmpeg=Path(ffmpeg)
         self.expected_sha256=expected_sha256;self.stream_index=stream_index
         self.decoder_time=decoder_time;self.decoder_times=tuple(decoder_times or (decoder_time,))
+        self.max_width=max_width;self.max_height=max_height
         if not 1<=len(self.decoder_times)<=4:raise ValueError('Preview worker supports one to four timestamps')
+        if type(max_width) is not int or not 1<=max_width<=1280 or type(max_height) is not int or not 1<=max_height<=720:
+            raise ValueError('Preview dimensions must remain within the decoder bounds')
         self.frames=[];self.frame=None;self.error=None;self.canceled=False;self.retirement_unknown=False
     def run(self):
         try:
@@ -36,7 +40,7 @@ class PreviewWorker(QThread):
                 frame=extract_preview_frame(self.source,self.ffmpeg,
                     expected_sha256=self.expected_sha256,stream_index=self.stream_index,
                     decoder_time=timestamp,cancel=self.isInterruptionRequested,
-                    timeout=30,max_width=1280,max_height=720)
+                    timeout=30,max_width=self.max_width,max_height=self.max_height)
                 self.frames.append(frame)
             if len(self.frames)==1:self.frame=self.frames[0]
         except PreviewCanceled:
@@ -149,12 +153,18 @@ class TimelinePanel(QWidget):
         self.preview_path.setPlaceholderText('Đường dẫn tuyệt đối tới FFmpeg do bạn chọn')
         self.preview_path.textChanged.connect(self._preview_path_changed)
         self.preview_browse=QPushButton('Chọn FFmpeg…');self.preview_browse.clicked.connect(self.choose_preview_ffmpeg)
+        self.preview_quality=QComboBox()
+        self.preview_quality.addItem('Nháp · 320×180',(320,180))
+        self.preview_quality.addItem('Tiêu chuẩn · 640×360',(640,360))
+        self.preview_quality.addItem('Cao · 1280×720',(1280,720))
+        self.preview_quality.setCurrentIndex(1)
+        self.preview_quality.currentIndexChanged.connect(self._preview_quality_changed)
         self.preview_trust=QCheckBox('Tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục')
         self.preview_trust.toggled.connect(self.update_actions)
         self.preview_button=QPushButton('Xem ảnh tại playhead');self.preview_button.clicked.connect(self.request_preview)
         self.filmstrip_button=QPushButton('Tạo filmstrip 4 ảnh');self.filmstrip_button.clicked.connect(lambda:self.request_preview(filmstrip=True))
         self.waveform_button=QPushButton('Tạo waveform audio · 60s');self.waveform_button.clicked.connect(self.request_waveform)
-        for widget in (self.preview_path,self.preview_browse,self.preview_trust,self.preview_button,self.filmstrip_button,self.waveform_button):preview_controls.addWidget(widget)
+        for widget in (self.preview_path,self.preview_browse,self.preview_quality,self.preview_trust,self.preview_button,self.filmstrip_button,self.waveform_button):preview_controls.addWidget(widget)
         layout.addLayout(preview_controls)
         self.preview_message=QLabel('Chưa có ảnh xem nhanh. Chỉ chạy FFmpeg sau khi chọn đường dẫn và xác nhận tin cậy.')
         self.preview_message.setWordWrap(True);layout.addWidget(self.preview_message)
@@ -228,6 +238,10 @@ class TimelinePanel(QWidget):
                 label.clear();label.setText(f'Ảnh {index+1}')
             self.waveform_widget.clear()
             self.waveform_message.setText('Waveform cũ đã bị loại bỏ do đầu vào thay đổi.')
+
+    def _preview_quality_changed(self,_index):
+        self._invalidate_preview('Chất lượng preview đã đổi; ảnh cũ bị loại bỏ và cache sẽ dùng khóa độ phân giải mới.')
+        self.update_actions()
 
     def _preview_path_changed(self,_value):
         self.preview_trust.setChecked(False)
@@ -354,7 +368,14 @@ class TimelinePanel(QWidget):
         self.preview_image.setText('Đang tạo filmstrip…' if filmstrip else 'Đang tạo ảnh tĩnh…')
         for index,label in enumerate(self.filmstrip_labels):
             label.clear();label.setText(f'Ảnh {index+1}')
-        worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_times[0],self,decoder_times=decoder_times)
+        dimensions=self.preview_quality.currentData()
+        if (type(dimensions) is not tuple or len(dimensions)!=2 or
+                any(type(value) is not int for value in dimensions)):
+            self.preview_message.setText('Chất lượng preview không hợp lệ; không chạy decoder.')
+            return
+        max_width,max_height=dimensions
+        worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_times[0],self,
+            decoder_times=decoder_times,max_width=max_width,max_height=max_height)
         self._preview_generation+=1;generation=self._preview_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
         self.preview_worker=worker
@@ -469,6 +490,7 @@ class TimelinePanel(QWidget):
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
+        self.preview_quality.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
 
     def _refresh_crop_inspector(self):
         session=self.get_session();clip=self._selected_clip()
