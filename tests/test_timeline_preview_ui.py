@@ -121,7 +121,7 @@ def test_application_shutdown_waits_for_preview_worker(tmp_path,qt_app,monkeypat
     assert window.isVisible() and window.background_busy
     release.set()
     wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-    window.deleteLater();store.close()
+    window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete);store.close()
 
 def test_preview_worker_locks_when_process_retirement_is_unknown(monkeypatch):
     import fonesi_edit.ui.timeline as timeline_module
