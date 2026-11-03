@@ -101,3 +101,24 @@ def test_crop_overlay_click_without_drag_is_a_noop(qt_app):
     assert changes==[]
     assert view.crop=={'left':.2,'top':.2,'width':.4,'height':.4}
     view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
+
+
+def test_ratio_locked_crop_edge_resize_keeps_ratio_when_source_boundary_limits_size(qt_app):
+    view=_view(qt_app)
+    view.set_crop({'left':[1,10],'top':[1,5],'width':[1,5],'height':[3,5]})
+    view.set_ratio_locked(True)
+    changes=[];view.crop_changed.connect(changes.append)
+    rect=view._crop_rect();handle=view._handles(rect)['e']
+    start=QPoint(round(handle.x()),round(handle.y()))
+    end=QPoint(round(view._image_rect.right()),round(handle.y()))
+    QTest.mousePress(view,Qt.MouseButton.LeftButton,pos=start)
+    QTest.mouseMove(view,end)
+    QTest.mouseRelease(view,Qt.MouseButton.LeftButton,pos=end)
+    assert len(changes)==1
+    crop=changes[0]
+    assert abs(crop['width']/crop['height']-(1/3))<1e-9
+    assert crop['left']>=0 and crop['top']>=0
+    assert crop['left']+crop['width']<=1+1e-9
+    assert crop['top']+crop['height']<=1+1e-9
+    assert abs(crop['width']-1/3)<.02
+    view.close();view.deleteLater();QCoreApplication.sendPostedEvents(view,QEvent.Type.DeferredDelete)
