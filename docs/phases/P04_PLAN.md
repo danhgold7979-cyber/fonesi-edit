@@ -439,3 +439,18 @@ Scope limits: drag/drop was tested with synthetic Qt QMimeData events on hosted 
 **Tests:** two or more valid files populate separate queue rows without import; mixed valid/remote/directory/missing/reparse items retain valid rows and visibly refuse invalid ones; duplicates and more than 64 entries are bounded; selecting a queued item only populates the source field; project revision/library and source bytes remain unchanged until explicit import; existing one-file LocalMediaPathEdit behavior remains unchanged; busy/close disables queue interaction.
 
 **Acceptance boundary:** this slice does not implement batch/parallel import, directory recursion, network shares, physical Windows Explorer drag/drop, file-format/codec support or full P04-01 acceptance. ED-L136 and P04-01 remain NOT_RUN/IN_PROGRESS until real Windows Explorer multi-select, HiDPI and unsupported-item behavior are tested on a user device.
+## Slice AA — persistent appearance, UI zoom and window layout (P04-01)
+
+**Master alignment:** P04-01 native panel/theme/HiDPI/font-size/layout persistence; product requirement PR-L029 and the P04-01 task contract. This is a user-preference persistence slice, not full P04-01 or physical Windows HiDPI acceptance.
+
+**Entry checkpoint:** integrated HEAD 026342d4dbde1859a780603085ff81c0be36acd7 on develop/fonesi-full. Exact clean-foundation run 41600507531 passed all four Linux/Windows Python 3.12/3.13 runners; main remains unchanged.
+
+**Design:** add an Appearance settings panel backed by QSettings under an isolated `appearance/` key group. Theme options are System, Light and Dark; font size is a bounded allow-list (9, 10, 11, 12, 14, 16 pt); application zoom is a bounded allow-list (100, 110, 125, 150%). Changes apply immediately and persist only after successful QSettings sync. Reset removes only the appearance group and must preserve shortcuts, tool preferences, account metadata and window state.
+
+**HiDPI contract:** Qt 6 continues to consume the operating-system/device pixel ratio automatically. The application zoom setting changes application font and control spacing; it must not set QT_SCALE_FACTOR late, override Windows display scaling or claim to change the monitor's OS DPI. Physical mixed-DPI/multi-monitor verification remains external.
+
+**Window layout persistence:** persist bounded `saveGeometry`/`saveState` blobs, selected navigation area, Editor tab and Settings tab. Restore only valid bounded QByteArray state; corrupt/oversized geometry/state is ignored and defaults remain usable. Save only after the main window close is accepted (not while background workers keep close pending). No project document or media data is stored in QSettings.
+
+**Tests:** allow-listed settings save/reopen; invalid settings fallback; live palette/font/zoom changes; reset appearance without deleting shortcut/window keys; main-window geometry/navigation/tab save-close-reopen; corrupt/oversized geometry fallback; pending close does not persist an unaccepted layout; default system palette can be restored after Dark/Light.
+
+**Acceptance boundary:** this slice does not certify physical Windows Explorer, mixed-DPI monitor movement, OS high-contrast, per-monitor scaling transitions or Windows user-device layout. It does not persist Basic/Advanced inspector mode (tracked separately), nor implement a complete future effect-property catalog. ED-01.01/.02/.03 and P04-01 remain NOT_RUN/IN_PROGRESS until the complete requirement map and physical GUI evidence are met.
