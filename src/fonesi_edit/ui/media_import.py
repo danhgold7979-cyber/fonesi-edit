@@ -98,7 +98,7 @@ MAX_DROP_QUEUE_URLS_PER_DROP=256
 
 def _drop_detail(url):
     if url.isLocalFile():
-        return url.toLocalFile()
+        return str(Path(url.toLocalFile()))
     # Do not echo credentials, query tokens or fragments from a rejected URL.
     return f'{url.scheme()}://{url.host()}{url.path()}'
 
