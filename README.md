@@ -1,6 +1,6 @@
 # Fonesi Edit — clean rebuild
 
-Personal Windows desktop media tool, rebuilt independently from preserved requirements. **Current phase: P01 design accepted; P02 bounded local experiments; P03 fresh foundation in progress. No application release or full phase/runtime acceptance yet.**
+Personal Windows desktop media tool, rebuilt independently from preserved requirements. **Current phases: P01 design accepted; P02 bounded local experiments with external gates open; P03 foundation and P04 editor workspace in progress. No application release or full phase/runtime acceptance yet.**
 
 - [Master: 12 phases / 94 tasks](docs/IMPLEMENTATION_PLAN.md)
 - [Current status](docs/CURRENT_STATUS.md)
@@ -16,8 +16,8 @@ Python 3.12/3.13, fresh `uv.lock`: `uv sync --locked`, then `uv run fonesi-edit`
 The local development shell exposes eight areas, explicit project recovery/Save,
 background same-content root-folder relink, and a real durable queue view with guarded
 pause/resume/cancel-request commands. Unimplemented workflows stay unavailable, not
-simulated. Reviewed source is published on phase-03; hosted source/native and scoped frozen evidence
-now covers the checkpoints described in current status, not full desktop acceptance. User-data defaults
+simulated. Reviewed source is integrated on `develop/fonesi-full`; hosted source/native and scoped frozen evidence
+covers the checkpoints described in current status, not full desktop acceptance. User-data defaults
 to the OS user-data directory; `--data-dir PATH` overrides it. Headless plan validation:
 `uv run fonesi-edit --validate-plan docs/schemas/examples/multi-stream-composition.json`.
 
@@ -28,3 +28,6 @@ work, run affected tests; reserve `uv run python -m pytest -q` for a meaningful 
 checkpoint rather than repeating unchanged passes. Platform-specific skips are not PASS.
 The clean-foundation workflow targets actual Windows/Linux, Python3.12/3.13; pending
 runs do not establish Windows support. See [P03 evidence and limits](docs/phases/P03_RESULTS.md).
+
+
+The active integration branch is `develop/fonesi-full`; all phases remain in this repository and application. `main` is release-only and is not merged automatically. The Editor currently has a geometry-only layer workspace, local media library, frame-based timeline editing, and crop/zoom inspector under development. It does not yet decode/preview video or render/export the composition.
