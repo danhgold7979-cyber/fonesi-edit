@@ -1386,3 +1386,23 @@ Windows GUI/media/product acceptance. A subsequent review identified a Qt
 refusal-vs-finished retry window, addressed with a delayed-refusal regression.
 That delta's exact CI remains pending; 13/438 child and 0/9 P03 whole tasks
 remain accepted until separately reviewed evidence.
+
+
+## P03-08 — panel-bound worker retirement timers and Qt fixture lifetime (2026-11-03)
+
+Implementation commit: `9e1da3add839d6fe6ab85f8167b3138f6ddfbda1`; timer-context regression: `6f1b029f0af1137263b68a46b87110c47e228ed7`; completion-thread observation refactor: `f69937c05ac90fc89844655c5cf4c6b635cf7be7`; tool-inventory panel disposal: `e87e4b136277e0ec0102f07b897325c504a005d0`.
+
+A Python 3.13 segmentation fault and a Windows Python 3.13 abort repeatedly occurred while QApplication.processEvents drained tool-inventory/preference worker completion. Review found the two 10 ms retirement-poll callbacks in `ToolInventoryPanel._finished` and `_preferences_finished` were scheduled without a QObject context, unlike the existing first-open callback. They now use the owning ToolInventoryPanel as the QTimer context. If the panel is destroyed before a queued retry dispatches, Qt drops the callback. The existing `wait(0)` retirement check, worker identity/revision checks, cancellation and queued GUI-thread completion remain unchanged.
+
+The preference completion-thread regression no longer monkeypatches a bound QWidget method at runtime; it observes the existing `idle` signal and verifies the callback runs on QApplication's GUI thread. Tool-inventory tests now explicitly dispose panels and main windows after worker retirement, drain deferred QObject deletion events, and only then let the owning ProjectStore leave scope. A new focused test forces `wait(0)` to return false and asserts both retirement retry timers carry the exact panel QObject context.
+
+Exact hosted clean-foundation run 41621095256 completed SUCCESS on exact HEAD `e87e4b136277e0ec0102f07b897325c504a005d0`:
+- Ubuntu Python 3.12.15: 982 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 982 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 995 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 995 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow SKIPPED.
+
+This is hosted synthetic Qt/worker lifecycle evidence, not physical Windows UI or actual FFmpeg/Chrome/provider acceptance. P03 remains IN_PROGRESS; P03 whole-task acceptance remains 0/9 and the global accepted-task/child-criterion ledger is unchanged. Do not infer P03 completion from the full-suite counts.
