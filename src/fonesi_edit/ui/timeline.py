@@ -445,6 +445,8 @@ class TimelinePanel(QWidget):
             ('timeline.mark_out',self.set_out_marker),
             ('timeline.add_marker',self.add_timeline_marker),
             ('timeline.clear_range',self.clear_range_markers),
+            ('layer.undo',self.undo_project),
+            ('layer.redo',self.redo_project),
         )
         self.timeline_shortcut_router=ShortcutEventRouter(
             self.shortcut_registry,bindings,self,
