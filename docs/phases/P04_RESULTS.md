@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** e010b8767e8334e2a56efa5573707ff8139dddbd  
-**Last fully verified run:** 41614862113
-**Latest code checkpoint:** e010b8767e8334e2a56efa5573707ff8139dddbd (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** 9c32e09043c23ff229dcaf608bd018c10340a1d4  
+**Last fully verified run:** 41625120990
+**Latest code checkpoint:** 9c32e09043c23ff229dcaf608bd018c10340a1d4 (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -423,3 +423,30 @@ Exact hosted clean-foundation run 41621095256 completed SUCCESS on exact HEAD `e
 - Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow SKIPPED.
 
 Earlier failed pointer tests exposed two independent issues: a missing Qt import in the new tests, then an actual anchor-position defect in the production resize path. The tests were corrected to calculate expectations from viewport quantization, and the production geometry was fixed; assertions were not removed. Earlier Python 3.13 Qt aborts led to a separate P03 tool-panel lifetime correction recorded in P03_RESULTS. Physical Windows pointer/HiDPI behavior, actual media, crop compositor, renderer/export parity and full P04 acceptance remain external/open. P04-02 and P04 remain IN_PROGRESS; no task or phase is accepted.
+
+
+## Slice AL — shared text/logo canvas geometry and selection handle correction (P04-02, 2026-11-03)
+
+Implementation commit: `e2ef7652f89771605922a6e807ebc6aed30c2b1b`. Schema-valid text/logo viewport tests: `c9b811394b5bec22a88c78e1b25fa8aca7e68840`.
+
+A schema-valid synthetic CompositionPlan now exercises both a text layer with an explicit font reference and a logo layer with an explicit image asset reference. Tests drive the actual QGraphicsView viewport event path for resize and rotation on each type. They assert one project revision per gesture, unchanged canonical anchor x/y, updated normalized width/height or rotation, and unchanged layer type, content, style, font/image binding. The test saves and reopens the project and requires equality. Separate locked text/logo tests verify no individual handles and no transform/content/style mutation.
+
+The regression exposed a real UI defect: `_sync_selection` changed selection state but left the pre-existing `LayerBoundsItem.show_handles` value stale. Selecting an existing layer could therefore leave handles hidden. The selection synchronizer now recalculates handle visibility on each selection change, calls `prepareGeometryChange()` before changing the hit shape, and refreshes the item. Multi-selection and locked layers remain without individual handles.
+
+### P03 cancellation-test timing stabilization (test-only)
+
+The Windows descendant-retirement test previously used a 0.6-second child sleep, which allowed the child to write its “SURVIVED” marker before cancellation reached the owned process group/job under a slow runner. The UI cancellation test had the same timing assumption. Both tests now use an explicit release-file handshake: the child waits after announcing readiness, and the test releases it only after the owner reports retirement. Any surviving child then writes a marker deterministically. The second fixture's embedded child script was also corrected to pass actual newline characters to Python. These changes strengthen the observation and do not modify production process termination or weaken assertions.
+
+### Exact hosted verification
+
+Clean-foundation run 41625120990 completed SUCCESS on exact HEAD `9c32e09043c23ff229dcaf608bd018c10340a1d4`:
+- Ubuntu Python 3.12.15: 984 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 984 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 997 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 997 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS; five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design.
+- Separate pinned Windows FFmpeg capability workflow SKIPPED.
+
+Hosted Qt tests are synthetic/offscreen. This evidence does not certify physical Windows pointer/HiDPI interaction, screen readers, IME, real logo image decoding, font glyph coverage, crop compositing, renderer/export parity, GPU, live providers or real-media codecs. P04-02 remains IN_PROGRESS; P04 whole-task acceptance remains 0/8. No phase acceptance is inferred from this slice.

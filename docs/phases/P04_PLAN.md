@@ -711,3 +711,16 @@ This fixes normalized layer geometry interaction only. It does not implement tex
 
 ### Acceptance boundary
 This verifies P04-02 geometry interaction for existing text/logo model objects. It does not certify glyph layout, font coverage, logo decode, renderer parity or physical Windows pointer/HiDPI behavior.
+
+
+### Slice AL — implementation outcome (2026-11-03)
+
+Implementation and regression commits:
+- Shared selection/handle state fix: `e2ef7652f89771605922a6e807ebc6aed30c2b1b`.
+- Schema-valid text/logo viewport regression tests: `c9b811394b5bec22a88c78e1b25fa8aca7e68840`.
+
+The existing `LayerBoundsItem` geometry path already handles all schema-defined layer types. The new regression fixture constructs a schema-valid text layer with a referenced font and a logo layer with a referenced image asset. It drives actual QGraphicsView viewport mouse press/move/release events for resize and rotation on both layer types. Assertions require one ProjectSession revision per completed gesture, preserved canonical anchor x/y, changed normalized extent/rotation, unchanged layer type/content/style/font/image binding, and save/reopen equality. Separate locked-layer cases require hidden individual handles and no transform mutation.
+
+The new tests exposed a real selection-state defect: `_sync_selection` updated QGraphicsItem selection but did not recompute `show_handles` for already-created items. A layer selected from the existing project could therefore be selected without visible or hittable resize/rotation handles. The fix now recomputes handle visibility for the single unlocked selection, calls `prepareGeometryChange()` before changing the handle hit shape, updates the item, and keeps handles hidden for multi-selection or locked layers.
+
+Exact CI on the latest code/test checkpoint is recorded in `P04_RESULTS.md`. This closes only the Slice AL local implementation contract, not P04-02 or P04 as a whole.

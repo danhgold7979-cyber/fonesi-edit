@@ -403,3 +403,29 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Remaining P04 gates: complete text/logo/font editing; full effect-property catalog and disabled-state mapping; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; complete Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real-media codec corpus, GPU, crop compositor and renderer/export parity.
 
 Next: continue P04-02 with remaining geometry/crop interactions and model parity; then advance P04-03/04 integration in dependency order. Keep all work on `develop/fonesi-full`; do not merge `main`. Do not mark P03, P04-02 or P04 complete until every mapped task criterion and required external gate is evidenced.
+
+
+## Latest verified implementation checkpoint — 2026-11-03 18:15 VN
+
+Repository: `danhgold7979-cyber/fonesi-edit`; sole integration branch: `develop/fonesi-full`; release branch `main` remains unchanged. Latest verified code/test checkpoint: `9c32e09043c23ff229dcaf608bd018c10340a1d4`. No merge or force-push was performed.
+
+Phase tracking: **P04 / 12 total phases — Workspace, Preview and Timeline. Estimated P04 code implementation: 56%** (manual task-scope estimate, not test coverage or acceptance). Task estimates: P04-01 78%, P04-02 70%, P04-03 70%, P04-04 50%, P04-05 50%, P04-06 40%, P04-07 55%, P04-08 35%. All eight P04 tasks remain IN_PROGRESS; P04 whole-task acceptance is 0/8.
+
+P04-02 Slice AL now has regression coverage for schema-valid text and logo layers. Actual Qt viewport gestures resize and rotate both types through the shared canvas/ProjectSession path. Tests verify one revision per gesture, anchor position preservation, normalized geometry changes, unchanged content/style/font/image references, save/reopen equality and locked-layer refusal. The tests exposed and fixed stale handle visibility when selecting an existing layer: selection synchronization now recalculates individual handle visibility and refreshes the scene item. Group/multi-selection and locked-layer handle protections remain active.
+
+P03 test-only lifecycle corrections: descendant process tests now use a release-file handshake rather than short wall-clock sleeps, so the test only releases a child after the owned runner reports retirement. The test detects a surviving child deterministically; production process termination rules were not weakened.
+
+Exact GitHub Actions clean-foundation run 41625120990 completed SUCCESS on exact HEAD `9c32e09043c23ff229dcaf608bd018c10340a1d4`:
+- Ubuntu Python 3.12.15: 984 passed, 39 skipped, 0 failed.
+- Ubuntu Python 3.13.17: 984 passed, 39 skipped, 0 failed.
+- Windows Python 3.12.10: 997 passed, 26 skipped, 0 failed.
+- Windows Python 3.13.17: 997 passed, 26 skipped, 0 failed.
+- Plan integrity PASS on all four runners.
+- Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS.
+- Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. Separate pinned Windows FFmpeg capability workflow SKIPPED.
+
+Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS and 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8. CI does not accept P03 or P04.
+
+Remaining P04 gates: actual text editing/logo import/font rendering and glyph coverage; complete effect-property catalog; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; complete Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real-media codec corpus, GPU, crop compositor and renderer/export parity.
+
+Next: continue P04-02 with crop overlay/geometry integration and preview/export parity dependencies, then advance P04-03/04 in dependency order. Keep all work on `develop/fonesi-full`; do not merge `main`. Do not mark P04-02 or P04 complete until all mapped criteria and external gates are evidenced.
