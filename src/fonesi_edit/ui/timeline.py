@@ -230,16 +230,34 @@ class TimelinePanel(QWidget):
         self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
             min(self.playhead_slider.maximum(),self.playhead_slider.value()+delta)))
 
+    def _commit_range_markers(self,in_frame,out_frame):
+        session=self.get_session()
+        if session is None or self.stopping or session.reconciliation_required:return False
+        expected=session.revision
+        data=session.project.plan.to_dict()
+        if in_frame is None and out_frame is None:
+            data.pop('timeline_range',None)
+        else:
+            data['timeline_range']={'in_frame':in_frame,'out_frame':out_frame}
+        data['revision']=expected+1
+        data['provenance']['project_revision']=expected+1
+        try:
+            plan=CompositionPlan.parse(data)
+            session.commit(CompletedCommand(session.project.with_plan(plan),expected))
+        except Exception:
+            self.action_message.setText('Không lưu được vùng In/Out; project chưa được xác nhận thay đổi. Kiểm tra trạng thái project trước khi thử lại.')
+            return False
+        self.project_changed.emit()
+        return True
+
     def set_in_marker(self):
         if self.get_session() is None or self.stopping:return
         frame=self._playhead
         if self._out_frame is not None and frame>=self._out_frame:
             self.action_message.setText('Điểm In phải nằm trước điểm Out; vùng chọn không thay đổi.')
             return
-        self._in_frame=frame
-        self.range_label.setText(self._range_label())
-        self.action_message.setText('Đã đặt điểm In tại frame hiện tại. Chưa thay đổi project.')
-        self.update_project()
+        if not self._commit_range_markers(frame,self._out_frame):return
+        self.action_message.setText('Đã lưu điểm In tại frame hiện tại. Vùng chọn dùng khoảng [In, Out).')
 
     def set_out_marker(self):
         if self.get_session() is None or self.stopping:return
@@ -250,17 +268,13 @@ class TimelinePanel(QWidget):
         if frame<=self._in_frame or frame>self._frame_total:
             self.action_message.setText('Điểm Out phải sau điểm In và không vượt quá cuối project.')
             return
-        self._out_frame=frame
-        self.range_label.setText(self._range_label())
-        self.action_message.setText('Đã đặt điểm Out sau frame hiện tại. Vùng chọn dùng khoảng [In, Out).')
-        self.update_project()
+        if not self._commit_range_markers(self._in_frame,frame):return
+        self.action_message.setText('Đã lưu điểm Out sau frame hiện tại. Vùng chọn dùng khoảng [In, Out).')
 
     def clear_range_markers(self):
         if self._in_frame is None and self._out_frame is None:return
-        self._in_frame=None;self._out_frame=None
-        self.range_label.setText('Chưa chọn vùng In/Out')
-        self.action_message.setText('Đã xóa vùng In/Out; project không thay đổi.')
-        self.update_project()
+        if not self._commit_range_markers(None,None):return
+        self.action_message.setText('Đã xóa vùng In/Out đã lưu trong project.')
 
     def _range_label(self):
         if self._in_frame is None:return 'Chưa chọn vùng In/Out'
@@ -676,8 +690,9 @@ class TimelinePanel(QWidget):
         frame_count=output_duration*self._fps
         frame_total=(frame_count.numerator+frame_count.denominator-1)//frame_count.denominator
         self._frame_total=frame_total
-        if self._in_frame is not None and self._in_frame>=frame_total:self._in_frame=None
-        if self._out_frame is not None and (self._in_frame is None or self._out_frame>frame_total or self._out_frame<=self._in_frame):self._out_frame=None
+        stored_range=data.get('timeline_range')
+        self._in_frame=None if stored_range is None else stored_range['in_frame']
+        self._out_frame=None if stored_range is None else stored_range['out_frame']
         self.range_label.setText(self._range_label())
         max_frame=max(0,frame_total-1)
         blocked=self.playhead_slider.blockSignals(True)
