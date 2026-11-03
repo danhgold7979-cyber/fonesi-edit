@@ -171,7 +171,8 @@ def test_tree_extended_selection_auto_expands_existing_group(tmp_path,qt_app):
         editor.group_selected()
         editor.layers.clearSelection()
         editor.layers.item(0).setSelected(True)
-        assert editor.layers.selectionMode()==editor.layers.SelectionMode.ExtendedSelection
+        from PySide6.QtWidgets import QAbstractItemView
+        assert editor.layers.selectionMode()==QAbstractItemView.SelectionMode.ExtendedSelection
         assert editor.selected_ids=={first,second}
         assert len(editor.layers.selectedItems())==2
     finally:
