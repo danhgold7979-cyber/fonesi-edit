@@ -147,3 +147,9 @@ Add an output-frame playhead based on the exact rational project frame rate. The
 - Trim-out updates source_out and does not shift following clips.
 - Synchronized audio clips sharing the same source asset are split/trimmed at the same output time when that time lies within their own intervals; unrelated tracks remain unchanged.
 Reject boundary splits, zero-length clips, freeze-frame/unsupported timing cases and stale session revisions. Each action is one CompletedCommand CAS and one undoable project revision. Timeline graphics remain an overview; this slice does not add playback, thumbnails, waveform, loop or rendering.
+
+## Slice F — selected-clip crop inspector and usable timeline zoom/scroll
+
+Add a numeric crop inspector for the selected video clip using the canonical normalized crop rectangle (left/top/width/height). Preserve untouched rational values exactly; validate the entire rectangle against CompositionPlan before one CAS commit. Invalid intermediate edits must not mutate the project or auto-correct/clamp values. Refresh must preserve selected clip identity. Add a fit-to-view action and bounded zoom control (50–400%) over the same exact-time overview; zoom is presentation-only and must not alter timeline time or project revision. Horizontal scroll exposes offscreen portions without rescaling time. Add an explicit playhead line tied to the integer output-frame index. This is still not source-video preview, crop-handle UI or export rendering.
+
+Tests: valid crop, out-of-bounds rejection, zero extent rejection, untouched rational preservation, stale session CAS, one revision per completed inspector edit, selection retained after refresh, zoom/scroll no model mutation, fit reset, playhead x-coordinate exact to rational frame time, and half-open final frame bounds. External video decode and pixel parity remain blocked.
