@@ -236,6 +236,9 @@ def test_inspector_disabled_reasons_follow_multi_selection_and_lock(tmp_path,qt_
             assert not editor.spins['x'].isEnabled()
             assert not editor.sliders['x'].isEnabled()
             assert not editor.reset_transform_button.isEnabled()
+            assert 'đang khóa biến đổi' in editor.reset_anchor_button.toolTip().lower()
+            assert 'đang khóa biến đổi' in editor.reset_flip_x_button.toolTip().lower()
+            assert 'đang khóa biến đổi' in editor.reset_transform_button.toolTip().lower()
 
             editor.toggle_lock()
             assert 'Đang chỉnh một layer' in editor.inspector_reason.text()
