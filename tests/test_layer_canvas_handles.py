@@ -4,7 +4,7 @@ from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 
-from PySide6.QtCore import QPointF,QCoreApplication,QEvent
+from PySide6.QtCore import Qt,QPointF,QCoreApplication,QEvent
 from fonesi_edit.storage.project_creation import NewProjectIntent,empty_project
 from fonesi_edit.storage.projects import ProjectStore,save_project_file
 from fonesi_edit.ui.shell import MainWindow
