@@ -19,6 +19,7 @@ class ShortcutConflictError(ShortcutError):
 
 DEFAULT_SHORTCUTS=(
     ('app.settings','Mở Cài đặt','Ứng dụng','Ctrl+,'),
+    ('tools.rescan','Quét lại công cụ','Danh sách công cụ','F5'),
     ('layer.undo','Hoàn tác layer','Canvas / Layer','Ctrl+Z'),
     ('layer.redo','Làm lại layer','Canvas / Layer','Ctrl+Shift+Z'),
     ('layer.delete','Xóa layer đã chọn','Canvas / Layer','Delete'),
