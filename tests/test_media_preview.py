@@ -132,3 +132,11 @@ def test_empty_source_and_empty_ffmpeg_are_refused(inputs):
     source.write_bytes(b'')
     with pytest.raises(module.PreviewError,match='Empty source/tool'):
         module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,stream_index=0,decoder_time=Fraction(0))
+
+def test_unknown_process_retirement_is_not_reported_as_ordinary_decoder_failure(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(_ for _ in ()).throw(
+        ProcessError('All-descendant retirement unconfirmed: job remains active')))
+    with pytest.raises(module.PreviewRetirementUnknown,match='do not retry or close'):
+        module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_time=Fraction(0))
