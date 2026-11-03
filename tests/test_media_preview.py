@@ -91,12 +91,13 @@ def test_absolute_asset_requires_regular_non_symlink_file(tmp_path):
         module.resolve_asset_path(asset,tmp_path)
 
 
-@pytest.mark.parametrize('bad_time',[Fraction(-1),Fraction(0)])
-def test_timestamp_contract_rejects_negative_or_handles_zero(bad_time):
-    if bad_time<0:
-        with pytest.raises(module.PreviewError):module._timestamp(bad_time)
-    else:
-        assert module._timestamp(bad_time)=='0.000000000'
+@pytest.mark.parametrize('timestamp,expected',[
+    (Fraction(-1,50),'-0.020000000'),
+    (Fraction(0),'0.000000000'),
+    (Fraction(3,2),'1.500000000'),
+])
+def test_timestamp_contract_preserves_exact_signed_stream_time(timestamp,expected):
+    assert module._timestamp(timestamp)==expected
 
 
 def test_decoder_failure_and_cancellation_never_cache_a_frame(inputs,monkeypatch):
@@ -125,3 +126,9 @@ def test_reparse_or_missing_source_refused_before_process_launch(inputs,monkeypa
     with pytest.raises(module.PreviewError):
         module.extract_preview_frame(source.parent/'missing.mp4',ffmpeg,expected_sha256=digest,stream_index=0,decoder_time=Fraction(0))
     assert not calls
+
+def test_empty_source_and_empty_ffmpeg_are_refused(inputs):
+    source,ffmpeg,digest=inputs
+    source.write_bytes(b'')
+    with pytest.raises(module.PreviewError,match='Empty source/tool'):
+        module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,stream_index=0,decoder_time=Fraction(0))
