@@ -44,6 +44,7 @@ def test_timeline_markers_are_optional_navigation_metadata_not_render_content(em
     [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1\n'}],
     [{'id':'not-a-uuid','frame':1,'label':'M1'}],
     [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1','extra':1}],
+    [{'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'x'*81}],
     [
         {'id':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','frame':1,'label':'M1'},
         {'id':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','frame':1,'label':'M2'},
@@ -55,6 +56,17 @@ def test_timeline_markers_are_optional_navigation_metadata_not_render_content(em
 ])
 def test_invalid_timeline_markers_fail_closed(empty_plan,markers):
     empty_plan['timeline_markers']=markers
+    with pytest.raises(PlanError):
+        CompositionPlan.parse(empty_plan)
+
+
+def test_timeline_marker_collection_accepts_1000_and_rejects_1001(empty_plan):
+    empty_plan['output']['duration']=[100,1]
+    markers=[{'id':str(uuid.uuid4()),'frame':frame,'label':f'M{frame}'}
+             for frame in range(1000)]
+    empty_plan['timeline_markers']=markers
+    assert len(CompositionPlan.parse(empty_plan).to_dict()['timeline_markers'])==1000
+    markers.append({'id':str(uuid.uuid4()),'frame':1000,'label':'M1000'})
     with pytest.raises(PlanError):
         CompositionPlan.parse(empty_plan)
 
