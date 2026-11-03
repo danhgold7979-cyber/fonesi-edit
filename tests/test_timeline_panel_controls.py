@@ -132,7 +132,7 @@ def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
             timeline=window.timeline_panel
             timeline.set_out_marker()
             assert timeline._out_frame is None
-            assert 'đặt điểm In trước' in timeline.action_message.text().lower()
+            assert 'đặt điểm in trước' in timeline.action_message.text().lower()
             timeline.playhead_slider.setValue(20)
             timeline.set_in_marker()
             timeline.playhead_slider.setValue(19)
