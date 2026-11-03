@@ -638,3 +638,27 @@ This slice implements positional keyboard nudging only. It does not add text/log
 ### Acceptance boundary
 
 This slice validates Qt hit-test and callback ownership for geometry controls only. It does not certify physical Windows pointer/HiDPI interaction, text/logo editing, decoded crop compositor or renderer/export parity.
+
+
+## Slice AJ — end-to-end Qt pointer gestures for single-layer resize and rotation (P04-02)
+
+### Contract
+
+- Exercise the actual QGraphicsView viewport event path, not only direct calls to `resized`/`rotated`.
+- A pointer drag on a visible resize handle changes normalized width/height and commits exactly one ProjectSession revision on release.
+- A pointer drag on the rotation handle changes the normalized rotation around the layer's position/anchor and commits exactly one revision on release.
+- The gesture remains one command regardless of intermediate mouse-move events.
+- Locked and multi-selected layers do not expose handles; clicks on those handle locations must not change the project model.
+- Callback dispatch remains bound to the owning Editor QObject and no queued operation runs after editor teardown.
+
+### Tests
+
+- Qt offscreen QTest press/move/release through the real view viewport for a corner resize.
+- Qt offscreen QTest press/move/release through the real view viewport for an off-center rotation.
+- Assert exact project revision delta (one per completed gesture), canonical normalized dimensions/rotation and unchanged anchor position.
+- Keep scene hit-test coverage for all eight resize handles and the rotation handle.
+- Run focused canvas handle tests, plan integrity and exact four-runner CI.
+
+### Acceptance boundary
+
+These are synthetic Qt event-path tests, not physical Windows mouse/HiDPI acceptance. They do not prove preview/export geometry parity or a rendered crop/text/logo result.
