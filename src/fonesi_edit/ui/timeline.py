@@ -112,7 +112,7 @@ class CropEditorView(QWidget):
 
     def __init__(self,parent=None):
         super().__init__(parent)
-        self._pixmap=QPixmap()
+        self._image=QImage()
         self._message='Ảnh tĩnh — chưa có preview'
         self.crop={'left':0.0,'top':0.0,'width':1.0,'height':1.0}
         self.grid=True;self.editing=False;self.ratio_locked=False
@@ -123,20 +123,20 @@ class CropEditorView(QWidget):
         self.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
 
     def setPixmap(self,pixmap):
-        self._pixmap=QPixmap(pixmap);self._message=''
+        self._image=pixmap.toImage().copy();self._message=''
         self.update()
 
     def clear(self):
-        self._pixmap=QPixmap();self.update()
+        self._image=QImage();self.update()
 
     def setText(self,text):
         self._message=str(text);self.update()
 
     def hasPixmap(self):
-        return not self._pixmap.isNull()
+        return not self._image.isNull()
 
     def pixmap(self):
-        return QPixmap(self._pixmap)
+        return QPixmap.fromImage(self._image)
 
     def text(self):
         return self._message
@@ -162,8 +162,8 @@ class CropEditorView(QWidget):
         if not self.hasPixmap():return QRectF()
         margin=8
         available=QRectF(self.rect()).adjusted(margin,margin,-margin,-margin)
-        scale=min(available.width()/self._pixmap.width(),available.height()/self._pixmap.height())
-        width=self._pixmap.width()*scale;height=self._pixmap.height()*scale
+        scale=min(available.width()/self._image.width(),available.height()/self._image.height())
+        width=self._image.width()*scale;height=self._image.height()*scale
         return QRectF(available.center().x()-width/2,available.center().y()-height/2,width,height)
 
     def _crop_rect(self):
@@ -186,7 +186,7 @@ class CropEditorView(QWidget):
             painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,self._message)
             painter.end();return
         self._image_rect=self._fit_rect()
-        painter.drawPixmap(self._image_rect,self._pixmap,QRectF(self._pixmap.rect()))
+        painter.drawImage(self._image_rect,self._image,QRectF(self._image.rect()))
         crop=self._crop_rect();image=self._image_rect
         shade=QColor(0,0,0,145)
         painter.fillRect(QRectF(image.left(),image.top(),image.width(),max(0,crop.top()-image.top())),shade)
