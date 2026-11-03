@@ -74,12 +74,12 @@ def test_canvas_focus_shortcut_moves_selected_layer_forward(tmp_path,qt_app):
         editor=window.layer_editor
         editor.add_mask();first=editor.selected_id
         editor.add_mask();second=editor.selected_id
-        editor._sync_selection({second},second)
+        editor._sync_selection({first},first)
         before=window.session.revision
         editor.view.setFocus()
         QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Up,Qt.KeyboardModifier.AltModifier)
         assert window.session.revision==before+1
         ordered=sorted(window.session.project.plan.to_dict()['layers'],key=lambda x:x['z'])
-        assert [x['id'] for x in ordered]==[first,second]
+        assert [x['id'] for x in ordered]==[second,first]
     finally:
         _close(store,window,qt_app)
