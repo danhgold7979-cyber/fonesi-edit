@@ -4,7 +4,7 @@ from fractions import Fraction
 from math import atan2,degrees
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject, QEvent
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject, QEvent, QSettings
 from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QPainterPath
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QLabel,QListWidget,QListWidgetItem,QPushButton,QDoubleSpinBox,QComboBox,QCheckBox,QSlider,QLineEdit,
@@ -189,8 +189,8 @@ class LayerShortcutRouter(QObject):
 
 class LayerEditorWorkspace(QWidget):
     project_changed=Signal()
-    def __init__(self,get_session,parent=None,shortcut_registry=None):
-        super().__init__(parent);self.get_session=get_session
+    def __init__(self,get_session,parent=None,shortcut_registry=None,ui_settings=None):
+        super().__init__(parent);self.get_session=get_session;self.ui_settings=ui_settings
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.selected_id=None;self.selected_ids=set();self.undo_stack=[];self.redo_stack=[]
         self.syncing=False;self.committing=False;self.stopping=False
@@ -226,6 +226,18 @@ class LayerEditorWorkspace(QWidget):
         form.addRow('Tìm thuộc tính',self.inspector_search)
         self.inspector_advanced=QCheckBox('Nâng cao')
         self.inspector_advanced.setToolTip('Hiện thêm tỷ lệ, góc xoay, điểm neo và lật.')
+        stored_mode=(ui_settings.value('editor/inspector_advanced',False)
+                     if ui_settings is not None else False)
+        if isinstance(stored_mode,bool):
+            advanced=stored_mode
+        elif isinstance(stored_mode,int) and stored_mode in (0,1):
+            advanced=bool(stored_mode)
+        elif isinstance(stored_mode,str) and stored_mode.strip().casefold() in ('true','false','1','0'):
+            advanced=stored_mode.strip().casefold() in ('true','1')
+        else:
+            advanced=False
+        self.inspector_advanced.setChecked(advanced)
+        self.inspector_advanced.toggled.connect(self._persist_inspector_mode)
         self.inspector_advanced.toggled.connect(self._filter_inspector)
         form.addRow('Chế độ',self.inspector_advanced)
         self.inspector_rows={}
@@ -444,6 +456,17 @@ class LayerEditorWorkspace(QWidget):
             else:
                 self.original_transform=None
         finally:self.syncing=False
+
+    def _persist_inspector_mode(self,advanced):
+        if self.ui_settings is None:
+            return
+        self.ui_settings.setValue('editor/inspector_advanced',bool(advanced))
+        self.ui_settings.sync()
+        if self.ui_settings.status()!=QSettings.Status.NoError:
+            window=self.window()
+            if hasattr(window,'statusBar'):
+                window.statusBar().showMessage(
+                    'Không lưu được chế độ Inspector; lựa chọn hiện tại chỉ có hiệu lực trong phiên này.',5000)
 
     def _filter_inspector(self,*_):
         query=self.inspector_search.text().strip().casefold()
