@@ -6,7 +6,7 @@ Revision: clean-2026-11-01. **P01 ACCEPTED (design only); P02 bounded experiment
 
 Nguồn chuẩn: PRODUCT_REQUIREMENTS.md, EDITOR_SPEC.md, SETTINGS_AND_BROWSER_SPEC.md; 95 ID trong REQUIREMENTS_TRACEABILITY.md. 94 task dưới đây giữ ID và phạm vi gốc. Không bỏ tùy chọn qua cách đổi tên scope. TTS/ASR/OCR/tracking/slideshow/photo-edit không thuộc bản đầu; Chrome/tool distribution và cả mười nền tảng thuộc bản đầu. Dấu nhận diện hội thoại Edit: **vòng tròn đỏ**, không tự đổi branding app.
 
-- Mỗi phase dùng đúng nhánh ngắn `phase-01` … `phase-12`, khởi từ checkpoint đã review; không force push, không xóa lịch sử main. Parent quản lý publish/reset/remote branches.
+- Toàn bộ phase tích hợp trong cùng ứng dụng trên repository `danhgold7979-cyber/fonesi-edit`, duy nhất nhánh `develop/fonesi-full`; không tạo nhánh phát triển riêng cho từng phase. `main` là nhánh phát hành, không tự merge. Không force-push, không viết lại lịch sử.
 - Kế hoạch phải tồn tại trước code. Mỗi task có input/output/interface/errors/cancel/dependencies/tests/acceptance riêng; task chỉ READY khi đầy đủ. Scope catalog không phải executable plan.
 - Trạng thái: NOT_STARTED, PLANNED, IN_PROGRESS, LOCAL_VERIFIED, BLOCKED_EXTERNAL, ACCEPTED, NEEDS_FIX. ACCEPTED cần tất cả tiêu chí, không chỉ test unit. Phase không qua gate khi requirement bắt buộc còn chặn.
 - Có thể triển khai phần độc lập khi live/provider/Windows/GPU bị chặn, ghi chính xác dependency có thể tiến hành; không biến blocker thành feature removal.
