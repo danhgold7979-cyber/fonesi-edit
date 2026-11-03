@@ -502,7 +502,8 @@ class TimelinePanel(QWidget):
             self.action_message.setText('Project cần đối soát; không thay đổi timeline markers.')
             return False
         expected=session.revision
-        data=session.project.plan.to_dict()
+        before=session.project.plan.to_dict()
+        data=deepcopy(before)
         if markers:data['timeline_markers']=markers
         else:data.pop('timeline_markers',None)
         data['revision']=expected+1
@@ -513,6 +514,7 @@ class TimelinePanel(QWidget):
         except Exception:
             self.action_message.setText('Không xác nhận được thay đổi marker; project không được tự gửi lại.')
             return False
+        self.history.record(before,session,expected,'timeline markers')
         self.project_changed.emit()
         return True
 
