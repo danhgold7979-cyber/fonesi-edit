@@ -143,3 +143,25 @@ def test_f5_rescans_metadata_only_from_tool_table_and_rebinds_live(qt_app,tmp_pa
         assert 'không chạy' in panel.message.text().lower() or 'COMPLETE' in panel.message.text()
     finally:
         panel.close();panel.deleteLater()
+
+
+def test_worker_retirement_poll_timers_are_bound_to_panel_context(qt_app,monkeypatch):
+    scheduled=[]
+    class StillRunning:
+        def wait(self,timeout):return False
+    panel=ui.ToolInventoryPanel()
+    inventory=StillRunning()
+    panel.worker=inventory;panel.worker_revision=7
+    preference=StillRunning()
+    panel.preference_worker=preference;panel.preference_revision=9
+    monkeypatch.setattr(QTimer,'singleShot',lambda *args:scheduled.append(args))
+    panel._finished(inventory,7)
+    panel._preferences_finished(preference,9)
+    assert len(scheduled)==2
+    assert all(call[0]==10 and call[1] is panel for call in scheduled)
+    panel.worker=None;panel.worker_revision=None
+    panel.preference_worker=None;panel.preference_revision=None
+    panel.close();panel.deleteLater()
+    from PySide6.QtCore import QCoreApplication,QEvent
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    qt_app.processEvents()
