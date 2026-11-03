@@ -47,9 +47,9 @@ Still open: canvas marquee selection, group resize/rotation and a unified undo s
 
 ## P04-05 through P04-08 — partial implementation, not accepted
 
-- **P04-05:** integer-frame playhead, split/trim-in/out, gap/ripple, zoom/scroll, project-persisted half-open In/Out work-area markers, user-triggered four-frame filmstrip and bounded 60-second mono waveform are present. Loop playback, persistent markers, continuous timeline thumbnails/waveform, sample-boundary acceptance and synchronized A/V seek remain open.
+- **P04-05:** integer-frame playhead, split/trim-in/out, gap/ripple, zoom/scroll, project-persisted half-open In/Out range, named marker create/select/delete with M shortcut, user-triggered four-frame filmstrip and bounded 60-second mono waveform are present. Loop playback, marker rename/drag, continuous timeline thumbnails/waveform, sample-boundary acceptance and synchronized A/V seek remain open.
 - **P04-06:** background still-frame/filmstrip/waveform workers, content/tool-hash-bound in-memory caches and draft/standard/high still-image quality profiles are present. Persistent encoded proxy generation, continuous playback, synchronized A/V seek, warm/cold performance and preview/render parity remain open.
-- **P04-07:** QSettings-backed shortcut registry, searchable remapping panel, conflict rejection/reset, dynamic layer/timeline/tool event routing, app Settings navigation and text/IME focus guards are present for the implemented subset. Full ED§9 action coverage and physical Vietnamese/Chinese IME certification remain open.
+- **P04-07:** QSettings-backed shortcut registry, searchable remapping panel, conflict rejection/reset, dynamic layer/timeline/tool event routing (including remappable M for marker creation), app Settings navigation and text/IME focus guards are present for the implemented subset. Full ED§9 action coverage and physical Vietnamese/Chinese IME certification remain open.
 - **P04-08:** metadata-only tool inventory, explicit path preferences, one-shot background first-open scan, user-selected FFmpeg/ffprobe pair self-test and table-scoped F5 rescan are present. Managed download/install/update/repair/rollback, Chrome profile/account tables, live login/bridge/rights readiness and full platform recovery workflows remain open.
 
 ## Exact hosted verification
@@ -159,3 +159,16 @@ Tests: `test_timeline_range_is_optional_and_validated_as_half_open_output_frames
 Hosted run [41584573033](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41584573033) passed on the exact code checkpoint `ff86e797b662ca118189e7a19980d45bbdfdb4a5`: Ubuntu 3.12.15/3.13.17 each 924 passed, 39 skipped, 0 failed; Windows 3.12.10/3.13.17 each 937 passed, 26 skipped, 0 failed; integrity PASS all four. Windows 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic workflow SKIPPED.
 
 Acceptance boundary: this is persistent range selection only. Arbitrary named markers (M), loop playback, export-range rendering, continuous thumbnails/waveform, synchronized A/V seek and physical Windows GUI remain open. P04-05/P04 are not accepted.
+## Slice V — persistent named timeline markers and M shortcut (P04-05/P04-07, 2026-11-03)
+
+Code checkpoint: fad21b7a1a1b77e5e967145721b6974e8f7375bd on develop/fonesi-full.
+
+Implemented optional timeline_markers in CompositionPlan v1. Each marker has a globally unique UUID, output-frame index and bounded label. Validation enforces output-frame bounds, one marker per frame, trimmed non-control labels, 80 characters and a 1000-marker cap. Existing projects without the field remain valid. Marker navigation metadata is excluded from render_content_digest; it remains part of execution_digest.
+
+Timeline UI adds markers at the playhead with generated M1/M2 labels, displays them in the timeline and a list, seeks to a selected marker without changing project revision, and removes the selected marker. Add/remove commit exactly one ProjectSession command. M is registered in the shared remappable shortcut registry and routed in Timeline list/canvas focus scopes; ordinary text input does not trigger it. Save/close/reopen retains markers.
+
+Regression coverage: test_timeline_markers_are_optional_navigation_metadata_not_render_content, test_invalid_timeline_markers_fail_closed, test_timeline_marker_collection_accepts_1000_and_rejects_1001, test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed, and the live shortcut remap assertion in test_layer_and_timeline_shortcuts_rebind_live_without_reopening_project.
+
+Hosted run 41588026020 completed SUCCESS on exact HEAD fad21b7a1a1b77e5e967145721b6974e8f7375bd: Ubuntu Python 3.12.15 and 3.13.17 each 938 passed, 39 skipped, 0 failed; Windows Python 3.12.10 and 3.13.17 each 951 passed, 26 skipped, 0 failed; integrity PASS on all four. Windows Python 3.12 also passed the actual development onedir build and scoped frozen schema/subtitle/tool-discovery/license boundaries. The pinned Windows FFmpeg synthetic capability workflow was SKIPPED.
+
+Scope limits: hosted Qt tests ran offscreen. Physical Windows GUI, Vietnamese/Chinese IME, Explorer and HiDPI, marker rename/drag, loop playback, export-range renderer behavior, continuous thumbnails/waveform and synchronized A/V seek remain NOT_RUN. ED-17.04 and ED-19.26 remain NOT_RUN; P04-05/P04-07 and P04 remain IN_PROGRESS. No task/criterion/phase acceptance is inferred from this partial slice.
