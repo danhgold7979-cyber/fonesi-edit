@@ -3,9 +3,9 @@
 **Status: IN_PROGRESS — no P04 task or phase is accepted.**  
 **Integrated repository:** danhgold7979-cyber/fonesi-edit  
 **Integrated branch:** develop/fonesi-full  
-**Last fully verified code checkpoint:** b12e71b34f511537e55c49a0eb0aedd5741dd719  
-**Last fully verified run:** 41613864373
-**Latest code checkpoint:** b12e71b34f511537e55c49a0eb0aedd5741dd719 (four-runner CI SUCCESS; phase acceptance remains open)
+**Last fully verified code checkpoint:** e010b8767e8334e2a56efa5573707ff8139dddbd  
+**Last fully verified run:** 41614862113
+**Latest code checkpoint:** e010b8767e8334e2a56efa5573707ff8139dddbd (four-runner CI SUCCESS; phase acceptance remains open)
 
 ## P04-01 — partial implementation
 
@@ -355,6 +355,16 @@ The shared shortcut registry now provides remappable canvas actions for Left/Rig
 
 Tests in `tests/test_layer_shortcuts.py` verify one/ten-pixel movement, canonical reduced rational values, zoom independence, group atomicity, lock refusal and focus boundaries. Widget cleanup flushes deferred deletion before closing the associated ProjectStore.
 
+## Slice AI — all handle hit targets and deferred callback ownership (P04-02, 2026-11-03)
+
+Implementation commit: `ecb37aeadd5f2c754a1064e04631e55dc20d29f3`; regression tests: `aa34f85e5975fcbd90a639a4b1e2f79454392e57`; fixture teardown follow-up: `e010b8767e8334e2a56efa5573707ff8139dddbd`.
+
+The selected unlocked single-layer item now has explicit hit-test coverage for all eight resize handles and the rotation handle, matching the visible handle geometry. Group multi-selection and transform-locked layers do not expose individual resize/rotation handle hit targets.
+
+The LayerBoundsItem no longer queues gesture completion lambdas against the graphics item itself. Move/resize/rotate callbacks use the owning LayerEditorWorkspace QObject as the QTimer context. If the Editor is destroyed before dispatch, Qt drops the callback instead of dereferencing a deleted item/editor. One completed gesture still flows through the existing ProjectSession command path.
+
+Regression tests in `tests/test_layer_canvas_handles.py` cover all handle hit targets, hidden group/locked handles and callback context ownership. The canvas test fixture now flushes deferred window deletion before closing its ProjectStore.
+
 ## CI lifecycle correction — first-open tool inventory and Qt fixture cleanup (P03/P04 regression, 2026-11-03)
 
 Implementation commit: `bcda845f96da3ab178c5659a3f3ae4a4fd77ffd7`; test commits: `9490799617a35a25f652fe8e5cca20ff23846128` and `b12e71b34f511537e55c49a0eb0aedd5741dd719`.
@@ -377,3 +387,19 @@ Clean-foundation run [41613864373](https://github.com/danhgold7979-cyber/fonesi-
 Plan integrity PASS on all four runners. Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS. Windows Python 3.13 onedir/frozen-only steps were skipped by workflow design. The separate pinned Windows FFmpeg capability workflow was not run.
 
 Acceptance boundary: hosted Qt tests use offscreen mode. This does not certify physical Windows mouse interaction, mixed-DPI/HiDPI, screen readers, Vietnamese/Chinese IME, real FFmpeg/media corpus, GPU, Chrome/account handoff, live providers, continuous playback, synchronized A/V seek, crop compositor or renderer/export parity. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
+
+
+## Exact hosted verification — all handle hit targets and callback ownership (2026-11-03)
+
+Clean-foundation run [41614862113](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41614862113) completed SUCCESS on exact HEAD `e010b8767e8334e2a56efa5573707ff8139dddbd`:
+
+| Runner | Passed | Skipped | Failed |
+|---|---:|---:|---:|
+| Ubuntu / Python 3.12.15 | 978 | 39 | 0 |
+| Ubuntu / Python 3.13.17 | 978 | 39 | 0 |
+| Windows / Python 3.12.10 | 991 | 26 | 0 |
+| Windows / Python 3.13.17 | 991 | 26 | 0 |
+
+Plan integrity PASS on all four runners. Windows Python 3.12 development onedir build PASS and five scoped frozen schema/subtitle/read-only tool-discovery/license checks PASS. Windows Python 3.13 onedir/frozen-only steps skipped by workflow design. The separate pinned Windows FFmpeg capability workflow was not run.
+
+Acceptance boundary: hosted QGraphicsScene hit-testing is offscreen synthetic evidence. It does not certify physical mouse input, Windows mixed-DPI/HiDPI, screen readers, IME, decoded crop compositing, GPU, real media, or renderer/export parity. P04-02 remains IN_PROGRESS; no P04 task or phase is accepted. Global ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/438 child assertions PASS, 425 NOT_RUN; 0/95 requirement groups accepted; P03 whole-task acceptance 0/9; P04 whole-task acceptance 0/8.
