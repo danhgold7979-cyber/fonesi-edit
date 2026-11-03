@@ -53,8 +53,8 @@ class LayerBoundsItem(QGraphicsRectItem):
     def mouseReleaseEvent(self,event):
         super().mouseReleaseEvent(event)
         if self.pressed is not None and self.pos()!=self.pressed:
-            layer_id=self.layer_id;position=QPointF(self.pos())
-            QTimer.singleShot(0,lambda:self.moved(layer_id,position))
+            layer_id=self.layer_id;position=QPointF(self.pos());origin=QPointF(self.pressed)
+            QTimer.singleShot(0,lambda:self.moved(layer_id,position,origin))
         self.pressed=None
 
 
@@ -239,22 +239,25 @@ class LayerEditorWorkspace(QWidget):
         primary=items[-1].layer_id if items else None
         self._sync_selection(ids,primary)
 
-    def dragged(self,layer_id,position):
+    def dragged(self,layer_id,position,origin=None):
         data=self.data()
         if data is None:return
-        selected_items=[x for x in self.scene.selectedItems() if isinstance(x,LayerBoundsItem)]
-        if not selected_items:
-            selected_items=[x for x in self.scene.items()
-                            if isinstance(x,LayerBoundsItem) and x.layer_id==layer_id]
-        ids={x.layer_id for x in selected_items}
         layers={x['id']:x for x in data['layers']}
+        ids=self.expand_group_ids(self.selected_ids or {layer_id},data)
         if not ids or any(x not in layers or locked(layers[x]) for x in ids):
             self.update_project();return
         width=data['output']['width'];height=data['output']['height']
-        for item in selected_items:
-            layer=layers[item.layer_id]
-            layer['transform']['x']=pair(item.pos().x()/width)
-            layer['transform']['y']=pair(item.pos().y()/height)
+        if origin is not None:
+            dx=Fraction(str(position.x()-origin.x()))/width
+            dy=Fraction(str(position.y()-origin.y()))/height
+            for selected_id in ids:
+                transform=layers[selected_id]['transform']
+                transform['x']=pair(Fraction(transform['x'][0],transform['x'][1])+dx)
+                transform['y']=pair(Fraction(transform['y'][0],transform['y'][1])+dy)
+        else:
+            layer=layers[layer_id]
+            layer['transform']['x']=pair(position.x()/width)
+            layer['transform']['y']=pair(position.y()/height)
         self.selected_ids=ids;self.selected_id=layer_id
         self.commit(data,'di chuyển nhóm layer' if len(ids)>1 else 'di chuyển layer')
 
@@ -384,10 +387,10 @@ class LayerEditorWorkspace(QWidget):
         if data is None:return
         targets=self._selected_targets(data)
         if not targets:return
-        all_locked=all('transform' in set(x['locked_fields']) or locked(x) for x in targets)
+        all_locked=all(locked(x) for x in targets)
         for layer in targets:
             locks=set(layer['locked_fields'])
-            if all_locked:locks.discard('transform')
+            if all_locked:locks.difference_update(LOCKABLE|{'transform'})
             else:locks.add('transform')
             layer['locked_fields']=sorted(locks)
         self.commit(data,'khóa/mở biến đổi layer')
