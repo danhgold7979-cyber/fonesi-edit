@@ -869,6 +869,8 @@ class TimelinePanel(QWidget):
 
     def update_actions(self):
         session=self.get_session()
+        self.undo_button.setEnabled(self.history.can_undo())
+        self.redo_button.setEnabled(self.history.can_redo())
         clip=self._selected_clip()
         available=clip is not None and session is not None and not session.reconciliation_required
         inside=False
