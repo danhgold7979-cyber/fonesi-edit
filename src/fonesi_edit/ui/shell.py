@@ -17,14 +17,17 @@ from fonesi_edit.ui.timeline import TimelinePanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
+from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
 
 class MainWindow(QMainWindow):
-    def __init__(self, store: ProjectStore):
+    def __init__(self, store: ProjectStore, shortcut_registry=None):
         super().__init__()
         self.store = store
+        self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
+        self.shortcut_settings=ShortcutSettingsPanel(self.shortcut_registry,self)
         self.project = None
         self.session = None
         self._close_requested=False
@@ -48,9 +51,9 @@ class MainWindow(QMainWindow):
         self.media_import.idle.connect(self._queue_idle)
         self.media_import.project_changed.connect(self._project_changed)
         self.media_import.state_changed.connect(self._project_actions)
-        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self)
+        self.layer_editor=LayerEditorWorkspace(lambda:self.session,self,self.shortcut_registry)
         self.layer_editor.project_changed.connect(self._project_changed)
-        self.timeline_panel=TimelinePanel(lambda:self.session,self)
+        self.timeline_panel=TimelinePanel(lambda:self.session,self,self.shortcut_registry)
         self.timeline_panel.project_changed.connect(self._project_changed)
         self.timeline_panel.idle.connect(self._queue_idle)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
@@ -101,7 +104,8 @@ class MainWindow(QMainWindow):
                 contents.addWidget(self.queue_page)
             elif index == 7:
                 tabs=QTabWidget();tabs.addTab(self.tool_inventory,'Danh sách — chỉ metadata')
-                tabs.addTab(self.tool_pair,'Self-test cặp — chạy công cụ đã chọn');contents.addWidget(tabs)
+                tabs.addTab(self.tool_pair,'Self-test cặp — chạy công cụ đã chọn')
+                tabs.addTab(self.shortcut_settings,'Phím tắt');contents.addWidget(tabs)
             else:
                 message = QLabel('Chức năng này đang được xây dựng, chưa khả dụng.\n'
                                  'Đây là khung ứng dụng, không phải bản hoàn thiện.')
@@ -114,13 +118,18 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.currentRowChanged.connect(lambda index:self.queue_page.refresh() if index==6 else None)
         self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
-        self.settings_shortcut=QShortcut(QKeySequence('Ctrl+,'),self)
+        self.settings_shortcut=QShortcut(QKeySequence(self.shortcut_registry.sequence('app.settings')),self)
         self.settings_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.settings_shortcut.activated.connect(lambda:self.navigation.setCurrentRow(7))
+        self.shortcut_registry.changed.connect(self._shortcut_changed)
         self.navigation.setToolTip('Ctrl+, mở khu vực Preset/Cài đặt')
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
+
+    def _shortcut_changed(self,action_id):
+        if action_id=='app.settings':
+            self.settings_shortcut.setKey(QKeySequence(self.shortcut_registry.sequence(action_id)))
 
     def start_coordinator(self,store_token):
         if self._close_requested or self.coordinator_host is not None:return
