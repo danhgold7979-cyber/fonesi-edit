@@ -1,6 +1,6 @@
 """Eight-area foundation shell sharing one authoritative loaded project."""
 from pathlib import Path
-from PySide6.QtCore import Qt,QTimer
+from PySide6.QtCore import Qt,QTimer,QSettings,QByteArray
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QListWidget,
     QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget,QTabWidget)
 from fonesi_edit.storage.projects import ProjectStore, StorageError
@@ -18,14 +18,18 @@ from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.account_metadata import AccountMetadataPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel,ShortcutEventRouter
+from fonesi_edit.ui.appearance import AppearanceSettingsPanel
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
 
 class MainWindow(QMainWindow):
-    def __init__(self, store: ProjectStore, shortcut_registry=None):
+    def __init__(self, store: ProjectStore, shortcut_registry=None, ui_settings=None):
         super().__init__()
         self.store = store
+        self.ui_settings=ui_settings if ui_settings is not None else QSettings('Fonesi','Fonesi Edit')
+        self.appearance_settings=AppearanceSettingsPanel(self.ui_settings,self)
+        self.editor_tabs=None;self.settings_tabs=None
         self.shortcut_registry=shortcut_registry or ShortcutRegistry(self)
         self.shortcut_settings=ShortcutSettingsPanel(self.shortcut_registry,self)
         self.project = None
@@ -78,7 +82,8 @@ class MainWindow(QMainWindow):
             page = QWidget()
             contents = QVBoxLayout(page)
             heading = QLabel(title)
-            heading.setStyleSheet('font-size: 22px; font-weight: bold;')
+            heading_font=heading.font();heading_font.setBold(True)
+            heading_font.setPointSizeF(heading_font.pointSizeF()*1.4);heading.setFont(heading_font)
             contents.addWidget(heading)
             if index == 0:
                 contents.addWidget(self.project_label)
@@ -96,7 +101,7 @@ class MainWindow(QMainWindow):
                 contents.addWidget(self.restore_panel)
                 contents.addWidget(QLabel('Chưa có tác vụ được chạy. Không có số liệu hiệu suất.'))
             elif index == 3:
-                tabs=QTabWidget()
+                tabs=QTabWidget();self.editor_tabs=tabs
                 tabs.addTab(self.layer_editor,'Canvas / Layer')
                 tabs.addTab(self.timeline_panel,'Timeline')
                 tabs.addTab(self.media_import,'Thư viện media')
@@ -106,7 +111,9 @@ class MainWindow(QMainWindow):
             elif index == 6:
                 contents.addWidget(self.queue_page)
             elif index == 7:
-                tabs=QTabWidget();tabs.addTab(self.tool_inventory,'Danh sách — chỉ metadata')
+                tabs=QTabWidget();self.settings_tabs=tabs
+                tabs.addTab(self.appearance_settings,'Giao diện')
+                tabs.addTab(self.tool_inventory,'Danh sách — chỉ metadata')
                 tabs.addTab(self.tool_pair,'Self-test cặp — chạy công cụ đã chọn')
                 tabs.addTab(self.shortcut_settings,'Phím tắt')
                 tabs.addTab(self.account_metadata,'Hồ sơ / Tài khoản — metadata');contents.addWidget(tabs)
@@ -124,7 +131,6 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
         self.navigation.currentRowChanged.connect(lambda index:self.account_metadata.first_open() if index==7 else None)
         self.navigation.setToolTip('Ctrl+, mở khu vực Preset/Cài đặt')
-        self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
         self.settings_shortcut_router=ShortcutEventRouter(
             self.shortcut_registry,
@@ -133,7 +139,40 @@ class MainWindow(QMainWindow):
         )
         for widget in (self,*self.findChildren(QWidget)):
             widget.installEventFilter(self.settings_shortcut_router)
+        self._restore_window_settings()
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
+
+    def _setting_index(self,key,count):
+        try:index=int(self.ui_settings.value(key,0))
+        except (TypeError,ValueError,OverflowError):return 0
+        return index if 0<=index<count else 0
+
+    def _restore_window_settings(self):
+        geometry=self.ui_settings.value('window/geometry',None)
+        if isinstance(geometry,(QByteArray,bytes,bytearray)) and 0<len(geometry)<=65536:
+            try:self.restoreGeometry(geometry)
+            except (TypeError,ValueError,RuntimeError):pass
+        state=self.ui_settings.value('window/state',None)
+        if isinstance(state,(QByteArray,bytes,bytearray)) and 0<len(state)<=65536:
+            try:self.restoreState(state,1)
+            except (TypeError,ValueError,RuntimeError):pass
+        self.navigation.setCurrentRow(self._setting_index('window/navigation_index',len(AREAS)))
+        if self.editor_tabs is not None:
+            self.editor_tabs.setCurrentIndex(self._setting_index('window/editor_tab',self.editor_tabs.count()))
+        if self.settings_tabs is not None:
+            self.settings_tabs.setCurrentIndex(self._setting_index('window/settings_tab',self.settings_tabs.count()))
+
+    def _save_window_settings(self):
+        self.ui_settings.setValue('window/geometry',self.saveGeometry())
+        self.ui_settings.setValue('window/state',self.saveState(1))
+        self.ui_settings.setValue('window/navigation_index',max(0,self.navigation.currentRow()))
+        if self.editor_tabs is not None:
+            self.ui_settings.setValue('window/editor_tab',self.editor_tabs.currentIndex())
+        if self.settings_tabs is not None:
+            self.ui_settings.setValue('window/settings_tab',self.settings_tabs.currentIndex())
+        self.ui_settings.sync()
+        if self.ui_settings.status()!=QSettings.Status.NoError:
+            self.statusBar().showMessage('Không lưu được bố cục cửa sổ; cài đặt dự án không bị ảnh hưởng.')
 
     def start_coordinator(self,store_token):
         if self._close_requested or self.coordinator_host is not None:return
@@ -268,7 +307,9 @@ class MainWindow(QMainWindow):
         if self.background_busy:
             event.ignore()
             self.statusBar().showMessage('Đang chờ tác vụ nền dừng an toàn; không buộc hủy luồng.')
-        else:super().closeEvent(event)
+        else:
+            super().closeEvent(event)
+            if event.isAccepted():self._save_window_settings()
 
     def _queue_idle(self):
         if self._close_requested and not self.background_busy:QTimer.singleShot(0,self.close)
