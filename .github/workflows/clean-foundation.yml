@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: clean-foundation-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   foundation:
     # Separate explicit native-tool checkpoint reuses unchanged aggregate evidence.
