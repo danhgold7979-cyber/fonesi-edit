@@ -1,5 +1,6 @@
 """The inspector must not round untouched rational fields."""
 import os
+from PySide6.QtCore import QCoreApplication,QEvent
 from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
@@ -37,4 +38,4 @@ def test_editing_rotation_preserves_unmodified_third_coordinate(tmp_path,qt_app)
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
