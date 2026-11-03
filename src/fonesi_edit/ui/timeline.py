@@ -571,7 +571,8 @@ class TimelinePanel(QWidget):
         session=self.get_session()
         if session is None or self.stopping or session.reconciliation_required:return False
         expected=session.revision
-        data=session.project.plan.to_dict()
+        before=session.project.plan.to_dict()
+        data=deepcopy(before)
         if in_frame is None and out_frame is None:
             data.pop('timeline_range',None)
         else:
@@ -584,6 +585,7 @@ class TimelinePanel(QWidget):
         except Exception:
             self.action_message.setText('Không lưu được vùng In/Out; project chưa được xác nhận thay đổi. Kiểm tra trạng thái project trước khi thử lại.')
             return False
+        self.history.record(before,session,expected,'timeline In/Out range')
         self.project_changed.emit()
         return True
 
