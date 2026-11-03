@@ -459,6 +459,22 @@ class TimelinePanel(QWidget):
         help_text='Timeline: M thêm marker; I/O đặt vùng; phím tắt có thể đổi trong Cài đặt. Ô crop giữ phím chỉnh sửa riêng.'
         self.clip_list.setToolTip(help_text);self.view.setToolTip(help_text)
 
+    def undo_project(self):
+        if self.history.undo():
+            self.action_message.setText('Đã hoàn tác lệnh project gần nhất.')
+            self.project_changed.emit()
+        else:
+            self.action_message.setText('Không thể hoàn tác: lịch sử đã hết hạn hoặc project cần đối soát.')
+        self.update_actions()
+
+    def redo_project(self):
+        if self.history.redo():
+            self.action_message.setText('Đã làm lại lệnh project gần nhất.')
+            self.project_changed.emit()
+        else:
+            self.action_message.setText('Không thể làm lại: lịch sử đã hết hạn hoặc project cần đối soát.')
+        self.update_actions()
+
     def _step_playhead(self,delta):
         if self.stopping or self.playhead_slider.isSliderDown():return
         self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
