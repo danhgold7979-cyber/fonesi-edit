@@ -86,3 +86,79 @@ def test_canvas_focus_shortcut_moves_selected_layer_forward(tmp_path,qt_app):
         assert [x['id'] for x in ordered]==[second,first]
     finally:
         _close(store,window,qt_app)
+
+
+def test_canvas_arrow_nudges_one_and_ten_output_pixels_independent_of_zoom(tmp_path,qt_app):
+    store,window=_open(tmp_path)
+    try:
+        window.navigation.setCurrentRow(3)
+        editor=window.layer_editor;editor.add_mask()
+        layer_id=editor.selected_id
+        editor.view.setFocus()
+        before=window.session.revision
+        QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Left)
+        assert window.session.revision==before+1
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['x']==[959,1920]
+        assert transform['y']==[1,2]
+
+        editor.view.setFocus()
+        editor.view.scale(2,2)
+        before=window.session.revision
+        QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Right,Qt.KeyboardModifier.ShiftModifier)
+        assert window.session.revision==before+1
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['x']==[969,1920]
+        assert transform['y']==[1,2]
+        assert editor.selected_id==layer_id
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_canvas_nudge_moves_selected_group_members_atomically(tmp_path,qt_app):
+    store,window=_open(tmp_path)
+    try:
+        window.navigation.setCurrentRow(3)
+        editor=window.layer_editor
+        editor.add_mask();first=editor.selected_id
+        editor.add_mask();second=editor.selected_id
+        editor._sync_selection({first,second},first)
+        before=window.session.revision
+        editor.view.setFocus()
+        QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Down,Qt.KeyboardModifier.ShiftModifier)
+        assert window.session.revision==before+1
+        layers={x['id']:x for x in window.session.project.plan.to_dict()['layers']}
+        assert layers[first]['transform']['y']==[109,108]
+        assert layers[second]['transform']['y']==[109,108]
+        assert layers[first]['transform']['x']==[1,2]
+        assert layers[second]['transform']['x']==[1,2]
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_canvas_nudge_refuses_locked_selection_and_keeps_tree_and_spin_arrows_native(tmp_path,qt_app):
+    store,window=_open(tmp_path)
+    try:
+        window.navigation.setCurrentRow(3)
+        editor=window.layer_editor;editor.add_mask()
+        layer_id=editor.selected_id
+        editor.toggle_lock()
+        before=window.session.revision
+        editor.view.setFocus()
+        QTest.keyClick(editor.view.viewport(),Qt.Key.Key_Left)
+        assert window.session.revision==before
+
+        editor.toggle_lock()
+        before=window.session.revision
+        editor.layers.setFocus()
+        QTest.keyClick(editor.layers,Qt.Key.Key_Right)
+        assert window.session.revision==before
+
+        editor.spins['x'].setFocus()
+        QTest.keyClick(editor.spins['x'],Qt.Key.Key_Right)
+        assert window.session.revision==before
+        transform=window.session.project.plan.to_dict()['layers'][0]['transform']
+        assert transform['x']==[1,2]
+        assert editor.selected_id==layer_id
+    finally:
+        _close(store,window,qt_app)
