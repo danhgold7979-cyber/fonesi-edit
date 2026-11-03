@@ -1,10 +1,14 @@
 """Read-only exact-time timeline overview; no playback, trim or render claim."""
+from copy import deepcopy
 from fractions import Fraction
 
 from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QBrush, QPen
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
-    QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox)
+    QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
+    QDoubleSpinBox,QFormLayout)
+from fonesi_edit.domain.composition import CompositionPlan
+from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
 
 
@@ -18,7 +22,9 @@ class TimelinePanel(QWidget):
         super().__init__(parent)
         self.get_session=get_session
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
-        self._last_project_id=None
+        self._last_project_id=None;self._crop_original=None;self._crop_revision=None
+        self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
+        self._zoom_percent=100
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, tách và trim theo thời gian hữu tỷ. Chưa có phát lại, thumbnail, waveform hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
@@ -35,6 +41,21 @@ class TimelinePanel(QWidget):
         for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
         layout.addLayout(controls)
         self.action_message=QLabel('');self.action_message.setWordWrap(True);layout.addWidget(self.action_message)
+        crop_title=QLabel('Crop clip — tọa độ chuẩn hóa 0..1')
+        layout.addWidget(crop_title)
+        crop_form=QFormLayout();self.crop_spins={}
+        for name,label in (('left','Trái'),('top','Trên'),('width','Rộng'),('height','Cao')):
+            spin=QDoubleSpinBox();spin.setDecimals(8);spin.setSingleStep(0.01)
+            spin.setRange(0.00000001 if name in ('width','height') else 0.0,1.0)
+            spin.editingFinished.connect(self.apply_crop)
+            self.crop_spins[name]=spin;crop_form.addRow(label,spin)
+        crop_widget=QWidget();crop_widget.setLayout(crop_form);layout.addWidget(crop_widget)
+        zoom_row=QHBoxLayout();zoom_row.addWidget(QLabel('Zoom timeline'))
+        self.zoom_slider=QSlider(Qt.Orientation.Horizontal);self.zoom_slider.setRange(50,400);self.zoom_slider.setValue(100)
+        self.zoom_slider.valueChanged.connect(self._zoom_changed);zoom_row.addWidget(self.zoom_slider)
+        self.zoom_label=QLabel('100%');zoom_row.addWidget(self.zoom_label)
+        self.fit_button=QPushButton('Vừa khung');self.fit_button.clicked.connect(lambda:self.zoom_slider.setValue(100))
+        zoom_row.addWidget(self.fit_button);layout.addLayout(zoom_row)
         self.split_button.clicked.connect(self.split_at_playhead)
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
@@ -53,12 +74,14 @@ class TimelinePanel(QWidget):
     def _select_clip(self,row):
         item=self.clip_list.item(row) if row>=0 else None
         self.selected_clip_id=None if item is None else item.data(Qt.ItemDataRole.UserRole)
+        self._refresh_crop_inspector()
         self.update_actions()
 
     def _playhead_changed(self,value):
         self._playhead=value
         time=Fraction(value,1)/self._fps
         self.playhead_label.setText(f'Playhead: {value} frame · {float(time):.3f}s')
+        self._move_playhead_marker()
         self.update_actions()
 
     def update_actions(self):
@@ -73,6 +96,64 @@ class TimelinePanel(QWidget):
         self.split_button.setEnabled(available and inside)
         self.trim_in_button.setEnabled(available and inside)
         self.trim_out_button.setEnabled(available and inside)
+        crop_enabled=available
+        for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
+        self.fit_button.setEnabled(session is not None)
+        self.zoom_slider.setEnabled(session is not None)
+
+    def _refresh_crop_inspector(self):
+        session=self.get_session();clip=self._selected_clip()
+        enabled=clip is not None and session is not None and not session.reconciliation_required
+        self._crop_revision=None if session is None else session.revision
+        self._crop_original=None if clip is None else deepcopy(clip['crop'])
+        for name,spin in self.crop_spins.items():
+            spin.setEnabled(enabled)
+            if clip is not None:
+                spin.setValue(float(_q(clip['crop'][name])))
+
+    def apply_crop(self):
+        session=self.get_session();clip=self._selected_clip()
+        if session is None or clip is None or session.reconciliation_required:return
+        if self._crop_revision!=session.revision:
+            self.action_message.setText('Project đã đổi trong lúc mở inspector; đã tải lại crop, hãy kiểm tra trước khi sửa tiếp.')
+            self._refresh_crop_inspector();return
+        data=session.project.plan.to_dict()
+        target=next((x for x in data['clips'] if x['id']==self.selected_clip_id),None)
+        if target is None:return
+        original=self._crop_original or deepcopy(target['crop'])
+        changed=False
+        for name,spin in self.crop_spins.items():
+            exact=Fraction(original[name][0],original[name][1])
+            shown=Fraction(str(spin.value())).limit_denominator(100000000)
+            if abs(shown-exact)>Fraction(1,100000000):
+                target['crop'][name]=[shown.numerator,shown.denominator]
+                changed=True
+        if not changed:return
+        expected=session.revision
+        data['revision']=expected+1
+        data['provenance']['project_revision']=expected+1
+        try:
+            plan=CompositionPlan.parse(data)
+            session.commit(CompletedCommand(session.project.with_plan(plan),expected))
+        except Exception:
+            self.action_message.setText('Crop không hợp lệ hoặc project đã đổi; dữ liệu đã lưu không bị thay đổi. Kiểm tra lại bốn cạnh.')
+            return
+        self.action_message.setText('Đã lưu crop chuẩn hóa; chưa có crop preview hoặc render.')
+        self.project_changed.emit()
+
+    def _zoom_changed(self,value):
+        self._zoom_percent=value
+        self.zoom_label.setText(f'{value}%')
+        if self._fit_transform is not None:
+            self.view.setTransform(self._fit_transform)
+            factor=value/100.0
+            self.view.scale(factor,factor)
+
+    def _move_playhead_marker(self):
+        if self._playhead_marker is None:return
+        time=Fraction(self._playhead,1)/self._fps
+        x=self._timeline_left+float(time)*self._timeline_scale
+        self._playhead_marker.setRect(QRectF(x,18,2,174))
 
     def split_at_playhead(self):
         self._apply_timeline_edit('split')
@@ -102,9 +183,10 @@ class TimelinePanel(QWidget):
 
     def update_project(self):
         session=self.get_session()
-        self.scene.clear()
+        self.scene.clear();self._playhead_marker=None
         if session is None:
             self._last_project_id=None;self.selected_clip_id=None;self._playhead=0
+            self._crop_original=None;self._crop_revision=None;self._fit_transform=None
             self.scene.setSceneRect(QRectF(0,0,1000,180))
             blocked=self.clip_list.blockSignals(True)
             try:self.clip_list.clear()
@@ -200,5 +282,14 @@ class TimelinePanel(QWidget):
             f"Thời lượng project: {output_duration} giây · {len(video)} video clip · "
             f"{len(audio)} audio clip · {len(layers)} layer interval. Đây là sơ đồ thời gian, không phải preview."
         )
+        self._timeline_left=left;self._timeline_scale=scale
+        self._playhead_marker=QGraphicsRectItem(QRectF(0,18,2,174))
+        self._playhead_marker.setBrush(QBrush(QColor('#f4d35e')))
+        self._playhead_marker.setPen(QPen(Qt.PenStyle.NoPen))
+        self._playhead_marker.setZValue(10000);self.scene.addItem(self._playhead_marker)
+        self._move_playhead_marker()
         self.view.fitInView(self.scene.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
+        self._fit_transform=self.view.transform()
+        self._zoom_changed(self._zoom_percent)
+        self._refresh_crop_inspector()
         self.update_actions()
