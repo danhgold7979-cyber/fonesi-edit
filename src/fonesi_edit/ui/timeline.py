@@ -4,7 +4,7 @@ from fractions import Fraction
 
 from pathlib import Path
 from uuid import uuid4
-from PySide6.QtCore import QRectF, Qt, Signal, QThread, QTimer
+from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
@@ -112,8 +112,8 @@ class CropEditorView(QWidget):
 
     def __init__(self,parent=None):
         super().__init__(parent)
-        self.pixmap=QPixmap()
-        self.message='Ảnh tĩnh — chưa có preview'
+        self._pixmap=QPixmap()
+        self._message='Ảnh tĩnh — chưa có preview'
         self.crop={'left':0.0,'top':0.0,'width':1.0,'height':1.0}
         self.grid=True;self.editing=False;self.ratio_locked=False
         self._active_handle=None;self._press=None;self._start_crop=None
@@ -123,17 +123,24 @@ class CropEditorView(QWidget):
         self.setStyleSheet('background:#111820;color:#aab6c5;border:1px solid #56616f;')
 
     def setPixmap(self,pixmap):
-        self.pixmap=QPixmap(pixmap);self.message=''
+        self._pixmap=QPixmap(pixmap);self._message=''
         self.update()
 
     def clear(self):
-        self.pixmap=QPixmap();self.update()
+        self._pixmap=QPixmap();self.update()
 
     def setText(self,text):
-        self.message=str(text);self.update()
+        self._message=str(text);self.update()
 
     def hasPixmap(self):
-        return not self.pixmap.isNull()
+        return not self._pixmap.isNull()
+
+    def pixmap(self):
+        return QPixmap(self._pixmap)
+
+    def text(self):
+        return self._message
+
 
     def set_crop(self,crop):
         self.crop={key:float(_q(crop[key])) if isinstance(crop[key],(list,tuple)) else float(crop[key])
@@ -155,8 +162,8 @@ class CropEditorView(QWidget):
         if not self.hasPixmap():return QRectF()
         margin=8
         available=QRectF(self.rect()).adjusted(margin,margin,-margin,-margin)
-        scale=min(available.width()/self.pixmap.width(),available.height()/self.pixmap.height())
-        width=self.pixmap.width()*scale;height=self.pixmap.height()*scale
+        scale=min(available.width()/self._pixmap.width(),available.height()/self._pixmap.height())
+        width=self._pixmap.width()*scale;height=self._pixmap.height()*scale
         return QRectF(available.center().x()-width/2,available.center().y()-height/2,width,height)
 
     def _crop_rect(self):
@@ -176,10 +183,10 @@ class CropEditorView(QWidget):
         painter.fillRect(self.rect(),QColor('#111820'))
         if not self.hasPixmap():
             painter.setPen(QPen(QColor('#aab6c5')))
-            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,self.message)
+            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,self._message)
             painter.end();return
         self._image_rect=self._fit_rect()
-        painter.drawPixmap(self._image_rect,self.pixmap,QRectF(self.pixmap.rect()))
+        painter.drawPixmap(self._image_rect,self._pixmap,QRectF(self._pixmap.rect()))
         crop=self._crop_rect();image=self._image_rect
         shade=QColor(0,0,0,145)
         painter.fillRect(QRectF(image.left(),image.top(),image.width(),max(0,crop.top()-image.top())),shade)
@@ -909,7 +916,7 @@ class TimelinePanel(QWidget):
             self.action_message.setText('Crop không hợp lệ hoặc project đã đổi; dữ liệu đã lưu không bị thay đổi. Kiểm tra lại bốn cạnh.')
             self._refresh_crop_inspector();return
         self._refresh_crop_inspector()
-        self.action_message.setText('Đã lưu crop chuẩn hóa. Ảnh tĩnh chỉ hiển thị khung crop; chưa có crop compositor hoặc render.')
+        self.action_message.setText('Đã lưu crop chuẩn hóa; chưa có crop preview compositor hoặc render.')
         self.project_changed.emit()
 
     def _zoom_changed(self,value):
