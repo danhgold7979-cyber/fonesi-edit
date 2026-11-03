@@ -54,7 +54,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Background proxy/thumbnail/waveform jobs; quality selection; stale-request-safe A/V seek.
 - **Errors/cancellation:** Cancel proxy leaves no ready cache; changed source invalidates; obsolete seek result ignored; missing audio explicit.
 - **Tests and acceptance:** Warm/cold seek timing, CPU render concurrent responsiveness, proxy hash/version invalidation, canonical sample frames parity.
-- **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P04_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. NOT IMPLEMENTED. Proxy/thumbnail/waveform generation, cache invalidation, quality selection and synchronized A/V seek remain OPEN. Current outcome NOT_RUN.
+- **Evidence:** Slice K–M provide background still-frame/filmstrip/waveform jobs and bounded in-memory content caches; Slice P adds draft/standard/high still-preview quality profiles with resolution-bound cache keys and stale-result invalidation. Persistent encoded proxy generation, continuous timeline thumbnails, A/V synchronized seek, warm/cold seek performance and CPU-render concurrency acceptance remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-07 — shortcut theo focus, remap/xung đột/trợ giúp; nhập Việt/Trung không kích hoạt player/canvas.
 
@@ -205,3 +205,9 @@ Use Ctrl+, to focus the existing Preset/Cài đặt navigation page (index 7); d
 ## Slice O — focus-scoped timeline frame-navigation shortcuts
 
 Bind Left/Right to one output frame, Shift+Left/Right to ten frames, and Home/End to the timeline bounds. Register only on the clip list and timeline canvas with WidgetWithChildrenShortcut; do not consume arrow keys from crop/numeric inputs or other text editors. Navigation changes only the playhead/UI state, not the project revision. Tests cover frame bounds, exact step sizes, Home/End and numeric-input isolation. Playback/spacebar, J/K/L transport and remapping remain unimplemented.
+
+## Slice P — still-preview quality selection and resolution-bound cache
+
+Expose three explicit still-preview quality profiles: draft 320×180, standard 640×360 and high 1280×720. The selected dimensions are passed to the bounded FFmpeg worker and are already part of the frame-cache key; changing quality invalidates any in-flight/stale UI result but does not mutate project state or revoke the user's explicit FFmpeg trust. Filmstrip extraction uses the same selected quality. Unknown quality values fail closed. This is still-image decode quality, not a persistent encoded proxy or synchronized A/V seek.
+
+Tests: each profile passes its exact bounds to the worker; changing quality during a running request discards its stale result; same source/time at different dimensions produces distinct cache entries; selection never changes project revision; cancellation/unknown retirement behavior is unchanged.
