@@ -332,3 +332,40 @@ def test_external_revision_change_invalidates_session_undo_history(tmp_path,qt_a
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater()
+
+
+def test_inspector_controls_have_localized_accessible_names_and_help(tmp_path,qt_app):
+    path=_project_file(tmp_path)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            editor=window.layer_editor
+            labels={
+                'x':'X (tỷ lệ khung)',
+                'y':'Y (tỷ lệ khung)',
+                'width':'Rộng (tỷ lệ khung)',
+                'height':'Cao (tỷ lệ khung)',
+                'scale_x':'Tỷ lệ X (×)',
+                'scale_y':'Tỷ lệ Y (×)',
+                'rotation':'Xoay (°)',
+                'opacity':'Độ mờ (0–1)',
+            }
+            for key,label in labels.items():
+                assert editor.spins[key].accessibleName()==f'{label} — giá trị số'
+                assert editor.spins[key].accessibleDescription()
+                assert editor.sliders[key].accessibleName()==f'Thanh trượt {label}'
+                assert editor.sliders[key].accessibleDescription()
+                assert editor.reset_buttons[key].accessibleName()==f'Đặt lại {label}'
+
+            assert editor.anchor.accessibleName()=='Điểm neo layer'
+            assert editor.reset_anchor_button.accessibleName()=='Đặt lại điểm neo'
+            assert editor.flip_x.accessibleName()=='Lật layer theo chiều ngang'
+            assert editor.flip_y.accessibleName()=='Lật layer theo chiều dọc'
+            assert editor.reset_flip_x_button.accessibleName()=='Đặt lại lật ngang'
+            assert editor.reset_flip_y_button.accessibleName()=='Đặt lại lật dọc'
+            assert editor.reset_transform_button.accessibleName()=='Đặt lại toàn bộ biến đổi layer'
+            assert editor.reset_transform_button.toolTip()
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()
