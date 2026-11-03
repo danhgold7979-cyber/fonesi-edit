@@ -376,3 +376,18 @@ Regression tests cover slider/spin synchronization, one commit per drag, keyboar
 Exact hosted clean-foundation run 41589895118 passed on HEAD 78ff11a8fb45e08dc9806b015e5f2f94475476db: Ubuntu Python 3.12.15/3.13.17 each 941 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 954 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic capability workflow SKIPPED.
 
 This is hosted offscreen Qt evidence only. It does not certify physical Windows GUI, HiDPI, Explorer drag/drop, IME, theme/layout persistence, or full ED-01.02/.03 assertions. P04-01/P04 remain IN_PROGRESS; no task/criterion/phase acceptance is claimed.
+## Slice Y — Basic/Advanced inspector mode, property search and actionable disabled reasons (P04-01)
+
+**Master alignment:** P04-01 panel/property inspector and requirements ED-01.02/.03/.04; source clauses PR-L029, ED-L009 and ED-L033. This is a partial inspector usability slice, not full ED-01 or P04-01 acceptance.
+
+**Entry checkpoint:** integrated HEAD 0871679fa972d20bad387a270c971cdbd7456da4 on develop/fonesi-full. Clean-foundation run 41592562955 passed all four Linux/Windows Python 3.12/3.13 runners; Windows 3.12 onedir build and scoped frozen CLI boundary checks passed. Main remains unchanged.
+
+**Observed gap:** numeric/slider controls and resets exist, but the inspector has no Basic/Advanced mode, no property search and no explicit actionable reason explaining disabled edits.
+
+**Design:** Basic mode shows common transform controls (X, Y, width, height and opacity). Advanced mode additionally exposes scale X/Y, rotation, anchor and flips. A Vietnamese search field filters all inspector properties by stable key, label and common term; a matching advanced property may be revealed by search even when Basic mode is active, so search never returns an apparently empty result solely because of mode.
+
+**Disabled reasons:** a dedicated status label must explain the current edit gate: no project, project reconciliation required, no selected layer, multiple selected layers, or locked transform. It must distinguish these states from an editable single-layer selection. Each disabled spin box, slider and reset button receives a matching Vietnamese tooltip/reason; numeric labels continue to expose normalized frame units, multiplier, degrees and opacity range.
+
+**Tests:** Basic default visibility; Advanced reveals advanced fields; search filters by Vietnamese label and stable property key; search can find an advanced field from Basic mode; clearing search restores mode visibility; tooltips and units are present; disabled reason changes for no project/no selection/multi-selection/locked layer; locked/no-selection/multi-selection controls remain disabled; selecting one unlocked layer restores editability; reset and slider behavior remains unchanged.
+
+**Acceptance boundary:** this slice does not implement persistent Basic/Advanced preference, full property catalog/search across all future effect panels, theme/font-size/HiDPI persistence, multi-file Explorer drag/drop, complete tooltip/disabled-reason mapping outside the layer inspector or physical Windows GUI acceptance. ED-01.02/.03/.04 and P04-01 remain NOT_RUN/IN_PROGRESS until full requirements and external GUI evidence are met.
