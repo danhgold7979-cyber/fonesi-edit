@@ -165,6 +165,88 @@ def test_anchor_and_flip_individual_resets_restore_only_selected_property(tmp_pa
             window.deleteLater()
 
 
+def test_inspector_basic_advanced_search_units_and_tooltips(tmp_path,qt_app):
+    path=_project_file(tmp_path)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.navigation.setCurrentRow(3)
+            editor=window.layer_editor
+            assert 'Mở hoặc tạo dự án' in editor.inspector_reason.text()
+            window.open_project(path)
+            assert 'Chọn một layer' in editor.inspector_reason.text()
+
+            assert not editor.inspector_advanced.isChecked()
+            for name in ('x','y','width','height','opacity'):
+                assert editor.inspector_rows[name][0].isVisible()
+            for name in ('scale_x','scale_y','rotation','anchor','flip_x','flip_y'):
+                assert not editor.inspector_rows[name][0].isVisible()
+
+            editor.inspector_advanced.setChecked(True)
+            for name in ('scale_x','scale_y','rotation','anchor','flip_x','flip_y'):
+                assert editor.inspector_rows[name][0].isVisible()
+
+            editor.inspector_search.setText('xoay')
+            assert editor.inspector_rows['rotation'][0].isVisible()
+            assert not editor.inspector_rows['scale_x'][0].isVisible()
+            editor.inspector_search.clear()
+            assert editor.inspector_rows['rotation'][0].isVisible()
+
+            editor.inspector_advanced.setChecked(False)
+            assert not editor.inspector_rows['rotation'][0].isVisible()
+            editor.inspector_search.setText('xoay')
+            assert editor.inspector_rows['rotation'][0].isVisible()
+            assert not editor.inspector_rows['width'][0].isVisible()
+            editor.inspector_search.clear()
+            assert editor.inspector_rows['width'][0].isVisible()
+            assert not editor.inspector_rows['rotation'][0].isVisible()
+
+            editor.add_mask()
+            assert 'Đang chỉnh một layer' in editor.inspector_reason.text()
+            assert 'Đang chỉnh một layer' in editor.spins['x'].toolTip()
+            assert 'Đang chỉnh một layer' in editor.sliders['rotation'].toolTip()
+            assert 'tỷ lệ khung' in editor.inspector_rows['x'][1].text()
+            assert '°' in editor.inspector_rows['rotation'][1].text()
+            assert '0–1' in editor.inspector_rows['opacity'][1].text()
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()
+
+
+def test_inspector_disabled_reasons_follow_multi_selection_and_lock(tmp_path,qt_app):
+    path=_project_file(tmp_path)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.navigation.setCurrentRow(3)
+            window.open_project(path)
+            editor=window.layer_editor
+            assert 'Chọn một layer' in editor.inspector_reason.text()
+            editor.add_mask();first=editor.selected_id
+            editor.add_mask();second=editor.selected_id
+            editor._sync_selection({first,second},first);editor.update_actions()
+            assert 'nhiều layer' in editor.inspector_reason.text()
+            assert not editor.sliders['x'].isEnabled()
+            assert not editor.reset_buttons['x'].isEnabled()
+
+            editor._sync_selection({first},first);editor.update_actions()
+            editor.toggle_lock()
+            assert 'đang khóa biến đổi' in editor.inspector_reason.text()
+            assert not editor.spins['x'].isEnabled()
+            assert not editor.sliders['x'].isEnabled()
+            assert not editor.reset_transform_button.isEnabled()
+
+            editor.toggle_lock()
+            assert 'Đang chỉnh một layer' in editor.inspector_reason.text()
+            assert editor.spins['x'].isEnabled()
+            assert editor.sliders['x'].isEnabled()
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater()
+
+
 def test_transform_lock_visibility_and_undo_are_model_changes(tmp_path,qt_app):
     path=_project_file(tmp_path)
     with ProjectStore(tmp_path/'store.db') as store:
