@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         self.layer_editor.project_changed.connect(self._project_changed)
         self.timeline_panel=TimelinePanel(lambda:self.session,self)
         self.timeline_panel.project_changed.connect(self._project_changed)
+        self.timeline_panel.idle.connect(self._queue_idle)
         self.tool_inventory=ToolInventoryPanel(self,preferences_path=store.path.parent/'tool-preferences.sqlite3')
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
@@ -235,12 +236,12 @@ class MainWindow(QMainWindow):
 
     @property
     def background_busy(self):return (bool(self.coordinator_host is not None and self.coordinator_host.isRunning()) or
-        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.media_import.busy or self.tool_inventory.busy or self.tool_pair.busy)
+        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.media_import.busy or self.timeline_panel.busy or self.tool_inventory.busy or self.tool_pair.busy)
 
     def request_stop(self):
         self._close_requested=True
         if self.coordinator_host is not None:self.coordinator_host.requestInterruption()
-        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.layer_editor.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
+        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.layer_editor.request_stop();self.timeline_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
