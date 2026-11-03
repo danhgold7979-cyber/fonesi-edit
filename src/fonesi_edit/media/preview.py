@@ -55,9 +55,20 @@ def _signature(path:Path):
 def _regular_tree(path:Path):
     if not path.is_absolute():raise PreviewError('Absolute path required')
     current=Path(path.anchor)
-    for part in path.parts[1:]:
+    root_info=current.lstat()
+    if stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode) or getattr(root_info,'st_file_attributes',0)&0x400:
+        raise PreviewError('Path root must be a regular directory')
+    parts=path.parts[1:]
+    if not parts:raise PreviewError('A file path, not a filesystem root, is required')
+    for index,part in enumerate(parts):
         current=current/part
-        _signature(current)
+        info=current.lstat()
+        if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:
+            raise PreviewError('Path components must not be symlinks or reparse points')
+        if index<len(parts)-1:
+            if not stat.S_ISDIR(info.st_mode):raise PreviewError('Parent path components must be directories')
+        elif not stat.S_ISREG(info.st_mode):
+            raise PreviewError('Final path component must be a regular file')
     return path
 
 
