@@ -126,13 +126,26 @@ class LayerBoundsItem(QGraphicsRectItem):
         if self.resize_state is not None:
             state=self.resize_state;name=state['handle'];original=state['rect']
             delta=QPointF(event.pos())-state['start']
-            left,right=original.left(),original.right()
-            top,bottom=original.top(),original.bottom()
-            if 'w' in name:left=min(right-12,left+delta.x())
-            if 'e' in name:right=max(left+12,right+delta.x())
-            if 'n' in name:top=min(bottom-12,top+delta.y())
-            if 's' in name:bottom=max(top+12,bottom+delta.y())
-            self.setRect(QRectF(QPointF(left,top),QPointF(right,bottom)))
+            width=original.width();height=original.height()
+            horizontal_anchor='left' if self.anchor.endswith('left') else (
+                'right' if self.anchor.endswith('right') else 'center')
+            vertical_anchor='top' if self.anchor.startswith('top') else (
+                'bottom' if self.anchor.startswith('bottom') else 'center')
+            if 'e' in name:
+                if horizontal_anchor=='left':width+=delta.x()
+                elif horizontal_anchor=='center':width+=2*delta.x()
+            elif 'w' in name:
+                if horizontal_anchor=='right':width-=delta.x()
+                elif horizontal_anchor=='center':width-=2*delta.x()
+            if 's' in name:
+                if vertical_anchor=='top':height+=delta.y()
+                elif vertical_anchor=='center':height+=2*delta.y()
+            elif 'n' in name:
+                if vertical_anchor=='bottom':height-=delta.y()
+                elif vertical_anchor=='center':height-=2*delta.y()
+            width=max(12.0,width);height=max(12.0,height)
+            left,top=offset(self.anchor,width,height)
+            self.setRect(QRectF(left,top,width,height))
             self.update();event.accept();return
         if self.rotate_state is not None:
             anchor_scene=self.mapToScene(QPointF(0,0))
@@ -146,8 +159,9 @@ class LayerBoundsItem(QGraphicsRectItem):
     def mouseReleaseEvent(self,event):
         if self.resize_state is not None:
             rect=QRectF(self.rect());state=self.resize_state;self.resize_state=None
-            ox,oy=offset(self.anchor,rect.width(),rect.height())
-            anchor_scene=self.mapToScene(QPointF(rect.left()-ox,rect.top()-oy))
+            # The item's local origin is the selected transform anchor for all
+            # nine anchor positions; resize reconstructs the rectangle around it.
+            anchor_scene=self.mapToScene(QPointF(0,0))
             if self.resized is not None:
                 self._defer_editor_callback(self.resized,self.layer_id,rect.width(),rect.height(),anchor_scene)
             event.accept();return
