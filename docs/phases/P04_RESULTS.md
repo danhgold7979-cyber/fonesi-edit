@@ -110,3 +110,15 @@ Current code includes user-triggered four-frame filmstrip extraction and bounded
 Latest fully completed four-runner run 41570055537 at 457817662c5fb6e70038b19a84b7a52f6ee33fc6: Ubuntu 3.12/3.13 each 888 passed, 39 skipped; Windows 3.12/3.13 each 901 passed, 26 skipped; all zero failed and integrity PASS. This is hosted CI, not real user media corpus or physical Windows acceptance.
 
 Slice N adds Ctrl+, navigation to the existing Preset/Cài đặt page with a regression test. It is in current HEAD `43b0d97575167c10f65968bafdf267fc8e4735ea`; run 41571515314 is pending. It does not complete P04-08 Settings workflows.
+
+
+## Slice N and O — Settings and timeline navigation shortcuts
+
+Implemented:
+- Ctrl+, opens the existing Preset/Cài đặt navigation page; it does not create a second window or mutate project state.
+- Timeline Left/Right steps one frame; Shift+Left/Right steps ten frames; Home/End jumps to bounds.
+- Shortcuts are scoped to the relevant tree/canvas widgets. Numeric crop inputs keep their native arrow-key behavior.
+
+Regression tests: `tests/test_settings_shortcut.py`, `tests/test_timeline_shortcuts.py`. Latest code checkpoint `400aba597565922520593abc648f03ccab25eb59`; full matrix run 41571700739 is pending. The last completed full matrix remains 41570055537 at 457817662c5fb6e70038b19a84b7a52f6ee33fc6: Ubuntu 888 passed/39 skipped each; Windows 901 passed/26 skipped each; zero failures. Do not claim the newly added shortcuts passed until run 41571700739 completes.
+
+P04 remains IN_PROGRESS. P04-08 is still incomplete: Ctrl+, navigation does not implement tool installation/update/repair/rollback, Chrome profiles, account readiness or full settings acceptance.

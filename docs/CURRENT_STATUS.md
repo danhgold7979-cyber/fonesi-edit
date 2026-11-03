@@ -134,3 +134,10 @@ Latest fully completed four-runner CI: run 41570055537 at code checkpoint 457817
 Current HEAD `43b0d97575167c10f65968bafdf267fc8e4735ea` has clean-foundation run 41571515314 pending. Do not claim the new shortcut and test passed until this run completes.
 
 Acceptance remains 13/438 child criteria PASS and 425 NOT_RUN; 8/94 tasks ACCEPTED, 9 IN_PROGRESS, 77 PLANNED; P03 whole-task acceptance 0/9 and P04 whole-task acceptance 0/8. Still open: continuous video playback, synchronized A/V seek, proxy/thumbnail generation, exact decoded PTS parity, crop/transform compositor, render/export parity, complete Settings tool/profile/account workflows, shortcut remapping/conflict UI, physical IME/HiDPI/Explorer tests and physical Windows user-device acceptance.
+
+
+## P04 shortcut continuation — 2026-11-03
+
+Current integration checkpoint before this documentation update: `400aba597565922520593abc648f03ccab25eb59`. Added Ctrl+, to navigate to the existing Preset/Cài đặt page, plus timeline frame navigation: Left/Right one frame, Shift+Left/Right ten frames, Home/End. These shortcuts are focus-scoped to their respective controls; crop numeric inputs retain native arrow-key editing. They do not mutate the project model.
+
+The last fully completed CI run remains 41570055537 at 457817662c5fb6e70038b19a84b7a52f6ee33fc6 (Ubuntu 888 passed/39 skipped per runner; Windows 901 passed/26 skipped per runner; 0 failed). The current branch has a new full matrix run 41571700739 pending at `400aba597565922520593abc648f03ccab25eb59`; latest shortcut tests are not yet verified. P04 remains IN_PROGRESS; no task or phase accepted.
