@@ -81,6 +81,15 @@ class LayerBoundsItem(QGraphicsRectItem):
         r=self.rect()
         return QPointF(r.center().x(),r.top()-24)
 
+    @staticmethod
+    def _defer_editor_callback(callback,*args):
+        if callback is None:return
+        context=getattr(callback,'__self__',None)
+        if isinstance(context,QObject):
+            QTimer.singleShot(0,context,lambda:callback(*args))
+        else:
+            QTimer.singleShot(0,lambda:callback(*args))
+
     def paint(self,painter,option,widget=None):
         super().paint(painter,option,widget)
         if not self.isSelected() or not self.show_handles:return
@@ -140,18 +149,18 @@ class LayerBoundsItem(QGraphicsRectItem):
             ox,oy=offset(self.anchor,rect.width(),rect.height())
             anchor_scene=self.mapToScene(QPointF(rect.left()-ox,rect.top()-oy))
             if self.resized is not None:
-                QTimer.singleShot(0,lambda:self.resized(self.layer_id,rect.width(),rect.height(),anchor_scene))
+                self._defer_editor_callback(self.resized,self.layer_id,rect.width(),rect.height(),anchor_scene)
             event.accept();return
         if self.rotate_state is not None:
             rotation=self.rotation();self.rotate_state=None
             if self.rotated is not None:
-                QTimer.singleShot(0,lambda:self.rotated(self.layer_id,rotation))
+                self._defer_editor_callback(self.rotated,self.layer_id,rotation)
             event.accept();return
         super().mouseReleaseEvent(event)
         if self.pressed is not None and self.pos()!=self.pressed:
             layer_id=self.layer_id;position=QPointF(self.pos());origin=QPointF(self.pressed)
             alt=bool(event.modifiers() & Qt.KeyboardModifier.AltModifier)
-            QTimer.singleShot(0,lambda:self.moved(layer_id,position,origin,alt))
+            self._defer_editor_callback(self.moved,layer_id,position,origin,alt)
         self.pressed=None
 
 
