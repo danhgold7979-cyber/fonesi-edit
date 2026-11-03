@@ -201,3 +201,7 @@ Tests: exact selected audio stream and decoder start, rational duration cap, PCM
 ## Slice N — application-wide Settings navigation shortcut
 
 Use Ctrl+, to focus the existing Preset/Cài đặt navigation page (index 7); do not create a second Settings window or duplicate settings model. The shortcut is registered with WidgetWithChildrenShortcut on the main window, so it is available from editor controls while preserving the single shared Settings page. It must not change project/session state. Test from a focused numeric inspector, verify navigation/page indices and project identity/revision remain unchanged. This is only the navigation shortcut; P04-08 tool install/update/repair/Chrome/profile/account readiness remains incomplete.
+
+## Slice O — focus-scoped timeline frame-navigation shortcuts
+
+Bind Left/Right to one output frame, Shift+Left/Right to ten frames, and Home/End to the timeline bounds. Register only on the clip list and timeline canvas with WidgetWithChildrenShortcut; do not consume arrow keys from crop/numeric inputs or other text editors. Navigation changes only the playhead/UI state, not the project revision. Tests cover frame bounds, exact step sizes, Home/End and numeric-input isolation. Playback/spacebar, J/K/L transport and remapping remain unimplemented.
