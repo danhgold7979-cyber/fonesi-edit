@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsS
     QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
+from fonesi_edit.ui.project_history import ProjectCommandHistory
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
