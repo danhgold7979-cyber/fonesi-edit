@@ -1296,5 +1296,112 @@
       "Multi-file Explorer drag/drop and full inspector property coverage across future effect panels remain open.",
       "ED-01.02/.03/.04 remain NOT_RUN; no P04-01 task or P04 phase acceptance."
     ]
+  },
+  {
+    "id": "P04-HOSTED-MULTI-FILE-DROP-41599687098",
+    "generation": "clean-2026-11-01",
+    "commit": "2cc8a50dad9fa1ceb9c89c6a52857a814761393b",
+    "tree": "c8be4198b9f11b8c905fd881b209ba80350c5d82",
+    "task_ids": [
+      "P04-01"
+    ],
+    "criterion_ids": [],
+    "kind": "unit_integration_and_gui",
+    "acceptance_scope": "Partial bounded local multi-file drop review queue, per-item refusal, explicit one-at-a-time source selection and busy-state disablement; no ED-L136/P04-01 task or P04 phase acceptance and no physical Windows Explorer acceptance.",
+    "command": "GitHub Actions clean-foundation run 41599687098; full source foundation, actual Windows development onedir build and scoped frozen CLI boundary checks.",
+    "started_at": "2026-11-03T07:56:43Z",
+    "finished_at": "2026-11-03T07:59:49Z",
+    "environment": {
+      "targets": [
+        {
+          "source_sha": "2cc8a50dad9fa1ceb9c89c6a52857a814761393b",
+          "source_tree": "c8be4198b9f11b8c905fd881b209ba80350c5d82",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.12.15",
+          "sqlite": "3.45.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "2cc8a50dad9fa1ceb9c89c6a52857a814761393b",
+          "source_tree": "c8be4198b9f11b8c905fd881b209ba80350c5d82",
+          "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+          "python": "3.13.17",
+          "sqlite": "3.45.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "2cc8a50dad9fa1ceb9c89c6a52857a814761393b",
+          "source_tree": "c8be4198b9f11b8c905fd881b209ba80350c5d82",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.12.10",
+          "sqlite": "3.49.1",
+          "QT_QPA_PLATFORM": "offscreen"
+        },
+        {
+          "source_sha": "2cc8a50dad9fa1ceb9c89c6a52857a814761393b",
+          "source_tree": "c8be4198b9f11b8c905fd881b209ba80350c5d82",
+          "platform": "Windows-2025Server-10.0.26100-SP0",
+          "python": "3.13.17",
+          "sqlite": "3.50.4",
+          "QT_QPA_PLATFORM": "offscreen"
+        }
+      ]
+    },
+    "test_cases": [
+      "tests.test_media_import_drop::test_one_local_file_drop_only_populates_selector",
+      "tests.test_media_import_drop::test_multiple_local_file_drop_queues_without_import_until_explicit_selection",
+      "tests.test_media_import_drop::test_mixed_multi_file_drop_keeps_valid_item_and_marks_unsupported_items",
+      "tests.test_media_import_drop::test_drop_queue_deduplicates_and_caps_valid_files",
+      "tests.test_media_import_drop::test_drop_queue_rejects_nul_and_unc_paths_before_filesystem_access",
+      "tests.test_media_import_drop::test_drop_queue_keeps_visible_bounded_overflow_summary",
+      "tests.test_media_import_drop::test_directory_and_missing_file_drop_are_refused",
+      "tests.test_media_import_drop::test_symlink_drop_is_refused_when_platform_can_create_symlinks",
+      "tests.test_media_import_ui::test_cancel_during_owned_probe_does_not_mutate_project"
+    ],
+    "status": "PASS",
+    "observations": {
+      "ubuntu_py312": {
+        "passed": 948,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "ubuntu_py313": {
+        "passed": 948,
+        "skipped": 39,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312": {
+        "passed": 961,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py313": {
+        "passed": 961,
+        "skipped": 26,
+        "failed": 0,
+        "integrity": "PASS"
+      },
+      "windows_py312_onedir_build": "PASS",
+      "windows_py312_frozen_cli_boundaries": {
+        "status": "PASS",
+        "completed_cases": 5
+      },
+      "pinned_windows_ffmpeg_synthetic": "SKIPPED"
+    },
+    "artifact_paths": [],
+    "run_ids": [
+      41599687098
+    ],
+    "run_urls": [
+      "https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/41599687098"
+    ],
+    "limitations": [
+      "Qt drag/drop was tested with synthetic QMimeData events under QT_QPA_PLATFORM=offscreen; no physical Windows Explorer multi-select acceptance.",
+      "No physical Windows HiDPI/mixed-DPI, network-share, directory-recursion, real codec/media validity or batch/parallel import acceptance.",
+      "ED-L136 and P04-01 remain IN_PROGRESS; no task or phase acceptance."
+    ]
   }
 ]
