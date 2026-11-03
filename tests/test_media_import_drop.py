@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 from fonesi_edit.storage.project_creation import NewProjectIntent, empty_project
 from fonesi_edit.storage.projects import ProjectStore, save_project_file
 from fonesi_edit.ui.shell import MainWindow
+from fonesi_edit.ui.media_import import LocalMediaDropQueue
 from test_queue_view import wait_for
 
 
@@ -151,6 +152,9 @@ def test_mixed_multi_file_drop_keeps_valid_item_and_marks_unsupported_items(edit
     assert panel.drop_queue.item(0).data(Qt.UserRole)==str(valid)
     assert all(panel.drop_queue.item(i).data(Qt.UserRole) is None for i in (1,2,3))
     assert all(panel.drop_queue.item(i).text().startswith('Từ chối') for i in (1,2,3))
+    assert panel.drop_queue.item(1).toolTip()=='https://example.invalid/remote.mp4'
+    assert panel.drop_queue.item(2).toolTip()==str(folder)
+    assert panel.drop_queue.item(3).toolTip()==str(missing)
     assert 'Đã xếp 1 tệp hợp lệ; 3 mục' in panel.message.text()
     assert panel.source.text()=='' and panel.worker is None
     assert editor.session.revision==revision and editor.session.project.library is None
@@ -180,6 +184,29 @@ def test_drop_queue_deduplicates_and_caps_valid_files(editor,tmp_path):
                for i in range(panel.drop_queue.count()))
     assert panel.source.text()=='' and panel.worker is None
     assert editor.session.revision==0 and editor.session.project.library is None
+
+
+def test_drop_queue_rejects_nul_and_unc_paths_before_filesystem_access():
+    class LocalUrl:
+        def __init__(self,value):self.value=value
+        def isLocalFile(self):return True
+        def toLocalFile(self):return self.value
+
+    for raw in ('/tmp/invalid\x00name.mp4',r'\\server\share\clip.mp4'):
+        with pytest.raises(ValueError):
+            LocalMediaDropQueue._candidate(LocalUrl(raw))
+
+
+def test_drop_queue_keeps_visible_bounded_overflow_summary(editor):
+    queue=editor.media_import.drop_queue
+    urls=[QUrl(f'https://example.invalid/item-{index}.mp4') for index in range(200)]
+    accepted,rejected=queue.add_urls(urls)
+    assert accepted==0 and rejected==200
+    assert queue.refused_count==200
+    assert queue.count()==128
+    assert queue.item(127).text().startswith('Đã ẩn')
+    assert '73 mục' in queue.item(127).text()
+    assert queue.item(127).data(Qt.ItemDataRole.UserRole) is None
 
 
 def test_directory_and_missing_file_drop_are_refused(editor, tmp_path):
