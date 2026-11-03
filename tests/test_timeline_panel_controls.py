@@ -119,6 +119,7 @@ def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater()
+            window=None
 
             reopened=MainWindow(store);reopened.show();reopened.open_project(path)
             restored=reopened.timeline_panel
