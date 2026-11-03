@@ -2,7 +2,7 @@
 import os
 os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
 
-from PySide6.QtCore import QSettings,QByteArray,QSize
+from PySide6.QtCore import QSettings,QByteArray,QSize,QCoreApplication,QEvent
 from PySide6.QtGui import QPalette
 
 from fonesi_edit.ui.appearance import (
@@ -64,7 +64,7 @@ def test_appearance_panel_applies_live_and_resets_only_appearance(qt_app,tmp_pat
     assert int(settings.value('window/navigation_index'))==4
     assert qt_app.styleSheet()==''
 
-    panel.deleteLater()
+    panel.deleteLater();QCoreApplication.sendPostedEvents(panel,QEvent.Type.DeferredDelete)
     qt_app.processEvents()
 
 
@@ -86,7 +86,7 @@ def test_main_window_restores_geometry_navigation_and_tab_selection(qt_app,tmp_p
         assert int(settings.value('window/settings_tab'))==3
         assert isinstance(settings.value('window/geometry'),QByteArray)
         assert isinstance(settings.value('window/state'),QByteArray)
-        first.deleteLater()
+        first.deleteLater();QCoreApplication.sendPostedEvents(first,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
         second=MainWindow(store,ui_settings=settings)
@@ -97,7 +97,7 @@ def test_main_window_restores_geometry_navigation_and_tab_selection(qt_app,tmp_p
         assert second.width()>=1300 and second.height()>=800
         second.close()
         wait_for(qt_app,lambda:not second.background_busy and not second.isVisible())
-        second.deleteLater()
+        second.deleteLater();QCoreApplication.sendPostedEvents(second,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
 
@@ -121,7 +121,7 @@ def test_pending_close_does_not_persist_unaccepted_window_layout(qt_app,tmp_path
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
         assert isinstance(settings.value('window/geometry'),QByteArray)
-        window.deleteLater()
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
 
@@ -136,7 +136,7 @@ def test_corrupt_window_geometry_and_state_fall_back_to_default(qt_app,tmp_path)
         assert window.navigation.currentRow()==0
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-        window.deleteLater()
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
 
@@ -150,7 +150,7 @@ def test_oversized_window_geometry_is_ignored_without_touching_other_preferences
         assert window.appearance_settings.preferences.theme=='dark'
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-        window.deleteLater()
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
 
@@ -168,7 +168,7 @@ def test_inspector_mode_persists_across_window_restart_and_appearance_reset(qt_a
         assert settings.value('editor/inspector_advanced') is False
         first.close()
         wait_for(qt_app,lambda:not first.background_busy and not first.isVisible())
-        first.deleteLater()
+        first.deleteLater();QCoreApplication.sendPostedEvents(first,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
         second=MainWindow(store,ui_settings=settings)
@@ -177,7 +177,7 @@ def test_inspector_mode_persists_across_window_restart_and_appearance_reset(qt_a
         assert settings.value('editor/inspector_advanced') is True
         second.close()
         wait_for(qt_app,lambda:not second.background_busy and not second.isVisible())
-        second.deleteLater()
+        second.deleteLater();QCoreApplication.sendPostedEvents(second,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
 
 
@@ -189,5 +189,5 @@ def test_malformed_inspector_mode_defaults_to_basic(qt_app,tmp_path):
         assert not window.layer_editor.inspector_advanced.isChecked()
         window.close()
         wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-        window.deleteLater()
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
         qt_app.processEvents()
