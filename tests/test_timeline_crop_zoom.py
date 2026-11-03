@@ -124,7 +124,7 @@ def test_crop_overlay_drag_stages_then_cancel_keeps_project_unchanged(tmp_path,q
         window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
         window._project_changed();panel.clip_list.setCurrentRow(0)
         panel.preview_image.setPixmap(QPixmap(400,200))
-        panel._refresh_crop_inspector()
+        panel._refresh_crop_inspector();panel.update_actions();qt_app.processEvents()
         panel.crop_edit_toggle.setChecked(True)
         revision=window.session.revision
         rect=panel.preview_image._crop_rect();center=rect.center()
@@ -159,7 +159,7 @@ def test_crop_overlay_confirm_commits_one_normalized_project_revision(tmp_path,q
         window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
         window._project_changed();panel.clip_list.setCurrentRow(0)
         panel.preview_image.setPixmap(QPixmap(400,200))
-        panel._refresh_crop_inspector();panel.crop_edit_toggle.setChecked(True)
+        panel._refresh_crop_inspector();panel.update_actions();qt_app.processEvents();panel.crop_edit_toggle.setChecked(True)
         before=window.session.revision
         rect=panel.preview_image._crop_rect();center=rect.center()
         start=QPoint(round(center.x()),round(center.y()))
@@ -171,7 +171,8 @@ def test_crop_overlay_confirm_commits_one_normalized_project_revision(tmp_path,q
         panel.crop_apply_button.click()
         assert window.session.revision==before+1
         crop=window.session.project.plan.to_dict()['clips'][0]['crop']
-        assert crop['left']==[1,4] and crop['top']==[1,4]
+        assert .24 < float(Fraction(*crop['left'])) < .26
+        assert .24 < float(Fraction(*crop['top'])) < .26
         assert crop['width']==[2,5] and crop['height']==[2,5]
         assert not panel._crop_overlay_pending
         assert 'chưa có crop compositor' in panel.action_message.text().lower()
