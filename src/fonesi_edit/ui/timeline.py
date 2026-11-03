@@ -113,6 +113,104 @@ class TimelinePanel(QWidget):
         data=session.project.plan.to_dict()
         return next((x for x in data['clips'] if x['id']==self.selected_clip_id),None)
 
+    @property
+    def busy(self):
+        return self.preview_worker is not None
+
+    def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
+        self._preview_generation+=1
+        if self.preview_worker is not None:
+            self.preview_worker.requestInterruption()
+        if hasattr(self,'preview_message'):
+            self.preview_message.setText(message)
+            self.preview_image.clear()
+            self.preview_image.setText('Ảnh tĩnh — preview chưa sẵn sàng')
+
+    def _preview_path_changed(self,_value):
+        self.preview_trust.setChecked(False)
+        self._invalidate_preview('Đường dẫn FFmpeg đã đổi; xác nhận tin cậy lại trước khi chạy.')
+        self.update_actions()
+
+    def choose_preview_ffmpeg(self):
+        filename,_=QFileDialog.getOpenFileName(self,'Chọn FFmpeg','','FFmpeg (ffmpeg.exe ffmpeg);;Chương trình (*)')
+        if filename:self.preview_path.setText(filename)
+
+    def request_preview(self):
+        session=self.get_session();clip=self._selected_clip()
+        if self.busy or self.stopping or session is None or clip is None:return
+        if session.reconciliation_required:
+            self.preview_message.setText('Project cần đối soát; không chạy preview.')
+            return
+        if not self.preview_trust.isChecked():
+            self.preview_message.setText('Cần xác nhận tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục.')
+            return
+        ffmpeg=Path(self.preview_path.text())
+        if not ffmpeg.is_absolute():
+            self.preview_message.setText('Chọn đường dẫn FFmpeg tuyệt đối; không tự tìm công cụ thay thế.')
+            return
+        try:
+            data=session.project.plan.to_dict()
+            asset=next(x for x in data['assets'] if x['id']==clip['asset_id'])
+            stream_index=clip['video_stream_index']
+            stream=next(x for x in asset['probe']['streams']
+                        if x['index']==stream_index and x['type']=='video')
+            if _q(clip['freeze_duration'])!=0:
+                raise PreviewError('Preview hiện chưa hỗ trợ clip freeze.')
+            start=_q(clip['output_start']);source_in=_q(clip['source_in'])
+            source_out=_q(clip['source_out']);speed=_q(clip['speed'])
+            playhead=Fraction(self._playhead,1)/self._fps
+            if not start<=playhead<start+(source_out-source_in)/speed:
+                raise PreviewError('Playhead phải nằm trong phần video đang chọn.')
+            source_time=source_in+(playhead-start)*speed
+            decoder_time=_q(stream['start_time'])+source_time
+            source=resolve_asset_path(asset,session.project_base)
+            expected=asset['sha256']
+        except (StopIteration,KeyError,ValueError,PreviewError) as exc:
+            self.preview_message.setText(str(exc) if isinstance(exc,PreviewError)
+                else 'Không xác định được asset/stream của clip; không chạy decoder.')
+            return
+        worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_time,self)
+        self._preview_generation+=1;generation=self._preview_generation
+        self._preview_revision=session.revision;self._preview_clip_id=clip['id']
+        self.preview_worker=worker
+        worker.finished.connect(lambda:self._preview_finished(worker,generation))
+        self.preview_message.setText('Đang tạo một ảnh tĩnh bằng FFmpeg đã chọn. Không phát video/âm thanh và không render project.')
+        self.update_actions();worker.start()
+
+    def _preview_finished(self,worker,generation):
+        if self.preview_worker is not worker:return
+        if not worker.wait(0):
+            QTimer.singleShot(10,lambda:self._preview_finished(worker,generation))
+            return
+        session=self.get_session()
+        current=(generation==self._preview_generation and not self.stopping and session is not None
+                 and session.revision==self._preview_revision and self.selected_clip_id==self._preview_clip_id)
+        if current and worker.frame is not None:
+            image=QImage.fromData(worker.frame.png,'PNG')
+            if image.isNull():
+                self.preview_image.clear();self.preview_image.setText('Không giải mã được PNG preview.')
+                self.preview_message.setText('Ảnh trả về không hợp lệ; không áp dụng cache vào project.')
+            else:
+                pixmap=QPixmap.fromImage(image)
+                self.preview_image.setPixmap(pixmap.scaled(self.preview_image.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
+                stamp=worker.frame.decoder_time
+                self.preview_message.setText(
+                    f"Ảnh tĩnh {worker.frame.width}×{worker.frame.height} · stream {worker.frame.stream_index} · "
+                    f"timestamp decoder {stamp} · {'cache' if worker.frame.cache_hit else 'FFmpeg'}; "
+                    'không phải preview compositor, không đồng bộ audio và không chứng minh export parity.')
+        elif current and worker.error:
+            self.preview_image.clear();self.preview_image.setText('Chưa có ảnh preview.')
+            self.preview_message.setText(worker.error)
+        elif current and worker.canceled:
+            self.preview_message.setText('Đã dừng preview; không thay đổi project.')
+        self.preview_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+
+    def request_stop(self):
+        self.stopping=True
+        self._invalidate_preview('Đang dừng preview; chờ FFmpeg và tiến trình con kết thúc an toàn.')
+        self.update_actions()
+
     def _select_clip(self,row):
         item=self.clip_list.item(row) if row>=0 else None
         self.selected_clip_id=None if item is None else item.data(Qt.ItemDataRole.UserRole)
