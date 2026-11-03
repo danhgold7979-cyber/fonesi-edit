@@ -172,3 +172,82 @@ def test_crop_overlay_confirm_commits_one_normalized_project_revision(tmp_path,q
         assert 'chưa có crop preview compositor' in panel.action_message.text().lower()
     finally:
         _close(window,store,qt_app)
+
+
+def test_crop_overlay_stale_revision_refuses_confirm_and_reloads_model(tmp_path,qt_app):
+    from PySide6.QtGui import QPixmap
+    store,window,_=_window(tmp_path,qt_app)
+    try:
+        panel=window.timeline_panel
+        panel.preview_image.setPixmap(QPixmap(400,200))
+        panel._refresh_crop_inspector();panel.update_actions();qt_app.processEvents()
+        panel.crop_edit_toggle.setChecked(True)
+        before=window.session.revision
+        original=window.session.project.plan.to_dict()['clips'][0]['crop']
+        panel.preview_image.crop_changed.emit({'left':.25,'top':.25,'width':.4,'height':.4})
+        assert panel._crop_overlay_pending
+        data=window.session.project.plan.to_dict()
+        data['seed']+=1;data['revision']+=1;data['provenance']['project_revision']=data['revision']
+        plan=CompositionPlan.parse(data)
+        window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
+        current=window.session.revision
+        panel.crop_apply_button.click()
+        assert current==before+1 and window.session.revision==current
+        assert window.session.project.plan.to_dict()['clips'][0]['crop']==original
+        assert not panel._crop_overlay_pending
+        assert 'project đã đổi' in panel.action_message.text().lower()
+    finally:
+        _close(window,store,qt_app)
+
+
+def test_crop_overlay_pending_edit_is_discarded_when_clip_changes(tmp_path,qt_app):
+    from PySide6.QtGui import QPixmap
+    store,window,_=_window(tmp_path,qt_app)
+    try:
+        second=_record(tmp_path/'second.mp4',b'second crop source')
+        added=add_video_clip(window.session.project,second,_scan(second),expected_revision=window.session.revision)
+        window.session.commit(added.command);window._project_changed()
+        panel=window.timeline_panel;panel.clip_list.setCurrentRow(0)
+        panel.preview_image.setPixmap(QPixmap(400,200))
+        panel._refresh_crop_inspector();panel.update_actions();qt_app.processEvents()
+        panel.crop_edit_toggle.setChecked(True)
+        before=window.session.revision
+        panel.preview_image.crop_changed.emit({'left':.25,'top':.25,'width':.4,'height':.4})
+        assert panel._crop_overlay_pending
+        panel.clip_list.setCurrentRow(1)
+        assert window.session.revision==before
+        assert not panel._crop_overlay_pending
+        assert panel.selected_clip_id==added.clip_id
+        assert window.session.project.plan.to_dict()['clips'][1]['crop']=={
+            'left':[0,1],'top':[0,1],'width':[1,1],'height':[1,1]}
+    finally:
+        _close(window,store,qt_app)
+
+
+def test_confirmed_overlay_crop_survives_project_save_and_reopen(tmp_path,qt_app):
+    from PySide6.QtGui import QPixmap
+    store,window,_=_window(tmp_path,qt_app)
+    path=tmp_path/'project.json'
+    try:
+        panel=window.timeline_panel
+        panel.preview_image.setPixmap(QPixmap(400,200))
+        panel._refresh_crop_inspector();panel.update_actions();qt_app.processEvents()
+        panel.crop_edit_toggle.setChecked(True)
+        panel.preview_image.crop_changed.emit({'left':.25,'top':.25,'width':.4,'height':.4})
+        panel.crop_apply_button.click()
+        expected={'left':[1,4],'top':[1,4],'width':[2,5],'height':[2,5]}
+        assert window.session.project.plan.to_dict()['clips'][0]['crop']==expected
+        window.session.save()
+        window.close()
+        wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+        window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+        reopened=MainWindow(store);reopened.show();reopened.open_project(path)
+        assert reopened.session.project.plan.to_dict()['clips'][0]['crop']==expected
+        reopened.close()
+        wait_for(qt_app,lambda:not reopened.background_busy and not reopened.isVisible())
+        reopened.deleteLater();QCoreApplication.sendPostedEvents(reopened,QEvent.Type.DeferredDelete)
+    finally:
+        if window.isVisible():
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+        store.close()
