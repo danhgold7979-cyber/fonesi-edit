@@ -59,7 +59,10 @@ def test_grid_and_safe_area_are_view_only_and_preserve_selection(tmp_path,qt_app
         editor.safe_check.setChecked(True)
         assert editor.selected_ids==selected
         assert window.session.revision==revision
-        assert any(isinstance(item,object) for item in editor.scene.items())
+        from PySide6.QtWidgets import QGraphicsLineItem,QGraphicsRectItem
+        assert any(isinstance(item,QGraphicsLineItem) for item in editor.scene.items())
+        assert any(isinstance(item,QGraphicsRectItem) and item.rect().width()==editor.scene.sceneRect().width()*.9
+                   for item in editor.scene.items())
     finally:
         _close(store,window,qt_app)
 
