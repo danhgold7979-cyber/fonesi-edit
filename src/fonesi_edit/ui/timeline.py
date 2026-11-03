@@ -116,6 +116,7 @@ class TimelinePanel(QWidget):
         self._last_project_id=None;self._crop_original=None;self._crop_revision=None
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0;self._waveform_generation=0
+        self._in_frame=None;self._out_frame=None;self._frame_total=0
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
         self.waveform_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
@@ -130,6 +131,10 @@ class TimelinePanel(QWidget):
         self.playhead_slider=QSlider(Qt.Orientation.Horizontal);self.playhead_slider.setRange(0,0)
         self.playhead_slider.valueChanged.connect(self._playhead_changed);controls.addWidget(self.playhead_slider)
         self.playhead_label=QLabel('Playhead: 0 frame');controls.addWidget(self.playhead_label)
+        self.set_in_button=QPushButton('Đặt In');self.set_out_button=QPushButton('Đặt Out')
+        self.clear_range_button=QPushButton('Xóa In/Out')
+        self.range_label=QLabel('Chưa chọn vùng In/Out')
+        for widget in (self.set_in_button,self.set_out_button,self.clear_range_button,self.range_label):controls.addWidget(widget)
         self.ripple=QCheckBox('Ripple (đóng khoảng trống)');controls.addWidget(self.ripple)
         self.split_button=QPushButton('Tách tại playhead');self.trim_in_button=QPushButton('Trim đầu');self.trim_out_button=QPushButton('Trim cuối')
         for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
@@ -184,6 +189,9 @@ class TimelinePanel(QWidget):
         self.waveform_message.setWordWrap(True);layout.addWidget(self.waveform_message)
         self.waveform_widget=WaveformWidget(self);self.waveform_widget.setStyleSheet('border:1px solid #56616f;')
         layout.addWidget(self.waveform_widget)
+        self.set_in_button.clicked.connect(self.set_in_marker)
+        self.set_out_button.clicked.connect(self.set_out_marker)
+        self.clear_range_button.clicked.connect(self.clear_range_markers)
         self.split_button.clicked.connect(self.split_at_playhead)
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
@@ -203,6 +211,9 @@ class TimelinePanel(QWidget):
             ('timeline.next_10',lambda:self._step_playhead(10)),
             ('timeline.start',lambda:self.playhead_slider.setValue(self.playhead_slider.minimum())),
             ('timeline.end',lambda:self.playhead_slider.setValue(self.playhead_slider.maximum())),
+            ('timeline.mark_in',self.set_in_marker),
+            ('timeline.mark_out',self.set_out_marker),
+            ('timeline.clear_range',self.clear_range_markers),
         )
         for owner in (self.clip_list,self.view):
             for action_id,callback in bindings:
@@ -222,6 +233,43 @@ class TimelinePanel(QWidget):
         if self.stopping or self.playhead_slider.isSliderDown():return
         self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
             min(self.playhead_slider.maximum(),self.playhead_slider.value()+delta)))
+
+    def set_in_marker(self):
+        if self.get_session() is None or self.stopping:return
+        frame=self._playhead
+        if self._out_frame is not None and frame>=self._out_frame:
+            self.action_message.setText('Điểm In phải nằm trước điểm Out; vùng chọn không thay đổi.')
+            return
+        self._in_frame=frame
+        self.range_label.setText(self._range_label())
+        self.action_message.setText('Đã đặt điểm In tại frame hiện tại. Chưa thay đổi project.')
+        self.update_project()
+
+    def set_out_marker(self):
+        if self.get_session() is None or self.stopping:return
+        if self._in_frame is None:
+            self.action_message.setText('Đặt điểm In trước khi đặt Out.')
+            return
+        frame=self._playhead+1
+        if frame<=self._in_frame or frame>self._frame_total:
+            self.action_message.setText('Điểm Out phải sau điểm In và không vượt quá cuối project.')
+            return
+        self._out_frame=frame
+        self.range_label.setText(self._range_label())
+        self.action_message.setText('Đã đặt điểm Out sau frame hiện tại. Vùng chọn dùng khoảng [In, Out).')
+        self.update_project()
+
+    def clear_range_markers(self):
+        if self._in_frame is None and self._out_frame is None:return
+        self._in_frame=None;self._out_frame=None
+        self.range_label.setText('Chưa chọn vùng In/Out')
+        self.action_message.setText('Đã xóa vùng In/Out; project không thay đổi.')
+        self.update_project()
+
+    def _range_label(self):
+        if self._in_frame is None:return 'Chưa chọn vùng In/Out'
+        if self._out_frame is None:return f'In {self._in_frame} · chưa đặt Out'
+        return f'In {self._in_frame} → Out {self._out_frame} · {self._out_frame-self._in_frame} frame'
 
     def _selected_clip(self):
         session=self.get_session()
@@ -598,6 +646,8 @@ class TimelinePanel(QWidget):
         self.scene.clear();self._playhead_marker=None
         if session is None:
             self._last_project_id=None;self.selected_clip_id=None;self._playhead=0
+            self._in_frame=None;self._out_frame=None;self._frame_total=0
+            self.range_label.setText('Chưa chọn vùng In/Out')
             self._crop_original=None;self._crop_revision=None;self._fit_transform=None
             self.scene.setSceneRect(QRectF(0,0,1000,180))
             blocked=self.clip_list.blockSignals(True)
@@ -613,6 +663,7 @@ class TimelinePanel(QWidget):
         if self._last_project_id != data['id']:
             if self._last_project_id is not None:self._invalidate_preview('Project identity changed; previous preview discarded.')
             self._last_project_id=data['id'];self.selected_clip_id=None;self._playhead=0
+            self._in_frame=None;self._out_frame=None
         output_duration=_q(data['output']['duration'])
         self._fps=_q(data['output']['fps'])
         blocked=self.clip_list.blockSignals(True)
@@ -626,6 +677,10 @@ class TimelinePanel(QWidget):
         finally:self.clip_list.blockSignals(blocked)
         frame_count=output_duration*self._fps
         frame_total=(frame_count.numerator+frame_count.denominator-1)//frame_count.denominator
+        self._frame_total=frame_total
+        if self._in_frame is not None and self._in_frame>=frame_total:self._in_frame=None
+        if self._out_frame is not None and (self._in_frame is None or self._out_frame>frame_total or self._out_frame<=self._in_frame):self._out_frame=None
+        self.range_label.setText(self._range_label())
         max_frame=max(0,frame_total-1)
         blocked=self.playhead_slider.blockSignals(True)
         try:
@@ -696,6 +751,29 @@ class TimelinePanel(QWidget):
             f"{len(audio)} audio clip · {len(layers)} layer interval. Đây là sơ đồ thời gian, không phải preview."
         )
         self._timeline_left=left;self._timeline_scale=scale
+        if self._in_frame is not None:
+            in_x=left+float(Fraction(self._in_frame,1)/self._fps)*scale
+            if self._out_frame is not None:
+                out_x=left+float(Fraction(self._out_frame,1)/self._fps)*scale
+                region=QGraphicsRectItem(QRectF(in_x,20,max(1,out_x-in_x),170))
+                region.setBrush(QBrush(QColor(75,145,215,45)))
+                region.setPen(QPen(Qt.PenStyle.NoPen));region.setZValue(-50)
+                region.setFlag(region.GraphicsItemFlag.ItemIsSelectable,False)
+                region.setAcceptedMouseButtons(Qt.MouseButton.NoButton);self.scene.addItem(region)
+            in_line=QGraphicsRectItem(QRectF(in_x-1,18,2,174))
+            in_line.setBrush(QBrush(QColor('#70d6a5')));in_line.setPen(QPen(Qt.PenStyle.NoPen))
+            in_line.setZValue(9000);in_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            self.scene.addItem(in_line)
+            in_text=QGraphicsTextItem('IN');in_text.setDefaultTextColor(QColor('#70d6a5'))
+            in_text.setPos(in_x+2,18);in_text.setZValue(9001);self.scene.addItem(in_text)
+        if self._out_frame is not None:
+            out_x=left+float(Fraction(self._out_frame,1)/self._fps)*scale
+            out_line=QGraphicsRectItem(QRectF(out_x-1,18,2,174))
+            out_line.setBrush(QBrush(QColor('#f08a8a')));out_line.setPen(QPen(Qt.PenStyle.NoPen))
+            out_line.setZValue(9000);out_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            self.scene.addItem(out_line)
+            out_text=QGraphicsTextItem('OUT');out_text.setDefaultTextColor(QColor('#f08a8a'))
+            out_text.setPos(out_x+2,18);out_text.setZValue(9001);self.scene.addItem(out_text)
         self._playhead_marker=QGraphicsRectItem(QRectF(0,18,2,174))
         self._playhead_marker.setBrush(QBrush(QColor('#f4d35e')))
         self._playhead_marker.setPen(QPen(Qt.PenStyle.NoPen))
