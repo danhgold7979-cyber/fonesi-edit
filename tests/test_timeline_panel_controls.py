@@ -40,7 +40,7 @@ def test_playhead_split_updates_video_and_audio_tracks_once(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_trim_in_gap_mode_moves_left_edge_but_keeps_following_clip(tmp_path,qt_app):
@@ -70,7 +70,7 @@ def test_trim_in_gap_mode_moves_left_edge_but_keeps_following_clip(tmp_path,qt_a
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 def test_playhead_stops_at_last_valid_output_frame(tmp_path,qt_app):
     project=empty_project(NewProjectIntent('Frame boundary',1920,1080,Fraction(30),Fraction(10)))
@@ -86,7 +86,7 @@ def test_playhead_stops_at_last_valid_output_frame(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt_app):
     project=empty_project(NewProjectIntent('Timeline range markers',1920,1080,Fraction(30),Fraction(10)))
@@ -118,7 +118,7 @@ def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt
             window.session.save()
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
             window=None
 
             reopened=MainWindow(store);reopened.show();reopened.open_project(path)
@@ -138,7 +138,7 @@ def test_in_out_markers_persist_across_project_file_reopen_and_clear(tmp_path,qt
                 if current is not None:
                     current.close()
                     wait_for(qt_app,lambda current=current:not current.background_busy and not current.isVisible())
-                    current.deleteLater()
+                    current.deleteLater();QCoreApplication.sendPostedEvents(current,QEvent.Type.DeferredDelete)
 
 
 def test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed(tmp_path,qt_app):
@@ -154,7 +154,7 @@ def test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed(tm
             before=window.session.revision
             timeline.preview_path.setFocus()
             from PySide6.QtTest import QTest
-            from PySide6.QtCore import Qt
+            from PySide6.QtCore import Qt,QCoreApplication,QEvent
             QTest.keyClick(timeline.preview_path,Qt.Key.Key_M)
             assert 'timeline_markers' not in window.session.project.plan.to_dict()
             assert window.session.revision==before
@@ -172,7 +172,7 @@ def test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed(tm
             window.session.save()
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
             window=None
 
             reopened=MainWindow(store);reopened.show();reopened.open_project(path)
@@ -194,7 +194,7 @@ def test_m_shortcut_adds_persistent_marker_and_selected_marker_can_be_removed(tm
                 if current is not None:
                     current.close()
                     wait_for(qt_app,lambda current=current:not current.background_busy and not current.isVisible())
-                    current.deleteLater()
+                    current.deleteLater();QCoreApplication.sendPostedEvents(current,QEvent.Type.DeferredDelete)
 
 
 def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
@@ -217,7 +217,7 @@ def test_out_marker_requires_valid_in_and_strictly_later_frame(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
 
 
 def test_timeline_i_o_escape_shortcuts_persist_and_clear_range(tmp_path,qt_app):
@@ -250,4 +250,4 @@ def test_timeline_i_o_escape_shortcuts_persist_and_clear_range(tmp_path,qt_app):
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
-            window.deleteLater()
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
