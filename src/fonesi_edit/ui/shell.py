@@ -15,6 +15,7 @@ from fonesi_edit.ui.layer_editor import LayerEditorWorkspace
 from fonesi_edit.ui.timeline import TimelinePanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
+from fonesi_edit.ui.account_metadata import AccountMetadataPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel,ShortcutEventRouter
 
@@ -60,6 +61,8 @@ class MainWindow(QMainWindow):
         self.tool_inventory.idle.connect(self._queue_idle)
         self.tool_pair=PairCheckPanel(store.path.parent,self)
         self.tool_pair.idle.connect(self._queue_idle)
+        self.account_metadata=AccountMetadataPanel(store.path.parent/'accounts.sqlite3',self)
+        self.account_metadata.idle.connect(self._queue_idle)
         self.setWindowTitle('Fonesi Edit — bản phát triển')
         self.resize(1200, 760)
         root = QWidget()
@@ -105,7 +108,8 @@ class MainWindow(QMainWindow):
             elif index == 7:
                 tabs=QTabWidget();tabs.addTab(self.tool_inventory,'Danh sách — chỉ metadata')
                 tabs.addTab(self.tool_pair,'Self-test cặp — chạy công cụ đã chọn')
-                tabs.addTab(self.shortcut_settings,'Phím tắt');contents.addWidget(tabs)
+                tabs.addTab(self.shortcut_settings,'Phím tắt')
+                tabs.addTab(self.account_metadata,'Hồ sơ / Tài khoản — metadata');contents.addWidget(tabs)
             else:
                 message = QLabel('Chức năng này đang được xây dựng, chưa khả dụng.\n'
                                  'Đây là khung ứng dụng, không phải bản hoàn thiện.')
@@ -118,6 +122,7 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.currentRowChanged.connect(lambda index:self.queue_page.refresh() if index==6 else None)
         self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
+        self.navigation.currentRowChanged.connect(lambda index:self.account_metadata.first_open() if index==7 else None)
         self.navigation.setToolTip('Ctrl+, mở khu vực Preset/Cài đặt')
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
@@ -249,12 +254,12 @@ class MainWindow(QMainWindow):
 
     @property
     def background_busy(self):return (bool(self.coordinator_host is not None and self.coordinator_host.isRunning()) or
-        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.media_import.busy or self.timeline_panel.busy or self.tool_inventory.busy or self.tool_pair.busy)
+        self.new_project_panel.busy or self.queue_page.busy or self.relink_panel.busy or self.restore_panel.busy or self.inspection_panel.busy or self.media_import.busy or self.timeline_panel.busy or self.tool_inventory.busy or self.tool_pair.busy or self.account_metadata.busy)
 
     def request_stop(self):
         self._close_requested=True
         if self.coordinator_host is not None:self.coordinator_host.requestInterruption()
-        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.layer_editor.request_stop();self.timeline_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop()
+        self.new_project_panel.request_stop();self.queue_page.request_stop();self.relink_panel.request_stop();self.restore_panel.request_stop();self.inspection_panel.request_stop();self.media_import.request_stop();self.layer_editor.request_stop();self.timeline_panel.request_stop();self.tool_inventory.request_stop();self.tool_pair.request_stop();self.account_metadata.request_stop()
         self._project_actions()
 
     def closeEvent(self,event):
