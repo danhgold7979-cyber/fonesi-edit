@@ -127,7 +127,6 @@ class ShortcutSettingsPanel(QWidget):
         self.action_label=QLabel('Chọn một hành động.')
         self.scope_label=QLabel('—')
         self.sequence_edit=QKeySequenceEdit()
-        self.sequence_edit.setClearButtonEnabled(False)
         form.addRow('Hành động',self.action_label)
         form.addRow('Vùng focus',self.scope_label)
         form.addRow('Phím tắt mới',self.sequence_edit)
