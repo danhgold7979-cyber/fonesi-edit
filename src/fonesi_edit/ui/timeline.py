@@ -18,8 +18,9 @@ class TimelinePanel(QWidget):
         super().__init__(parent)
         self.get_session=get_session
         self.selected_clip_id=None;self._fps=Fraction(30);self._playhead=0
+        self._last_project_id=None
         layout=QVBoxLayout(self)
-        self.notice=QLabel('Timeline tổng quan theo thời gian chính xác. Chưa có playhead, trim/split, phát lại hoặc render.')
+        self.notice=QLabel('Timeline có playhead theo frame, tách và trim theo thời gian hữu tỷ. Chưa có phát lại, thumbnail, waveform hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
         self.summary=QLabel('Chưa có clip trong timeline.')
         self.summary.setTextFormat(Qt.TextFormat.PlainText);layout.addWidget(self.summary)
@@ -61,11 +62,12 @@ class TimelinePanel(QWidget):
         self.update_actions()
 
     def update_actions(self):
+        session=self.get_session()
         clip=self._selected_clip()
-        available=clip is not None
+        available=clip is not None and session is not None and not session.reconciliation_required
         inside=False
-        if clip is not None:
-            start=_q(clip.output_start);end=start+(_q(clip.source_out)-_q(clip.source_in))/_q(clip.speed)+_q(clip.freeze_duration)
+        if available:
+            start=_q(clip['output_start']);end=start+(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
             playhead=Fraction(self._playhead,1)/self._fps
             inside=start<playhead<end
         self.split_button.setEnabled(available and inside)
@@ -102,24 +104,40 @@ class TimelinePanel(QWidget):
         session=self.get_session()
         self.scene.clear()
         if session is None:
+            self._last_project_id=None;self.selected_clip_id=None;self._playhead=0
             self.scene.setSceneRect(QRectF(0,0,1000,180))
-            self.clip_list.clear();self.playhead_slider.setRange(0,0)
+            blocked=self.clip_list.blockSignals(True)
+            try:self.clip_list.clear()
+            finally:self.clip_list.blockSignals(blocked)
+            blocked=self.playhead_slider.blockSignals(True)
+            try:self.playhead_slider.setRange(0,0);self.playhead_slider.setValue(0)
+            finally:self.playhead_slider.blockSignals(blocked)
             self.summary.setText('Mở dự án để xem timeline.')
             self.update_actions()
             return
         data=session.project.plan.to_dict()
+        if self._last_project_id != data['id']:
+            self._last_project_id=data['id'];self.selected_clip_id=None;self._playhead=0
         output_duration=_q(data['output']['duration'])
         self._fps=_q(data['output']['fps'])
-        self.clip_list.clear()
-        for clip in sorted(data['clips'],key=lambda x:(_q(x['output_start']),x['id'])):
+        blocked=self.clip_list.blockSignals(True)
+        try:
+            self.clip_list.clear()
+            for clip in sorted(data['clips'],key=lambda x:(_q(x['output_start']),x['id'])):
             start=_q(clip['output_start']);length=(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
             row=QListWidgetItem(f"{float(start):.3f}s · {float(length):.3f}s · {clip['id'][:8]}")
             row.setData(Qt.ItemDataRole.UserRole,clip['id']);self.clip_list.addItem(row)
-            if clip['id']==self.selected_clip_id:self.clip_list.setCurrentItem(row)
-        max_frames=max(0,int(output_duration*self._fps))
-        self.playhead_slider.setRange(0,max_frames)
-        self.playhead_slider.setValue(min(self._playhead,max_frames))
-        self._playhead=self.playhead_slider.value()
+                if clip['id']==self.selected_clip_id:self.clip_list.setCurrentItem(row)
+        finally:self.clip_list.blockSignals(blocked)
+        frame_count=output_duration*self._fps
+        frame_total=(frame_count.numerator+frame_count.denominator-1)//frame_count.denominator
+        max_frame=max(0,frame_total-1)
+        blocked=self.playhead_slider.blockSignals(True)
+        try:
+            self.playhead_slider.setRange(0,max_frame)
+            self.playhead_slider.setValue(min(self._playhead,max_frame))
+            self._playhead=self.playhead_slider.value()
+        finally:self.playhead_slider.blockSignals(blocked)
         self.playhead_label.setText(f'Playhead: {self._playhead} frame · {float(Fraction(self._playhead,1)/self._fps):.3f}s')
         video=[];audio=[];layers=[]
         for clip in data['clips']:
