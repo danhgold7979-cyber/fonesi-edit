@@ -279,7 +279,7 @@ class LayerEditorWorkspace(QWidget):
             for layer in data['layers']:
                 if not layer['visible']:continue
                 can_move=not selected_locked if layer['id'] in self.selected_ids else not locked(layer)
-                show_handles=len(self.selected_ids)==1 and layer['id'] in self.selected_ids
+                show_handles=len(self.selected_ids)==1 and layer['id'] in self.selected_ids and not locked(layer)
                 item=LayerBoundsItem(layer,W,H,self.dragged,can_move,self.resized,self.rotated,show_handles)
                 self.scene.addItem(item)
                 if layer['id'] in self.selected_ids:item.setSelected(True)
