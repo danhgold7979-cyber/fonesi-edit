@@ -1,7 +1,6 @@
 """Eight-area foundation shell sharing one authoritative loaded project."""
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer
-from PySide6.QtGui import QShortcut,QKeySequence
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QListWidget,
     QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget,QTabWidget)
 from fonesi_edit.storage.projects import ProjectStore, StorageError
@@ -17,7 +16,7 @@ from fonesi_edit.ui.timeline import TimelinePanel
 from fonesi_edit.ui.tool_inventory import ToolInventoryPanel
 from fonesi_edit.ui.tool_pair import PairCheckPanel
 from fonesi_edit.ui.project_creation import NewProjectDialog
-from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel
+from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutSettingsPanel,ShortcutEventRouter
 
 AREAS = ('Tổng quan', 'Tải nội dung', 'Phụ đề', 'Editor', 'Edit hàng loạt',
          'Ghép theo cảnh', 'Hàng đợi/Lịch sử', 'Preset/Cài đặt')
@@ -119,18 +118,17 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.currentRowChanged.connect(lambda index:self.queue_page.refresh() if index==6 else None)
         self.navigation.currentRowChanged.connect(lambda index:self.tool_inventory.first_open() if index==7 else None)
-        self.settings_shortcut=QShortcut(QKeySequence(self.shortcut_registry.sequence('app.settings')),self)
-        self.settings_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        self.settings_shortcut.activated.connect(lambda:self.navigation.setCurrentRow(7))
-        self.shortcut_registry.changed.connect(self._shortcut_changed)
         self.navigation.setToolTip('Ctrl+, mở khu vực Preset/Cài đặt')
         self.navigation.setCurrentRow(0)
         self.setCentralWidget(root)
+        self.settings_shortcut_router=ShortcutEventRouter(
+            self.shortcut_registry,
+            (('app.settings',lambda:self.navigation.setCurrentRow(7)),),
+            self,ignore_text_entry=True,
+        )
+        for widget in (self,*self.findChildren(QWidget)):
+            widget.installEventFilter(self.settings_shortcut_router)
         self.statusBar().showMessage('Bản phát triển — chưa có bộ dựng/xuất video')
-
-    def _shortcut_changed(self,action_id):
-        if action_id=='app.settings':
-            self.settings_shortcut.setKey(QKeySequence(self.shortcut_registry.sequence(action_id)))
 
     def start_coordinator(self,store_token):
         if self._close_requested or self.coordinator_host is not None:return
