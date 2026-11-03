@@ -9,7 +9,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Native panel layout/theme/font-size/HiDPI persistence, Explorer multi-drag, inspector numeric+slider/reset.
 - **Errors/cancellation:** Unsupported drop item shown; canceled import no source changes; layout corrupt resets only layout.
 - **Tests and acceptance:** Qt UI import/resize/reset/save/reopen with keyboard focus; Windows Explorer/HiDPI physical checks separate.
-- **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P04_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. Partial code exists: explicit one-file media import/drop, media library and numeric inspector. Full theme/HiDPI persistence, multi-file Explorer drag, slider/reset and physical Windows UI acceptance remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Record new commit, exact test command/corpus/tool versions and criterion IDs in P04_RESULTS.md; runtime acceptance requires executable behavior above, not file existence. Partial code exists: explicit one-file media import/drop, media library, numeric inspector with paired transform sliders, per-property/group reset and unit-labelled controls. Full Basic/Advanced/search/tooltip coverage, theme/font-size/HiDPI persistence, multi-file Explorer drag and physical Windows UI acceptance remain OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-02 — chọn/kéo/resize/xoay logo/chữ/vùng che, crop; neo/tọa độ tương đối, lưới/safe area/snap/Alt và đưa về khung.
 
@@ -368,3 +368,11 @@ This remains partial hosted offscreen Qt evidence. It does not certify physical 
 **Tests:** numeric spin↔slider round-trip; mouse drag multiple values produces one project revision; keyboard slider step produces one revision; per-property reset preserves unrelated rational fields; group reset restores x/y/width/height/scale/rotation/opacity/anchor/flip; default reset is no-op; lock and selection states disable both sliders and reset controls; undo/redo and save/reopen preserve the committed transform.
 
 **Acceptance boundary:** this slice does not implement Basic/Advanced mode, property search, complete tooltip/disabled-reason coverage, theme/font-size/HiDPI persistence, multi-file Explorer drag/drop or physical Windows GUI/HiDPI acceptance. ED-01.02/.03 and P04-01 remain NOT_RUN/IN_PROGRESS until their full assertions and GUI evidence are complete.
+
+**Implementation and hosted verification — 2026-11-03:** each numeric transform property now has a bounded QSlider paired with its QDoubleSpinBox, explicit units/range labels and a per-property reset. Anchor and flip fields have individual resets; a group reset restores the complete default transform. Slider drags update the numeric value continuously but commit one ProjectSession revision on release; keyboard slider steps commit one revision each. Programmatic refresh is feedback-blocked; locked/no-selection/multi-selection/reconciliation states disable sliders and reset controls.
+
+Regression tests cover slider/spin synchronization, one commit per drag, keyboard step commits, per-property reset preserving unrelated rational values, full group reset/no-op reset, anchor/flip reset and locked-control disablement.
+
+Exact hosted clean-foundation run 41589895118 passed on HEAD 78ff11a8fb45e08dc9806b015e5f2f94475476db: Ubuntu Python 3.12.15/3.13.17 each 941 passed, 39 skipped, 0 failed; Windows Python 3.12.10/3.13.17 each 954 passed, 26 skipped, 0 failed; integrity PASS all four. Windows Python 3.12 onedir build and scoped frozen CLI boundaries PASS; pinned Windows FFmpeg synthetic capability workflow SKIPPED.
+
+This is hosted offscreen Qt evidence only. It does not certify physical Windows GUI, HiDPI, Explorer drag/drop, IME, theme/layout persistence, or full ED-01.02/.03 assertions. P04-01/P04 remain IN_PROGRESS; no task/criterion/phase acceptance is claimed.
