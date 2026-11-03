@@ -161,3 +161,42 @@ def test_group_z_order_and_batch_delete_preserve_source_file(tmp_path,qt_app):
         assert sentinel.read_bytes()==b'unchanged original source'
     finally:
         _close(store,window,qt_app)
+
+def test_tree_extended_selection_auto_expands_existing_group(tmp_path,qt_app):
+    store,window,_=_open(tmp_path)
+    try:
+        editor=window.layer_editor
+        first,second=_add(editor,2)
+        editor._sync_selection({first,second},first)
+        editor.group_selected()
+        editor.layers.clearSelection()
+        editor.layers.item(0).setSelected(True)
+        assert editor.layers.selectionMode()==editor.layers.SelectionMode.ExtendedSelection
+        assert editor.selected_ids=={first,second}
+        assert len(editor.layers.selectedItems())==2
+    finally:
+        _close(store,window,qt_app)
+
+
+def test_context_menu_group_action_uses_same_atomic_command(tmp_path,qt_app,monkeypatch):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtWidgets import QMenu
+    store,window,_=_open(tmp_path)
+    try:
+        editor=window.layer_editor
+        first,second=_add(editor,2)
+        editor._sync_selection({first,second},first)
+        chosen={}
+        def choose_group(menu,position):
+            action=next(x for x in menu.actions() if x.text()=='Nhóm các layer đã chọn')
+            chosen['action']=action.text()
+            return action
+        monkeypatch.setattr(QMenu,'exec',choose_group)
+        before=window.session.revision
+        editor.show_layer_context_menu(QPoint(1,1))
+        layers={x['id']:x for x in _layers(window)}
+        assert window.session.revision==before+1
+        assert chosen['action']=='Nhóm các layer đã chọn'
+        assert layers[first]['group_id']==layers[second]['group_id']
+    finally:
+        _close(store,window,qt_app)
