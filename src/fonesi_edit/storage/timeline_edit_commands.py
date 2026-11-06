@@ -70,7 +70,6 @@ def move_video_clip(project:Project,clip_id:str,new_output_start:Fraction,*,expe
     clip['output_start']=_pair(new_output_start)
     # Only move original-audio segments that have the exact same source interval,
     # playback speed and output origin as the selected video segment.
-    linked_audio=[]
     for audio in data['audio']['clips']:
         if audio['asset_id']!=clip['asset_id']:
             continue
@@ -78,7 +77,6 @@ def move_video_clip(project:Project,clip_id:str,new_output_start:Fraction,*,expe
         if (audio_start==old_start and audio_in==source_in and
                 audio_out==source_out and audio_speed==speed):
             audio['output_start']=_pair(new_output_start)
-            linked_audio.append(audio['id'])
     return _command(project,data,expected_revision)
 def split_video_clip(project:Project,clip_id:str,output_time:Fraction,*,expected_revision:int):
     if type(project) is not Project or type(output_time) is not Fraction:
