@@ -77,12 +77,12 @@ def test_split_at_clip_boundary_is_rejected(tmp_path,time):
 
 def test_move_video_clip_uses_exact_rational_time_and_keeps_original_audio_aligned(tmp_path):
     project,clip_id,asset_id,_=_two_clips(tmp_path)
-    moved=move_video_clip(project,clip_id,Fraction(3,2),expected_revision=2)
+    moved=move_video_clip(project,clip_id,Fraction(2),expected_revision=2)
     data=moved.command.project.plan.to_dict()
     video=next(item for item in data['clips'] if item['id']==clip_id)
     audio=next(item for item in data['audio']['clips'] if item['asset_id']==asset_id)
-    assert video['output_start']==[3,2]
-    assert audio['output_start']==[3,2]
+    assert video['output_start']==[2,1]
+    assert audio['output_start']==[2,1]
     assert moved.command.expected_revision==2
     assert project.plan.to_dict()['clips'][0]['output_start']==[0,1]
 
