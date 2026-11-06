@@ -279,7 +279,8 @@ def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,q
             assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='Opening'
                        for item in timeline.scene.items())
             # Invalid or duplicate names must not create history/revision entries.
-            other={'id':'other-marker','frame':20,'label':'Closing'}
+            from uuid import uuid4
+            other={'id':str(uuid4()),'frame':20,'label':'Closing'}
             data=window.session.project.plan.to_dict()
             data['timeline_markers'].append(other)
             data['revision']+=1;data['provenance']['project_revision']=data['revision']
