@@ -290,7 +290,7 @@ def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,q
             timeline.selected_marker_id=marker_id
             assert timeline.selected_marker_id==marker_id
             before_invalid=window.session.revision
-            for value in (duplicate_label,'  ','x'*65,'bad\\nname'):
+            for value in (duplicate_label,'  ','x'*65,'bad\nname'):
                 with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=(value,True)):
                     timeline.rename_timeline_marker()
                 assert window.session.revision==before_invalid
