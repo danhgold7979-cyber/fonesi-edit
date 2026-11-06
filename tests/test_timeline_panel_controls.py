@@ -1,6 +1,7 @@
 """Timeline playhead uses integer output frames and commits split commands once."""
 import os
 import pytest
+from pathlib import Path
 from PySide6.QtCore import QCoreApplication,QEvent
 from fractions import Fraction
 
@@ -437,13 +438,13 @@ def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_so
             assert [item['id'] for item in data['clips']]==[two.clip_id]
             assert data['clips'][0]['output_start']==expected_start
             assert len(data['audio']['clips'])==1
-            assert first.path.exists() and first.path.read_bytes()==b'first-delete-source'
-            assert second.path.exists() and second.path.read_bytes()==b'second-delete-source'
+            assert Path(first.path_ref.path).exists() and Path(first.path_ref.path).read_bytes()==b'first-delete-source'
+            assert Path(second.path_ref.path).exists() and Path(second.path_ref.path).read_bytes()==b'second-delete-source'
             assert 'không bị xóa' in timeline.action_message.text()
             assert window.project_history.can_undo()
             assert window.project_history.undo()
             assert len(window.session.project.plan.to_dict()['clips'])==2
-            assert first.path.exists()
+            assert Path(first.path_ref.path).exists()
             assert window.project_history.redo()
             assert len(window.session.project.plan.to_dict()['clips'])==1
             assert first.path.exists()
