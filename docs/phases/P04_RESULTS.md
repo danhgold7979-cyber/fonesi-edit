@@ -461,3 +461,13 @@ Regression tests:
 - `test_timeline_marker_rename_is_persisted_and_shared_undo_redo`
 
 Acceptance boundary: this slice does not implement marker drag/reposition, playback loop, continuous thumbnails or synchronized A/V seek. P04-05 and P04 remain IN_PROGRESS; no task or phase is accepted. Hosted Linux/Windows CI must run on the exact commit before claiming test PASS.
+
+
+## Slice AO — frame-only bounded Timeline loop (P04-05 / ED-17.04, 2026-11-07)
+
+Added a Timeline loop toggle backed by an owned precise Qt timer. When both In and Out are present, the loop uses the half-open frame interval [In, Out); otherwise it loops over the full output frame range. The playhead wraps deterministically, uses the project's rational FPS to set the timer interval, and stops on explicit toggle-off, project identity change or shell retirement.
+
+A new Qt integration test covers range wrapping, full-range wrapping and retirement stop:
+- `test_timeline_loop_playback_wraps_half_open_in_out_range_and_stops_cleanly`
+
+Scope boundary: this is frame-only playhead looping. It does not decode or play video/audio, provide A/V synchronization, continuous thumbnails, sample-boundary accuracy, or marker drag. P04-05, ED-17.04 and P04 remain IN_PROGRESS and NOT_ACCEPTED pending full criteria and GUI/media evidence.
