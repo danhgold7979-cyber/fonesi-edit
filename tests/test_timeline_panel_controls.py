@@ -330,3 +330,43 @@ def test_timeline_marker_rename_is_persisted_and_shared_undo_redo(tmp_path,qt_ap
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_timeline_loop_playback_wraps_half_open_in_out_range_and_stops_cleanly(tmp_path,qt_app):
+    from PySide6.QtTest import QTest
+    project=empty_project(NewProjectIntent('Timeline loop range',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline._frame_total=300
+            timeline.playhead_slider.setRange(0,299)
+            timeline._commit_range_markers(10,13)
+            timeline.update_project()
+            timeline.playhead_slider.setValue(12)
+            assert timeline.loop_button.isEnabled()
+            timeline.loop_button.click()
+            assert timeline.loop_button.text()=='Dừng vòng lặp'
+            assert timeline.playhead_slider.value()==10
+            QTest.qWait(120)
+            assert 10<=timeline.playhead_slider.value()<13
+            assert timeline.loop_button.text()=='Dừng vòng lặp'
+            timeline.loop_button.click()
+            assert not timeline._loop_timer.isActive()
+            assert timeline.loop_button.text()=='Lặp vùng'
+            # Without an In/Out pair, loop the complete output frame range.
+            timeline._commit_range_markers(None,None)
+            timeline.update_project()
+            timeline.playhead_slider.setValue(299)
+            timeline.loop_button.click()
+            QTest.qWait(80)
+            assert 0<=timeline.playhead_slider.value()<300
+            timeline.request_stop()
+            assert not timeline._loop_timer.isActive()
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
