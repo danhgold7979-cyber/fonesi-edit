@@ -52,6 +52,34 @@ def _command(project,data,expected_revision,created=()):
     return TimelineEditResult(CompletedCommand(project.with_plan(plan),expected_revision),tuple(created))
 
 
+
+def move_video_clip(project:Project,clip_id:str,new_output_start:Fraction,*,expected_revision:int):
+    """Move a video clip to an exact rational output time, keeping its linked original audio aligned."""
+    if type(project) is not Project or type(new_output_start) is not Fraction:
+        raise TimelineEditError('Typed project and exact rational output time required')
+    if new_output_start<0:
+        raise TimelineEditError('Clip output start cannot be negative')
+    data=project.plan.to_dict()
+    clip=next((item for item in data['clips'] if item['id']==clip_id),None)
+    if clip is None:
+        raise TimelineEditError('Selected video clip does not exist')
+    old_start,old_end,source_in,source_out,speed=_span(clip)
+    delta=new_output_start-old_start
+    if delta==0:
+        return _command(project,data,expected_revision)
+    clip['output_start']=_pair(new_output_start)
+    # Only move original-audio segments that have the exact same source interval,
+    # playback speed and output origin as the selected video segment.
+    linked_audio=[]
+    for audio in data['audio']['clips']:
+        if audio['asset_id']!=clip['asset_id']:
+            continue
+        audio_start,audio_end,audio_in,audio_out,audio_speed=_span(audio)
+        if (audio_start==old_start and audio_in==source_in and
+                audio_out==source_out and audio_speed==speed):
+            audio['output_start']=_pair(new_output_start)
+            linked_audio.append(audio['id'])
+    return _command(project,data,expected_revision)
 def split_video_clip(project:Project,clip_id:str,output_time:Fraction,*,expected_revision:int):
     if type(project) is not Project or type(output_time) is not Fraction:
         raise TimelineEditError('Typed project and exact rational playhead required')
