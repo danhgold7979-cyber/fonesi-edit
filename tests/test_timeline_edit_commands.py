@@ -3,7 +3,7 @@ import pytest
 from fractions import Fraction
 
 from fonesi_edit.storage.timeline_commands import add_video_clip
-from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
+from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,TimelineEditError
 from test_timeline_commands import _record,_scan,_project
 
 
@@ -73,3 +73,32 @@ def test_split_at_clip_boundary_is_rejected(tmp_path,time):
     project,clip_id,_,_=_two_clips(tmp_path)
     with pytest.raises(TimelineEditError):
         split_video_clip(project,clip_id,time,expected_revision=2)
+
+
+def test_move_video_clip_uses_exact_rational_time_and_keeps_original_audio_aligned(tmp_path):
+    project,clip_id,asset_id,_=_two_clips(tmp_path)
+    moved=move_video_clip(project,clip_id,Fraction(3,2),expected_revision=2)
+    data=moved.command.project.plan.to_dict()
+    video=next(item for item in data['clips'] if item['id']==clip_id)
+    audio=next(item for item in data['audio']['clips'] if item['asset_id']==asset_id)
+    assert video['output_start']==[3,2]
+    assert audio['output_start']==[3,2]
+    assert moved.command.expected_revision==2
+    assert project.plan.to_dict()['clips'][0]['output_start']==[0,1]
+
+
+@pytest.mark.parametrize('new_start',[Fraction(-1,2),Fraction(1,2),Fraction(10)])
+def test_move_video_clip_rejects_negative_overlap_and_output_overrun(tmp_path,new_start):
+    project,clip_id,_,_=_two_clips(tmp_path)
+    with pytest.raises(TimelineEditError):
+        move_video_clip(project,clip_id,new_start,expected_revision=2)
+    assert project.plan.to_dict()['clips'][0]['output_start']==[0,1]
+
+
+@pytest.mark.parametrize('new_start',[0,1.5,'3/2',None])
+def test_move_video_clip_requires_exact_fraction_and_existing_clip(tmp_path,new_start):
+    project,clip_id,_,_=_two_clips(tmp_path)
+    with pytest.raises(TimelineEditError):
+        move_video_clip(project,clip_id,new_start,expected_revision=2)
+    with pytest.raises(TimelineEditError):
+        move_video_clip(project,'missing-clip',Fraction(2),expected_revision=2)
