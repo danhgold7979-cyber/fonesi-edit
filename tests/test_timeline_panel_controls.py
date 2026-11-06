@@ -252,3 +252,83 @@ def test_timeline_i_o_escape_shortcuts_persist_and_clear_range(tmp_path,qt_app):
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,qt_app):
+    from unittest.mock import patch
+    from PySide6.QtWidgets import QGraphicsTextItem
+    project=empty_project(NewProjectIntent('Rename timeline marker',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline.playhead_slider.setValue(15)
+            timeline.add_timeline_marker()
+            marker_id=timeline.selected_marker_id
+            assert marker_id is not None
+            before=window.session.revision
+            with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=('Opening',True)):
+                timeline.rename_marker_button.click()
+            assert window.session.revision==before+1
+            marker=window.session.project.plan.to_dict()['timeline_markers'][0]
+            assert marker['id']==marker_id and marker['label']=='Opening'
+            assert timeline.marker_list.item(0).text()=='Opening · frame 15'
+            assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='Opening'
+                       for item in timeline.scene.items())
+            # Invalid or duplicate names must not create history/revision entries.
+            other={'id':'other-marker','frame':20,'label':'Closing'}
+            data=window.session.project.plan.to_dict()
+            data['timeline_markers'].append(other)
+            data['revision']+=1;data['provenance']['project_revision']=data['revision']
+            from fonesi_edit.domain.composition import CompositionPlan
+            from fonesi_edit.storage.autosave import CompletedCommand
+            plan=CompositionPlan.parse(data)
+            window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
+            window._project_changed();timeline.marker_list.setCurrentRow(0)
+            before_invalid=window.session.revision
+            for value in ('Closing','  ','x'*65,'bad\\nname'):
+                with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=(value,True)):
+                    timeline.rename_marker_button.click()
+                assert window.session.revision==before_invalid
+                assert window.session.project.plan.to_dict()['timeline_markers'][0]['label']=='Opening'
+            with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=('',False)):
+                timeline.rename_marker_button.click()
+            assert window.session.revision==before_invalid
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_timeline_marker_rename_is_persisted_and_shared_undo_redo(tmp_path,qt_app):
+    from unittest.mock import patch
+    project=empty_project(NewProjectIntent('Rename marker history',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline.playhead_slider.setValue(7);timeline.add_timeline_marker()
+            before=window.session.revision
+            with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=('Intro',True)):
+                timeline.rename_timeline_marker()
+            assert window.session.revision==before+1
+            assert window.session.project.plan.to_dict()['timeline_markers'][0]['label']=='Intro'
+            assert window.project_history.can_undo()
+            assert window.project_history.undo()
+            assert window.session.project.plan.to_dict()['timeline_markers'][0]['label']=='M1'
+            assert window.project_history.redo()
+            assert window.session.project.plan.to_dict()['timeline_markers'][0]['label']=='Intro'
+            window.session.save()
+            from fonesi_edit.storage.projects import load_project_file
+            saved,_=load_project_file(path)
+            assert saved.plan.to_dict()['timeline_markers'][0]['label']=='Intro'
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)

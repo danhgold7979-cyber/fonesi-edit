@@ -8,7 +8,7 @@ from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
-    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox)
+    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox,QInputDialog)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui.project_history import ProjectCommandHistory
@@ -349,14 +349,17 @@ class TimelinePanel(QWidget):
         self.action_message=QLabel('');self.action_message.setWordWrap(True);layout.addWidget(self.action_message)
         marker_controls=QHBoxLayout()
         self.add_marker_button=QPushButton('Thêm marker (M)')
+        self.rename_marker_button=QPushButton('Đổi tên marker')
         self.remove_marker_button=QPushButton('Xóa marker chọn')
         self.marker_count_label=QLabel('Chưa có marker')
-        marker_controls.addWidget(self.add_marker_button);marker_controls.addWidget(self.remove_marker_button)
+        marker_controls.addWidget(self.add_marker_button);marker_controls.addWidget(self.rename_marker_button)
+        marker_controls.addWidget(self.remove_marker_button)
         marker_controls.addWidget(self.marker_count_label);layout.addLayout(marker_controls)
         self.marker_list=QListWidget();self.marker_list.setMaximumHeight(88)
         self.marker_list.currentRowChanged.connect(self._select_timeline_marker)
         layout.addWidget(self.marker_list)
         self.add_marker_button.clicked.connect(self.add_timeline_marker)
+        self.rename_marker_button.clicked.connect(self.rename_timeline_marker)
         self.remove_marker_button.clicked.connect(self.remove_timeline_marker)
         crop_title=QLabel('Crop clip — tọa độ chuẩn hóa 0..1')
         layout.addWidget(crop_title)
@@ -543,6 +546,36 @@ class TimelinePanel(QWidget):
             self.selected_marker_id=previous
             return
         self.action_message.setText(f"Đã lưu marker {marker['label']} tại frame {frame}.")
+
+    def rename_timeline_marker(self):
+        session=self.get_session()
+        if session is None or self.stopping:return
+        if session.reconciliation_required:
+            self.action_message.setText('Project cần đối soát; không đổi tên marker.')
+            return
+        markers=list(session.project.plan.to_dict().get('timeline_markers',[]))
+        marker=next((item for item in markers if item['id']==self.selected_marker_id),None)
+        if marker is None:
+            self.action_message.setText('Chọn marker cần đổi tên trước.')
+            return
+        label,accepted=QInputDialog.getText(
+            self,'Đổi tên marker','Tên marker:',QLineEdit.EchoMode.Normal,marker['label'])
+        if not accepted:return
+        if not isinstance(label,str):
+            self.action_message.setText('Tên marker không hợp lệ; dữ liệu chưa thay đổi.')
+            return
+        label=label.strip()
+        if (not label or len(label)>64 or
+                any(ord(char)<32 or ord(char)==127 for char in label) or
+                any(item['id']!=marker['id'] and item['label'].casefold()==label.casefold()
+                    for item in markers)):
+            self.action_message.setText('Tên marker phải có 1–64 ký tự, không chứa ký tự điều khiển và không trùng tên khác.')
+            return
+        if label==marker['label']:return
+        renamed=[{**item,'label':label} if item['id']==marker['id'] else item
+                 for item in markers]
+        if not self._commit_timeline_markers(renamed):return
+        self.action_message.setText(f'Đã đổi tên marker thành {label}.')
 
     def remove_timeline_marker(self):
         session=self.get_session()
@@ -897,7 +930,9 @@ class TimelinePanel(QWidget):
         timeline_markers=[] if session is None else session.project.plan.to_dict().get('timeline_markers',[])
         marker_ready=markers_ready and not session.reconciliation_required
         self.add_marker_button.setEnabled(marker_ready and len(timeline_markers)<1000)
-        self.remove_marker_button.setEnabled(marker_ready and any(x['id']==self.selected_marker_id for x in timeline_markers))
+        selected_marker=any(x['id']==self.selected_marker_id for x in timeline_markers)
+        self.rename_marker_button.setEnabled(marker_ready and selected_marker)
+        self.remove_marker_button.setEnabled(marker_ready and selected_marker)
         preview_inside=False
         if available:
             preview_start=_q(clip['output_start'])

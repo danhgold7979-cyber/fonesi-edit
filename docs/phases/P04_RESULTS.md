@@ -450,3 +450,14 @@ Clean-foundation run 41625120990 completed SUCCESS on exact HEAD `9c32e09043c23f
 - Separate pinned Windows FFmpeg capability workflow SKIPPED.
 
 Hosted Qt tests are synthetic/offscreen. This evidence does not certify physical Windows pointer/HiDPI interaction, screen readers, IME, real logo image decoding, font glyph coverage, crop compositing, renderer/export parity, GPU, live providers or real-media codecs. P04-02 remains IN_PROGRESS; P04 whole-task acceptance remains 0/8. No phase acceptance is inferred from this slice.
+
+
+## Slice AN — validated Timeline marker rename with shared history (P04-05, 2026-11-07)
+
+Implementation: selected marker can be renamed through a dedicated Timeline action and native text dialog. Names are trimmed, limited to 1–64 characters, reject control characters and case-insensitive duplicates. Cancel/no-op/invalid input does not mutate the project or create an undo entry. Accepted rename is committed through the existing ProjectSession CAS path and ProjectCommandHistory, updates the marker list and scene label, and survives project save/reopen. Undo/redo restores the prior label without rewinding project revision.
+
+Regression tests:
+- `test_selected_timeline_marker_can_be_renamed_validated_and_undone`
+- `test_timeline_marker_rename_is_persisted_and_shared_undo_redo`
+
+Acceptance boundary: this slice does not implement marker drag/reposition, playback loop, continuous thumbnails or synchronized A/V seek. P04-05 and P04 remain IN_PROGRESS; no task or phase is accepted. Hosted Linux/Windows CI must run on the exact commit before claiming test PASS.
