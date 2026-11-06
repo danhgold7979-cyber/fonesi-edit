@@ -284,7 +284,8 @@ def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,q
             markers=window.session.project.plan.to_dict()['timeline_markers']
             duplicate_label=next(item['label'] for item in markers if item['id']!=marker_id)
             assert len(markers)==2
-            assert duplicate_label.casefold()!=next(item['label'] for item in markers if item['id']==marker_id)['label'].casefold()
+            selected_label=next(item['label'] for item in markers if item['id']==marker_id)
+            assert duplicate_label.casefold()!=selected_label.casefold()
             assert any(item['id']!=marker_id and item['label'].casefold()==duplicate_label.casefold() for item in markers)
             timeline.selected_marker_id=marker_id
             assert timeline.selected_marker_id==marker_id
