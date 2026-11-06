@@ -45,7 +45,7 @@ Generation clean-2026-11-01; integrated branch `develop/fonesi-full`. Status IN_
 - **Output/interface:** Timeline playhead/trim/split/in-out/gap/ripple/marker/zoom/scroll/loop commands.
 - **Errors/cancellation:** Trim bounds and overlaps validated; split at edge rejected; Esc leaves timeline unchanged; missing media visible.
 - **Tests and acceptance:** Boundary frame/sample tests, gap vs ripple distinction, linked A/V/sub mapping; repeated split/undo round-trip.
-- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, project-persisted half-open In/Out range, named marker create/select/delete with M shortcut, and bounded user-triggered filmstrip/waveform. Loop playback, marker drag, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Slice AN adds validated selected-marker rename through the Timeline panel and shared undo/redo; drag-to-reposition remains OPEN. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
+- **Evidence:** Partial code includes integer-frame playhead, split, trim-in/out, audio sync, gap/ripple, zoom/scroll, project-persisted half-open In/Out range, named marker create/select/delete/rename with M shortcut and shared undo/redo, frame-only bounded loop of In/Out or full output range, and bounded user-triggered filmstrip/waveform. Marker drag, continuous timeline thumbnails, sample-boundary acceptance and full A/V seek remain OPEN. Loop is explicitly playhead navigation only; it does not claim audio/video playback. Current outcome PARTIAL_IMPLEMENTED; task acceptance NOT MET.
 
 ## P04-06 — proxy/cache tạo nền, đổi chất lượng/cancel/invalidation, seek đồng bộ audio/video.
 
