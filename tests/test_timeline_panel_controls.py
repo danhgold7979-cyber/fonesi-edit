@@ -374,3 +374,38 @@ def test_timeline_loop_playback_wraps_half_open_in_out_range_and_stops_cleanly(t
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_move_selected_video_clip_to_playhead_keeps_original_audio_and_shared_undo_redo(tmp_path,qt_app):
+    project=empty_project(NewProjectIntent('Timeline move',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    record=_record(tmp_path/'move.mp4')
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            addition=add_video_clip(window.session.project,record,_scan(record),expected_revision=window.session.revision)
+            window.session.commit(addition.command);window._project_changed()
+            timeline=window.timeline_panel
+            timeline.clip_list.setCurrentRow(0)
+            timeline.playhead_slider.setValue(90)
+            assert timeline.move_button.isEnabled()
+            before=window.session.revision
+            timeline.move_button.click()
+            assert window.session.revision==before+1
+            data=window.session.project.plan.to_dict()
+            video=next(item for item in data['clips'] if item['id']==addition.clip_id)
+            audio=next(item for item in data['audio']['clips'] if item['asset_id']==addition.asset_id)
+            assert video['output_start']==[3,1]
+            assert audio['output_start']==[3,1]
+            assert window.project_history.can_undo()
+            assert window.project_history.undo()
+            data=window.session.project.plan.to_dict()
+            assert next(item for item in data['clips'] if item['id']==addition.clip_id)['output_start']==[0,1]
+            assert window.project_history.redo()
+            data=window.session.project.plan.to_dict()
+            assert next(item for item in data['audio']['clips'] if item['asset_id']==addition.asset_id)['output_start']==[3,1]
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
