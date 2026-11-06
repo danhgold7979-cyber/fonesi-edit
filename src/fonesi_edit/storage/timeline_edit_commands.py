@@ -78,6 +78,38 @@ def move_video_clip(project:Project,clip_id:str,new_output_start:Fraction,*,expe
                 audio_out==source_out and audio_speed==speed):
             audio['output_start']=_pair(new_output_start)
     return _command(project,data,expected_revision)
+
+def delete_video_clip(project:Project,clip_id:str,*,ripple:bool,expected_revision:int):
+    """Delete a timeline clip without touching its source; optionally close the resulting time gap."""
+    if type(project) is not Project or type(ripple) is not bool:
+        raise TimelineEditError('Typed project and explicit ripple boolean required')
+    data=project.plan.to_dict()
+    clip=next((item for item in data['clips'] if item['id']==clip_id),None)
+    if clip is None:
+        raise TimelineEditError('Selected video clip does not exist')
+    start,end,source_in,source_out,speed=_span(clip)
+    duration=end-start
+    asset_id=clip['asset_id']
+    original_audio=[]
+    for audio in data['audio']['clips']:
+        if (audio['asset_id']==asset_id and audio.get('role')=='original'
+                and audio['output_start']==clip['output_start']
+                and audio['source_in']==clip['source_in']
+                and audio['speed']==clip['speed']):
+            original_audio.append(audio['id'])
+    data['clips']=[item for item in data['clips'] if item['id']!=clip_id]
+    data['audio']['clips']=[item for item in data['audio']['clips']
+                            if item['id'] not in set(original_audio)]
+    if ripple:
+        for item in data['clips']:
+            item_start=_fraction(item['output_start'])
+            if item_start>=end:
+                item['output_start']=_pair(item_start-duration)
+        for item in data['audio']['clips']:
+            item_start=_fraction(item['output_start'])
+            if item_start>=end:
+                item['output_start']=_pair(item_start-duration)
+    return _command(project,data,expected_revision)
 def split_video_clip(project:Project,clip_id:str,output_time:Fraction,*,expected_revision:int):
     if type(project) is not Project or type(output_time) is not Fraction:
         raise TimelineEditError('Typed project and exact rational playhead required')
