@@ -766,3 +766,16 @@ Unit and GUI evidence:
 - `test_move_selected_video_clip_to_playhead_keeps_original_audio_and_shared_undo_redo`
 
 Boundary: moving a clip does not imply media playback, continuous thumbnails, sample-accurate audio movement for unrelated audio, or acceptance of all ED-17.02 assertions. ED-17.02 and P04 remain NOT_RUN / IN_PROGRESS pending full unit, integration, GUI and media evidence.
+
+
+## Slice AQ — source-preserving gap/ripple delete (P04-05 / ED-17.03, ED-17.05, 2026-11-07)
+
+The pure `delete_video_clip` command removes only the selected composition clip and its matching original-audio segment. With ripple disabled it preserves later output starts; with ripple enabled it shifts later video and audio segments left by the deleted clip's rational duration. It never unlinks, overwrites or deletes source media. The Timeline panel exposes the delete action and uses the existing Ripple checkbox to choose the operation; commit is revision-checked and undoable.
+
+Evidence added:
+- `test_gap_delete_removes_selected_clip_and_matching_original_audio_but_keeps_later_timing`
+- `test_ripple_delete_removes_selected_clip_and_closes_video_audio_gap`
+- `test_delete_video_clip_requires_explicit_boolean_and_never_mutates_source`
+- `test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_source` (Qt, both modes, source bytes and undo/redo)
+
+Acceptance boundary: ED-17.03/05 remain NOT_RUN until hosted Linux/Windows regression and all criterion-level evidence are confirmed. No phase acceptance is implied.
