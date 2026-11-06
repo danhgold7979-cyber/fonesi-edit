@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsS
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui.project_history import ProjectCommandHistory
-from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,TimelineEditError
+from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,TimelineEditError
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
@@ -343,7 +343,8 @@ class TimelinePanel(QWidget):
         for widget in (self.set_in_button,self.set_out_button,self.clear_range_button,self.range_label,self.loop_button):controls.addWidget(widget)
         self.ripple=QCheckBox('Ripple (đóng khoảng trống)');controls.addWidget(self.ripple)
         self.split_button=QPushButton('Tách tại playhead');self.trim_in_button=QPushButton('Trim đầu');self.trim_out_button=QPushButton('Trim cuối')
-        for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
+        self.move_button=QPushButton('Chuyển clip tới playhead')
+        for button in (self.split_button,self.trim_in_button,self.trim_out_button,self.move_button):controls.addWidget(button)
         self.undo_button=QPushButton('Hoàn tác')
         self.redo_button=QPushButton('Làm lại')
         controls.addWidget(self.undo_button);controls.addWidget(self.redo_button)
@@ -433,6 +434,7 @@ class TimelinePanel(QWidget):
         self.split_button.clicked.connect(self.split_at_playhead)
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
+        self.move_button.clicked.connect(lambda:self._apply_timeline_edit('move'))
         self.scene=QGraphicsScene(self)
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
@@ -974,6 +976,7 @@ class TimelinePanel(QWidget):
         self.split_button.setEnabled(available and inside)
         self.trim_in_button.setEnabled(available and inside)
         self.trim_out_button.setEnabled(available and inside)
+        self.move_button.setEnabled(available and not self.busy and not self.stopping)
         crop_enabled=available
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
         self.crop_edit_toggle.setEnabled(crop_enabled and self.preview_image.hasPixmap() and not self.busy and not self.stopping)
@@ -1114,6 +1117,8 @@ class TimelinePanel(QWidget):
         try:
             if action=='split':
                 result=split_video_clip(session.project,clip['id'],playhead,expected_revision=session.revision)
+            elif action=='move':
+                result=move_video_clip(session.project,clip['id'],playhead,expected_revision=session.revision)
             else:
                 result=trim_video_clip(session.project,clip['id'],playhead,edge=action,
                     ripple=self.ripple.isChecked(),expected_revision=session.revision)
