@@ -484,3 +484,16 @@ Regression coverage:
 - Qt integration for move-to-playhead and shared undo/redo.
 
 ED-17.02 remains NOT_RUN until the complete criterion and required GUI evidence are satisfied; P04 remains IN_PROGRESS.
+
+
+## Slice AQ — gap/ripple delete and source preservation (P04-05 / ED-17.03, ED-17.05, 2026-11-07)
+
+Added a rational-time delete command and Timeline-panel action. Gap mode removes the selected clip while preserving downstream output positions; ripple mode closes the time gap by shifting later video/audio segments left. The command removes only composition references for the selected clip and the matching original-audio segment; it does not modify the media library or source file. The UI commits once against the current session revision and records shared undo/redo history.
+
+Regression cases:
+- Unit tests for gap and ripple timing differences.
+- Invalid ripple type and missing clip fail closed.
+- Source file bytes and existence are checked before/after delete.
+- Qt integration tests both modes and shared undo/redo.
+
+The tests require a hosted run on the exact commit. ED-17.03 and ED-17.05 remain NOT_RUN; P04 remains IN_PROGRESS.
