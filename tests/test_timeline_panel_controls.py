@@ -1,5 +1,6 @@
 """Timeline playhead uses integer output frames and commits split commands once."""
 import os
+import pytest
 from PySide6.QtCore import QCoreApplication,QEvent
 from fractions import Fraction
 
