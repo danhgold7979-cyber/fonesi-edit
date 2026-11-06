@@ -753,3 +753,16 @@ Exact CI on the latest code/test checkpoint is recorded in `P04_RESULTS.md`. Thi
 ### Acceptance boundary
 
 This slice unifies currently implemented layer/timeline project mutations. It does not implement undo for text editing or subtitle editing controls that do not yet exist, and it does not close P04-04 until all future editor subsystems are integrated and the full task acceptance gate passes.
+
+
+## Slice AP — rational video clip move (P04-05 / ED-17.02, 2026-11-07)
+
+The canonical timeline edit command now supports moving a selected video clip to an exact rational output start. It shifts only the matching original-audio segment whose asset, source interval, speed and original output start match the selected video clip. CompositionPlan validation rejects negative starts, output overruns and undeclared overlaps. The Timeline panel exposes **Chuyển clip tới playhead** and commits through ProjectSession CAS and shared ProjectCommandHistory.
+
+Unit and GUI evidence:
+- `test_move_video_clip_uses_exact_rational_time_and_keeps_original_audio_aligned`
+- `test_move_video_clip_rejects_negative_overlap_and_output_overrun`
+- `test_move_video_clip_requires_exact_fraction_and_existing_clip`
+- `test_move_selected_video_clip_to_playhead_keeps_original_audio_and_shared_undo_redo`
+
+Boundary: moving a clip does not imply media playback, continuous thumbnails, sample-accurate audio movement for unrelated audio, or acceptance of all ED-17.02 assertions. ED-17.02 and P04 remain NOT_RUN / IN_PROGRESS pending full unit, integration, GUI and media evidence.
