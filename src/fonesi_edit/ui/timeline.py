@@ -319,11 +319,13 @@ class TimelinePanel(QWidget):
         self._fit_transform=None;self._playhead_marker=None;self._timeline_left=120;self._timeline_scale=1.0
         self._zoom_percent=100;self._last_revision=None;self._preview_generation=0;self._waveform_generation=0
         self._in_frame=None;self._out_frame=None;self._frame_total=0;self.selected_marker_id=None
+        self._loop_timer=QTimer(self);self._loop_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self._loop_timer.timeout.connect(self._loop_tick)
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
         self.waveform_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
         layout=QVBoxLayout(self)
-        self.notice=QLabel('Timeline có playhead theo frame, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Chưa có phát video/âm thanh, thumbnail/waveform tự động hoặc render.')
+        self.notice=QLabel('Timeline có playhead theo frame, lặp playhead theo vùng In/Out, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Lặp vùng không phát audio/video; chưa có playback media, thumbnail/waveform tự động hoặc render.')
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
         self.summary=QLabel('Chưa có clip trong timeline.')
         self.summary.setTextFormat(Qt.TextFormat.PlainText);layout.addWidget(self.summary)
@@ -336,7 +338,9 @@ class TimelinePanel(QWidget):
         self.set_in_button=QPushButton('Đặt In');self.set_out_button=QPushButton('Đặt Out')
         self.clear_range_button=QPushButton('Xóa In/Out')
         self.range_label=QLabel('Chưa chọn vùng In/Out')
-        for widget in (self.set_in_button,self.set_out_button,self.clear_range_button,self.range_label):controls.addWidget(widget)
+        self.loop_button=QPushButton('Lặp vùng');self.loop_button.setEnabled(False)
+        self.loop_button.clicked.connect(self.toggle_loop_playback)
+        for widget in (self.set_in_button,self.set_out_button,self.clear_range_button,self.range_label,self.loop_button):controls.addWidget(widget)
         self.ripple=QCheckBox('Ripple (đóng khoảng trống)');controls.addWidget(self.ripple)
         self.split_button=QPushButton('Tách tại playhead');self.trim_in_button=QPushButton('Trim đầu');self.trim_out_button=QPushButton('Trim cuối')
         for button in (self.split_button,self.trim_in_button,self.trim_out_button):controls.addWidget(button)
@@ -477,6 +481,56 @@ class TimelinePanel(QWidget):
         else:
             self.action_message.setText('Không thể làm lại: lịch sử đã hết hạn hoặc project cần đối soát.')
         self.update_actions()
+
+    def _loop_bounds(self):
+        if self._frame_total<=0:
+            return None
+        start=0;end=self._frame_total
+        if self._in_frame is not None and self._out_frame is not None:
+            start=self._in_frame;end=self._out_frame
+        if not (0<=start<end<=self._frame_total):
+            return None
+        return start,end
+
+    def toggle_loop_playback(self):
+        if self.stopping:
+            return
+        if self._loop_timer.isActive():
+            self._loop_timer.stop()
+            self.loop_button.setText('Lặp vùng')
+            self.action_message.setText('Đã dừng lặp playhead; không phát audio/video.')
+            self.update_actions()
+            return
+        bounds=self._loop_bounds()
+        if bounds is None:
+            self.action_message.setText('Không thể lặp: timeline chưa có frame hợp lệ.')
+            return
+        start,end=bounds
+        if not start<=self.playhead_slider.value()<end:
+            self.playhead_slider.setValue(start)
+        interval=max(1,round(1000*self._fps.denominator/self._fps.numerator))
+        self._loop_timer.start(interval)
+        self.loop_button.setText('Dừng vòng lặp')
+        self.action_message.setText(
+            f'Lặp playhead từ frame {start} đến trước frame {end}; chỉ di chuyển playhead, không phát audio/video.')
+        self.update_actions()
+
+    def _loop_tick(self):
+        if self.stopping:
+            self._loop_timer.stop()
+            self.loop_button.setText('Lặp vùng')
+            self.update_actions()
+            return
+        bounds=self._loop_bounds()
+        if bounds is None:
+            self._loop_timer.stop()
+            self.loop_button.setText('Lặp vùng')
+            self.action_message.setText('Đã dừng lặp vì vùng timeline không còn hợp lệ.')
+            self.update_actions()
+            return
+        start,end=bounds
+        current=self.playhead_slider.value()
+        self.playhead_slider.setValue(start if current+1>=end else current+1)
 
     def _step_playhead(self,delta):
         if self.stopping or self.playhead_slider.isSliderDown():return
@@ -881,6 +935,8 @@ class TimelinePanel(QWidget):
         self.preview_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
 
     def request_stop(self):
+        self._loop_timer.stop()
+        self.loop_button.setText('Lặp vùng')
         self.stopping=True
         self._invalidate_preview('Đang dừng preview; chờ FFmpeg và tiến trình con kết thúc an toàn.')
         self.update_actions()
@@ -930,6 +986,7 @@ class TimelinePanel(QWidget):
         timeline_markers=[] if session is None else session.project.plan.to_dict().get('timeline_markers',[])
         marker_ready=markers_ready and not session.reconciliation_required
         self.add_marker_button.setEnabled(marker_ready and len(timeline_markers)<1000)
+        self.loop_button.setEnabled(session is not None and not self.stopping and self._loop_bounds() is not None)
         selected_marker=any(x['id']==self.selected_marker_id for x in timeline_markers)
         self.rename_marker_button.setEnabled(marker_ready and selected_marker)
         self.remove_marker_button.setEnabled(marker_ready and selected_marker)
@@ -1102,6 +1159,7 @@ class TimelinePanel(QWidget):
             return
         data=session.project.plan.to_dict()
         if self._last_project_id != data['id']:
+            self._loop_timer.stop();self.loop_button.setText('Lặp vùng')
             if self._last_project_id is not None:self._invalidate_preview('Project identity changed; previous preview discarded.')
             self._last_project_id=data['id'];self.selected_clip_id=None;self._playhead=0
             self._in_frame=None;self._out_frame=None;self.selected_marker_id=None
