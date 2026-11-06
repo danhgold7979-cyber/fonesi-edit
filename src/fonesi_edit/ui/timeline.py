@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsS
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui.project_history import ProjectCommandHistory
-from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,TimelineEditError
+from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,delete_video_clip,TimelineEditError
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
@@ -344,7 +344,8 @@ class TimelinePanel(QWidget):
         self.ripple=QCheckBox('Ripple (đóng khoảng trống)');controls.addWidget(self.ripple)
         self.split_button=QPushButton('Tách tại playhead');self.trim_in_button=QPushButton('Trim đầu');self.trim_out_button=QPushButton('Trim cuối')
         self.move_button=QPushButton('Chuyển clip tới playhead')
-        for button in (self.split_button,self.trim_in_button,self.trim_out_button,self.move_button):controls.addWidget(button)
+        self.delete_clip_button=QPushButton('Xóa clip khỏi timeline')
+        for button in (self.split_button,self.trim_in_button,self.trim_out_button,self.move_button,self.delete_clip_button):controls.addWidget(button)
         self.undo_button=QPushButton('Hoàn tác')
         self.redo_button=QPushButton('Làm lại')
         controls.addWidget(self.undo_button);controls.addWidget(self.redo_button)
@@ -435,6 +436,7 @@ class TimelinePanel(QWidget):
         self.trim_in_button.clicked.connect(lambda:self.trim_at_playhead('in'))
         self.trim_out_button.clicked.connect(lambda:self.trim_at_playhead('out'))
         self.move_button.clicked.connect(lambda:self._apply_timeline_edit('move'))
+        self.delete_clip_button.clicked.connect(self.delete_selected_clip)
         self.scene=QGraphicsScene(self)
         self.view=QGraphicsView(self.scene)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
@@ -977,6 +979,7 @@ class TimelinePanel(QWidget):
         self.trim_in_button.setEnabled(available and inside)
         self.trim_out_button.setEnabled(available and inside)
         self.move_button.setEnabled(available and not self.busy and not self.stopping)
+        self.delete_clip_button.setEnabled(available and not self.busy and not self.stopping)
         crop_enabled=available
         for spin in self.crop_spins.values():spin.setEnabled(crop_enabled)
         self.crop_edit_toggle.setEnabled(crop_enabled and self.preview_image.hasPixmap() and not self.busy and not self.stopping)
@@ -1108,6 +1111,32 @@ class TimelinePanel(QWidget):
 
     def trim_at_playhead(self,edge):
         self._apply_timeline_edit(edge)
+
+    def delete_selected_clip(self):
+        session=self.get_session()
+        clip=self._selected_clip()
+        if session is None or clip is None or self.stopping or session.reconciliation_required:
+            return
+        before=session.project.plan.to_dict()
+        expected=session.revision
+        try:
+            result=delete_video_clip(
+                session.project,clip['id'],ripple=self.ripple.isChecked(),
+                expected_revision=expected)
+            session.commit(result.command)
+        except TimelineEditError as exc:
+            self.action_message.setText(f'Không thể xóa clip: {exc}')
+            return
+        except Exception:
+            self.action_message.setText('Không xác nhận được xóa clip; không tự gửi lại.')
+            return
+        self.history.record(before,session,expected,'timeline delete')
+        self.selected_clip_id=None
+        self.action_message.setText(
+            'Đã xóa clip khỏi timeline theo chế độ '+
+            ('ripple (đóng khoảng trống)' if self.ripple.isChecked() else 'gap (giữ khoảng trống)')+
+            '. Tệp nguồn trong thư viện không bị xóa.')
+        self.project_changed.emit()
 
     def _apply_timeline_edit(self,action):
         session=self.get_session();clip=self._selected_clip()
