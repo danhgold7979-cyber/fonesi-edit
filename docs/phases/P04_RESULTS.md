@@ -471,3 +471,16 @@ A new Qt integration test covers range wrapping, full-range wrapping and retirem
 - `test_timeline_loop_playback_wraps_half_open_in_out_range_and_stops_cleanly`
 
 Scope boundary: this is frame-only playhead looping. It does not decode or play video/audio, provide A/V synchronization, continuous thumbnails, sample-boundary accuracy, or marker drag. P04-05, ED-17.04 and P04 remain IN_PROGRESS and NOT_ACCEPTED pending full criteria and GUI/media evidence.
+
+
+## Slice AP — rational Timeline clip move (P04-05 / ED-17.02, 2026-11-07)
+
+Added a pure rational-time `move_video_clip` command and a Timeline-panel action that moves the selected video clip to the current playhead. The command preserves matching original audio alignment only when the audio segment has the same asset, source interval, speed and original output origin. It rejects negative starts, non-Fraction time, missing clips, output overruns and undeclared overlap through CompositionPlan invariants. The UI commits with the current ProjectSession revision and shared undo/redo history.
+
+Regression coverage:
+- Exact rational move and linked original-audio synchronization.
+- Negative, overlapping and output-overrun rejection without mutating the immutable source project.
+- Wrong time type and missing clip rejection.
+- Qt integration for move-to-playhead and shared undo/redo.
+
+ED-17.02 remains NOT_RUN until the complete criterion and required GUI evidence are satisfied; P04 remains IN_PROGRESS.
