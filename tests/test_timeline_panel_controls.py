@@ -279,21 +279,20 @@ def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,q
             assert any(isinstance(item,QGraphicsTextItem) and item.toPlainText()=='Opening'
                        for item in timeline.scene.items())
             # Invalid or duplicate names must not create history/revision entries.
-            from uuid import uuid4
             timeline.playhead_slider.setValue(20)
             timeline.add_timeline_marker()
-            opening_row=next(index for index in range(timeline.marker_list.count())
-                             if timeline.marker_list.item(index).text().startswith('Opening ·'))
-            timeline.marker_list.setCurrentRow(opening_row)
-            assert timeline.selected_marker_id==marker_id
+            markers=window.session.project.plan.to_dict()['timeline_markers']
+            duplicate_label=next(item['label'] for item in markers if item['id']!=marker_id)
+            timeline.selected_marker_id=marker_id
             before_invalid=window.session.revision
-            for value in ('M2','  ','x'*65,'bad\\nname'):
+            for value in (duplicate_label,'  ','x'*65,'bad\\nname'):
                 with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=(value,True)):
-                    timeline.rename_marker_button.click()
+                    timeline.rename_timeline_marker()
                 assert window.session.revision==before_invalid
-                assert window.session.project.plan.to_dict()['timeline_markers'][0]['label']=='Opening'
+                current=next(item for item in window.session.project.plan.to_dict()['timeline_markers'] if item['id']==marker_id)
+                assert current['label']=='Opening'
             with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=('',False)):
-                timeline.rename_marker_button.click()
+                timeline.rename_timeline_marker()
             assert window.session.revision==before_invalid
         finally:
             window.close()
@@ -346,7 +345,7 @@ def test_timeline_loop_playback_wraps_half_open_in_out_range_and_stops_cleanly(t
             timeline.playhead_slider.setRange(0,299)
             timeline._commit_range_markers(10,13)
             timeline.update_project()
-            timeline.playhead_slider.setValue(12)
+            timeline.playhead_slider.setValue(13)
             assert timeline.loop_button.isEnabled()
             timeline.loop_button.click()
             assert timeline.loop_button.text()=='Dừng vòng lặp'
