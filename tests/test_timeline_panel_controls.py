@@ -409,3 +409,44 @@ def test_move_selected_video_clip_to_playhead_keeps_original_audio_and_shared_un
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+@pytest.mark.parametrize('ripple,expected_start',[(False,[1,1]),(True,[0,1])])
+def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_source(tmp_path,qt_app,ripple,expected_start):
+    project=empty_project(NewProjectIntent('Timeline delete',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    first=_record(tmp_path/'first-delete.mp4',b'first-delete-source')
+    second=_record(tmp_path/'second-delete.mp4',b'second-delete-source')
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            one=add_video_clip(window.session.project,first,_scan(first),expected_revision=window.session.revision)
+            window.session.commit(one.command)
+            two=add_video_clip(window.session.project,second,_scan(second),expected_revision=window.session.revision)
+            window.session.commit(two.command);window._project_changed()
+            timeline=window.timeline_panel
+            timeline.clip_list.setCurrentRow(0)
+            timeline.ripple.setChecked(ripple)
+            assert timeline.delete_clip_button.isEnabled()
+            before=window.session.revision
+            timeline.delete_clip_button.click()
+            assert window.session.revision==before+1
+            data=window.session.project.plan.to_dict()
+            assert [item['id'] for item in data['clips']]==[two.clip_id]
+            assert data['clips'][0]['output_start']==expected_start
+            assert len(data['audio']['clips'])==1
+            assert first.path.exists() and first.path.read_bytes()==b'first-delete-source'
+            assert second.path.exists() and second.path.read_bytes()==b'second-delete-source'
+            assert 'không bị xóa' in timeline.action_message.text()
+            assert window.project_history.can_undo()
+            assert window.project_history.undo()
+            assert len(window.session.project.plan.to_dict()['clips'])==2
+            assert first.path.exists()
+            assert window.project_history.redo()
+            assert len(window.session.project.plan.to_dict()['clips'])==1
+            assert first.path.exists()
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
