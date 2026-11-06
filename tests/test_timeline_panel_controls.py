@@ -280,17 +280,14 @@ def test_selected_timeline_marker_can_be_renamed_validated_and_undone(tmp_path,q
                        for item in timeline.scene.items())
             # Invalid or duplicate names must not create history/revision entries.
             from uuid import uuid4
-            other={'id':str(uuid4()),'frame':20,'label':'Closing'}
-            data=window.session.project.plan.to_dict()
-            data['timeline_markers'].append(other)
-            data['revision']+=1;data['provenance']['project_revision']=data['revision']
-            from fonesi_edit.domain.composition import CompositionPlan
-            from fonesi_edit.storage.autosave import CompletedCommand
-            plan=CompositionPlan.parse(data)
-            window.session.commit(CompletedCommand(window.session.project.with_plan(plan),window.session.revision))
-            window._project_changed();timeline.marker_list.setCurrentRow(0)
+            timeline.playhead_slider.setValue(20)
+            timeline.add_timeline_marker()
+            opening_row=next(index for index in range(timeline.marker_list.count())
+                             if timeline.marker_list.item(index).text().startswith('Opening ·'))
+            timeline.marker_list.setCurrentRow(opening_row)
+            assert timeline.selected_marker_id==marker_id
             before_invalid=window.session.revision
-            for value in ('Closing','  ','x'*65,'bad\\nname'):
+            for value in ('M2','  ','x'*65,'bad\\nname'):
                 with patch('fonesi_edit.ui.timeline.QInputDialog.getText',return_value=(value,True)):
                     timeline.rename_marker_button.click()
                 assert window.session.revision==before_invalid
