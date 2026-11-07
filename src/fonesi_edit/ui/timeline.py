@@ -5,7 +5,7 @@ from math import floor,isfinite
 
 from pathlib import Path
 from uuid import uuid4
-from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer, QObject
+from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer, QObject, QStandardPaths
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
@@ -17,6 +17,7 @@ from fonesi_edit.storage.timeline_edit_commands import (split_video_clip,trim_vi
     delete_video_clip,move_timeline_marker,TimelineEditError)
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
+from fonesi_edit.media.proxy_cache import PersistentProxyCache,ProxyCacheError
 from fonesi_edit.media.seek import plan_preview_seek,PreviewSeekError
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
 
@@ -29,12 +30,13 @@ def _q(value):
 class PreviewWorker(QThread):
     """One explicit still-frame request; owns its decoder until retirement."""
     def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_time,parent=None,decoder_times=None,
-                 max_width=1280,max_height=720):
+                 max_width=1280,max_height=720,persistent_cache=None):
         super().__init__(parent)
         self.source=Path(source);self.ffmpeg=Path(ffmpeg)
         self.expected_sha256=expected_sha256;self.stream_index=stream_index
         self.decoder_time=decoder_time;self.decoder_times=tuple(decoder_times or (decoder_time,))
         self.max_width=max_width;self.max_height=max_height
+        self.persistent_cache=persistent_cache
         if not 1<=len(self.decoder_times)<=4:raise ValueError('Preview worker supports one to four timestamps')
         if type(max_width) is not int or not 1<=max_width<=1280 or type(max_height) is not int or not 1<=max_height<=720:
             raise ValueError('Preview dimensions must remain within the decoder bounds')
@@ -43,10 +45,12 @@ class PreviewWorker(QThread):
         try:
             for timestamp in self.decoder_times:
                 if self.isInterruptionRequested():raise PreviewCanceled('Preview sequence canceled')
-                frame=extract_preview_frame(self.source,self.ffmpeg,
-                    expected_sha256=self.expected_sha256,stream_index=self.stream_index,
+                options=dict(expected_sha256=self.expected_sha256,stream_index=self.stream_index,
                     decoder_time=timestamp,cancel=self.isInterruptionRequested,
                     timeout=30,max_width=self.max_width,max_height=self.max_height)
+                if self.persistent_cache is not None:
+                    options["persistent_cache"]=self.persistent_cache
+                frame=extract_preview_frame(self.source,self.ffmpeg,**options)
                 self.frames.append(frame)
             if len(self.frames)==1:self.frame=self.frames[0]
         except PreviewCanceled:
@@ -1107,8 +1111,16 @@ class TimelinePanel(QWidget):
             self.preview_message.setText('Chất lượng preview không hợp lệ; không chạy decoder.')
             return
         max_width,max_height=dimensions
+        persistent_cache=None
+        cache_location=QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)
+        if cache_location:
+            try:
+                persistent_cache=PersistentProxyCache(Path(cache_location)/"preview-proxies")
+            except ProxyCacheError:
+                persistent_cache=None
         worker=PreviewWorker(source,ffmpeg,expected,stream_index,decoder_times[0],self,
-            decoder_times=decoder_times,max_width=max_width,max_height=max_height)
+            decoder_times=decoder_times,max_width=max_width,max_height=max_height,
+            persistent_cache=persistent_cache)
         self._preview_generation+=1;generation=self._preview_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
         self.preview_worker=worker
