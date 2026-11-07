@@ -48,7 +48,7 @@ def test_preview_requires_explicit_tool_and_trust_and_displays_still_image(tmp_p
     store,window,timeline,source,payload=_open(tmp_path)
     try:
         calls=[]
-        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height,persistent_cache=None):
             calls.append((path,tool,expected_sha256,stream_index,decoder_time))
             return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
         monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
@@ -140,7 +140,7 @@ def test_filmstrip_generates_four_rational_frames_and_reuses_explicit_source(tmp
     store,window,timeline,source,payload=_open(tmp_path)
     try:
         calls=[]
-        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height,persistent_cache=None):
             calls.append(decoder_time)
             return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
         monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
@@ -164,7 +164,7 @@ def test_filmstrip_failure_discards_partial_frames(tmp_path,qt_app,monkeypatch):
     store,window,timeline,_,_=_open(tmp_path)
     try:
         calls=[]
-        def fail_third(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+        def fail_third(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height,persistent_cache=None):
             calls.append(decoder_time)
             if len(calls)==3:raise PreviewError('synthetic third frame failure')
             return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
@@ -236,7 +236,7 @@ def test_preview_quality_selects_bounded_decoder_dimensions(tmp_path,qt_app,monk
     store,window,timeline,source,payload=_open(tmp_path)
     try:
         calls=[]
-        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+        def fake_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height,persistent_cache=None):
             calls.append((max_width,max_height))
             return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
         monkeypatch.setattr(module,'extract_preview_frame',fake_extract)
@@ -260,7 +260,7 @@ def test_quality_change_discards_inflight_preview_and_invalidates_old_frame(tmp_
     store,window,timeline,_,_=_open(tmp_path)
     entered=threading.Event();release=threading.Event()
     try:
-        def slow_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height):
+        def slow_extract(path,tool,*,expected_sha256,stream_index,decoder_time,cancel,timeout,max_width,max_height,persistent_cache=None):
             entered.set()
             release.wait(2)
             return PreviewFrame(_png(),expected_sha256,'b'*64,stream_index,decoder_time,16,9,False)
