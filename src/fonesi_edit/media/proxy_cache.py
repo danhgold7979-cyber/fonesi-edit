@@ -90,6 +90,8 @@ class PersistentProxyCache:
 
     @classmethod
     def _ensure_directory(cls, path: Path) -> None:
+        if not path.is_absolute() or ".." in path.parts:
+            raise ProxyCacheError("cache root must be absolute and contain no parent traversal")
         current = Path(path.anchor)
         try:
             root_info = current.lstat()
@@ -320,6 +322,8 @@ class PersistentProxyCache:
                         continue
                     manifest = json.loads((entry / self._MANIFEST).read_text(encoding="utf-8"))
                 except (OSError, ValueError):
+                    continue
+                if type(manifest) is not dict:
                     continue
                 key_data = manifest.get("key")
                 if (manifest.get("schema") != self._SCHEMA or type(key_data) is not dict
