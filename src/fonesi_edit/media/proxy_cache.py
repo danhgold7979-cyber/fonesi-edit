@@ -243,14 +243,19 @@ class PersistentProxyCache:
                 key_data = manifest.get("key")
                 key = ProxyCacheKey(**key_data) if type(key_data) is dict else None
                 payload = candidate / self._PAYLOAD
-                if (key is None or candidate.name != key.cache_id
-                        or not self._regular_file(payload)
-                        or type(manifest.get("size")) is not int
-                        or manifest["size"] != payload.stat().st_size):
+                if key is None or candidate.name != key.cache_id:
+                    continue
+                if not self._regular_file(payload):
+                    # The directory name and manifest prove this is one of
+                    # our cache entries; remove only this canonical entry.
+                    shutil.rmtree(candidate)
+                    continue
+                if (type(manifest.get("size")) is not int
+                        or manifest["size"] != payload.stat().st_size
+                        or not 1 <= manifest["size"] <= self.max_entry_bytes):
+                    shutil.rmtree(candidate)
                     continue
                 size = manifest["size"]
-                if not 1 <= size <= self.max_entry_bytes:
-                    continue
                 # Only count entries whose payload still matches its manifest.
                 # A corrupt entry must not consume the eviction budget and cause
                 # a valid older proxy to be discarded instead.
@@ -266,6 +271,9 @@ class PersistentProxyCache:
                     if stream.read(1):
                         raise ValueError("proxy payload grew during verification")
                 if digest.hexdigest() != manifest.get("payload_sha256"):
+                    # Corrupt canonical cache entry: discard it rather than
+                    # letting stale bytes accumulate outside the quota.
+                    shutil.rmtree(candidate)
                     continue
             except (OSError, ValueError, TypeError, ProxyCacheError, AttributeError):
                 continue
