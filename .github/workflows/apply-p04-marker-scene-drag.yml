@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .github/patches/p04-marker-scene-drag.patch)" = "1715e2b9e81509b6fe4bc81d0a215863a091e77f"
+          test "$(git hash-object .github/patches/p04-marker-scene-drag.patch)" = "20db3e5416d90c4d747866655d776c0167f0e811"
           git apply --check .github/patches/p04-marker-scene-drag.patch
           git apply .github/patches/p04-marker-scene-drag.patch
           git diff --check
