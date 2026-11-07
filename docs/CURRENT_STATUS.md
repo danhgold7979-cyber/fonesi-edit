@@ -502,3 +502,11 @@ P04-06 integration progress: persistent cache is now wired to the timeline still
 Exact repository checkout `5938e0f92504250fbf795b06ca88940d335fb531` was materialized from the GitHub handoff artifact and verified with `git rev-parse HEAD`. Local Python 3.13.5 targeted command: `python -m pytest -q tests/test_preview_cache_fallback.py tests/test_media_preview.py` — **51 passed in 0.48s**. This covers still-preview extraction and the optional persistent-cache read-failure fallback on the Linux local runner only; it does not replace the four-runner hosted matrix and does not establish video proxy/playback/A-V acceptance.
 
 Hosted run `42351538710` for the same docs checkpoint was still in progress at last inspection; Ubuntu 3.12 and 3.13 passed, Windows 3.12 and 3.13 remained active. The new fallback test commit `2069dd0e2d5f39ce1fac680c69682780f3c5d733` still requires exact-head CI because its run `42351522628` was cancelled.
+
+
+## P04-06 fallback test verification checkpoint — 2026-11-07
+
+- Targeted local checkout at `5938e0f92504250fbf795b06ca88940d335fb531`: `tests/test_preview_cache_fallback.py` plus `tests/test_media_preview.py` completed **51 passed in 0.48s** on Linux / Python 3.13.5.
+- Hosted clean-foundation run `42351538710` for the same documentation checkpoint ended CANCELLED: Ubuntu 3.12 and 3.13 completed SUCCESS; Windows 3.12 and 3.13 were cancelled before completion. This is not a four-runner pass.
+- The fallback regression commit `2069dd0e2d5f39ce1fac680c69682780f3c5d733` therefore still needs a fresh exact-descendant four-runner clean-foundation run. The previous full 4/4 success on `512dd60f` does not cover this new test.
+- No video proxy encoder/worker has been integrated. Continuous playback and synchronized A/V seek remain open; P04-06/P04 remain IN_PROGRESS.
