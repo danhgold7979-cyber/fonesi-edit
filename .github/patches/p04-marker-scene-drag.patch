@@ -67,3 +67,4 @@
 +            qt_app.processEvents()
              second_id=timeline.selected_marker_id
              before=window.session.revision
+ 
