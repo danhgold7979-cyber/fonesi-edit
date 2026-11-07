@@ -659,3 +659,15 @@ Commits:
 - `593e7d5f965a5fe9822aa775edab69aea0f6f45e`: regression records the actual seek plan and verifies both decoder timestamps passed to the bounded playback session equal the exact plan values.
 
 Playback now rejects unsupported cases explicitly: no/multiple active original audio streams, non-1× speed, freeze, mismatched source asset, and playhead outside half-open intervals. The prototype remains finite (<=5 seconds); no continuous multi-track playback or device acceptance is claimed. Exact latest-head four-runner CI is pending.
+
+
+
+### Slice AX — wait for A/V worker retirement before session completion (2026-11-07)
+
+Commits:
+- `4b26306ee3343675e71b541b30ad9b7ee7d219f7`: track audio decoder thread retirement, audio output completion and video decoder thread retirement separately. When the audio master reaches the end, request video cancellation if it is still producing; do not emit session `finished` until both decoder QThreads have emitted their thread-finished signals. Fail/cancel/stop paths also request cancellation and record retirement separately.
+- `2e523766a392642ac1d5c1118f82350c4983a587`: delayed video worker regression verifies that audio completion cancels a still-running video worker but does not publish session completion early.
+- `6bff644638a653ff1d028593a08d2a2dc1ab7567`: emit the terminal-retired state only once and expose the waiting-for-video-retirement state.
+- `4c03dffe5fe58f5f821eef4e715917dd440f0d56`: remove a redundant test assertion.
+
+This closes the premature-finished lifecycle gap for the finite prototype; it does not expand playback beyond the current five-second, one-video/one-audio constraints. Exact latest-head Linux/Windows matrix remains required.
