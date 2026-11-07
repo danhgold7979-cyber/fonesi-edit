@@ -95,6 +95,9 @@ def test_timeline_playback_refuses_video_speed_effect(tmp_path, qt_app, monkeypa
             window.session.project.with_plan(changed), window.session.revision
         ))
         window._project_changed()
+        # Keep the playhead inside the shortened interval so this test isolates
+        # the unsupported speed effect rather than the half-open end guard.
+        timeline.playhead_slider.setValue(0)
         timeline.play_button.click()
         assert timeline.playback_session is None
         assert "tốc độ 1×" in timeline.playback_status.text()
