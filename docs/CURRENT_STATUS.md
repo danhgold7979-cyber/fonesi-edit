@@ -519,3 +519,10 @@ Commit `9d5c3ed1e032dfad81d275e52d0d28d7f39860b3` adds a focused test that cance
 The four-runner run `42351812038` for parent `6b3c217c7c42bf06736ec99c5adbdb93ab311335` had Ubuntu 3.12 and 3.13 successful; Windows 3.12 remained at development onedir build and Windows 3.13 had passed. Parent run had not yet finalized at last check. This does not cover the new cancellation test.
 
 Still-preview cache only: video proxy encoding/worker, continuous playback, audio playback and synchronized A/V seek remain unimplemented/unaccepted. P04 remains IN_PROGRESS.
+
+
+## P04-06 cancellation test correction — 2026-11-07
+
+Exact-head run `42352060158` exposed one deterministic test defect on both Ubuntu Python 3.12/3.13: the cancellation callback was polled during source/tool fingerprinting before reaching the intended pre-persistent-cache boundary. The production code correctly raised `PreviewCanceled('Preview canceled while fingerprinting')`; the test expected the later lookup-boundary message. The test now pins source/tool fingerprints and supplies exactly two cancellation polls (pre-inspection false, pre-cache-lookup true), isolating the intended boundary. Commit: `f9f701dfcb72605c53a5e70cb65a04da24f97623`. Exact-head CI is pending; no PASS is claimed yet.
+
+The previous `42352060158` Ubuntu jobs each reported 1 failed, 1086 passed, 39 skipped; Windows jobs remained in progress at last inspection. The failure is in the test's cancellation sequencing, not evidence of a production cache-read bypass. P04 remains IN_PROGRESS; video proxy generation/playback/A-V seek remain open.
