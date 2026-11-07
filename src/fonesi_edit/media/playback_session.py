@@ -169,7 +169,6 @@ class PlaybackSession(QObject):
             return
         self._active = False
         self._terminal_state = "failed"
-        self.controller.stop()
         if self.audio_worker is not None and self.audio_worker.isRunning():
             self.audio_worker.request_cancel()
         else:
@@ -178,6 +177,7 @@ class PlaybackSession(QObject):
             self.video_worker.request_cancel()
         else:
             self._video_finished = True
+        self.controller.stop()
         self.failed.emit(message)
         self._complete_if_retired()
 
@@ -186,7 +186,6 @@ class PlaybackSession(QObject):
             return
         self._active = False
         self._terminal_state = "canceled"
-        self.controller.stop()
         if self.audio_worker is not None and self.audio_worker.isRunning():
             self.audio_worker.request_cancel()
         else:
@@ -195,6 +194,7 @@ class PlaybackSession(QObject):
             self.video_worker.request_cancel()
         else:
             self._video_finished = True
+        self.controller.stop()
         self.state_changed.emit("canceled")
         self._complete_if_retired()
 
