@@ -711,3 +711,14 @@ The producer budget is 64 frames by default and at most 256; controller queue re
 - `f201c281f68f45a871127389840e6910a243f7b1`: `PlaybackSession` now rejects a video batch marked incomplete (FFmpeg EOF before the planned frame count), returns the producer's reserved frame credits, stops the audio master and emits a playback failure instead of silently continuing audio without video.
 - `44a1965c408042923db61ae6c8967003f1f7b17c`: regression injects an incomplete video batch and verifies session failure, audio output stop, empty presentation queue and exactly one returned frame credit.
 - This is fail-closed behavior for the bounded <=5-second prototype; it does not implement continuous playback or recovery/rebuffering. Exact latest-head Linux/Windows Python 3.12/3.13 CI remains required.
+
+
+
+### Slice BB — keep Timeline busy through decoder retirement (2026-11-07)
+
+- `de366e0f605c0852101844dff62f9bfa0c6c0576`: expose `PlaybackSession.retiring` while a stopped/failed session still has decoder workers awaiting QThread retirement.
+- `0ef5c668c249df44fb7d8ae969791b728c6e7580`: Timeline `busy` now includes active playback and retiring decoder workers, preventing new preview/proxy work from starting while canceled decoders are still alive.
+- `e0ce07b38f24b081c7ced9ddfa38d589f255453d`: regression verifies a stopped session remains retiring until the delayed video worker emits `finished`.
+- `124c69ac65981ea3bc5c30e801d79a15375d2bb8`: update Timeline test fake to model the retirement state.
+
+The guard closes a UI lifecycle gap after explicit stop/failure; actual process/thread retirement remains the controlling signal. Exact-head CI pending.
