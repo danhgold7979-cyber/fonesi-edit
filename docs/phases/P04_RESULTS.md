@@ -575,3 +575,13 @@ Commits:
 - `eb6b6ca27b976326765de6ffcb7bb7fd314a43e8`: regression asserts corrupt canonical entry cleanup while preserving the valid entry and new publication.
 
 The cleanup prevents digest-corrupt cache payloads from accumulating outside the byte/entry budget. Exact-head CI remains pending; earlier matrix results do not cover these two commits.
+
+
+
+### Slice AS malformed-manifest and root-mutation guard — 2026-11-07
+
+Commits:
+- `37d8aa4ddcb47d1b3e75aa32a6341403982f57f8`: root path is revalidated as absolute and traversal-free at every filesystem entry point; source invalidation ignores non-object JSON manifests rather than raising.
+- `c94d7936db1e36e13c6b1c6131936dadef87b262`: regression covers JSON list/broken manifests and post-construction cache-root mutation.
+
+Exact latest-head Linux/Windows matrix remains pending. No local execution is claimed.
