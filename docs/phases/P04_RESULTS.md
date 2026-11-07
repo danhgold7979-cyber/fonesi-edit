@@ -618,3 +618,18 @@ The exact-head run `42369998598` at `69bf2c9f0fc2b23d81f866e95292204b102c87a6` f
 Shutdown now explicitly stops an active bounded playback session before Timeline teardown (commit `af79c738d159a1bd8ef1f11e629f0184b74e4775`), with a regression test in `69bf2c9f0fc2b23d81f866e95292204b102c87a6`.
 
 The failed run also recorded 1,179+ passed tests per runner; exact latest HEAD requires a new four-runner result. No local test execution is claimed. Finite A/V playback remains a <=5-second prototype, not full project playback acceptance.
+
+
+
+### Slice AV — persistent waveform observation cache (P04-06, 2026-11-07)
+
+Commits:
+- `83964e5ab6e57106e21cd6e5597165a6a83823f2`: validated persistent waveform read/write using the shared bounded cache; exact rational window, source/tool hashes, stream, sample rate and bucket count are bound into cache identity.
+- `55e1691027ddf49a2d72e372a87ab784e051e912`: harden cached numeric peak validation.
+- `4d6fd7750d4d2cf661dfa847a05689832b5462f0`: regressions for persistent reuse, corrupt payload recovery, identity separation and invalid cache input.
+- `739c15647950316959a03514d1d447051dca50e2`: Timeline WaveformWorker uses app-local Qt CacheLocation/waveform-cache, with memory-only fallback.
+- `d4b3a7cfba372ee60f922311207955bc2654878b`: record integration plan.
+
+Waveform cache payload is bounded JSON with schema, exact rational window, stream/source/tool identity, sample count and normalized min/max bins. It is verified before use; corrupt cache triggers re-decode/repair. It remains an amplitude observation only.
+
+Exact latest-head Linux/Windows Python 3.12/3.13 CI is required before PASS. No local test run is claimed. Continuous audio/video playback, arbitrary project timeline scheduling, seek while playing, robust drift correction, render/export parity and real-device Windows acceptance remain open.
