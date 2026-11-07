@@ -69,8 +69,8 @@ class PersistentProxyCache:
 
     def __init__(self, root: Path | str, *, max_entry_bytes: int = 512 * 1024 * 1024):
         self.root = Path(root)
-        if not self.root.is_absolute():
-            raise ProxyCacheError("cache root must be an absolute path")
+        if not self.root.is_absolute() or ".." in self.root.parts:
+            raise ProxyCacheError("cache root must be absolute and contain no parent traversal")
         if (type(max_entry_bytes) is not int
                 or not 1 <= max_entry_bytes <= 2 * 1024 * 1024 * 1024):
             raise ProxyCacheError("invalid cache entry size bound")
@@ -144,7 +144,10 @@ class PersistentProxyCache:
                         or manifest["size"] != payload_size
                         or not 1 <= payload_size <= self.max_entry_bytes):
                     return None
-                payload = payload_path.read_bytes()
+                with payload_path.open("rb") as stream:
+                    payload = stream.read(self.max_entry_bytes + 1)
+                if len(payload) != payload_size or len(payload) > self.max_entry_bytes:
+                    return None
             except (OSError, ValueError, TypeError, AttributeError):
                 return None
             if sha256(payload).hexdigest() != manifest.get("payload_sha256"):
@@ -235,7 +238,15 @@ class PersistentProxyCache:
                     manifest = json.loads((entry / self._MANIFEST).read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     continue
-                if manifest.get("key", {}).get("source_sha256") == source_sha256:
+                key_data = manifest.get("key")
+                if (manifest.get("schema") != self._SCHEMA or type(key_data) is not dict
+                        or key_data.get("source_sha256") != source_sha256):
+                    continue
+                try:
+                    validated_key = ProxyCacheKey(**key_data)
+                except (TypeError, ProxyCacheError):
+                    continue
+                if entry.name == validated_key.cache_id:
                     shutil.rmtree(entry)
                     removed += 1
         return removed
