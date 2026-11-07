@@ -96,3 +96,26 @@ def test_timeline_playback_refuses_video_speed_effect(tmp_path, qt_app, monkeypa
         assert source.read_bytes() == payload
     finally:
         _close(store, window, qt_app)
+
+
+
+def test_timeline_shutdown_stops_active_playback_session(tmp_path, qt_app, monkeypatch):
+    store, window, timeline, source, payload = _open(tmp_path)
+    try:
+        ffmpeg = tmp_path / "ffmpeg"
+        ffmpeg.write_bytes(b"test ffmpeg tool")
+        ffmpeg.chmod(0o700)
+        monkeypatch.setattr(timeline_module, "PlaybackController", FakeController)
+        monkeypatch.setattr(timeline_module, "QtAudioOutput", lambda parent: object())
+        monkeypatch.setattr(timeline_module, "PlaybackSession", FakePlaybackSession)
+        timeline.preview_path.setText(str(ffmpeg))
+        timeline.preview_trust.setChecked(True)
+        timeline.play_button.click()
+        playback = timeline.playback_session
+        assert playback is not None and playback.active
+        timeline.request_stop()
+        assert playback.stopped and not playback.active
+        assert not timeline.busy
+        assert source.read_bytes() == payload
+    finally:
+        _close(store, window, qt_app)
