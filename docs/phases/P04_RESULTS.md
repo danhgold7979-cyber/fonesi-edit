@@ -555,3 +555,13 @@ Follow-up implementation commits:
 Default cache bounds: 512 MiB per entry, 2 GiB total and 256 entries; caller may lower bounds within validated ceilings. LRU-style eviction uses entry directory modification time, which is refreshed by atomic replacement but not yet by cache reads. This is a bounded persistent cache with oldest-entry eviction, not a true access-updated LRU. Reads verify manifest and payload digest; cancellation and symlink/reparse guards remain fail-closed.
 
 Latest exact-head four-runner CI is required for the follow-up changes; prior run 42348806219 tested only the first implementation commit and must not be reused as evidence. P04-06 remains partial: cache is not yet integrated with an encoder/proxy worker, and no actual proxy generation, synchronized A/V playback seek, warm/cold benchmark, GPU or render parity is claimed.
+
+
+
+### Slice AS LRU refinement — verified reads refresh recency (2026-11-07)
+
+Commits:
+- `5d6a46e249c77696b3558ab2bf3dd531a8bd1ed3`: successful integrity-verified reads refresh the cache-entry directory modification time, used by bounded oldest-entry eviction.
+- `a7bae68cd0f2a178dd598d7b1bade3a8c25d61e9`: regression verifies that a previously accessed entry is retained while the least-recently-used entry is evicted under a reduced quota.
+
+This is now access-updated LRU-style eviction rather than write-time-only oldest-entry eviction. Failure to update recency does not invalidate a successfully verified cache read; eviction remains bounded but recency may be stale for that operation. Exact-head four-runner CI remains required.
