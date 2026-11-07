@@ -516,3 +516,27 @@ Targeted regression evidence:
 - Result: 2 passed, 0 failed in the guarded apply job. Temporary transfer workflow/script/patch files were deleted by the successful product commit.
 
 Acceptance boundary: this is targeted hosted Linux/Qt-offscreen evidence, not the required exact-HEAD four-runner foundation result and not physical Windows mouse, mixed-DPI/HiDPI, screen-reader, IME, real-media, synchronized A/V seek or render/export acceptance. P04-05 and P04 remain IN_PROGRESS; ED-17 criteria and all acceptance counters remain unchanged pending complete criteria and external gates.
+
+
+
+## Slice AS — persistent content-addressed proxy cache boundary (P04-06, 2026-11-07)
+
+Implementation commits:
+- `a894891dc39012a803a8072212dbaf5112a2d25c`: add persistent proxy cache module.
+- `e3b85ed86f6d66aafb7cca4e8cb18538f072014e`: bound cache reads and validate invalidation identity.
+- `a3d76d44cd905096205fb993a54fb6ad643703ed`: add regression tests for invalidation isolation and path traversal.
+
+Implemented in `src/fonesi_edit/media/proxy_cache.py`:
+- Immutable key bound to source SHA-256, tool SHA-256, stream index, dimensions and algorithm version.
+- Explicit absolute cache root; rejects parent traversal, symlink and Windows reparse-point path components.
+- Bounded encoded-byte payloads and bounded reads; manifest records schema, exact key, size and payload SHA-256.
+- Staged writes with file flush/fsync, cancellation check before atomic publication and safe replacement rollback.
+- Read-time key/size/digest validation; corrupt or oversized entries are cache misses.
+- Per-key invalidation and source-wide invalidation that validates schema/key and verifies the directory name matches the canonical cache identity, avoiding deletion of unrelated directories with forged manifests.
+- This is persistent storage infrastructure only. No FFmpeg proxy generation, timeline integration, playback, A/V synchronized decoding, performance acceptance or render parity is claimed.
+
+Regression coverage in `tests/test_proxy_cache.py`: key identity/validation, round-trip/reopen, tool/stream/size/version invalidation, corrupt manifest/payload, size bound, cancellation before and after staging, per-key/source invalidation, symlink refusal, invalid input and preservation of unrelated directories.
+
+The initial implementation commit's full hosted foundation run 42348806219 completed SUCCESS on four runners (Ubuntu/Windows Python 3.12/3.13). This run predates the subsequent hardening commits and must not be used as their test evidence. The exact post-hardening HEAD requires a fresh four-runner CI result before PASS is recorded.
+
+Acceptance boundary: P04-06 and P04 remain IN_PROGRESS; this slice does not satisfy persistent encoded proxy generation, worker ownership integration, cancellation of real FFmpeg proxy jobs, stale cache lifecycle integration, A/V seek, warm/cold performance or physical Windows filesystem acceptance.
