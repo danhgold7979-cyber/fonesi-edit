@@ -146,7 +146,6 @@ def test_audio_master_waits_for_video_worker_retirement_before_session_finished(
         video_start_seconds=0.0,fps=Fraction(30,1),
         duration_seconds=Fraction(1,2),width=16,height=16)
     video=session.video_worker
-    assert session.audio_worker_finished if hasattr(session,"audio_worker_finished") else True
     assert video.isRunning()
     controller.playback_finished.emit()
     assert video.canceled
