@@ -78,7 +78,9 @@ class VideoFrameQueueWorker(QThread):
         if type(count) is not int or count <= 0:
             return
         with self._flow:
-            self._inflight_frames = max(0, self._inflight_frames - count)
+            if count > self._inflight_frames:
+                raise RuntimeError("frame-credit acknowledgement exceeds in-flight reservations")
+            self._inflight_frames -= count
             self._flow.notify_all()
 
     def acknowledge_frames(self, count: int) -> None:
