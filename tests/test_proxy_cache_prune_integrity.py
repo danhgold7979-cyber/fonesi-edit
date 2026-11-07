@@ -36,4 +36,5 @@ def test_prune_does_not_evict_valid_entry_because_corrupt_entry_claims_bytes(tmp
 
     assert cache.get(valid) == b"valid!"
     assert cache.get(corrupt) is None
+    assert not (cache.root / corrupt.cache_id).exists()
     assert cache.get(third) == b"x"
