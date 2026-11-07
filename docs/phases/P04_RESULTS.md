@@ -679,3 +679,19 @@ This closes the premature-finished lifecycle gap for the finite prototype; it do
 - `47c5ea947c079e571258040dafa87fd8326ec0e8`: remove a duplicate `finished` signal declaration in the fake video worker test fixture. No production behavior changed.
 - Previous exact HEAD `0304618592762a6c5471216e82f1626736b1a251` passed Clean foundation on all four runners (Ubuntu/Windows Python 3.12/3.13), run `42373320039`. This PASS predates the fixture-only cleanup commit; a new exact-head run is required for current status.
 - Full CI remains foundation validation, not real-device A/V acceptance.
+
+
+
+### Slice AY — bounded A/V frame-credit backpressure (2026-11-07)
+
+Implementation commits:
+- `007b128ffc7bfc3ee3b1c1599d04fa2355ec2b12`: add cancellable in-flight frame credits to `VideoFrameQueueWorker`; reserve before decode, block when budget is exhausted, release unused capacity on short batches/failure, wake on cancellation.
+- `cc37685da1f44dc0fdf653358c8bd50a2a9f9a03`: controller emits exact retired-frame counts on presentation and queue stop.
+- `096a184bee12664f0bfcc9f54b754f2003919481`: connect controller retirement to worker credit acknowledgement.
+- `29c7a0c68224a15b6e3fc3665f8c28cf326a4df0`: tests producer blocking and cancellation wake-up.
+- `969d2a17742aa67fb21e524eb3c59085fa9c7c20`: test exact retired frame credits.
+- `270fb66d0daf74c5adb9d465a8eee268b782f976`: cancel producer before final queue cleanup releases credits.
+- `dff83e9a68660f22b1364ab0c6a5ce86df38c903`: update Timeline playback test controller fake.
+- `8f34ae1f641b526842186a1545073bd0f15ebd1d`, `97152d4ed1d5de7e5faafa5edf617ecea0d5bfe5`, `5562090b5e8757990598425538bc7538103941d3`, `e2d094fa15d54d7455dad3e5508129f1082032bb`, `23b55c17675e0b9a69dfeedda368c18b6f9f0cdf`, `b8819d1709653ef935fc8dee1d0f6ee5aa987090`, `7d3897d608ddb4fdf91ba00fca1dd509f2d19624`, `59cb17ac576e49c3882d575ff9838c43486eed00`, `4f6bdfdf6a670d07dffa002227ea01b89ddfbc0b`, `206eeddea411822d4c1a7fc13c15db87aa43034b`, `75db23697cf906bb40695b0cdf088b6e4dc2cecc`: strict credit underflow, atomic controller queue adoption, late-batch retirement and regression hardening.
+
+The producer budget is 64 frames by default and at most 256; controller queue remains independently bounded at 256. The frame budget bounds pending decoded RGB data; this does not make the finite <=5 second prototype a continuous renderer. Exact-head Linux/Windows Python 3.12/3.13 CI is pending. Prior four-runner PASS at `0304618592762a6c5471216e82f1626736b1a251` (run `42373320039`) predates this slice.
