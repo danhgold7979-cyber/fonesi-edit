@@ -53,7 +53,6 @@ class FakeAudioWorker(QObject):
 
 
 class FakeVideoWorker(QObject):
-    finished = Signal()
     batch_ready = Signal(object)
     decode_failed = Signal(str)
     decode_canceled = Signal()
