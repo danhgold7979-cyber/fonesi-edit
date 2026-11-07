@@ -4,6 +4,7 @@ from hashlib import sha256
 from fractions import Fraction
 import argparse
 import json
+import math
 import os
 import platform
 import stat
