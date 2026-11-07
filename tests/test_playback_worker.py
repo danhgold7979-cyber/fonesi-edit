@@ -44,6 +44,7 @@ def test_queue_worker_emits_batches_and_progress(tmp_path, monkeypatch):
     assert calls == [4,4,2]
     assert [x[0] for x in progress] == [4,8,10]
     assert len(batches) == 3 and worker.frames_decoded == 10
+    assert [frame.index for batch in batches for frame in batch.frames] == list(range(10))
     assert errors == []
 
 
