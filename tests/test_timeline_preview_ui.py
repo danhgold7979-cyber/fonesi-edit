@@ -185,7 +185,7 @@ def test_waveform_uses_matching_original_audio_stream_and_displays_bounded_bins(
     store,window,timeline,source,payload=_open(tmp_path)
     try:
         calls=[]
-        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count,persistent_cache=None):
             calls.append((path,stream_index,decoder_start,duration,bucket_count))
             return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
                                  8000,4,((-1.0,-.5),(.5,1.0)),False)
@@ -213,7 +213,7 @@ def test_waveform_stale_result_is_discarded_when_playhead_changes(tmp_path,qt_ap
     store,window,timeline,_,_=_open(tmp_path)
     try:
         entered=threading.Event();release=threading.Event()
-        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count,persistent_cache=None):
             entered.set();release.wait(2)
             return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
                                  8000,4,((-1.0,1.0),)*32,False)
@@ -288,7 +288,7 @@ def test_preview_quality_change_does_not_cancel_waveform_observation(tmp_path,qt
     store,window,timeline,_,_=_open(tmp_path)
     entered=threading.Event();release=threading.Event()
     try:
-        def slow_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count):
+        def slow_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,cancel,timeout,bucket_count,persistent_cache=None):
             entered.set();release.wait(2)
             return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
                                  8000,4,((-1.0,.5),(.1,1.0)),False)
