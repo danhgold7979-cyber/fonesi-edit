@@ -1,5 +1,3 @@
-diff --git a/tests/test_timeline_panel_controls.py b/tests/test_timeline_panel_controls.py
-index 5e61e0c..5c80a7d 100644
 --- a/tests/test_timeline_panel_controls.py
 +++ b/tests/test_timeline_panel_controls.py
 @@ -2,7 +2,8 @@
@@ -12,17 +10,12 @@ index 5e61e0c..5c80a7d 100644
  from fractions import Fraction
  
  os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
-@@ -15,6 +16,32 @@ from test_timeline_commands import _record,_scan
+@@ -15,6 +16,29 @@
  from test_queue_view import wait_for
  
  
 +def _send_viewport_mouse(view,event_type,pos,button,buttons):
-+    """Send an explicit widget mouse event through QGraphicsView's viewport.
-+
-+    QTest.mouseMove does not preserve the pressed-button position on Qt's
-+    offscreen platform. This helper still exercises the real viewport/scene
-+    dispatch path while supplying the exact local and global coordinates.
-+    """
++    """Send an exact mouse event through the real QGraphicsView viewport."""
 +    viewport=view.viewport()
 +    local=QPointF(pos)
 +    global_pos=QPointF(viewport.mapToGlobal(pos))
@@ -31,6 +24,8 @@ index 5e61e0c..5c80a7d 100644
 +
 +
 +def _drag_viewport(view,start,end,app):
++    # QTest press establishes Qt's real scene mouse grab; explicit move/release
++    # retain the pressed-button state and exact coordinates under offscreen Qt.
 +    from PySide6.QtTest import QTest
 +    QTest.mousePress(view.viewport(),Qt.MouseButton.LeftButton,pos=start)
 +    app.processEvents()
@@ -45,7 +40,7 @@ index 5e61e0c..5c80a7d 100644
  def test_playhead_split_updates_video_and_audio_tracks_once(tmp_path,qt_app):
      project=empty_project(NewProjectIntent('Timeline controls',1920,1080,Fraction(30),Fraction(10)))
      path=tmp_path/'project.json';save_project_file(path,project)
-@@ -458,7 +485,6 @@ def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_so
+@@ -458,7 +482,6 @@
  
  def test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo(tmp_path,qt_app):
      from PySide6.QtCore import QPoint,QPointF,Qt
@@ -53,7 +48,7 @@ index 5e61e0c..5c80a7d 100644
      from fonesi_edit.storage.projects import load_project_file
      project=empty_project(NewProjectIntent('Timeline marker drag',1920,1080,Fraction(30),Fraction(10)))
      path=tmp_path/'project.json';save_project_file(path,project)
-@@ -479,9 +505,7 @@ def test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo(tmp_pat
+@@ -479,9 +502,7 @@
              start=timeline.view.mapFromScene(start_scene)
              end=timeline.view.mapFromScene(target_scene)
              expected_frame=timeline._frame_for_scene_x(timeline.view.mapToScene(end).x())
@@ -64,7 +59,7 @@ index 5e61e0c..5c80a7d 100644
              wait_for(qt_app,lambda:window.session.revision==before+1)
  
              marker=next(value for value in window.session.project.plan.to_dict()['timeline_markers']
-@@ -528,9 +552,7 @@ def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_pa
+@@ -528,9 +549,7 @@
              start_scene=first.mapToScene(QPointF(0,90))
              end_scene=QPointF(second.pos().x(),start_scene.y())
              start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
@@ -75,7 +70,7 @@ index 5e61e0c..5c80a7d 100644
              wait_for(qt_app,lambda:timeline.action_message.text().startswith('Không thể di chuyển marker:'))
              assert window.session.revision==before
              assert [item['frame'] for item in window.session.project.plan.to_dict()['timeline_markers']]==[10,20]
-@@ -543,20 +565,21 @@ def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_pa
+@@ -543,20 +562,21 @@
              end_scene=QPointF(timeline._scene_x_for_frame(45),start_scene.y())
              start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
              QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
@@ -86,7 +81,7 @@ index 5e61e0c..5c80a7d 100644
              qt_app.processEvents()
              assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))>1e-6
              QTest.keyClick(timeline.view,Qt.Key.Key_Escape)
--            QTest.mouseRelease(timeline.view.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+-            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
 +            _send_viewport_mouse(timeline.view,QEvent.Type.MouseButtonRelease,QPoint(end),
 +                Qt.MouseButton.LeftButton,Qt.MouseButton.NoButton)
              qt_app.processEvents()
