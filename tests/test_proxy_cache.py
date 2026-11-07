@@ -213,3 +213,49 @@ def test_persistent_cache_rejects_budget_smaller_than_entry_limit(tmp_path):
         PersistentProxyCache(
             tmp_path / "cache", max_entry_bytes=1024, max_total_bytes=512
         )
+
+
+
+def test_put_replaces_existing_entry_as_one_complete_generation(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.put(key, b"generation-one")
+    assert cache.get(key) == b"generation-one"
+    cache.put(key, b"generation-two")
+    assert cache.get(key) == b"generation-two"
+    assert not list(cache.root.glob(".proxy-pending-*"))
+    assert not list(cache.root.glob(".proxy-backup-*"))
+
+
+def test_get_rejects_symlink_payload_and_manifest(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.put(key, b"valid")
+    entry = cache.root / key.cache_id
+    payload = entry / "proxy.bin"
+    payload.unlink()
+    external = tmp_path / "external.bin"
+    external.write_bytes(b"external")
+    payload.symlink_to(external)
+    assert cache.get(key) is None
+
+    payload.unlink()
+    payload.write_bytes(b"valid")
+    manifest = entry / "manifest.json"
+    manifest.unlink()
+    external_manifest = tmp_path / "external.json"
+    external_manifest.write_text("{}", encoding="utf-8")
+    manifest.symlink_to(external_manifest)
+    assert cache.get(key) is None
+
+
+def test_invalidate_refuses_symlink_and_preserves_external_target(tmp_path):
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    key = _key()
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "keep.txt").write_text("keep", encoding="utf-8")
+    (cache.root / key.cache_id).symlink_to(external, target_is_directory=True)
+    with pytest.raises(ProxyCacheError):
+        cache.invalidate(key)
+    assert (external / "keep.txt").read_text(encoding="utf-8") == "keep"
