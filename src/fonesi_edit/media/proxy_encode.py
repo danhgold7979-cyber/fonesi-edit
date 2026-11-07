@@ -245,6 +245,25 @@ def _probe_proxy(ffprobe: Path, output: Path, *, cancel, timeout: float, expecte
     return duration, width, height
 
 
+
+def _verify_full_decode(ffmpeg: Path, output: Path, *, cancel, timeout: float) -> None:
+    """Require full FFmpeg video decode, not only a plausible container header."""
+    command = [str(ffmpeg), "-nostdin", "-hide_banner", "-v", "error", "-xerror",
+               "-i", str(output), "-map", "0:v:0", "-an", "-sn", "-dn",
+               "-f", "null", "-"]
+    try:
+        result = run_owned(command, cancel=cancel, timeout=min(timeout, 120),
+                           max_output_bytes=256 * 1024)
+    except ProcessCanceled as exc:
+        raise ProxyEncodeCanceled("proxy full-decode validation canceled") from exc
+    except ProcessError as exc:
+        if "retirement unconfirmed" in str(exc).lower() or "job remains active" in str(exc).lower():
+            raise ProxyEncodeRetirementUnknown(str(exc)) from exc
+        raise ProxyEncodeError("proxy full-decode validation failed") from exc
+    if result.returncode != 0:
+        raise ProxyEncodeError("proxy full-decode validation failed")
+
+
 def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | str,
                        cache: PersistentProxyCache, *, expected_source_sha256: str,
                        stream_index: int, spec: ProxySpec = ProxySpec(),
@@ -286,6 +305,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
                 duration, width, height = _probe_proxy(
                     ffprobe, cached_path, cancel=cancel, timeout=timeout,
                     expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
+                _verify_full_decode(ffmpeg, cached_path, cancel=cancel, timeout=timeout)
             if (width, height) != (spec.width, spec.height):
                 raise ProxyEncodeError("cached proxy dimensions differ from requested profile")
         except (ProxyEncodeCanceled, ProxyEncodeRetirementUnknown):
@@ -333,6 +353,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
                                                       expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
         if (width, height) != (spec.width, spec.height):
             raise ProxyEncodeError("proxy dimensions differ from requested profile")
+        _verify_full_decode(ffmpeg, staged, cancel=cancel, timeout=timeout)
         if _sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] != source_hash:
             raise ProxyEncodeError("source changed during proxy encoding")
         if (_sha256_file(ffmpeg, maximum=_MAX_TOOL_BYTES, cancel=cancel)[0] != tool_hash
