@@ -278,3 +278,27 @@ def test_cache_revalidates_root_if_directory_is_replaced_by_symlink(tmp_path):
         cache.put(key, b"new-cache-bytes")
     assert list(moved.iterdir())
     assert not list(external.iterdir())
+
+
+
+def test_verified_cache_read_refreshes_lru_recency_before_eviction(tmp_path):
+    first = _key()
+    second = _key(tool_sha256=sha256(b"second-tool").hexdigest())
+    cache = PersistentProxyCache(
+        tmp_path / "cache", max_entry_bytes=10, max_total_bytes=20, max_entries=8
+    )
+    cache.put(first, b"first!")
+    cache.put(second, b"second")
+    first_dir = cache.root / first.cache_id
+    second_dir = cache.root / second.cache_id
+    os.utime(first_dir, ns=(1, 1))
+    os.utime(second_dir, ns=(2, 2))
+    assert cache.get(first) == b"first!"
+    assert first_dir.stat().st_mtime_ns > second_dir.stat().st_mtime_ns
+
+    cache.max_total_bytes = 7
+    third = _key(tool_sha256=sha256(b"third-tool").hexdigest())
+    cache.put(third, b"x")
+    assert cache.get(first) == b"first!"
+    assert cache.get(second) is None
+    assert cache.get(third) == b"x"
