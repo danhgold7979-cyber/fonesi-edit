@@ -79,7 +79,7 @@ class ProxyEncodeWorker(QThread):
                 cancel=self._cancelled,
                 progress=self._observe_progress, timeout=self.timeout,
             )
-            if self.isInterruptionRequested():
+            if self._cancelled():
                 raise ProxyEncodeCanceled("proxy encode interrupted before adoption")
             self.result = result
         except ProxyEncodeRetirementUnknown as exc:
