@@ -601,3 +601,14 @@ Acceptance boundary: UI worker and Timeline integration are newly added; exact-h
 - `src/fonesi_edit/media/playback_clock.py` adds a monotonic rational output-frame clock with play/pause/resume, seek, stop and half-open loop ranges. Deterministic fake-clock tests cover 30000/1001 FPS, drift-free reanchoring and loop wrap.
 - Hosted clean-foundation run `42357890992` exposed two test issues in the first playback planner slice: one test sampled the exact end of a half-open clip interval, and a worker cancellation test still called Qt's direct interruption method rather than the new explicit `request_cancel()` API. Both have been corrected in commits `3ad4c17d` and subsequent worker fix `2401b2c0`; exact-head CI for the final playback clock/test commit `32588838` is queued/pending at last check.
 - These are playback scheduling foundations only. There is no continuous FFmpeg video decoder queue, Qt audio output sink, A/V master clock integration, drift correction, buffering or actual play/pause media output yet. Timeline still exposes proxy creation and static preview, not continuous playback. P04-06 remains IN_PROGRESS.
+
+
+## P04-06 playback scheduling and PCM decode foundation — 2026-11-07
+
+- `src/fonesi_edit/media/playback.py`: exact-rational planner maps one output frame to all active video/audio clip source timestamps, selected stream indices, speed and gain. No decoding/output.
+- `src/fonesi_edit/media/playback_clock.py`: monotonic rational frame clock with pause/resume/seek/stop and half-open loop ranges. Unit tests use a fake clock; no media playback.
+- `src/fonesi_edit/media/audio_decode.py`: bounded owned-process FFmpeg PCM f32le decoder, explicit audio stream map, sample-rate/channel/window/output caps, source fingerprint recheck, cancellation and retirement-unknown distinction. Returns PCM samples only; no audio-device output or mixing.
+- Tests added: `tests/test_playback_plan.py`, `tests/test_playback_clock.py`, `tests/test_audio_decode.py`.
+- Earlier playback-plan CI `42357890992` failed on a half-open clip-end test and a stale cancellation assertion; fixes were applied in `3ad4c17d` and `2401b2c0`. The final clock/PCM additions have fresh CI run `42358567334` pending at last check. No final PASS is claimed for these latest additions.
+
+Acceptance boundary: still no continuous video decode queue, audio output device, mixer, resampling, master-clock scheduling, A/V drift correction or audible playback. Timeline does not yet expose Play/Pause media playback. P04-06 remains IN_PROGRESS.
