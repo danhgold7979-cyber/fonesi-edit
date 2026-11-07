@@ -117,8 +117,15 @@ class PlaybackSession(QObject):
 
     def _video_batch(self, batch):
         if not self._active or not self._audio_ready:
-            if self.video_worker is not None and batch.frames:
+            if self.video_worker is not None and getattr(batch, "frames", None):
                 self.video_worker.acknowledge_frames(len(batch.frames))
+            return
+        # A short FFmpeg batch means EOF occurred before the planned playback
+        # interval. Never let the audio master continue as if A/V were complete.
+        if getattr(batch, "complete", False) is not True:
+            if self.video_worker is not None and getattr(batch, "frames", None):
+                self.video_worker.acknowledge_frames(len(batch.frames))
+            self._fail("Video decoder reached EOF before the planned playback interval.")
             return
         try:
             self.controller.enqueue_video_batch(batch)
