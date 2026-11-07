@@ -449,7 +449,7 @@ def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_so
             assert Path(first.path_ref.path).exists()
             assert window.project_history.redo()
             assert len(window.session.project.plan.to_dict()['clips'])==1
-            assert first.path.exists()
+            assert Path(first.path_ref.path).exists()
         finally:
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
