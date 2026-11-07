@@ -340,27 +340,46 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
             cached_bytes=None
         if cached_bytes is not None:
             try:
+                if len(cached_bytes)>64*1024:
+                    raise ValueError('Cached waveform envelope exceeds its strict byte bound')
                 payload=json.loads(cached_bytes.decode('utf-8'))
-                if (type(payload) is not dict or payload.get('schema')!=1
-                        or payload.get('source_sha256')!=source_hash
-                        or payload.get('tool_sha256')!=tool_hash
-                        or payload.get('stream_index')!=stream_index
-                        or payload.get('decoder_start')!=[decoder_start.numerator,decoder_start.denominator]
-                        or payload.get('duration')!=[duration.numerator,duration.denominator]
-                        or payload.get('sample_rate')!=sample_rate
-                        or payload.get('bucket_count')!=bucket_count
+                window_start=payload.get('decoder_start') if type(payload) is dict else None
+                window_duration=payload.get('duration') if type(payload) is dict else None
+                if (type(payload) is not dict
+                        or type(payload.get('schema')) is not int or payload['schema']!=1
+                        or type(payload.get('source_sha256')) is not str or payload['source_sha256']!=source_hash
+                        or type(payload.get('tool_sha256')) is not str or payload['tool_sha256']!=tool_hash
+                        or type(payload.get('stream_index')) is not int or payload['stream_index']!=stream_index
+                        or type(window_start) is not list or len(window_start)!=2
+                        or any(type(v) is not int for v in window_start)
+                        or window_start!=[decoder_start.numerator,decoder_start.denominator]
+                        or type(window_duration) is not list or len(window_duration)!=2
+                        or any(type(v) is not int for v in window_duration)
+                        or window_duration!=[duration.numerator,duration.denominator]
+                        or type(payload.get('sample_rate')) is not int or payload['sample_rate']!=sample_rate
+                        or type(payload.get('bucket_count')) is not int or payload['bucket_count']!=bucket_count
                         or type(payload.get('sample_count')) is not int
                         or not 1<=payload['sample_count']<=sample_rate*60
                         or type(payload.get('peaks')) is not list
-                        or not 1<=len(payload['peaks'])<=bucket_count):
+                        or len(payload['peaks'])!=min(bucket_count,payload['sample_count'])):
                     raise ValueError('Invalid cached waveform envelope')
                 peaks=[]
                 for pair in payload['peaks']:
-                    if (type(pair) is not list or len(pair)!=2
-                            or any(type(v) not in (int,float) or type(v) is bool or not math.isfinite(v) or not -1<=v<=1 for v in pair)
-                            or pair[0]>pair[1]):
+                    if type(pair) is not list or len(pair)!=2:
                         raise ValueError('Invalid cached waveform peak')
-                    peaks.append((float(pair[0]),float(pair[1])))
+                    values=[]
+                    for value in pair:
+                        if type(value) not in (int,float):
+                            raise ValueError('Invalid cached waveform peak type')
+                        try:number=float(value)
+                        except (OverflowError,ValueError):
+                            raise ValueError('Invalid cached waveform peak range') from None
+                        if not math.isfinite(number) or not -1<=number<=1:
+                            raise ValueError('Invalid cached waveform peak range')
+                        values.append(number)
+                    if values[0]>values[1]:
+                        raise ValueError('Invalid cached waveform peak order')
+                    peaks.append((values[0],values[1]))
                 if _signature(source)!=source_signature or _signature(ffmpeg)!=tool_signature:
                     raise PreviewError('Source or FFmpeg changed during waveform cache lookup')
                 waveform=AudioWaveform(source_hash,tool_hash,stream_index,decoder_start,duration,
@@ -369,7 +388,7 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
                     _WAVE_CACHE[key]=waveform;_WAVE_CACHE.move_to_end(key)
                     while len(_WAVE_CACHE)>_WAVE_CACHE_LIMIT:_WAVE_CACHE.popitem(last=False)
                 return waveform
-            except (UnicodeError,ValueError,TypeError,KeyError,AttributeError):
+            except (UnicodeError,ValueError,TypeError,KeyError,AttributeError,OverflowError):
                 try:persistent_cache.invalidate(persistent_key)
                 except ProxyCacheError:pass
     if cancel():raise PreviewCanceled('Waveform canceled before decoder launch')
