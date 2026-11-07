@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "dd590bb7733b303e86d09bc4d64d1281ed309cf9f366ba4aae41152cc8721518  .github/patches/p04-marker-scene-drag.patch" | sha256sum --check --strict -
+          test "$(git hash-object .github/patches/p04-marker-scene-drag.patch)" = "1715e2b9e81509b6fe4bc81d0a215863a091e77f"
           git apply --check .github/patches/p04-marker-scene-drag.patch
           git apply .github/patches/p04-marker-scene-drag.patch
           git diff --check
