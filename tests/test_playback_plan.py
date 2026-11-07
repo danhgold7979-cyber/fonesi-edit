@@ -35,15 +35,15 @@ def test_playback_frame_maps_video_and_audio_independent_offsets_and_speeds(tmp_
         audio.update(source_in=[1, 5], source_out=[1, 1],
                      output_start=[0, 1], speed=[1, 1])
     changed = _parse_changed(plan, mutate)
-    result = plan_playback_frame(changed, 15)
-    assert result.output_time == Fraction(1, 2)
+    result = plan_playback_frame(changed, 10)
+    assert result.output_time == Fraction(1, 3)
     assert len(result.video) == len(result.audio) == 1
     video, audio = result.video[0], result.audio[0]
     assert (video.clip_id, video.asset_id, video.stream_index) == (clip_id, asset_id, 3)
-    assert video.source_time == Fraction(11, 10)
-    assert video.decoder_time == Fraction(27, 25)
-    assert audio.source_time == Fraction(7, 10)
-    assert audio.decoder_time == Fraction(7, 10)
+    assert video.source_time == Fraction(23, 30)
+    assert video.decoder_time == Fraction(23, 30) - Fraction(1, 50)
+    assert audio.source_time == Fraction(8, 15)
+    assert audio.decoder_time == Fraction(8, 15)
 
 
 def test_playback_frame_returns_silence_and_video_gap_and_rejects_bad_frame(tmp_path):
