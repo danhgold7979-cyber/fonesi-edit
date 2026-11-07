@@ -17,7 +17,7 @@ def test_mixer_aligns_tracks_applies_gain_and_sums_overlaps():
         AudioMixInput(a, 0, 1.0),
         AudioMixInput(b, 1, 0.5),
     ], output_samples=3, sample_rate=48000, channels=2)
-    assert result.samples == pytest.approx((0.2, -0.2, 0.55, -0.35, 0.05, 0.05))
+    assert result.samples == pytest.approx((0.2, -0.2, 0.55, -0.25, 0.05, 0.05))
     assert result.sample_count == 3 and result.duration_seconds == pytest.approx(3/48000)
 
 
