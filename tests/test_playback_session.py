@@ -185,3 +185,33 @@ def test_session_returns_credit_for_batch_arriving_after_stop(qt_app, monkeypatc
         (RGBVideoFrame(9,16,16,0.3,b"x"*(16*16*3)),),True)
     session._video_batch(late_batch)
     assert worker.acknowledged==before+1
+
+
+
+def test_session_fails_and_releases_frame_credit_on_early_video_eof(
+        qt_app, monkeypatch, tmp_path):
+    class EarlyEofVideoWorker(FakeVideoWorker):
+        def start(self):
+            self.started = True
+            frames = (RGBVideoFrame(0,16,16,0.0,b"x"*(16*16*3)),)
+            self.batch_ready.emit(VideoFrameBatch("b"*64,0,16,16,frames,False))
+            self.finished.emit()
+
+    monkeypatch.setattr(session_module,"AudioChunkWorker",FakeAudioWorker)
+    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",EarlyEofVideoWorker)
+    output=FakeOutput()
+    controller=PlaybackController(output)
+    session=session_module.PlaybackSession(controller)
+    failures=[]
+    session.failed.connect(failures.append)
+    track=AudioTrackSpec(tmp_path/"audio.mp4","a"*64,0,0,0.0)
+    session.start(audio_track=track,audio_ffmpeg=tmp_path/"ffmpeg",
+        video_source=tmp_path/"video.mp4",video_ffmpeg=tmp_path/"ffmpeg",
+        video_sha256="b"*64,video_stream_index=0,
+        video_start_seconds=0.0,fps=Fraction(30,1),
+        duration_seconds=Fraction(1,2),width=16,height=16)
+    assert not session.active
+    assert failures==["Video decoder reached EOF before the planned playback interval."]
+    assert output.stops>=1
+    assert session.video_worker.acknowledged==1
+    assert controller.queued_frames==0
