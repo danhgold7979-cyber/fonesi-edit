@@ -567,3 +567,10 @@ Commits:
 - `b92a671d22ac3011b61ea7753da6af759f5d991d`: tests for invalid ffprobe metadata and staging cleanup after validation/progress-observer failure.
 
 Acceptance boundary: first encoder implementation slice only. It is not yet integrated into Timeline; no real FFmpeg fixture or native Windows Job Object proxy encode acceptance has been recorded; continuous playback and synchronized A/V seek remain unimplemented. The module's exact-head CI is pending. Do not mark P04-06 complete.
+
+
+## P04-06 encoder test failure analysis and repair — 2026-11-07
+
+- Hosted clean-foundation run `42353709306` for `e0419055` exposed two test failures on Ubuntu: the proxy publication test still expected a relative placeholder path, and the cancel-before-launch test incorrectly expected the cache root not to exist even though the cache constructor creates it. Both assertions were corrected in `e04190552ce715323cb10f3c63d026d5a99ff042`.
+- The next run `42353709306` also exposed one fixture defect in `test_encoder_progress_callback_failure_retires_and_does_not_publish`: its progress bytes used literal backslash-n characters, so the progress parser never invoked the observer; the fake ffprobe response was also invalid JSON. The fixture now emits real newline-delimited progress and a valid expected H.264 probe response. Commit `2d517211132b9bb29cb325a6ed89e9901028961e`.
+- No PASS is claimed for the corrected test yet. The first real encoder integration is still unit-tested with mocked processes; no real FFmpeg media-fixture encode, Timeline integration, native Windows Job Object encode, playback or A/V seek acceptance has occurred.
