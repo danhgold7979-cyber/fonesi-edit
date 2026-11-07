@@ -1,0 +1,155 @@
+from hashlib import sha256
+import json
+from pathlib import Path
+
+import pytest
+
+from fonesi_edit.media.proxy_cache import (
+    PersistentProxyCache, ProxyCacheCanceled, ProxyCacheError, ProxyCacheKey,
+)
+
+
+def _key(**changes):
+    values = dict(
+        source_sha256=sha256(b"source").hexdigest(),
+        tool_sha256=sha256(b"ffmpeg").hexdigest(),
+        stream_index=2,
+        width=640,
+        height=360,
+        algorithm_version="proxy-v1",
+    )
+    values.update(changes)
+    return ProxyCacheKey(**values)
+
+
+def test_key_is_content_addressed_by_all_media_and_encoder_dimensions():
+    base = _key()
+    assert base.cache_id == _key().cache_id
+    for change in (
+        {"source_sha256": sha256(b"other-source").hexdigest()},
+        {"tool_sha256": sha256(b"other-tool").hexdigest()},
+        {"stream_index": 3},
+        {"width": 1280},
+        {"height": 720},
+        {"algorithm_version": "proxy-v2"},
+    ):
+        assert _key(**change).cache_id != base.cache_id
+
+
+@pytest.mark.parametrize("changes", [
+    {"source_sha256": "A" * 64},
+    {"tool_sha256": "bad"},
+    {"stream_index": True},
+    {"stream_index": -1},
+    {"width": 0},
+    {"height": 2161},
+    {"algorithm_version": ""},
+    {"algorithm_version": "x" * 65},
+])
+def test_key_rejects_invalid_identity_and_dimensions(changes):
+    with pytest.raises(ProxyCacheError):
+        _key(**changes)
+
+
+def test_persistent_cache_round_trip_and_reopen(tmp_path):
+    key = _key()
+    payload = b"encoded-proxy-payload"
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    assert cache.get(key) is None
+    assert cache.put(key, payload) is True
+    assert cache.get(key) == payload
+    reopened = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    assert reopened.get(key) == payload
+
+
+def test_cache_key_changes_invalidate_tool_stream_size_and_algorithm(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.put(key, b"proxy")
+    assert cache.get(_key(tool_sha256=sha256(b"new-tool").hexdigest())) is None
+    assert cache.get(_key(stream_index=4)) is None
+    assert cache.get(_key(width=1280)) is None
+    assert cache.get(_key(algorithm_version="proxy-v2")) is None
+
+
+def test_corrupt_payload_digest_is_a_cache_miss(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.put(key, b"valid-proxy")
+    payload_path = tmp_path / "cache" / key.cache_id / "proxy.bin"
+    payload_path.write_bytes(b"tampered-proxy")
+    assert cache.get(key) is None
+
+
+def test_corrupt_manifest_and_oversized_entry_are_not_returned(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=8)
+    with pytest.raises(ProxyCacheError):
+        cache.put(key, b"this payload is too large")
+    cache.put(key, b"small")
+    manifest = tmp_path / "cache" / key.cache_id / "manifest.json"
+    manifest.write_text("{broken", encoding="utf-8")
+    assert cache.get(key) is None
+
+
+def test_cancellation_before_and_after_staging_never_publishes_ready_entry(tmp_path):
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    with pytest.raises(ProxyCacheCanceled):
+        cache.put(key, b"proxy", cancel=lambda: True)
+    calls = 0
+
+    def cancel_after_staging():
+        nonlocal calls
+        calls += 1
+        return calls >= 2
+
+    with pytest.raises(ProxyCacheCanceled):
+        cache.put(key, b"proxy", cancel=cancel_after_staging)
+    assert cache.get(key) is None
+    assert not list((tmp_path / "cache").glob(".proxy-pending-*"))
+
+
+def test_invalidate_one_key_and_all_entries_for_changed_source(tmp_path):
+    source_hash = sha256(b"source").hexdigest()
+    first = _key()
+    second = _key(tool_sha256=sha256(b"another-tool").hexdigest())
+    other_source = _key(source_sha256=sha256(b"other-source").hexdigest())
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    for key in (first, second, other_source):
+        cache.put(key, b"proxy")
+    assert cache.invalidate(first) is True
+    assert cache.invalidate(first) is False
+    assert cache.get(first) is None
+    assert cache.invalidate_source(source_hash) == 1
+    assert cache.get(second) is None
+    assert cache.get(other_source) == b"proxy"
+
+
+def test_cache_refuses_symlink_root_and_symlink_entry(tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    linked = tmp_path / "linked"
+    linked.symlink_to(real, target_is_directory=True)
+    with pytest.raises(ProxyCacheError):
+        PersistentProxyCache(linked)
+
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    key = _key()
+    target = tmp_path / "target"
+    target.mkdir()
+    (cache.root / key.cache_id).symlink_to(target, target_is_directory=True)
+    with pytest.raises(ProxyCacheError):
+        cache.get(key)
+
+
+def test_cache_refuses_non_absolute_root_and_invalid_payload(tmp_path, monkeypatch):
+    with pytest.raises(ProxyCacheError):
+        PersistentProxyCache(Path("relative-cache"))
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    key = _key()
+    for payload in (b"", bytearray(b"proxy"), "proxy"):
+        with pytest.raises(ProxyCacheError):
+            cache.put(key, payload)
+    with pytest.raises(ProxyCacheError):
+        cache.put(key, b"proxy", cancel=None)
