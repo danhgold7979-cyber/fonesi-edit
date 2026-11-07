@@ -8,7 +8,7 @@ import pytest
 
 from fonesi_edit.media import preview as module
 from fonesi_edit.jobs.process import ProcessResult,ProcessError,ProcessCanceled
-from fonesi_edit.media.proxy_cache import PersistentProxyCache
+from fonesi_edit.media.proxy_cache import PersistentProxyCache, ProxyCacheKey
 
 
 def _chunk(kind,data):
@@ -466,3 +466,38 @@ def test_waveform_persistent_cache_rejects_unvalidated_cache_object(inputs,monke
             stream_index=0,decoder_start=Fraction(0),duration=Fraction(1,2),
             persistent_cache=object())
     assert calls==[]
+
+
+
+def test_waveform_persistent_cache_rejects_boolean_schema_and_repairs(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    pcm=struct.pack('<4f',-0.5,-0.25,0.25,0.5)
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,pcm,b'')))
+    disk=PersistentProxyCache(source.parent/'waveform-disk-cache',
+        max_entry_bytes=1024*1024,max_total_bytes=2*1024*1024,max_entries=8)
+    decoder_start=Fraction(2,5);duration=Fraction(1,2);bucket_count=2;stream_index=3
+    source_hash=hashlib.sha256(source.read_bytes()).hexdigest()
+    tool_hash=hashlib.sha256(ffmpeg.read_bytes()).hexdigest()
+    identity=module.canonical({
+        'decoder_start':[decoder_start.numerator,decoder_start.denominator],
+        'duration':[duration.numerator,duration.denominator],
+        'sample_rate':8000,'bucket_count':bucket_count,'format':'waveform-json-v1',
+    })
+    key=ProxyCacheKey(source_hash,tool_hash,stream_index,bucket_count,1,
+        'w1-'+hashlib.sha256(identity.encode('utf-8')).hexdigest()[:60])
+    malformed={
+        'schema':True,'source_sha256':source_hash,'tool_sha256':tool_hash,
+        'stream_index':stream_index,'decoder_start':[2,5],'duration':[1,2],
+        'sample_rate':8000,'bucket_count':bucket_count,'sample_count':4,
+        'peaks':[[-0.5,-0.25],[0.25,0.5]],
+    }
+    disk.put(key,__import__('json').dumps(malformed).encode('utf-8'))
+    kwargs=dict(expected_sha256=digest,stream_index=stream_index,
+        decoder_start=decoder_start,duration=duration,bucket_count=bucket_count,
+        persistent_cache=disk)
+    first=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert len(calls)==1 and first.cache_hit is False
+    module.clear_preview_cache()
+    second=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert second.cache_hit is True and len(calls)==1
