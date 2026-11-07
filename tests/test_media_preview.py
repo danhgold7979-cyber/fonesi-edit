@@ -401,3 +401,68 @@ def test_cancel_before_persistent_lookup_does_not_touch_disk_or_launch_decoder(i
         )
     assert calls==[]
     assert not list(disk_cache.root.iterdir()) if disk_cache.root.exists() else True
+
+
+
+def test_waveform_persistent_cache_reuses_verified_bins_after_memory_clear(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    pcm=struct.pack('<4f',-1.0,-0.5,0.5,1.0)
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,pcm,b'')))
+    disk=PersistentProxyCache(source.parent/'waveform-disk-cache',
+        max_entry_bytes=1024*1024,max_total_bytes=2*1024*1024,max_entries=8)
+    kwargs=dict(expected_sha256=digest,stream_index=3,decoder_start=Fraction(1,4),
+                duration=Fraction(1,2),bucket_count=2,persistent_cache=disk)
+    first=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert first.cache_hit is False and len(calls)==1
+    module.clear_preview_cache()
+    second=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert second.cache_hit is True and second.peaks==first.peaks
+    assert second.sample_count==4 and len(calls)==1
+
+
+def test_waveform_persistent_cache_corruption_redecodes_and_repairs(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    pcm=struct.pack('<4f',-0.75,-0.25,0.25,0.75)
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,pcm,b'')))
+    disk=PersistentProxyCache(source.parent/'waveform-disk-cache',
+        max_entry_bytes=1024*1024,max_total_bytes=2*1024*1024,max_entries=8)
+    kwargs=dict(expected_sha256=digest,stream_index=2,decoder_start=Fraction(3,4),
+                duration=Fraction(1,2),bucket_count=2,persistent_cache=disk)
+    first=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    entry=next(disk.root.iterdir())
+    (entry/'proxy.bin').write_bytes(b'corrupt-waveform')
+    module.clear_preview_cache()
+    second=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert len(calls)==2 and second.cache_hit is False
+    assert second.peaks==first.peaks
+    module.clear_preview_cache()
+    third=module.extract_audio_waveform(source,ffmpeg,**kwargs)
+    assert third.cache_hit is True and len(calls)==2
+
+
+def test_waveform_persistent_identity_binds_exact_window_and_bucket_count(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    pcm=struct.pack('<4f',-0.5,-0.25,0.25,0.5)
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,pcm,b'')))
+    disk=PersistentProxyCache(source.parent/'waveform-disk-cache',
+        max_entry_bytes=1024*1024,max_total_bytes=2*1024*1024,max_entries=8)
+    base=dict(expected_sha256=digest,stream_index=1,duration=Fraction(1,2),persistent_cache=disk)
+    module.extract_audio_waveform(source,ffmpeg,decoder_start=Fraction(1,3),bucket_count=2,**base)
+    module.extract_audio_waveform(source,ffmpeg,decoder_start=Fraction(2,3),bucket_count=2,**base)
+    module.extract_audio_waveform(source,ffmpeg,decoder_start=Fraction(1,3),bucket_count=4,**base)
+    assert len(calls)==3
+    assert len([p for p in disk.root.iterdir() if p.is_dir()])==3
+
+
+def test_waveform_persistent_cache_rejects_unvalidated_cache_object(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,'run_owned',lambda *a,**k:(calls.append(a) or ProcessResult(0,struct.pack('<f',0.0),b'')))
+    with pytest.raises(module.PreviewError,match='validated PersistentProxyCache'):
+        module.extract_audio_waveform(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_start=Fraction(0),duration=Fraction(1,2),
+            persistent_cache=object())
+    assert calls==[]
