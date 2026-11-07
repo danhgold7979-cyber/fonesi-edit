@@ -34,3 +34,16 @@ Implemented after the storage boundary:
 - Tests cover reuse after clearing the in-memory cache, corruption/redecode/repair, exact timestamp identity, and invalid cache object refusal.
 
 Not integrated: audio waveform persistence, background proxy transcoding/worker queue, video playback, A/V synchronized seek, cache migration/cleanup UI, benchmark or render/export parity. This is still-frame persistence only.
+
+
+
+## Follow-on integration slice — persistent waveform observations (2026-11-07)
+
+- `extract_audio_waveform(..., persistent_cache=...)` now optionally reads/writes the same bounded content-addressed cache.
+- Identity binds source SHA-256, FFmpeg SHA-256, stream index, exact rational decoder start/duration, 8 kHz sample rate, bucket count and waveform schema version.
+- Payload is canonical JSON with schema, all identity fields, sample count and min/max peak pairs. Read validates the complete identity, sample count, bucket bound, finite normalized values and min<=max before returning.
+- Corrupt bytes or malformed envelopes are invalidated and decoded again. Cancellation is checked before disk lookup and before publication. Optional disk failures do not discard a valid freshly decoded waveform.
+- Timeline WaveformWorker receives a cache under Qt CacheLocation/waveform-cache. Cache setup failure preserves the previous memory-only observation path.
+- Regression tests cover process-memory reset reuse, payload corruption/redecode/repair, exact rational window and bucket identity, and refusal of unvalidated cache objects.
+
+Acceptance boundary: waveform remains a bounded amplitude observation, not loudness/clipping analysis or audio playback. No multi-chunk continuous A/V scheduling, device acceptance, export parity or physical Windows cache filesystem acceptance is claimed.
