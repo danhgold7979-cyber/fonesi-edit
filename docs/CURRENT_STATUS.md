@@ -468,3 +468,7 @@ P04-06 persistent cache follow-up (2026-11-07): added default 512 MiB per-entry,
 Commit `65149b33d37adefcd0ca878876f599af1b2b907b` makes `tests/test_proxy_cache_prune_integrity.py` discriminating: it first stores two valid entries under a 12-byte budget, corrupts one payload, then lowers the budget to 7 bytes and publishes a one-byte entry. The valid six-byte entry must remain; the corrupt entry must not count toward quota. This specifically exercises the integrity-aware pruning added in `6c86719c4b9fe6f60c291d2c9b2125dcbad3d6d7`.
 
 Verification: source/test changes are committed on `develop/fonesi-full`. No workflow run is associated with the latest commit through the available read-only workflow-run endpoint; local pytest and exact-head CI are NOT_RUN in this session. Do not report PASS until executed on the exact head. No encoder/playback/A/V implementation is added.
+
+
+
+P04-06 LRU refinement: verified cache reads now refresh entry recency; a regression confirms recently accessed entries survive quota eviction. Commits `5d6a46e249c77696b3558ab2bf3dd531a8bd1ed3` and `a7bae68cd0f2a178dd598d7b1bade3a8c25d61e9`. Latest HEAD requires its own four-runner CI; previous successful runs do not transfer.
