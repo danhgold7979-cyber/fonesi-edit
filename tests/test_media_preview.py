@@ -339,3 +339,14 @@ def test_persistent_preview_cache_identity_includes_exact_timestamp(inputs,monke
             decoder_time=timestamp,persistent_cache=disk_cache)
     assert len(calls)==2
     assert len([p for p in disk_cache.root.iterdir() if p.is_dir()])==2
+
+
+
+def test_persistent_preview_cache_requires_validated_cache_object(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    with pytest.raises(module.PreviewError,match="validated PersistentProxyCache"):
+        module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
+            stream_index=0,decoder_time=Fraction(0),persistent_cache=object())
+    assert calls==[]
