@@ -535,3 +535,8 @@ The previous `42352060158` Ubuntu jobs each reported 1 failed, 1086 passed, 39 s
 - Local exact-checkout targeted preview regression command `python -m pytest -q tests/test_media_preview.py tests/test_preview_cache_fallback.py`: **52 passed in 0.41s** on Linux/Python 3.13.5.
 - Full local `pytest -q` was not a valid full-suite run in this container because project dependencies (including PySide6 and pysubs2) are not installed; collection stopped with 57 import errors. Hosted clean-foundation run is the full environment evidence above.
 - Acceptance boundary: still-preview cache only. No encoded video proxy worker, continuous video/audio playback, synchronized A/V seek or render/export parity is implemented/accepted by this slice. P04-06 and P04 remain IN_PROGRESS.
+
+
+## P04-06 optional cache publication fallback regression — 2026-11-07
+
+Commit `3c8747c4318f90b2ec25a8f3c6e92da102552b18` adds a regression proving a persistent-cache write/publication failure does not discard a valid FFmpeg still-preview: the decoded PNG is returned, retained in the process memory cache, and reused on the next request without another decoder launch. This is optional-cache resilience only; exact-head four-runner CI is pending. No video proxy generation/playback/A-V sync is added.
