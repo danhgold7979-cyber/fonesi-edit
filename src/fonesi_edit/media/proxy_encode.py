@@ -327,7 +327,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
             raise ProxyEncodeError("proxy cache publication failed") from exc
         # Return a cache-owned path only through the content-addressed API; caller
         # obtains bytes with cache.get(key), avoiding a temporary-path lifetime bug.
-        return EncodedVideoProxy(Path("cache") / key.cache_id / "proxy.bin", key,
+        return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
                                  sha256(payload).hexdigest(), len(payload), duration,
                                  width, height, "h264", "yuv420p", False)
     except ProxyEncodeRetirementUnknown:
