@@ -206,6 +206,15 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
         timestamp_identity=f"{decoder_time.numerator}/{decoder_time.denominator}".encode("ascii")
         algorithm="p1-"+sha256(timestamp_identity).hexdigest()[:60]
         persistent_key=ProxyCacheKey(source_hash,tool_hash,stream_index,max_width,max_height,algorithm)
+    with _CACHE_LOCK:
+        cached=_FRAME_CACHE.get(key)
+        if cached is not None:
+            _FRAME_CACHE.move_to_end(key)
+            if _signature(source)==source_signature and _signature(ffmpeg)==tool_signature:
+                return PreviewFrame(cached.png,source_hash,tool_hash,stream_index,decoder_time,
+                                    cached.width,cached.height,True)
+            _FRAME_CACHE.pop(key,None);_FRAME_CACHE_SIZE-=len(cached.png)
+    if persistent_cache is not None and persistent_key is not None:
         if cancel():raise PreviewCanceled("Preview canceled before persistent-cache lookup")
         try:
             persistent_png=persistent_cache.get(persistent_key)
@@ -227,14 +236,6 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
                         while _FRAME_CACHE and (_FRAME_CACHE_SIZE>_FRAME_CACHE_BYTES or len(_FRAME_CACHE)>_FRAME_CACHE_LIMIT):
                             _,removed=_FRAME_CACHE.popitem(last=False);_FRAME_CACHE_SIZE-=len(removed.png)
                     return frame
-    with _CACHE_LOCK:
-        cached=_FRAME_CACHE.get(key)
-        if cached is not None:
-            _FRAME_CACHE.move_to_end(key)
-            if _signature(source)==source_signature and _signature(ffmpeg)==tool_signature:
-                return PreviewFrame(cached.png,source_hash,tool_hash,stream_index,decoder_time,
-                                    cached.width,cached.height,True)
-            _FRAME_CACHE.pop(key,None);_FRAME_CACHE_SIZE-=len(cached.png)
     if cancel():raise PreviewCanceled('Preview canceled before decoder launch')
     args=[str(ffmpeg),'-nostdin','-hide_banner','-loglevel','error',
           '-max_alloc','67108864','-filter_threads','1','-protocol_whitelist','file,pipe',
