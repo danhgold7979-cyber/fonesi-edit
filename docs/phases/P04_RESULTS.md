@@ -591,3 +591,18 @@ Exact latest-head Linux/Windows matrix remains pending. No local execution is cl
 ### Slice AS Windows LRU timestamp portability fix — 2026-11-07
 
 The exact-head matrix at commit `82408efd827f3aa5f4fdead34d7abe35fed5a6ed` exposed seven Windows Python 3.12 failures: `os.utime(..., follow_symlinks=False)` raises `NotImplementedError` on Windows. Commits `25bb61c3e92a8f45f46b347c0cfa9742ab6b3935` and `16aaf6b624a2c69cab89d249e78ed4664a69fe8e` remove the unsupported flag after the cache entry passed lstat/reparse validation and add a regression proving a verified read remains usable if recency update is unsupported. Exact new-head four-runner CI is required; prior failures and Linux PASS do not count as current acceptance.
+
+
+
+### Slice AT — persistent cache integration into still-preview worker (P04-06, 2026-11-07)
+
+Implementation commits:
+- `d609b88eb385cb09c01102a091579a818261b13f`: optional persistent cache lookup/publication in `extract_preview_frame`, with key identity including the exact rational decoder timestamp.
+- `4be75514f3fb11ab8d48f4a6da2bf5e296d410cf`: consult in-memory LRU before disk cache to avoid duplicate memory accounting and unnecessary disk reads.
+- `587a6901deab89366218bd9722e5cb96c57b2dcd`: timeline `PreviewWorker` uses app-local Qt CacheLocation/preview-proxies; cache setup failure falls back to in-memory behavior.
+- `296d5010d1fa1b89162f0c3126e7df1273f9cbcb`: UI fake extractors accept the optional cache dependency.
+- `3ffb6d3b8ed6cdac606180c126a8ad76671ea20e` and `96dab397d73718f12535f0f3015418f57cbe28f0`: validate cache object type and test refusal of unvalidated cache inputs.
+
+Regression coverage: persistent reuse after clearing process-memory cache; corrupt disk payload is rejected, re-decoded and repaired; exact rational timestamps map to separate entries; invalid cache objects fail before decoder launch.
+
+Acceptance boundary: this connects persistent storage to still-frame preview only. It does not implement background proxy encoding, proxy worker queue, waveform persistence, playback or synchronized A/V seek. Latest code commits need exact-head four-runner CI before PASS is reported.
