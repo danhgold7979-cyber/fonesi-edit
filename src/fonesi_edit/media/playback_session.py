@@ -88,6 +88,7 @@ class PlaybackSession(QObject):
             batch_size=8, timeout=45, parent=self,
         )
         self.audio_worker, self.video_worker = audio, video
+        self.controller.frames_retired.connect(video.acknowledge_frames)
         audio.chunk_ready.connect(self._audio_ready_signal)
         audio.finished.connect(self._audio_worker_finished_signal)
         audio.chunk_failed.connect(self._fail)
