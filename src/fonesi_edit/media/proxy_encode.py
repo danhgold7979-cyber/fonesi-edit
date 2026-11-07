@@ -61,8 +61,8 @@ class ProxySpec:
             raise ProxyEncodeError("FPS must be an exact positive rational")
         if not 1 <= Fraction(self.fps_num, self.fps_den) <= 60:
             raise ProxyEncodeError("proxy FPS must be between 1 and 60")
-        if self.codec != "libx264" or self.pixel_format != "yuv420p":
-            raise ProxyEncodeError("only the reviewed H.264/yuv420p profile is allowed")
+        if self.codec not in {"libx264", "mpeg4"} or self.pixel_format != "yuv420p":
+            raise ProxyEncodeError("only reviewed H.264 or MPEG-4/yuv420p profiles are allowed")
         if self.preset not in {"ultrafast", "veryfast", "faster"}:
             raise ProxyEncodeError("unsupported proxy preset")
         if type(self.crf) is not int or not 18 <= self.crf <= 35:
@@ -207,7 +207,7 @@ class _ProgressParser:
                 self.fields.clear()
 
 
-def _probe_proxy(ffprobe: Path, output: Path, *, cancel, timeout: float) -> tuple[Fraction, int, int]:
+def _probe_proxy(ffprobe: Path, output: Path, *, cancel, timeout: float, expected_codec: str = "h264") -> tuple[Fraction, int, int]:
     args = [str(ffprobe), "-v", "error", "-show_entries",
             "format=duration:stream=codec_type,codec_name,width,height,pix_fmt",
             "-of", "json", str(output)]
@@ -234,7 +234,7 @@ def _probe_proxy(ffprobe: Path, output: Path, *, cancel, timeout: float) -> tupl
         width, height = stream["width"], stream["height"]
         if (duration is None or type(width) is not int or type(height) is not int
                 or width < 1 or height < 1 or width > 1920 or height > 1080
-                or stream.get("codec_name") != "h264"
+                or stream.get("codec_name") != expected_codec
                 or stream.get("pix_fmt") != "yuv420p"):
             raise ValueError("proxy metadata outside accepted profile")
     except (KeyError, TypeError, ValueError, UnicodeError) as exc:
@@ -250,6 +250,8 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
                        timeout: float = 900) -> EncodedVideoProxy:
     """Encode, validate and cache one video-only proxy; never modifies source."""
     source, ffmpeg, ffprobe = Path(source), Path(ffmpeg), Path(ffprobe)
+    if not source.is_absolute() or not ffmpeg.is_absolute() or not ffprobe.is_absolute():
+        raise ProxyEncodeError("source, FFmpeg and ffprobe paths must be absolute")
     if not isinstance(cache, PersistentProxyCache):
         raise ProxyEncodeError("validated persistent proxy cache required")
     if not callable(cancel) or (progress is not None and not callable(progress)):
@@ -277,7 +279,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
         with tempfile.TemporaryDirectory(prefix="fonesi-proxy-hit-") as temp:
             cached_path = Path(temp) / "cached.mp4"
             cached_path.write_bytes(cached)
-            duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout)
+            duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout,\n                                                       expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
         if _sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] == source_hash:
             return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
                                      sha256(cached).hexdigest(), len(cached), duration,
@@ -309,7 +311,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
             raise ProxyEncodeCanceled("proxy encoding canceled before validation")
         if not staged.is_file() or staged.is_symlink() or not 1 <= staged.stat().st_size <= _MAX_PROXY_BYTES:
             raise ProxyEncodeError("FFmpeg did not produce a bounded proxy file")
-        duration, width, height = _probe_proxy(ffprobe, staged, cancel=cancel, timeout=timeout)
+        duration, width, height = _probe_proxy(ffprobe, staged, cancel=cancel, timeout=timeout,\n                                                      expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
         if _regular_file(source, maximum=_MAX_SOURCE_BYTES) != source_sig:
             raise ProxyEncodeError("source changed during proxy encoding")
         if _regular_file(ffmpeg, maximum=_MAX_TOOL_BYTES) != tool_sig or _regular_file(ffprobe, maximum=_MAX_TOOL_BYTES) != probe_sig:
@@ -329,7 +331,7 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
         # obtains bytes with cache.get(key), avoiding a temporary-path lifetime bug.
         return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
                                  sha256(payload).hexdigest(), len(payload), duration,
-                                 width, height, "h264", "yuv420p", False)
+                                 width, height, spec.codec, "yuv420p", False)
     except ProxyEncodeRetirementUnknown:
         # Never remove staging while an owned process/job may still be alive.
         raise
