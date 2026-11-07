@@ -981,7 +981,10 @@ class TimelinePanel(QWidget):
 
     @property
     def busy(self):
-        return self.preview_worker is not None or self.waveform_worker is not None or self.proxy_worker is not None or self.preview_retirement_unknown or (self.playback_session is not None and self.playback_session.active)
+        return (self.preview_worker is not None or self.waveform_worker is not None
+                or self.proxy_worker is not None or self.preview_retirement_unknown
+                or (self.playback_session is not None and
+                    (self.playback_session.active or self.playback_session.retiring)))
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
         self._preview_generation+=1;self._waveform_generation+=1
