@@ -63,7 +63,7 @@ jobs:
         run: uv sync --locked --python ${{ matrix.python }}
       - name: Install Linux Qt runtime libraries
         if: matrix.os == 'ubuntu-24.04' && env.COORDINATOR_RECOVERY != 'true' && env.WORKER_CLEANUP != 'true' && env.CANCEL_CLEANUP != 'true' && env.VALIDATOR_RETIREMENT != 'true' && env.PROJECT_RESTORE != 'true' && env.MEDIA_OBSERVATION != 'true' && env.FRAME_OBSERVATION != 'true'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1 libpulse0
       - name: Source foundation and actual platform process tests
         if: env.COORDINATOR_DIAGNOSTIC != 'true' && env.COORDINATOR_RECOVERY != 'true' && env.INTEGRATION_REPAIR != 'true' && env.PUBLICATION_ADMISSION != 'true' && env.WINDOWS_CLEANUP != 'true' && env.WORKER_CLEANUP != 'true' && env.CANCEL_CLEANUP != 'true' && env.VALIDATOR_RETIREMENT != 'true' && env.QUEUE_LIFECYCLE != 'true' && env.JOB_DIAGNOSTICS != 'true' && env.PROJECT_RESTORE != 'true' && env.RESTORE_UI != 'true' && env.MEDIA_OBSERVATION != 'true' && env.FRAME_OBSERVATION != 'true' && env.MEDIA_INSPECTOR_UI != 'true' && env.TOOL_INVENTORY_UI != 'true' && env.TOOL_PAIR_UI != 'true' && env.TOOL_PREFERENCES != 'true' && env.TOOL_FIRST_OPEN != 'true' && env.PROJECT_CREATE != 'true' && env.MEDIA_LIBRARY != 'true'
         run: uv run --no-sync python -m pytest -q --junitxml=foundation-results.xml
