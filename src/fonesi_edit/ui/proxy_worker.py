@@ -70,7 +70,7 @@ class ProxyEncodeWorker(QThread):
         self.canceled = False
         self.retirement_unknown = False
         try:
-            if self.isInterruptionRequested():
+            if self._cancelled():
                 raise ProxyEncodeCanceled("proxy encode interrupted before launch")
             result = encode_video_proxy(
                 self.source, self.ffmpeg, self.ffprobe, self.cache,
