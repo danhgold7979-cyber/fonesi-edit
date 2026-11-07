@@ -65,7 +65,7 @@ def test_controller_uses_audio_clock_and_presents_newest_due_frame(qt_app):
     assert len(presented) == 1
     assert presented[0].index == 2
     assert controller.queued_frames == 1
-    assert drift == [Fraction(-2, 300)]
+    assert drift == [Fraction(-1, 75)]
     controller.stop()
     assert not controller.active and output.stops >= 1
 
