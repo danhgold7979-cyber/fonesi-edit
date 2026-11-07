@@ -67,14 +67,21 @@ class PersistentProxyCache:
     _PAYLOAD = "proxy.bin"
     _LOCK = RLock()
 
-    def __init__(self, root: Path | str, *, max_entry_bytes: int = 512 * 1024 * 1024):
+    def __init__(self, root: Path | str, *, max_entry_bytes: int = 512 * 1024 * 1024,
+                 max_total_bytes: int = 2 * 1024 * 1024 * 1024, max_entries: int = 256):
         self.root = Path(root)
         if not self.root.is_absolute() or ".." in self.root.parts:
             raise ProxyCacheError("cache root must be absolute and contain no parent traversal")
         if (type(max_entry_bytes) is not int
                 or not 1 <= max_entry_bytes <= 2 * 1024 * 1024 * 1024):
             raise ProxyCacheError("invalid cache entry size bound")
+        if (type(max_total_bytes) is not int or max_total_bytes < max_entry_bytes
+                or max_total_bytes > 8 * 1024 * 1024 * 1024
+                or type(max_entries) is not int or not 1 <= max_entries <= 4096):
+            raise ProxyCacheError("invalid total cache budget or entry-count bound")
         self.max_entry_bytes = max_entry_bytes
+        self.max_total_bytes = max_total_bytes
+        self.max_entries = max_entries
         self._ensure_directory(self.root)
 
     @staticmethod
@@ -199,6 +206,7 @@ class PersistentProxyCache:
                     raise
                 if backup.exists():
                     shutil.rmtree(backup)
+                self._prune(protected=entry)
                 return True
             except ProxyCacheError:
                 raise
@@ -207,6 +215,46 @@ class PersistentProxyCache:
             finally:
                 if staging.exists():
                     shutil.rmtree(staging, ignore_errors=True)
+
+    def _prune(self, *, protected: Path) -> None:
+        """Evict oldest valid entries until both persistent budgets are met."""
+        entries = []
+        total = 0
+        for candidate in self.root.iterdir():
+            info = candidate.lstat()
+            if stat.S_ISLNK(info.st_mode) or self._is_reparse(info):
+                raise ProxyCacheError("cache root contains an unsafe entry")
+            if not stat.S_ISDIR(info.st_mode) or not self._regular_file(candidate / self._MANIFEST):
+                continue
+            try:
+                manifest_path = candidate / self._MANIFEST
+                if manifest_path.stat().st_size > 16 * 1024:
+                    continue
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                key_data = manifest.get("key")
+                key = ProxyCacheKey(**key_data) if type(key_data) is dict else None
+                payload = candidate / self._PAYLOAD
+                if (key is None or candidate.name != key.cache_id
+                        or not self._regular_file(payload)
+                        or type(manifest.get("size")) is not int
+                        or manifest["size"] != payload.stat().st_size):
+                    continue
+                size = manifest["size"]
+                if not 1 <= size <= self.max_entry_bytes:
+                    continue
+            except (OSError, ValueError, TypeError, ProxyCacheError, AttributeError):
+                continue
+            total += size
+            entries.append((info.st_mtime_ns, candidate, size))
+        count = len(entries)
+        for _mtime, candidate, size in sorted(entries):
+            if total <= self.max_total_bytes and count <= self.max_entries:
+                break
+            if candidate == protected:
+                continue
+            shutil.rmtree(candidate)
+            total -= size
+            count -= 1
 
     def invalidate(self, key: ProxyCacheKey) -> bool:
         entry = self._entry(key)
