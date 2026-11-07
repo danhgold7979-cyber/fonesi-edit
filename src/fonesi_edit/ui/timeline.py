@@ -22,6 +22,10 @@ from fonesi_edit.media.seek import plan_preview_seek,PreviewSeekError
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
 from fonesi_edit.ui.proxy_worker import ProxyEncodeWorker
 from fonesi_edit.media.proxy_encode import ProxySpec
+from fonesi_edit.media.audio_worker import AudioTrackSpec
+from fonesi_edit.media.audio_output import QtAudioOutput
+from fonesi_edit.media.playback_controller import PlaybackController
+from fonesi_edit.media.playback_session import PlaybackSession, PlaybackSessionError
 
 
 def _q(value):
@@ -488,7 +492,7 @@ class TimelinePanel(QWidget):
         self._loop_timer=QTimer(self);self._loop_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._loop_timer.timeout.connect(self._loop_tick)
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
-        self.waveform_worker=None;self.proxy_worker=None;self.stopping=False
+        self.waveform_worker=None;self.proxy_worker=None;self.playback_session=None;self.stopping=False
         self.preview_retirement_unknown=False
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, lặp playhead theo vùng In/Out, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Lặp vùng không phát audio/video; chưa có playback media, thumbnail/waveform tự động hoặc render.')
@@ -579,6 +583,17 @@ class TimelinePanel(QWidget):
         for widget in (self.proxy_button,self.proxy_cancel_button,self.proxy_progress,self.proxy_status):
             proxy_controls.addWidget(widget)
         layout.addLayout(proxy_controls)
+        playback_controls=QHBoxLayout()
+        self.play_button=QPushButton('▶ Phát thử A/V · tối đa 5 giây')
+        self.pause_button=QPushButton('Tạm dừng')
+        self.stop_playback_button=QPushButton('Dừng phát')
+        self.playback_status=QLabel('Chưa phát media; cần clip video có audio gốc, tốc độ 1×.')
+        self.play_button.clicked.connect(self.start_playback_session)
+        self.pause_button.clicked.connect(self.toggle_playback_pause)
+        self.stop_playback_button.clicked.connect(self.stop_playback_session)
+        for widget in (self.play_button,self.pause_button,self.stop_playback_button,self.playback_status):
+            playback_controls.addWidget(widget)
+        layout.addLayout(playback_controls)
         self.preview_image=CropEditorView(self)
         self.preview_image.setText('Ảnh tĩnh — chưa có preview')
         self.preview_image.crop_changed.connect(self._crop_overlay_changed)
@@ -963,7 +978,7 @@ class TimelinePanel(QWidget):
 
     @property
     def busy(self):
-        return self.preview_worker is not None or self.waveform_worker is not None or self.proxy_worker is not None or self.preview_retirement_unknown
+        return self.preview_worker is not None or self.waveform_worker is not None or self.proxy_worker is not None or self.preview_retirement_unknown or (self.playback_session is not None and self.playback_session.active)
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
         self._preview_generation+=1;self._waveform_generation+=1
@@ -1074,6 +1089,119 @@ class TimelinePanel(QWidget):
         elif current and worker.canceled:
             self.waveform_message.setText('Đã dừng waveform; không thay đổi project.')
         self.waveform_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+
+    def start_playback_session(self):
+        session=self.get_session();clip=self._selected_clip()
+        if self.busy or self.stopping or session is None or clip is None:return
+        if session.reconciliation_required:
+            self.playback_status.setText('Project cần đối soát; không phát media.')
+            return
+        if not self.preview_trust.isChecked():
+            self.playback_status.setText('Cần xác nhận tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục.')
+            return
+        ffmpeg=Path(self.preview_path.text())
+        if not ffmpeg.is_absolute() or not ffmpeg.is_file():
+            self.playback_status.setText('Chọn FFmpeg tuyệt đối và xác nhận tệp tồn tại.')
+            return
+        try:
+            data=session.project.plan.to_dict()
+            video_asset=next(x for x in data['assets'] if x['id']==clip['asset_id'])
+            video_stream_index=clip['video_stream_index']
+            video_stream=next(x for x in video_asset['probe']['streams']
+                if x['index']==video_stream_index and x['type']=='video')
+            video_start=_q(clip['output_start'])
+            video_end=video_start+(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
+            playhead=Fraction(self._playhead,1)/self._fps
+            if not video_start<=playhead<video_end:
+                raise PlaybackSessionError('Playhead phải nằm trong clip video đang chọn.')
+            if _q(clip['speed'])!=1 or _q(clip['freeze_duration'])!=0:
+                raise PlaybackSessionError('Bản phát thử hiện chỉ hỗ trợ video tốc độ 1× và không freeze.')
+            audio_clip=self._selected_audio_clip(data)
+            if audio_clip is None:
+                raise PlaybackSessionError('Không tìm thấy audio gốc tương ứng với clip video.')
+            audio_asset=next(x for x in data['assets'] if x['id']==audio_clip['asset_id'])
+            audio_stream_index=audio_clip['audio_stream_index']
+            audio_stream=next(x for x in audio_asset['probe']['streams']
+                if x['index']==audio_stream_index and x['type']=='audio')
+            audio_start=_q(audio_clip['output_start'])
+            audio_end=audio_start+(_q(audio_clip['source_out'])-_q(audio_clip['source_in']))/_q(audio_clip['speed'])
+            if not audio_start<=playhead<audio_end:
+                raise PlaybackSessionError('Audio gốc không phủ playhead hiện tại.')
+            if _q(audio_clip['speed'])!=1:
+                raise PlaybackSessionError('Bản phát thử hiện chỉ hỗ trợ audio tốc độ 1×.')
+            video_source_time=_q(clip['source_in'])+(playhead-video_start)
+            audio_source_time=_q(audio_clip['source_in'])+(playhead-audio_start)
+            video_decoder_time=_q(video_stream['start_time'])+video_source_time
+            audio_decoder_time=_q(audio_stream['start_time'])+audio_source_time
+            remaining=min(Fraction(5),video_end-playhead,audio_end-playhead)
+            if remaining<=0:raise PlaybackSessionError('Không còn thời lượng để phát thử.')
+            video_path=resolve_asset_path(video_asset,session.project_base)
+            audio_path=resolve_asset_path(audio_asset,session.project_base)
+            if video_asset['sha256']!=audio_asset['sha256'] or video_path!=audio_path:
+                raise PlaybackSessionError('Bản phát thử hiện yêu cầu video và audio gốc cùng một asset.')
+            audio_track=AudioTrackSpec(
+                source=audio_path,expected_sha256=audio_asset['sha256'],
+                stream_index=audio_stream_index,output_start_sample=0,
+                source_start_seconds=float(audio_decoder_time),gain=1.0)
+            dimensions=(320,180)
+            controller=PlaybackController(QtAudioOutput(self))
+            playback=PlaybackSession(controller,parent=self)
+            playback.frame_presented.connect(self._playback_frame_presented)
+            playback.state_changed.connect(self._playback_state_changed)
+            playback.failed.connect(self._playback_failed)
+            playback.finished.connect(self._playback_finished)
+            self.playback_session=playback
+            playback.start(
+                audio_track=audio_track,audio_ffmpeg=ffmpeg,
+                video_source=video_path,video_ffmpeg=ffmpeg,
+                video_sha256=video_asset['sha256'],
+                video_stream_index=video_stream_index,
+                video_start_seconds=float(video_decoder_time),
+                fps=self._fps,duration_seconds=remaining,
+                width=dimensions[0],height=dimensions[1])
+            self.playback_status.setText('Đang khởi động audio master và video frame queue…')
+            self.update_actions()
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PlaybackSessionError) as exc:
+            self.playback_status.setText(str(exc) if isinstance(exc,PlaybackSessionError)
+                else 'Không thể khởi tạo playback; không thay đổi project.')
+
+    def _playback_frame_presented(self,frame):
+        image=QImage(frame.rgb24,frame.width,frame.height,frame.width*3,QImage.Format.Format_RGB888).copy()
+        if image.isNull():
+            self.stop_playback_session()
+            self.playback_status.setText('Không thể hiển thị RGB frame; playback đã dừng.')
+            return
+        self.preview_image.setPixmap(QPixmap.fromImage(image))
+        self.preview_message.setText(f'Playback RGB24 · frame {frame.index} · {frame.pts_seconds:.3f}s')
+
+    def _playback_state_changed(self,state):
+        self.playback_status.setText(f'Trạng thái playback: {state}')
+        self.update_actions()
+
+    def _playback_failed(self,message):
+        self.playback_status.setText(message)
+        self.update_actions()
+
+    def _playback_finished(self):
+        self.playback_status.setText('Phát thử đã kết thúc.')
+        self.update_actions()
+        self.idle.emit()
+
+    def toggle_playback_pause(self):
+        playback=self.playback_session
+        if playback is None or not playback.active:return
+        if playback.controller.paused:
+            playback.controller.resume()
+        else:
+            playback.controller.pause()
+        self.update_actions()
+
+    def stop_playback_session(self):
+        playback=self.playback_session
+        if playback is not None and playback.active:
+            playback.stop()
+        self.playback_status.setText('Đã dừng playback.')
+        self.update_actions()
 
     def request_video_proxy(self):
         session=self.get_session();clip=self._selected_clip()
@@ -1360,6 +1488,12 @@ class TimelinePanel(QWidget):
                      and not self.preview_retirement_unknown)
         self.proxy_button.setEnabled(proxy_ready)
         self.proxy_cancel_button.setEnabled(self.proxy_worker is not None and not self.stopping)
+        playback_active=self.playback_session is not None and self.playback_session.active
+        self.play_button.setEnabled(available and not self.busy and not self.stopping
+            and self.preview_trust.isChecked() and bool(self.preview_path.text())
+            and Path(self.preview_path.text()).is_absolute() and not self.preview_retirement_unknown)
+        self.pause_button.setEnabled(playback_active and not self.playback_session.controller.paused)
+        self.stop_playback_button.setEnabled(playback_active)
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
