@@ -83,7 +83,7 @@ def test_worker_does_not_adopt_result_if_canceled_after_encoder_returns(
         tmp_path, monkeypatch):
     worker = _worker(tmp_path)
     def finish_after_cancel(*args, **kwargs):
-        worker.requestInterruption()
+        worker.request_cancel()
         return _result(tmp_path)
     monkeypatch.setattr(workers, "encode_video_proxy", finish_after_cancel)
     worker.run()
