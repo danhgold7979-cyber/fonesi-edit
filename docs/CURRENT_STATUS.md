@@ -510,3 +510,12 @@ Hosted run `42351538710` for the same docs checkpoint was still in progress at l
 - Hosted clean-foundation run `42351538710` for the same documentation checkpoint ended CANCELLED: Ubuntu 3.12 and 3.13 completed SUCCESS; Windows 3.12 and 3.13 were cancelled before completion. This is not a four-runner pass.
 - The fallback regression commit `2069dd0e2d5f39ce1fac680c69682780f3c5d733` therefore still needs a fresh exact-descendant four-runner clean-foundation run. The previous full 4/4 success on `512dd60f` does not cover this new test.
 - No video proxy encoder/worker has been integrated. Continuous playback and synchronized A/V seek remain open; P04-06/P04 remain IN_PROGRESS.
+
+
+## P04-06 cancellation-before-persistent-read regression — 2026-11-07
+
+Commit `9d5c3ed1e032dfad81d275e52d0d28d7f39860b3` adds a focused test that cancels after source/tool identity checks but before persistent-cache lookup. The test asserts no disk-cache read and no FFmpeg decoder launch occurs. Exact-head hosted CI is pending; no PASS is claimed for this new test yet.
+
+The four-runner run `42351812038` for parent `6b3c217c7c42bf06736ec99c5adbdb93ab311335` had Ubuntu 3.12 and 3.13 successful; Windows 3.12 remained at development onedir build and Windows 3.13 had passed. Parent run had not yet finalized at last check. This does not cover the new cancellation test.
+
+Still-preview cache only: video proxy encoding/worker, continuous playback, audio playback and synchronized A/V seek remain unimplemented/unaccepted. P04 remains IN_PROGRESS.
