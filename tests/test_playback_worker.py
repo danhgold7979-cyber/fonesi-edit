@@ -1,5 +1,6 @@
 """Tests for asynchronous bounded video frame queue lifecycle."""
 from pathlib import Path
+from fractions import Fraction
 from threading import Event, Thread, Timer
 import time
 
@@ -190,3 +191,31 @@ def test_queue_worker_rejects_duplicate_frame_credit_acknowledgement(tmp_path):
     worker = _worker(tmp_path)
     with pytest.raises(RuntimeError, match="exceeds in-flight"):
         worker.acknowledge_frames(1)
+
+
+
+def test_queue_worker_rebases_nonzero_source_pts_to_zero_based_audio_clock(tmp_path, monkeypatch):
+    worker = playback_worker.VideoFrameQueueWorker(
+        tmp_path/"source.mp4", tmp_path/"ffmpeg", expected_sha256="a"*64,
+        stream_index=0, start_seconds=12.5, fps_num=24, fps_den=1,
+        total_frames=6, width=16, height=16, batch_size=3,
+        max_inflight_frames=6,
+    )
+    batches=[]
+    worker.batch_ready.connect(batches.append)
+
+    def fake_decode(*args, **kwargs):
+        start=kwargs["start_seconds"]
+        count=kwargs["frame_count"]
+        return VideoFrameBatch("a"*64,0,16,16,tuple(
+            RGBVideoFrame(i,16,16,start+i/24,b"x"*(16*16*3))
+            for i in range(count)
+        ),True)
+
+    monkeypatch.setattr(playback_worker,"decode_video_frame_batch",fake_decode)
+    worker.run()
+    frames=[frame for batch in batches for frame in batch.frames]
+    assert [frame.index for frame in frames]==list(range(6))
+    assert [Fraction(str(frame.pts_seconds)) for frame in frames]==[
+        Fraction(i,24) for i in range(6)
+    ]
