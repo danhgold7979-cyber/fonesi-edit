@@ -6,6 +6,7 @@ must still explicitly adopt a completed result after checking session identity.
 from __future__ import annotations
 
 from pathlib import Path
+from threading import Event
 
 from PySide6.QtCore import QThread, Signal
 
@@ -48,9 +49,18 @@ class ProxyEncodeWorker(QThread):
         self.error: str | None = None
         self.canceled = False
         self.retirement_unknown = False
+        self._cancel_requested = Event()
+
+    def request_cancel(self) -> None:
+        """Request cooperative cancellation even before QThread.start()."""
+        self._cancel_requested.set()
+        self.requestInterruption()
+
+    def _cancelled(self) -> bool:
+        return self._cancel_requested.is_set() or self.isInterruptionRequested()
 
     def _observe_progress(self, event: ProxyProgress) -> None:
-        if self.isInterruptionRequested():
+        if self._cancelled():
             raise ProxyEncodeCanceled("proxy encode interrupted")
         self.progress_changed.emit(event)
 
@@ -66,7 +76,7 @@ class ProxyEncodeWorker(QThread):
                 self.source, self.ffmpeg, self.ffprobe, self.cache,
                 expected_source_sha256=self.expected_source_sha256,
                 stream_index=self.stream_index, spec=self.spec,
-                cancel=self.isInterruptionRequested,
+                cancel=self._cancelled,
                 progress=self._observe_progress, timeout=self.timeout,
             )
             if self.isInterruptionRequested():
