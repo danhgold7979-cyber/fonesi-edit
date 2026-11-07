@@ -63,6 +63,9 @@ def test_encode_video_proxy_validates_and_publishes_then_reuses_cache(tmp_path, 
     def fake_run(argv, **kwargs):
         calls.append(tuple(argv))
         if argv[0] == str(ffmpeg):
+            if "-f" in argv and argv[argv.index("-f")+1] == "null":
+                assert argv[-1] == "-"
+                return ProcessResult(0, b"", b"")
             Path(argv[-1]).write_bytes(encoded)
             callback = kwargs.get("on_stdout")
             if callback:
@@ -88,7 +91,7 @@ def test_encode_video_proxy_validates_and_publishes_then_reuses_cache(tmp_path, 
     assert first.cache_hit is False
     assert first.path.is_file()
     assert len(events) == 1
-    assert [Path(call[0]).name for call in calls].count("ffmpeg") == 1
+    assert [Path(call[0]).name for call in calls] == ["ffmpeg", "ffprobe", "ffmpeg"]
 
     calls.clear()
     second = module.encode_video_proxy(
@@ -98,7 +101,7 @@ def test_encode_video_proxy_validates_and_publishes_then_reuses_cache(tmp_path, 
     assert second.cache_hit is True
     assert second.path.is_file()
     assert second.payload_sha256 == first.payload_sha256
-    assert [Path(call[0]).name for call in calls] == ["ffprobe"]
+    assert [Path(call[0]).name for call in calls] == ["ffprobe", "ffmpeg"]
 
 
 def test_encoder_rejects_source_hash_mismatch_before_process(tmp_path, monkeypatch):
