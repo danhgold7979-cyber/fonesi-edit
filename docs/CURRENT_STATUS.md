@@ -665,3 +665,7 @@ P04-06: Timeline finite playback now uses the same exact rational A/V seek plann
 
 
 P04 playback lifecycle hardening: session completion now waits for both audio decoder and video frame worker QThreads to retire after audio-master completion. If video decoding is still active at audio end, it is canceled and the UI remains in a waiting state until the worker's finished signal. Regression covers delayed video retirement. Commits `4b26306`, `2e52376`, `6bff644`, `4c03dff`. Latest exact-head CI pending.
+
+
+
+P04 playback lifecycle: the prior HEAD `0304618` passed clean-foundation CI on Linux/Windows Python 3.12/3.13 (run `42373320039`). Latest change `47c5ea9` only removes duplicate fake-worker signal declaration in the test fixture; its exact-head CI is pending. A/V session now waits for decoder QThread retirement before reporting finished; still a finite <=5s prototype.
