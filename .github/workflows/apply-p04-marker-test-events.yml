@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .github/patches/p04-marker-test-events.patch)" = "7913a8bc7dfa16f72497fa7b5d2bf9fbe7a64ca0"
+          test "$(git hash-object .github/patches/p04-marker-test-events.patch)" = "4aaa6507072db5e445403b2dc7f06f458398e233"
           git apply --check .github/patches/p04-marker-test-events.patch
           git apply .github/patches/p04-marker-test-events.patch
           git diff --check
