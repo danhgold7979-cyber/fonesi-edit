@@ -74,17 +74,20 @@ class PreviewWorker(QThread):
 
 class WaveformWorker(QThread):
     """One bounded mono PCM waveform observation; no audio playback."""
-    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_start,duration,parent=None):
+    def __init__(self,source,ffmpeg,expected_sha256,stream_index,decoder_start,duration,parent=None,
+                 persistent_cache=None):
         super().__init__(parent)
         self.source=Path(source);self.ffmpeg=Path(ffmpeg);self.expected_sha256=expected_sha256
         self.stream_index=stream_index;self.decoder_start=decoder_start;self.duration=duration
+        self.persistent_cache=persistent_cache
         self.waveform=None;self.error=None;self.canceled=False;self.retirement_unknown=False
     def run(self):
         try:
             self.waveform=extract_audio_waveform(self.source,self.ffmpeg,
                 expected_sha256=self.expected_sha256,stream_index=self.stream_index,
                 decoder_start=self.decoder_start,duration=self.duration,
-                cancel=self.isInterruptionRequested,timeout=30,bucket_count=256)
+                cancel=self.isInterruptionRequested,timeout=30,bucket_count=256,
+                persistent_cache=self.persistent_cache)
         except PreviewCanceled:
             self.canceled=True
         except PreviewRetirementUnknown as exc:
@@ -1058,7 +1061,15 @@ class TimelinePanel(QWidget):
             return
         self.waveform_widget.clear()
         self.waveform_message.setText('Đang giải mã tối đa 60 giây audio thành waveform; không phát âm thanh.')
-        worker=WaveformWorker(source,ffmpeg,expected,stream_index,decoder_start,duration,self)
+        persistent_cache=None
+        cache_location=QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)
+        if cache_location:
+            try:
+                persistent_cache=PersistentProxyCache(Path(cache_location)/"waveform-cache")
+            except ProxyCacheError:
+                persistent_cache=None
+        worker=WaveformWorker(source,ffmpeg,expected,stream_index,decoder_start,duration,self,
+                              persistent_cache=persistent_cache)
         self._waveform_generation+=1;generation=self._waveform_generation
         self._preview_revision=session.revision;self._preview_clip_id=clip['id']
         self.waveform_worker=worker
