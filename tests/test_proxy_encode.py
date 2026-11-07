@@ -160,7 +160,7 @@ def test_encoder_progress_callback_failure_retires_and_does_not_publish(tmp_path
             if callback:
                 callback(b"frame=1\\nprogress=end\\n")
             return ProcessResult(0, b"", b"")
-        return ProcessResult(0, b"{}", b"")
+        return ProcessResult(0, json.dumps({\n                "streams": [{"codec_type": "video", "codec_name": "h264",\n                             "width": 640, "height": 360, "pix_fmt": "yuv420p"}],\n                "format": {"duration": "1.0"},\n            }).encode(), b"")
     monkeypatch.setattr(module, "run_owned", fake_run)
     def bad_progress(_event):
         raise RuntimeError("UI observer failed")
