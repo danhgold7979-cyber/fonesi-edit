@@ -234,3 +234,10 @@ class PlaybackSession(QObject):
     @property
     def active(self):
         return self._active
+
+    @property
+    def retiring(self):
+        """True while canceled/failed/stopped decoder threads have not retired."""
+        return self._terminal_state is not None and not (
+            self._audio_worker_finished and self._video_finished
+        )
