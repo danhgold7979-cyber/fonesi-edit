@@ -223,6 +223,38 @@ def native_cases(ffmpeg, ffprobe, work, pin, report):
         'duration': str(proxy.duration), 'payload_sha256': proxy.payload_sha256,
         'progress_events': len(events), 'cache_hit_verified': reused.cache_hit
     }
+
+    # Decode a bounded sequence of actual RGB frames from the pinned candidate.
+    from fonesi_edit.media.video_decode import decode_video_frame_batch
+    batch = decode_video_frame_batch(cfr, ffmpeg, expected_sha256=before,
+        stream_index=0, start_seconds=0.0, fps_num=10, fps_den=1,
+        frame_count=4, width=48, height=32, max_output_bytes=48*32*3*4,
+        timeout=45)
+    assert len(batch.frames) == 4 and batch.complete
+    assert all(len(frame.rgb24) == 48*32*3 for frame in batch.frames)
+    assert [frame.pts_seconds for frame in batch.frames] == [0.0, 0.1, 0.2, 0.3]
+    assert digest(cfr) == before
+    report['cases'].append('actual-pinned-FFmpeg-RGB24-video-frame-batch')
+    report['video_batch'] = {'frames': len(batch.frames), 'width': batch.width,
+        'height': batch.height, 'bytes_per_frame': len(batch.frames[0].rgb24)}
+
+    # Decode real AAC audio to bounded interleaved float PCM.
+    audio_source = work / 'owned-audio.mp4'
+    generate(['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1',
+              '-vn', '-c:a', 'aac', '-b:a', '96k', str(audio_source)])
+    from fonesi_edit.media.audio_decode import decode_audio_pcm
+    audio_hash = digest(audio_source)
+    pcm = decode_audio_pcm(audio_source, ffmpeg, expected_sha256=audio_hash,
+        stream_index=0, sample_rate=48000, channels=2,
+        source_start_seconds=0.0, duration_seconds=0.5,
+        max_output_bytes=8*1024*1024, timeout=45)
+    assert pcm.sample_count > 0 and pcm.channels == 2 and pcm.sample_rate == 48000
+    assert all(math.isfinite(sample) for sample in pcm.samples)
+    assert digest(audio_source) == audio_hash
+    report['cases'].append('actual-pinned-FFmpeg-AAC-to-float-PCM')
+    report['audio_pcm'] = {'sample_count': pcm.sample_count,
+        'channels': pcm.channels, 'sample_rate': pcm.sample_rate,
+        'duration_seconds': pcm.duration_seconds}
     report['fixture_sha256'] = {x.name: digest(x) for x in (cfr,vfr,rotated,corrupt)}
 
 
