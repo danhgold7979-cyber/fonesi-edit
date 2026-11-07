@@ -47,3 +47,9 @@ Not integrated: audio waveform persistence, background proxy transcoding/worker 
 - Regression tests cover process-memory reset reuse, payload corruption/redecode/repair, exact rational window and bucket identity, and refusal of unvalidated cache objects.
 
 Acceptance boundary: waveform remains a bounded amplitude observation, not loudness/clipping analysis or audio playback. No multi-chunk continuous A/V scheduling, device acceptance, export parity or physical Windows cache filesystem acceptance is claimed.
+
+
+
+### Cache-envelope hardening follow-up (2026-11-07)
+
+Waveform cache reads now impose an additional 64 KiB envelope cap and require exact JSON types for schema, hashes, stream, rational-window numerator/denominator, sample rate, bucket count and sample count. Boolean values are not accepted as integers; peak values must convert safely to finite floats in [-1,1], have low<=high, and the exact expected bucket count. Malformed entries are invalidated and re-decoded. Regression seeds a digest-valid cache entry with boolean schema and verifies repair.
