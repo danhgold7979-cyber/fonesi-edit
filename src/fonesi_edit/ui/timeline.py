@@ -1492,7 +1492,10 @@ class TimelinePanel(QWidget):
         self.play_button.setEnabled(available and not self.busy and not self.stopping
             and self.preview_trust.isChecked() and bool(self.preview_path.text())
             and Path(self.preview_path.text()).is_absolute() and not self.preview_retirement_unknown)
-        self.pause_button.setEnabled(playback_active and not self.playback_session.controller.paused)
+        self.pause_button.setEnabled(playback_active)
+        self.pause_button.setText(
+            'Tiếp tục' if playback_active and self.playback_session.controller.paused else 'Tạm dừng'
+        )
         self.stop_playback_button.setEnabled(playback_active)
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
