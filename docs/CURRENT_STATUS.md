@@ -484,3 +484,7 @@ P04-06 follow-up: canonical corrupt cache entries are removed during quota pruni
 
 
 P04-06 Windows CI correction: run `42350134903` exposed `NotImplementedError` for `os.utime(..., follow_symlinks=False)` on Windows. The cache now uses the Windows-supported path-based timestamp update after lstat/reparse validation; if timestamp update is unsupported it preserves the verified cache read. Regression added. Commits `25bb61c3e92a8f45f46b347c0cfa9742ab6b3935`, `16aaf6b624a2c69cab89d249e78ed4664a69fe8e`. New exact-head matrix pending.
+
+
+
+P04-06 integration progress: persistent cache is now wired to the timeline still-preview worker via Qt CacheLocation. Disk cache keys bind exact rational decoder timestamp in addition to source/tool hashes, stream and dimensions. Validated disk hits are PNG-bounded; corrupt entries trigger re-decode/repair; cancellation is checked before publication. Cache setup failure falls back to memory-only preview. Regression tests added for restart-style memory reset reuse, corrupt-cache repair, timestamp separation and invalid cache object refusal. See P04_RESULTS Slice AT. Exact-head CI pending. Background proxy generation, waveform persistence, video playback and A/V synchronized seek remain open.
