@@ -622,3 +622,14 @@ Acceptance boundary: still no continuous video decode queue, audio output device
 - Latest exact-head foundation run `42359291293` for `04f587a1` was pending/in progress at last check. Handoff ZIP artifact exists for exact HEAD. No PASS claimed for this newest adapter until matrix completes.
 
 Acceptance boundary: audio output sink is a primitive that can play one supplied PCM buffer; it is not yet connected to the Timeline playback clock or a continuous audio mixer. No video decoder frame queue, audio master-clock scheduling, A/V synchronization, drift correction or continuous Timeline playback is accepted. P04-06 remains IN_PROGRESS.
+
+
+## P04-06 native Windows RGB video and AAC PCM decode — 2026-11-07
+
+- Added bounded RGB24 frame-batch decoder `src/fonesi_edit/media/video_decode.py` and tests `tests/test_video_decode.py`. The decoder selects an explicit stream, caps batch count/dimensions/output bytes, validates complete frame alignment, fingerprints source before/after, and distinguishes cancellation from unknown process retirement. It is a finite batch primitive, not a continuous playback queue.
+- Extended the exact pinned Windows FFmpeg CPU candidate harness to generate a synthetic AAC file, decode four actual RGB24 video frames and decode 0.5 seconds AAC to interleaved float PCM, while verifying source hashes remain unchanged.
+- First run `42359961686` failed in the harness only because `math` was not imported for a finite-sample assertion. Both Python versions had already reached the AAC decode call. Added the missing import in `27ceb5dc` and reran with the exact same pinned candidate binary/hash.
+- Native Windows candidate run `42360114355` completed SUCCESS for Python 3.12 and 3.13. This now records actual pinned Windows FFmpeg CPU decode of RGB24 frame batches and AAC-to-PCM, in addition to earlier proxy encode/full-decode/cache-reuse. It does not test Qt audio device playback, continuous video queue, Timeline play/pause, or A/V sync.
+- Handoff ZIP for exact HEAD `27ceb5dc5ed0a1c93f11d1931bf44a8a2f468959` is artifact `Fonesi_Edit_FULL_27ceb5dc.zip`; SHA-256: `9f65811b1430bb12af239df883634a87c209f2a87febfb57d12d4fa0c8a1970b`.
+
+Acceptance boundary: finite native Windows decode primitives are verified, but continuous playback queue, Qt audio output with a real device, audio mixer, master-clock scheduling, A/V drift correction and Timeline Play/Pause remain unimplemented. P04-06 remains IN_PROGRESS.
