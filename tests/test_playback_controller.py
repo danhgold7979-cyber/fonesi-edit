@@ -112,3 +112,20 @@ def test_controller_stops_when_audio_buffer_reaches_idle(qt_app):
     controller._tick()
     assert finished == [True]
     assert not controller.active
+
+
+
+def test_controller_releases_frame_credits_when_due_frames_and_queue_are_retired(qt_app):
+    output = FakeAudioOutput()
+    controller = PlaybackController(output)
+    retired = []
+    controller.frames_retired.connect(retired.append)
+    controller.start(_pcm())
+    controller.enqueue_video_batch(_batch())
+    output.elapsed = 80_000
+    controller._tick()
+    assert retired == [3]
+    assert controller.queued_frames == 1
+    controller.stop()
+    assert retired == [3, 1]
+    assert controller.queued_frames == 0
