@@ -62,6 +62,14 @@ class QtAudioOutput(QObject):
         if self._sink is not None and self._sink.error() != QAudio.Error.NoError:
             self.error_changed.emit("Audio output device reported an error.")
 
+    def suspend(self) -> None:
+        if self._sink is not None:
+            self._sink.suspend()
+
+    def resume(self) -> None:
+        if self._sink is not None:
+            self._sink.resume()
+
     def stop(self) -> None:
         sink, buffer = self._sink, self._buffer
         self._sink = None
