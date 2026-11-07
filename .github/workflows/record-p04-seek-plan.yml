@@ -1,0 +1,49 @@
+name: Record P04 seek plan
+
+on:
+  push:
+    branches: [develop/fonesi-full]
+    paths:
+      - '.github/scripts/record_p04_seek_plan.py'
+      - '.github/workflows/record-p04-seek-plan.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-p04-seek-plan
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: github.actor == 'danhgold7979-cyber'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact integration HEAD
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Apply guarded plan update
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .github/scripts/record_p04_seek_plan.py)" = "c078781b4d621493ae80e9f65f05f4ac712c3467"
+          python .github/scripts/record_p04_seek_plan.py
+          git diff --check
+          python scripts/check_plan.py
+          grep -Fq '## Slice AS — exact rational preview seek plan (P04-06)' docs/phases/P04_PLAN.md
+
+      - name: Commit plan and remove transfer files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/scripts/record_p04_seek_plan.py \
+            .github/workflows/record-p04-seek-plan.yml
+          git add docs/phases/P04_PLAN.md
+          git config user.name 'danhgold7979-cyber'
+          git config user.email 'danhgold7979@gmail.com'
+          git commit -m 'docs(P04-06): plan exact rational preview seek'
+          git push origin HEAD:develop/fonesi-full
