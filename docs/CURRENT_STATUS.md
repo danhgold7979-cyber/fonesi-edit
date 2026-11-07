@@ -612,3 +612,13 @@ Acceptance boundary: UI worker and Timeline integration are newly added; exact-h
 - Earlier playback-plan CI `42357890992` failed on a half-open clip-end test and a stale cancellation assertion; fixes were applied in `3ad4c17d` and `2401b2c0`. The final clock/PCM additions have fresh CI run `42358567334` pending at last check. No final PASS is claimed for these latest additions.
 
 Acceptance boundary: still no continuous video decode queue, audio output device, mixer, resampling, master-clock scheduling, A/V drift correction or audible playback. Timeline does not yet expose Play/Pause media playback. P04-06 remains IN_PROGRESS.
+
+
+## P04-06 playback CI corrections and Qt audio sink primitive — 2026-11-07
+
+- Clean-foundation run `42358630134` exposed a fractional-FPS clock test off-by-one (floating monotonic elapsed quantization), and the playback overlap test used a clip that ended at the sampled half-open boundary. Clock now applies a 1 ns rational quantization tolerance; the test was changed to verify independent audio/video offsets and speeds without creating an undeclared video overlap. Commits `111602e9`, `d6236865`, `21918267`, `a1adce76`.
+- At run `42359068840`, Ubuntu 3.12 and 3.13 passed after the above fixes; Windows 3.12/3.13 were canceled by subsequent commits before completion. No 4/4 result for that head.
+- `src/fonesi_edit/media/audio_output.py` adds a Qt Multimedia QAudioSink adapter for validated float PCM, with explicit device format support checks and deterministic stop/cleanup. It refuses implicit resampling/conversion. Tests in `tests/test_audio_output.py` cover missing device, unsupported format and invalid input.
+- Latest exact-head foundation run `42359291293` for `04f587a1` was pending/in progress at last check. Handoff ZIP artifact exists for exact HEAD. No PASS claimed for this newest adapter until matrix completes.
+
+Acceptance boundary: audio output sink is a primitive that can play one supplied PCM buffer; it is not yet connected to the Timeline playback clock or a continuous audio mixer. No video decoder frame queue, audio master-clock scheduling, A/V synchronization, drift correction or continuous Timeline playback is accepted. P04-06 remains IN_PROGRESS.
