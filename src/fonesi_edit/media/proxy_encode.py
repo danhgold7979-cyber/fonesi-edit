@@ -279,7 +279,8 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
         with tempfile.TemporaryDirectory(prefix="fonesi-proxy-hit-") as temp:
             cached_path = Path(temp) / "cached.mp4"
             cached_path.write_bytes(cached)
-            duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout,\n                                                       expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
+            duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout,
+                                                       expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
         if _sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] == source_hash:
             return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
                                      sha256(cached).hexdigest(), len(cached), duration,
@@ -311,7 +312,8 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
             raise ProxyEncodeCanceled("proxy encoding canceled before validation")
         if not staged.is_file() or staged.is_symlink() or not 1 <= staged.stat().st_size <= _MAX_PROXY_BYTES:
             raise ProxyEncodeError("FFmpeg did not produce a bounded proxy file")
-        duration, width, height = _probe_proxy(ffprobe, staged, cancel=cancel, timeout=timeout,\n                                                      expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
+        duration, width, height = _probe_proxy(ffprobe, staged, cancel=cancel, timeout=timeout,
+                                                      expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
         if _regular_file(source, maximum=_MAX_SOURCE_BYTES) != source_sig:
             raise ProxyEncodeError("source changed during proxy encoding")
         if _regular_file(ffmpeg, maximum=_MAX_TOOL_BYTES) != tool_sig or _regular_file(ffprobe, maximum=_MAX_TOOL_BYTES) != probe_sig:
