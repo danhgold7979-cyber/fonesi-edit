@@ -279,8 +279,9 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
             cached_path.write_bytes(cached)
             duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout)
         if _sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] == source_hash:
-            return EncodedVideoProxy(cached_path, key, sha256(cached).hexdigest(),
-                                     len(cached), duration, width, height, "h264", "yuv420p", True)
+            return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
+                                     sha256(cached).hexdigest(), len(cached), duration,
+                                     width, height, "h264", "yuv420p", True)
         raise ProxyEncodeError("source changed before cached proxy could be returned")
     root = cache.root
     root.mkdir(parents=True, exist_ok=True)
