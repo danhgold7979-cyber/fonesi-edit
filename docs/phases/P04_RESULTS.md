@@ -671,3 +671,11 @@ Commits:
 - `4c03dffe5fe58f5f821eef4e715917dd440f0d56`: remove a redundant test assertion.
 
 This closes the premature-finished lifecycle gap for the finite prototype; it does not expand playback beyond the current five-second, one-video/one-audio constraints. Exact latest-head Linux/Windows matrix remains required.
+
+
+
+### Slice AX implementation follow-up — worker fixture cleanup (2026-11-07)
+
+- `47c5ea947c079e571258040dafa87fd8326ec0e8`: remove a duplicate `finished` signal declaration in the fake video worker test fixture. No production behavior changed.
+- Previous exact HEAD `0304618592762a6c5471216e82f1626736b1a251` passed Clean foundation on all four runners (Ubuntu/Windows Python 3.12/3.13), run `42373320039`. This PASS predates the fixture-only cleanup commit; a new exact-head run is required for current status.
+- Full CI remains foundation validation, not real-device A/V acceptance.
