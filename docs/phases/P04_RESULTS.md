@@ -649,3 +649,13 @@ Exact latest-head CI is pending; no local execution is claimed.
 ### Slice AU test fixture correction — playback speed guard (2026-11-07)
 
 Run `42371559854` at the prior exact head exposed one deterministic UI fixture error: after changing clip speed to 2×, the default playhead was exactly at the shortened half-open clip end, so the earlier interval guard correctly refused playback before the speed guard. Commit `f9017bf5223bf6674fdfd209df462024c6e29114` moves the fixture playhead to frame 0, isolating the intended unsupported-speed assertion without changing production validation. The two Linux jobs failed only this assertion; Windows jobs were still running at inspection. Exact new-head four-runner CI is required.
+
+
+
+### Slice AW — shared rational seek for finite Timeline playback (2026-11-07)
+
+Commits:
+- `4d4102d416fc182ea5a1cbf59a26452dd09e2131`: replace duplicated Timeline playback timestamp calculations with `plan_preview_seek`; use its video and sole active original-audio decoder timestamps.
+- `593e7d5f965a5fe9822aa775edab69aea0f6f45e`: regression records the actual seek plan and verifies both decoder timestamps passed to the bounded playback session equal the exact plan values.
+
+Playback now rejects unsupported cases explicitly: no/multiple active original audio streams, non-1× speed, freeze, mismatched source asset, and playhead outside half-open intervals. The prototype remains finite (<=5 seconds); no continuous multi-track playback or device acceptance is claimed. Exact latest-head four-runner CI is pending.
