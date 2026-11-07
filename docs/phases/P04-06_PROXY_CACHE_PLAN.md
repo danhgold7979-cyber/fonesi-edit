@@ -53,3 +53,13 @@ Acceptance boundary: waveform remains a bounded amplitude observation, not loudn
 ### Cache-envelope hardening follow-up (2026-11-07)
 
 Waveform cache reads now impose an additional 64 KiB envelope cap and require exact JSON types for schema, hashes, stream, rational-window numerator/denominator, sample rate, bucket count and sample count. Boolean values are not accepted as integers; peak values must convert safely to finite floats in [-1,1], have low<=high, and the exact expected bucket count. Malformed entries are invalidated and re-decoded. Regression seeds a digest-valid cache entry with boolean schema and verifies repair.
+
+
+
+## Follow-on integration slice — playback consumes shared rational A/V seek (2026-11-07)
+
+- Timeline playback now calls `plan_preview_seek` with the selected clip and integer output playhead frame; it no longer duplicates video/audio source timestamp arithmetic.
+- The returned video and original-audio decoder timestamps are the only timestamps passed to the bounded playback workers. Both share the same exact output-time anchor.
+- The current finite playback prototype deliberately rejects zero or multiple active original audio streams, speed != 1, freeze frames, mismatched source assets and intervals that do not cover the playhead. It remains capped at five seconds.
+- Regression wraps the real seek planner and verifies the exact plan's video/audio decoder times reach the playback session.
+- This aligns seek arithmetic for still preview and finite playback; it does not claim arbitrary multi-track mixing, continuous playback, drift correction or user-device acceptance.
