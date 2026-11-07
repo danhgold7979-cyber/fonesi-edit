@@ -1,0 +1,144 @@
+name: Build complete handoff ZIP
+
+on:
+  push:
+    branches:
+      - develop/fonesi-full
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete repository history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch branch and tag references
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --prune --tags origin '+refs/heads/*:refs/remotes/origin/*'
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git config --local --unset-all credential.helper || true
+          if grep -Eqi 'x-access-token|github_pat_|ghp_|authorization:' .git/config; then
+            echo 'Credential-like data found in .git/config; refusing handoff package.' >&2
+            exit 1
+          fi
+
+      - name: Create Tải Zip.zip
+        shell: bash
+        env:
+          PHASE_PROGRESS: '56%'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import os
+          import shutil
+          import subprocess
+          import zipfile
+
+          workspace = Path(os.environ['GITHUB_WORKSPACE'])
+          temp = Path(os.environ['RUNNER_TEMP'])
+          stage_root = temp / 'fonesi-edit-handoff'
+          stage = stage_root / 'fonesi-edit'
+          zip_path = temp / 'Tải Zip.zip'
+
+          if stage_root.exists():
+              shutil.rmtree(stage_root)
+          if zip_path.exists():
+              zip_path.unlink()
+          shutil.copytree(workspace, stage, symlinks=True)
+
+          head = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], cwd=workspace, text=True
+          ).strip()
+          branch = subprocess.check_output(
+              ['git', 'branch', '--show-current'], cwd=workspace, text=True
+          ).strip() or 'develop/fonesi-full'
+          recent = subprocess.check_output(
+              ['git', 'log', '-n', '30', '--date=iso-strict',
+               '--pretty=format:%H | %ad | %s'], cwd=workspace, text=True
+          ).strip()
+
+          prompt = f'''# PROMPT TIẾP TỤC FONESI EDIT
+
+Tiếp tục triển khai dự án Fonesi Edit theo đúng tài liệu và trạng thái trong gói này.
+
+- Repository bắt buộc: `danhgold7979-cyber/fonesi-edit`
+- Nhánh tích hợp duy nhất: `develop/fonesi-full`
+- HEAD trong gói: `{head}`
+- Phase hiện tại: **P04 / 12 — Workspace, Preview và Timeline**
+- Tiến độ code ước lượng theo checkpoint: **{os.environ.get("PHASE_PROGRESS", "56%")}**
+- Không tự merge vào `main`; không force-push; không tạo ứng dụng hoặc nhánh phase riêng.
+
+Khi bắt đầu:
+1. Đọc `AGENTS.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/PRODUCT_REQUIREMENTS.md`, `docs/CURRENT_STATUS.md`, `docs/phases/P04_PLAN.md`, `docs/phases/P04_RESULTS.md` và code/test liên quan.
+2. Xác minh trực tiếp HEAD và GitHub Actions Linux/Windows của đúng commit; không mặc định trạng thái CI trong gói vẫn mới nhất.
+3. Nếu CI đang lỗi, sửa nguyên nhân thực tế và không bỏ assertion để làm xanh giả.
+4. Tiếp tục task P04 chưa hoàn thành theo dependency. Ưu tiên hoàn tất P04-05, sau đó P04-06 đến P04-08; giữ rõ các cổng Windows/Chrome/GPU/media thật chưa được nghiệm thu.
+5. Viết hoặc cập nhật test, chạy kiểm tra phù hợp, cập nhật tài liệu bằng bằng chứng thật, commit/push lên `develop/fonesi-full`.
+6. Cuối lượt, tạo lại `Tải Zip.zip` chứa toàn bộ source, `.git`, lịch sử commit, plans, README, tests, checkpoint và prompt tiếp tục.
+
+Người dùng chỉ cần nói **“Tiếp tục”** thì thực hiện ngay quy trình trên, không hỏi lại khi có thể tiến hành an toàn.
+'''
+          (stage / 'NEXT_PROMPT.md').write_text(prompt, encoding='utf-8')
+
+          status = f'''# FONESI EDIT — HANDOFF CHECKPOINT
+
+- Repository: `danhgold7979-cyber/fonesi-edit`
+- Branch: `{branch}`
+- Packaged HEAD: `{head}`
+- Phase: P04 / 12
+- Code progress estimate: {os.environ.get("PHASE_PROGRESS", "56%")} (không phải tỷ lệ nghiệm thu)
+- Main release branch: không được tự merge
+- Gói có thư mục `.git`, source, tests, plans, README và prompt tiếp tục.
+
+## Công việc tiếp theo
+
+1. Xác minh CI đúng HEAD đóng gói.
+2. Sửa mọi lỗi Linux/Windows còn lại.
+3. Hoàn thiện P04-05, sau đó P04-06, P04-07 và P04-08 theo master plan.
+4. Không tuyên bố phase hoàn thành khi tiêu chí bắt buộc hoặc cổng bên ngoài chưa đạt.
+
+## 30 commit gần nhất
+
+```text
+{recent}
+```
+'''
+          (stage / 'HANDOFF_STATUS.md').write_text(status, encoding='utf-8')
+
+          with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED,
+                               compresslevel=6, allowZip64=True) as archive:
+              for path in sorted(stage.rglob('*')):
+                  if path.is_dir():
+                      continue
+                  archive.write(path, path.relative_to(stage_root))
+
+          digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+          (temp / 'Tải Zip.sha256.txt').write_text(
+              f'{digest}  Tải Zip.zip\n', encoding='utf-8'
+          )
+          print(f'Created {zip_path} ({zip_path.stat().st_size} bytes)')
+          print(f'SHA256 {digest}')
+          PY
+          unzip -t "$RUNNER_TEMP/Tải Zip.zip"
+
+      - name: Upload handoff ZIP
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fonesi-edit-handoff-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/Tải Zip.zip
+            ${{ runner.temp }}/Tải Zip.sha256.txt
+          if-no-files-found: error
+          retention-days: 14
