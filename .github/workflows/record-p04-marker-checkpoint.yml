@@ -1,0 +1,49 @@
+name: Record P04 marker checkpoint
+
+on:
+  push:
+    branches: [develop/fonesi-full]
+    paths:
+      - '.github/scripts/record_p04_marker_checkpoint.py'
+      - '.github/workflows/record-p04-marker-checkpoint.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-p04-marker-checkpoint
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: github.actor == 'danhgold7979-cyber'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact integration HEAD
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Apply guarded ledger update
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .github/scripts/record_p04_marker_checkpoint.py)" = "8c238fd0d3b2e510fb300fb171ece8926156e00f"
+          python .github/scripts/record_p04_marker_checkpoint.py
+          git diff --check
+          grep -Fq 'b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6' docs/phases/P04_RESULTS.md
+          grep -Fq '42341716342' docs/CURRENT_STATUS.md
+
+      - name: Commit ledgers and remove transfer files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/scripts/record_p04_marker_checkpoint.py \
+            .github/workflows/record-p04-marker-checkpoint.yml
+          git add docs/phases/P04_PLAN.md docs/phases/P04_RESULTS.md docs/CURRENT_STATUS.md
+          git config user.name 'danhgold7979-cyber'
+          git config user.email 'danhgold7979@gmail.com'
+          git commit -m 'docs(P04-05): record marker drag checkpoint'
+          git push origin HEAD:develop/fonesi-full
