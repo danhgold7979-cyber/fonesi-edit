@@ -386,7 +386,13 @@ def test_cancel_before_persistent_lookup_does_not_touch_disk_or_launch_decoder(i
     def forbidden_get(_key):
         pytest.fail("persistent cache must not be touched after cancellation")
     monkeypatch.setattr(disk_cache,"get",forbidden_get)
-    cancel_calls=iter((False,False,False,True))
+    # Pin source/tool identity so the cancellation boundary is deterministic:
+    # first poll is before inspection, second poll is immediately before disk lookup.
+    monkeypatch.setattr(
+        module,"_hash_pinned",
+        lambda path,*,tool,cancel:(hashlib.sha256(Path(path).read_bytes()).hexdigest(),module._signature(Path(path))),
+    )
+    cancel_calls=iter((False,True))
     with pytest.raises(module.PreviewCanceled,match="before persistent-cache lookup"):
         module.extract_preview_frame(
             source,ffmpeg,expected_sha256=digest,stream_index=4,
