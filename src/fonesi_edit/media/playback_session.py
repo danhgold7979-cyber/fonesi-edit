@@ -41,6 +41,7 @@ class PlaybackSession(QObject):
         self._audio_output_finished = False
         self._video_cancel_requested = False
         self._terminal_state = None
+        self._retirement_reported = False
         self._pcm = None
 
     def start(
@@ -72,6 +73,7 @@ class PlaybackSession(QObject):
         self._audio_output_finished = False
         self._video_cancel_requested = False
         self._terminal_state = None
+        self._retirement_reported = False
         self._pcm = None
         self.state_changed.emit("decoding-audio")
         audio = AudioChunkWorker(
@@ -146,12 +148,15 @@ class PlaybackSession(QObject):
 
     def _complete_if_retired(self):
         if self._terminal_state is not None:
-            if (self._audio_worker_finished and self._video_finished):
+            if (self._audio_worker_finished and self._video_finished
+                    and not self._retirement_reported):
+                self._retirement_reported = True
                 self.state_changed.emit(self._terminal_state + "-retired")
             return
         if not self._audio_output_finished:
             return
         if not self._audio_worker_finished or not self._video_finished:
+            self.state_changed.emit("audio-finished-waiting-for-video-retirement")
             return
         self._active = False
         self._terminal_state = "finished"
