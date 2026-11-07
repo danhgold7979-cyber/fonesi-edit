@@ -8,6 +8,7 @@ import pytest
 
 from fonesi_edit.media import preview as module
 from fonesi_edit.jobs.process import ProcessResult,ProcessError,ProcessCanceled
+from fonesi_edit.media.proxy_cache import PersistentProxyCache
 
 
 def _chunk(kind,data):
@@ -269,3 +270,72 @@ def test_preview_quality_dimensions_are_separate_cache_entries(inputs,monkeypatc
     assert draft.cache_hit is False and standard.cache_hit is False and cached.cache_hit is True
     assert draft.png==standard.png==cached.png
     assert len(module._FRAME_CACHE)==2
+
+
+
+def test_persistent_proxy_cache_reuses_preview_across_memory_cache_reset(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    disk_cache=PersistentProxyCache(
+        source.parent/"persistent-preview-cache",
+        max_entry_bytes=1024*1024,
+        max_total_bytes=2*1024*1024,
+        max_entries=16,
+    )
+    first=module.extract_preview_frame(
+        source,ffmpeg,expected_sha256=digest,stream_index=7,
+        decoder_time=Fraction(3,2),persistent_cache=disk_cache,
+    )
+    assert first.cache_hit is False
+    assert len(calls)==1
+    module.clear_preview_cache()
+    second=module.extract_preview_frame(
+        source,ffmpeg,expected_sha256=digest,stream_index=7,
+        decoder_time=Fraction(3,2),persistent_cache=disk_cache,
+    )
+    assert second.cache_hit is True
+    assert second.png==first.png
+    assert len(calls)==1
+
+
+def test_persistent_preview_cache_corrupt_entry_is_redecoded_and_repaired(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    disk_cache=PersistentProxyCache(
+        source.parent/"persistent-preview-cache",
+        max_entry_bytes=1024*1024,
+        max_total_bytes=2*1024*1024,
+        max_entries=16,
+    )
+    kwargs=dict(expected_sha256=digest,stream_index=1,decoder_time=Fraction(5,4),persistent_cache=disk_cache)
+    first=module.extract_preview_frame(source,ffmpeg,**kwargs)
+    entry=next(disk_cache.root.iterdir())
+    (entry/"proxy.bin").write_bytes(b"corrupt")
+    module.clear_preview_cache()
+    second=module.extract_preview_frame(source,ffmpeg,**kwargs)
+    assert len(calls)==2
+    assert second.cache_hit is False
+    assert second.png==first.png
+    module.clear_preview_cache()
+    third=module.extract_preview_frame(source,ffmpeg,**kwargs)
+    assert third.cache_hit is True
+    assert len(calls)==2
+
+
+def test_persistent_preview_cache_identity_includes_exact_timestamp(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    disk_cache=PersistentProxyCache(
+        source.parent/"persistent-preview-cache",
+        max_entry_bytes=1024*1024,
+        max_total_bytes=2*1024*1024,
+        max_entries=16,
+    )
+    for timestamp in (Fraction(1,2),Fraction(2,3)):
+        module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,stream_index=0,
+            decoder_time=timestamp,persistent_cache=disk_cache)
+    assert len(calls)==2
+    assert len([p for p in disk_cache.root.iterdir() if p.is_dir()])==2
