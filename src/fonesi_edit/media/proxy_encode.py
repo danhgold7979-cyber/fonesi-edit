@@ -188,7 +188,7 @@ class _ProgressParser:
             if "=" not in line:
                 raise ProxyEncodeError("malformed FFmpeg progress record")
             key, value = line.split("=", 1)
-            if not re.fullmatch(r"[a-z_]{1,32}", key) or len(value) > 128:
+            if not re.fullmatch(r"[a-z0-9_]{1,32}", key) or len(value) > 128:
                 raise ProxyEncodeError("invalid FFmpeg progress field")
             self.fields[key] = value
             if key == "progress":
