@@ -17,6 +17,7 @@ from fonesi_edit.storage.timeline_edit_commands import (split_video_clip,trim_vi
     delete_video_clip,move_timeline_marker,TimelineEditError)
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
+from fonesi_edit.media.seek import plan_preview_seek,PreviewSeekError
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
 
 
@@ -1085,15 +1086,13 @@ class TimelinePanel(QWidget):
                 decoder_times=tuple(stream_start+source_in+source_length*offset
                     for offset in (Fraction(1,8),Fraction(3,8),Fraction(5,8),Fraction(7,8)))
             else:
-                playhead=Fraction(self._playhead,1)/self._fps
-                if not start<=playhead<start+(source_out-source_in)/speed:
-                    raise PreviewError('Playhead phải nằm trong phần video đang chọn.')
-                source_time=source_in+(playhead-start)*speed
-                decoder_times=(stream_start+source_time,)
+                seek=plan_preview_seek(session.project.plan,clip['id'],self._playhead)
+                stream_index=seek.video.stream_index
+                decoder_times=(seek.video.decoder_time,)
             source=resolve_asset_path(asset,session.project_base)
             expected=asset['sha256']
-        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError) as exc:
-            self.preview_message.setText(str(exc) if isinstance(exc,PreviewError)
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError,PreviewSeekError) as exc:
+            self.preview_message.setText(str(exc) if isinstance(exc,(PreviewError,PreviewSeekError))
                 else 'Không xác định được asset/stream của clip; không chạy decoder.')
             return
         self.cancel_crop()
