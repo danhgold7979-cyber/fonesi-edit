@@ -20,3 +20,17 @@ Status: planned for implementation on the unified integration branch. This slice
 
 ## Acceptance boundary
 This is persistent cache infrastructure for already-encoded bytes. It is not an encoded-proxy generator and does not close P04-06 or P04.
+
+
+
+## Follow-on integration slice — still-preview worker (2026-11-07)
+
+Implemented after the storage boundary:
+- `extract_preview_frame(..., persistent_cache=...)` accepts only a validated `PersistentProxyCache` instance.
+- Cache identity now binds source SHA-256, FFmpeg SHA-256, stream index, dimensions, and a hash of the exact rational decoder timestamp in the algorithm version.
+- Existing bounded PNG header/dimension checks run on disk hits before use. Invalid cache data is invalidated and re-decoded; source/tool identity is rechecked before returning a persistent hit.
+- Successful encoded still-preview bytes are published through the cache with cancellation checked before publication. Cache I/O failures are treated as optional optimization failure; valid decoded frames remain usable.
+- Timeline `PreviewWorker` receives an app-local cache under Qt `QStandardPaths.CacheLocation/preview-proxies`. If cache initialization fails, the still-preview flow falls back to the existing in-memory path.
+- Tests cover reuse after clearing the in-memory cache, corruption/redecode/repair, exact timestamp identity, and invalid cache object refusal.
+
+Not integrated: audio waveform persistence, background proxy transcoding/worker queue, video playback, A/V synchronized seek, cache migration/cleanup UI, benchmark or render/export parity. This is still-frame persistence only.
