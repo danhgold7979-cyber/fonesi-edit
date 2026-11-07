@@ -457,3 +457,7 @@ Commits on `develop/fonesi-full`:
 - `d5f779748804922171c16fcc117b5b58f6795f70`: regression test proving corrupt quota claims do not evict a valid cache entry.
 
 Verification boundary: both commits are present on the integration branch. The GitHub connector did not return any workflow runs associated with the latest commit, so the new test and exact-head CI are NOT_RUN here. Do not report these changes as test-passing until the exact-head Windows/Linux matrix runs. No proxy encoder, playback or A/V synchronization is added by this slice.
+
+
+
+P04-06 persistent cache follow-up (2026-11-07): added default 512 MiB per-entry, 2 GiB total and 256-entry bounds; oldest-entry eviction; cache-root revalidation before filesystem operations; regression tests for replacement, symlink manifest/payload/root and quota behavior. Latest evidence is pending on the exact new HEAD; earlier successful runs predate these changes. The cache does not yet generate or integrate encoded proxies and is not playback/A-V-sync evidence. See final Slice AS notes in P04_RESULTS.md.
