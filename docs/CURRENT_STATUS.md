@@ -476,3 +476,7 @@ P04-06 LRU refinement: verified cache reads now refresh entry recency; a regress
 
 
 P04-06 cache pruning follow-up: corrupt payloads are now deleted only when their manifest validates to a ProxyCacheKey and the directory name matches its canonical cache ID; unknown directories remain untouched. Commits `049f42af99ada2e8cf3ecc336f27b987b5bd5870` and `eb6b6ca27b976326765de6ffcb7bb7fd314a43e8`. Exact-head CI pending.
+
+
+
+P04-06 follow-up: canonical corrupt cache entries are removed during quota pruning; root path is revalidated at every operation; malformed non-object manifests are ignored safely during source invalidation. Regressions committed in `37d8aa4ddcb47d1b3e75aa32a6341403982f57f8` and `c94d7936db1e36e13c6b1c6131936dadef87b262`. Exact-head CI is pending.
