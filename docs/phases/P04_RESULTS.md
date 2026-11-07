@@ -565,3 +565,13 @@ Commits:
 - `a7bae68cd0f2a178dd598d7b1bade3a8c25d61e9`: regression verifies that a previously accessed entry is retained while the least-recently-used entry is evicted under a reduced quota.
 
 This is now access-updated LRU-style eviction rather than write-time-only oldest-entry eviction. Failure to update recency does not invalidate a successfully verified cache read; eviction remains bounded but recency may be stale for that operation. Exact-head four-runner CI remains required.
+
+
+
+### Slice AS corrupt-entry cleanup — 2026-11-07
+
+Commits:
+- `049f42af99ada2e8cf3ecc336f27b987b5bd5870`: quota pruning now removes a corrupt entry only when its manifest parses as a valid `ProxyCacheKey` and the directory name exactly matches that key's canonical cache ID. Unknown directories and entries without a valid canonical identity are preserved.
+- `eb6b6ca27b976326765de6ffcb7bb7fd314a43e8`: regression asserts corrupt canonical entry cleanup while preserving the valid entry and new publication.
+
+The cleanup prevents digest-corrupt cache payloads from accumulating outside the byte/entry budget. Exact-head CI remains pending; earlier matrix results do not cover these two commits.
