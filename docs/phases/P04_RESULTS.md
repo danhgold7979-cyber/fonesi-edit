@@ -633,3 +633,13 @@ Commits:
 Waveform cache payload is bounded JSON with schema, exact rational window, stream/source/tool identity, sample count and normalized min/max bins. It is verified before use; corrupt cache triggers re-decode/repair. It remains an amplitude observation only.
 
 Exact latest-head Linux/Windows Python 3.12/3.13 CI is required before PASS. No local test run is claimed. Continuous audio/video playback, arbitrary project timeline scheduling, seek while playing, robust drift correction, render/export parity and real-device Windows acceptance remain open.
+
+
+
+### Slice AV hardening — strict waveform cache envelope (2026-11-07)
+
+Commits:
+- `83ee081682ae86440665988de678951e9e5a1e82`: enforce 64 KiB waveform JSON cap, strict scalar/list types, exact rational window and expected bucket cardinality, finite bounded peaks and safe numeric conversion.
+- `ee8c0145414172d76053a84ffd878075c2623eda`: regression injects a digest-valid cache payload with boolean schema and verifies it is rejected, re-decoded and repaired.
+
+Exact latest-head CI is pending; no local execution is claimed.
