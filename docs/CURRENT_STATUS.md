@@ -585,3 +585,11 @@ Commits:
 - `984a893447a2270b8b305ff0fd1dc26d1f53c208`, `9cb35cc5e1d46ea552a1042c22b0f60cb5eba63c`: add/fix Timeline integration tests proving verified proxy result display does not mutate project plan/source media.
 
 Acceptance boundary: UI worker and Timeline integration are newly added; exact-head clean-foundation CI is pending and has been canceled/restarted across successive commits. Native Windows pinned FFmpeg proxy encode/full-decode/cache-reuse passed in run `42356861281` at commit `3472225b`, but the new Timeline UI adapter has not yet been verified on all four runner environments. Continuous video/audio playback and synchronized A/V seek remain unimplemented; P04-06 remains IN_PROGRESS.
+
+
+## P04-06 Timeline proxy worker CI failure analysis and cancellation correction — 2026-11-07
+
+- Exact-head clean-foundation run `42357466864` for `e1174026` reported 4 failures, 1132 passed, 41 skipped on Ubuntu 3.12/3.13. Failures: (1) direct-call worker tests used QThread.requestInterruption before the thread was running, so Qt did not expose it through isInterruptionRequested; (2) Timeline test asserted a progress bar was visible despite an immediate mocked encode completing before event-loop observation; (3) cancel test referenced an unset project_before snapshot.
+- Fixes: add a dedicated threading.Event-backed `request_cancel()` API, make worker cancellation checks use the unified event plus Qt interruption state, route Timeline invalidation/stop/cancel through request_cancel, remove timing-sensitive progress visibility assertion, and capture/compare the project plan snapshot in the cancellation test. Commits `9eec1d35`, `ab5e1ce8`, `a03c8a0a`, `5b6751e3`, `04afe8f8`.
+- Exact-head clean-foundation run for `5b6751e3` was queued; no PASS claimed yet. The corrected final HEAD `04afe8f8` has a new matrix run pending.
+- Native pinned Windows FFmpeg encode/full-decode/cache-reuse passed at earlier commit `3472225b` (run `42356861281`). New Timeline QThread/UI integration still needs clean four-runner CI and actual native Timeline acceptance. Playback video/audio and synchronized A/V seek remain unimplemented.
