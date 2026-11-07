@@ -99,6 +99,7 @@ def test_controller_rejects_queue_overflow_and_nonmonotonic_pts(qt_app):
               RGBVideoFrame(1, 16, 16, 0.1, b"x"*(16*16*3)))
     with pytest.raises(PlaybackControllerError, match="monotonic"):
         controller.enqueue_video_batch(VideoFrameBatch("a"*64,0,16,16,frames,True))
+    assert controller.queued_frames == 0  # rejected batches are atomic
     controller.stop()
 
 
