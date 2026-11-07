@@ -1,6 +1,7 @@
 """Exact frame-boundary split/trim preserves audio sync and gap/ripple intent."""
 import pytest
 from fractions import Fraction
+from pathlib import Path
 
 from fonesi_edit.storage.timeline_commands import add_video_clip
 from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,delete_video_clip,TimelineEditError
@@ -8,8 +9,10 @@ from test_timeline_commands import _record,_scan,_project
 
 
 def _two_clips(tmp_path):
-    first=_record(tmp_path/'first.mp4',b'first')
-    second=_record(tmp_path/'second.mp4',b'second')
+    first_path=tmp_path/'first.mp4';first_path.write_bytes(b'first')
+    second_path=tmp_path/'second.mp4';second_path.write_bytes(b'second')
+    first=_record(first_path,b'first')
+    second=_record(second_path,b'second')
     one=add_video_clip(_project(),first,_scan(first),expected_revision=0)
     two=add_video_clip(one.command.project,second,_scan(second),expected_revision=1)
     return two.command.project,one.clip_id,one.asset_id,two.clip_id
