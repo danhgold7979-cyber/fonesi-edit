@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer, QObject, QStandardPaths
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
-from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
+from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,QProgressBar,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
     QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox,QInputDialog,QGraphicsItem)
 from fonesi_edit.domain.composition import CompositionPlan
@@ -20,6 +20,8 @@ from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,P
 from fonesi_edit.media.proxy_cache import PersistentProxyCache,ProxyCacheError
 from fonesi_edit.media.seek import plan_preview_seek,PreviewSeekError
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
+from fonesi_edit.ui.proxy_worker import ProxyEncodeWorker
+from fonesi_edit.media.proxy_encode import ProxySpec
 
 
 def _q(value):
@@ -486,7 +488,7 @@ class TimelinePanel(QWidget):
         self._loop_timer=QTimer(self);self._loop_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._loop_timer.timeout.connect(self._loop_tick)
         self._preview_revision=None;self._preview_clip_id=None;self.preview_worker=None
-        self.waveform_worker=None;self.stopping=False
+        self.waveform_worker=None;self.proxy_worker=None;self.stopping=False
         self.preview_retirement_unknown=False
         layout=QVBoxLayout(self)
         self.notice=QLabel('Timeline có playhead theo frame, lặp playhead theo vùng In/Out, tách/trim và ảnh tĩnh nguồn qua FFmpeg do bạn chọn. Lặp vùng không phát audio/video; chưa có playback media, thumbnail/waveform tự động hoặc render.')
@@ -566,6 +568,17 @@ class TimelinePanel(QWidget):
         layout.addLayout(preview_controls)
         self.preview_message=QLabel('Chưa có ảnh xem nhanh. Chỉ chạy FFmpeg sau khi chọn đường dẫn và xác nhận tin cậy.')
         self.preview_message.setWordWrap(True);layout.addWidget(self.preview_message)
+        proxy_controls=QHBoxLayout()
+        self.proxy_button=QPushButton('Tạo video proxy')
+        self.proxy_button.clicked.connect(self.request_video_proxy)
+        self.proxy_cancel_button=QPushButton('Hủy tạo proxy')
+        self.proxy_cancel_button.clicked.connect(self.cancel_video_proxy)
+        self.proxy_progress=QProgressBar();self.proxy_progress.setRange(0,0)
+        self.proxy_progress.setVisible(False)
+        self.proxy_status=QLabel('Chưa tạo video proxy.')
+        for widget in (self.proxy_button,self.proxy_cancel_button,self.proxy_progress,self.proxy_status):
+            proxy_controls.addWidget(widget)
+        layout.addLayout(proxy_controls)
         self.preview_image=CropEditorView(self)
         self.preview_image.setText('Ảnh tĩnh — chưa có preview')
         self.preview_image.crop_changed.connect(self._crop_overlay_changed)
@@ -950,12 +963,13 @@ class TimelinePanel(QWidget):
 
     @property
     def busy(self):
-        return self.preview_worker is not None or self.waveform_worker is not None or self.preview_retirement_unknown
+        return self.preview_worker is not None or self.waveform_worker is not None or self.proxy_worker is not None or self.preview_retirement_unknown
 
     def _invalidate_preview(self,message='Đầu vào preview thay đổi; kết quả cũ không còn áp dụng.'):
         self._preview_generation+=1;self._waveform_generation+=1
         if self.preview_worker is not None:self.preview_worker.requestInterruption()
         if self.waveform_worker is not None:self.waveform_worker.requestInterruption()
+        if self.proxy_worker is not None:self.proxy_worker.requestInterruption()
         if hasattr(self,'preview_message'):
             if hasattr(self,'crop_edit_toggle'):
                 self.crop_edit_toggle.setChecked(False)
@@ -1060,6 +1074,95 @@ class TimelinePanel(QWidget):
         elif current and worker.canceled:
             self.waveform_message.setText('Đã dừng waveform; không thay đổi project.')
         self.waveform_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
+
+    def request_video_proxy(self):
+        session=self.get_session();clip=self._selected_clip()
+        if self.busy or self.stopping or session is None or clip is None:return
+        if session.reconciliation_required:
+            self.proxy_status.setText('Project cần đối soát; không chạy video proxy.')
+            return
+        if not self.preview_trust.isChecked():
+            self.proxy_status.setText('Cần xác nhận tin cậy FFmpeg và DLL/phụ thuộc cùng thư mục.')
+            return
+        ffmpeg=Path(self.preview_path.text())
+        ffprobe=ffmpeg.with_name('ffprobe.exe' if ffmpeg.suffix.lower()=='.exe' else 'ffprobe')
+        if not ffmpeg.is_absolute() or not ffprobe.is_file():
+            self.proxy_status.setText('Cần chọn FFmpeg tuyệt đối và ffprobe cùng thư mục.')
+            return
+        try:
+            data=session.project.plan.to_dict()
+            asset=next(x for x in data['assets'] if x['id']==clip['asset_id'])
+            stream_index=clip['video_stream_index']
+            stream=next(x for x in asset['probe']['streams']
+                        if x['index']==stream_index and x['type']=='video')
+            if _q(clip['freeze_duration'])!=0:
+                raise PreviewError('Video proxy chưa hỗ trợ clip freeze.')
+            source=resolve_asset_path(asset,session.project_base)
+            expected=asset['sha256']
+            stream_index=stream['index']
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewError):
+            self.proxy_status.setText('Không xác định được asset/stream; không chạy encoder.')
+            return
+        dimensions=self.preview_quality.currentData()
+        if type(dimensions) is not tuple or len(dimensions)!=2:
+            self.proxy_status.setText('Chất lượng proxy không hợp lệ.')
+            return
+        cache_location=QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)
+        if not cache_location:
+            self.proxy_status.setText('Không xác định được thư mục cache ứng dụng.')
+            return
+        try:
+            cache=PersistentProxyCache(Path(cache_location)/'video-proxies')
+            spec=ProxySpec(width=dimensions[0],height=dimensions[1],codec='mpeg4')
+            worker=ProxyEncodeWorker(source,ffmpeg,ffprobe,cache,
+                expected_source_sha256=expected,stream_index=stream_index,spec=spec,
+                timeout=900,parent=self)
+        except (ProxyCacheError,ValueError,RuntimeError):
+            self.proxy_status.setText('Không thể khởi tạo video proxy worker an toàn.')
+            return
+        self._preview_generation+=1;generation=self._preview_generation
+        self._preview_revision=session.revision;self._preview_clip_id=clip['id']
+        self.proxy_worker=worker
+        worker.progress_changed.connect(self._proxy_progress_changed)
+        worker.finished.connect(lambda:self._proxy_worker_finished(worker,generation))
+        self.proxy_progress.setVisible(True);self.proxy_progress.setRange(0,0)
+        self.proxy_status.setText('Đang mã hóa và xác minh toàn bộ video proxy…')
+        self.update_actions();worker.start()
+
+    def _proxy_progress_changed(self,event):
+        frame='?' if event.frame is None else str(event.frame)
+        speed='' if event.speed is None else f' · {event.speed}'
+        self.proxy_status.setText(f'Đang mã hóa: frame {frame}{speed} · chưa công bố cache')
+
+    def cancel_video_proxy(self):
+        if self.proxy_worker is not None:
+            self.proxy_worker.requestInterruption()
+            self.proxy_status.setText('Đang hủy video proxy; chờ xác nhận tiến trình con đã dừng.')
+            self.update_actions()
+
+    def _proxy_worker_finished(self,worker,generation):
+        if self.proxy_worker is not worker:return
+        if not worker.wait(0):
+            QTimer.singleShot(10,lambda:self._proxy_worker_finished(worker,generation))
+            return
+        session=self.get_session()
+        current=(generation==self._preview_generation and not self.stopping and session is not None
+                 and session.revision==self._preview_revision and self.selected_clip_id==self._preview_clip_id)
+        if worker.retirement_unknown:
+            self.preview_retirement_unknown=True;self.stopping=True
+            self.proxy_status.setText('Không xác nhận được tiến trình FFmpeg đã dừng; đã khóa tác vụ mới.')
+        elif current and worker.result is not None:
+            result=worker.result
+            self.proxy_status.setText(
+                f'Proxy sẵn sàng · {result.codec} · {result.width}×{result.height} · '
+                f'{result.duration}s · {result.size_bytes} bytes · '
+                f'{"cache hit" if result.cache_hit else "đã mã hóa và full-decode"}')
+        elif current and worker.canceled:
+            self.proxy_status.setText('Đã hủy video proxy; project gốc không thay đổi.')
+        elif current and worker.error:
+            self.proxy_status.setText(worker.error)
+        self.proxy_progress.setVisible(False)
+        self.proxy_worker=None;worker.deleteLater();self.update_actions();self.idle.emit()
 
     def request_preview(self,filmstrip=False):
         session=self.get_session();clip=self._selected_clip()
@@ -1177,6 +1280,7 @@ class TimelinePanel(QWidget):
 
     def request_stop(self):
         self._loop_timer.stop()
+        if self.proxy_worker is not None:self.proxy_worker.requestInterruption()
         self.loop_button.setText('Lặp vùng')
         self.stopping=True
         self._invalidate_preview('Đang dừng preview; chờ FFmpeg và tiến trình con kết thúc an toàn.')
@@ -1251,6 +1355,11 @@ class TimelinePanel(QWidget):
                         and self.preview_trust.isChecked() and bool(self.preview_path.text())
                         and Path(self.preview_path.text()).is_absolute())
         self.waveform_button.setEnabled(waveform_ready and not self.preview_retirement_unknown)
+        proxy_ready=(available and not self.busy and not self.stopping and self.preview_trust.isChecked()
+                     and bool(self.preview_path.text()) and Path(self.preview_path.text()).is_absolute()
+                     and not self.preview_retirement_unknown)
+        self.proxy_button.setEnabled(proxy_ready)
+        self.proxy_cancel_button.setEnabled(self.proxy_worker is not None and not self.stopping)
         self.preview_path.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_browse.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
         self.preview_trust.setEnabled(not self.busy and not self.stopping and not self.preview_retirement_unknown)
