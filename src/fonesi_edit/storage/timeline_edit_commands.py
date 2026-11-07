@@ -53,6 +53,29 @@ def _command(project,data,expected_revision,created=()):
 
 
 
+def move_timeline_marker(project:Project,marker_id:str,frame:int,*,expected_revision:int):
+    """Move one persisted Timeline marker to an exact bounded output frame."""
+    if type(project) is not Project or type(marker_id) is not str or type(frame) is not int:
+        raise TimelineEditError('Typed project, marker ID and exact integer frame required')
+    data=project.plan.to_dict()
+    markers=data.get('timeline_markers',[])
+    marker=next((item for item in markers if item['id']==marker_id),None)
+    if marker is None:
+        raise TimelineEditError('Selected Timeline marker does not exist')
+    duration=_fraction(data['output']['duration'])
+    fps=_fraction(data['output']['fps'])
+    frame_count=duration*fps
+    frame_total=(frame_count.numerator+frame_count.denominator-1)//frame_count.denominator
+    if not 0<=frame<frame_total:
+        raise TimelineEditError('Timeline marker frame is outside the output range')
+    if marker['frame']==frame:
+        raise TimelineEditError('Timeline marker is already at the requested frame')
+    if any(item['id']!=marker_id and item['frame']==frame for item in markers):
+        raise TimelineEditError('Another Timeline marker already occupies that frame')
+    marker['frame']=frame
+    return _command(project,data,expected_revision)
+
+
 def move_video_clip(project:Project,clip_id:str,new_output_start:Fraction,*,expected_revision:int):
     """Move a video clip to an exact rational output time, keeping its linked original audio aligned."""
     if type(project) is not Project or type(new_output_start) is not Fraction:

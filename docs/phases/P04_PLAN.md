@@ -779,3 +779,27 @@ Evidence added:
 - `test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_source` (Qt, both modes, source bytes and undo/redo)
 
 Acceptance boundary: ED-17.03/05 remain NOT_RUN until hosted Linux/Windows regression and all criterion-level evidence are confirmed. No phase acceptance is implied.
+
+
+## Slice AR — draggable exact-frame Timeline markers (P04-05 / ED-17.04)
+
+### Contract
+
+- Every visible Timeline marker is an actual horizontally draggable graphics item. The item is constrained to the valid output-frame range and snaps to an integer output frame derived from the project's exact rational FPS.
+- A completed drag commits exactly one ProjectSession revision through the shared ProjectCommandHistory. Intermediate pointer movement never mutates the project.
+- Marker ID and label remain unchanged. The move is persisted in `timeline_markers`, survives save/reopen and is undoable/redoable from either Editor history surface.
+- Dropping on a frame occupied by another marker is rejected without revision/history mutation and the graphics item returns to its canonical saved position.
+- A no-op drag or Escape during the gesture restores the starting position and creates no command. Selecting/pressing a marker may move the playhead but never changes project data.
+- Marker dragging is disabled while the project is unavailable, reconciling or the Timeline is stopping. It does not imply media playback, A/V synchronization or physical Windows pointer acceptance.
+
+### Tests
+
+1. Pure command tests move one marker to a bounded integer frame while preserving ID/label and immutable input; reject bool/non-integer/negative/out-of-range/missing/duplicate-frame requests.
+2. Actual QGraphicsView viewport press/move/release moves a marker, commits once, updates list/scene, records shared undo/redo and survives explicit save/reopen.
+3. Actual drag onto an occupied frame is rejected and snaps back without revision change.
+4. Escape after pointer movement restores the visual position and creates no command.
+5. Run focused pure Timeline tests, hosted Qt regression, plan integrity and exact Linux/Windows matrix.
+
+### Acceptance boundary
+
+This slice closes the locally implementable marker reposition portion of ED-17.04 only. Continuous thumbnails, synchronized A/V playback/seek, sample-boundary evidence and physical Windows mouse/HiDPI acceptance remain open; P04-05 and P04 remain IN_PROGRESS.

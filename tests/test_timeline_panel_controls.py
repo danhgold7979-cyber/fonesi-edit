@@ -454,3 +454,109 @@ def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_so
             window.close()
             wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
             window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo(tmp_path,qt_app):
+    from PySide6.QtCore import QPoint,QPointF,Qt
+    from PySide6.QtTest import QTest
+    from fonesi_edit.storage.projects import load_project_file
+    project=empty_project(NewProjectIntent('Timeline marker drag',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline.playhead_slider.setValue(12);timeline.add_timeline_marker()
+            marker_id=timeline.selected_marker_id
+            item=next(value for value in timeline.scene.items()
+                      if getattr(value,'marker_id',None)==marker_id)
+            before=window.session.revision
+            start_scene=item.mapToScene(QPointF(0,90))
+            target_scene=QPointF(timeline._scene_x_for_frame(75),start_scene.y())
+            start=timeline.view.mapFromScene(start_scene)
+            end=timeline.view.mapFromScene(target_scene)
+            expected_frame=timeline._frame_for_scene_x(timeline.view.mapToScene(end).x())
+            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
+            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            wait_for(qt_app,lambda:window.session.revision==before+1)
+
+            marker=next(value for value in window.session.project.plan.to_dict()['timeline_markers']
+                        if value['id']==marker_id)
+            assert marker=={'id':marker_id,'frame':expected_frame,'label':'M1'}
+            assert timeline.marker_list.item(0).text()==f'M1 · frame {expected_frame}'
+            assert timeline.selected_marker_id==marker_id
+            assert window.project_history.can_undo()
+            assert window.project_history.undo()
+            assert window.session.project.plan.to_dict()['timeline_markers'][0]['frame']==12
+            assert window.project_history.redo()
+            assert window.session.project.plan.to_dict()['timeline_markers'][0]['frame']==expected_frame
+            window.session.save()
+            saved,_=load_project_file(path)
+            assert saved.plan.to_dict()['timeline_markers'][0]['frame']==expected_frame
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)
+
+
+def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_path,qt_app):
+    from PySide6.QtCore import QPoint,QPointF,Qt
+    from PySide6.QtTest import QTest
+    project=empty_project(NewProjectIntent('Timeline marker drag refusal',1920,1080,Fraction(30),Fraction(10)))
+    path=tmp_path/'project.json';save_project_file(path,project)
+    with ProjectStore(tmp_path/'store.db') as store:
+        window=MainWindow(store);window.show()
+        try:
+            window.open_project(path)
+            window.navigation.setCurrentRow(3)
+            timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
+            timeline.playhead_slider.setValue(10);timeline.add_timeline_marker()
+            first_id=timeline.selected_marker_id
+            timeline.playhead_slider.setValue(20);timeline.add_timeline_marker()
+            second_id=timeline.selected_marker_id
+            before=window.session.revision
+
+            first=next(value for value in timeline.scene.items()
+                       if getattr(value,'marker_id',None)==first_id)
+            second=next(value for value in timeline.scene.items()
+                        if getattr(value,'marker_id',None)==second_id)
+            start_scene=first.mapToScene(QPointF(0,90))
+            end_scene=QPointF(second.pos().x(),start_scene.y())
+            start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
+            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
+            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            wait_for(qt_app,lambda:timeline.action_message.text().startswith('Không thể di chuyển marker:'))
+            assert window.session.revision==before
+            assert [item['frame'] for item in window.session.project.plan.to_dict()['timeline_markers']]==[10,20]
+            restored=next(value for value in timeline.scene.items()
+                          if getattr(value,'marker_id',None)==first_id)
+            assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))<1e-6
+
+            # Escape restores the in-progress visual drag and never queues a command.
+            start_scene=restored.mapToScene(QPointF(0,90))
+            end_scene=QPointF(timeline._scene_x_for_frame(45),start_scene.y())
+            start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
+            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
+            qt_app.processEvents()
+            assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))>1e-6
+            QTest.keyClick(timeline.view,Qt.Key.Key_Escape)
+            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            qt_app.processEvents()
+            assert window.session.revision==before
+            assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))<1e-6
+
+            # Press/release without movement is also a no-op.
+            start=timeline.view.mapFromScene(restored.mapToScene(QPointF(0,90)))
+            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
+            qt_app.processEvents()
+            assert window.session.revision==before
+        finally:
+            window.close()
+            wait_for(qt_app,lambda:not window.background_busy and not window.isVisible())
+            window.deleteLater();QCoreApplication.sendPostedEvents(window,QEvent.Type.DeferredDelete)

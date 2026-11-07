@@ -4,7 +4,9 @@ from fractions import Fraction
 from pathlib import Path
 
 from fonesi_edit.storage.timeline_commands import add_video_clip
-from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,delete_video_clip,TimelineEditError
+from fonesi_edit.domain.composition import CompositionPlan
+from fonesi_edit.storage.timeline_edit_commands import (split_video_clip,trim_video_clip,move_video_clip,
+    delete_video_clip,move_timeline_marker,TimelineEditError)
 from test_timeline_commands import _record,_scan,_project
 
 
@@ -147,3 +149,49 @@ def test_delete_video_clip_requires_explicit_boolean_and_never_mutates_source(tm
     with pytest.raises(TimelineEditError):
         delete_video_clip(project,'missing',ripple=False,expected_revision=2)
     assert source_path.exists() and source_path.read_bytes()==before
+
+
+MARKER_ONE='11111111-1111-4111-8111-111111111111'
+MARKER_TWO='22222222-2222-4222-8222-222222222222'
+
+
+def _marker_project():
+    project=_project()
+    data=project.plan.to_dict()
+    data['timeline_markers']=[
+        {'id':MARKER_ONE,'frame':10,'label':'M1'},
+        {'id':MARKER_TWO,'frame':20,'label':'M2'},
+    ]
+    return project.with_plan(CompositionPlan.parse(data))
+
+
+def test_move_timeline_marker_updates_exact_frame_without_mutating_input():
+    project=_marker_project()
+    result=move_timeline_marker(project,MARKER_ONE,45,expected_revision=0)
+    moved=result.command.project.plan.to_dict()['timeline_markers']
+    assert moved==[
+        {'id':MARKER_ONE,'frame':45,'label':'M1'},
+        {'id':MARKER_TWO,'frame':20,'label':'M2'},
+    ]
+    assert project.plan.to_dict()['timeline_markers'][0]['frame']==10
+    assert result.command.expected_revision==0
+    assert result.command.project.plan.to_dict()['revision']==1
+
+
+@pytest.mark.parametrize('frame',[True,False,1.5,'45',None,-1,300])
+def test_move_timeline_marker_rejects_invalid_or_out_of_range_frame(frame):
+    project=_marker_project()
+    with pytest.raises(TimelineEditError):
+        move_timeline_marker(project,MARKER_ONE,frame,expected_revision=0)
+    assert project.plan.to_dict()['timeline_markers'][0]['frame']==10
+
+
+def test_move_timeline_marker_rejects_missing_duplicate_and_noop_targets():
+    project=_marker_project()
+    for marker_id,frame in (('missing-marker',45),(MARKER_ONE,20),(MARKER_ONE,10)):
+        with pytest.raises(TimelineEditError):
+            move_timeline_marker(project,marker_id,frame,expected_revision=0)
+    assert project.plan.to_dict()['timeline_markers']==[
+        {'id':MARKER_ONE,'frame':10,'label':'M1'},
+        {'id':MARKER_TWO,'frame':20,'label':'M2'},
+    ]

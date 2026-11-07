@@ -1,18 +1,20 @@
 """Exact-time timeline editing with explicit, still-frame-only source preview."""
 from copy import deepcopy
 from fractions import Fraction
+from math import floor,isfinite
 
 from pathlib import Path
 from uuid import uuid4
-from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer
+from PySide6.QtCore import QRectF, QPointF, Qt, Signal, QThread, QTimer, QObject
 from PySide6.QtGui import QColor, QBrush, QPen, QImage, QPixmap, QPainter
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QGraphicsScene,QGraphicsView,
     QGraphicsRectItem,QGraphicsTextItem,QListWidget,QListWidgetItem,QSlider,QPushButton,QCheckBox,
-    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox,QInputDialog)
+    QDoubleSpinBox,QFormLayout,QLineEdit,QFileDialog,QComboBox,QInputDialog,QGraphicsItem)
 from fonesi_edit.domain.composition import CompositionPlan
 from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui.project_history import ProjectCommandHistory
-from fonesi_edit.storage.timeline_edit_commands import split_video_clip,trim_video_clip,move_video_clip,delete_video_clip,TimelineEditError
+from fonesi_edit.storage.timeline_edit_commands import (split_video_clip,trim_video_clip,move_video_clip,
+    delete_video_clip,move_timeline_marker,TimelineEditError)
 from fonesi_edit.media.preview import (PreviewFrame,AudioWaveform,PreviewError,PreviewCanceled,PreviewRetirementUnknown,
     extract_preview_frame,extract_audio_waveform,resolve_asset_path)
 from fonesi_edit.ui.shortcuts import ShortcutRegistry,ShortcutEventRouter
@@ -305,6 +307,77 @@ class CropEditorView(QWidget):
         event.accept()
 
 
+class TimelineMarkerItem(QGraphicsRectItem):
+    """One horizontally draggable marker; project mutation occurs only on release."""
+    def __init__(self,marker_id,label,scene_x,min_x,max_x,moved,selected,project_id,revision,*,movable=True):
+        super().__init__(QRectF(-5,20,10,170))
+        self.marker_id=marker_id;self.moved=moved;self.selected=selected
+        self.project_id=project_id;self.revision=revision
+        self._min_x=float(min_x);self._max_x=float(max_x)
+        self._drag_origin=None;self._drag_canceled=False
+        self.setPos(float(scene_x),0)
+        self.setZValue(8800)
+        self.setBrush(QBrush(QColor(230,180,74,70)))
+        self.setPen(QPen(QColor('#e6b44a'),2))
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable,True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable,True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,bool(movable))
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges,True)
+        self.setCursor(Qt.CursorShape.SizeHorCursor if movable else Qt.CursorShape.ArrowCursor)
+        self.setData(0,marker_id)
+        self.setToolTip(f'{label} · kéo ngang để đổi frame')
+        self.label_item=QGraphicsTextItem(label,self)
+        self.label_item.setDefaultTextColor(QColor('#e6b44a'))
+        self.label_item.setPos(7,188)
+        self.label_item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+    @staticmethod
+    def _defer(callback,*args):
+        if callback is None:return
+        context=getattr(callback,'__self__',None)
+        if isinstance(context,QObject):
+            QTimer.singleShot(0,context,lambda:callback(*args))
+        else:
+            QTimer.singleShot(0,lambda:callback(*args))
+
+    def itemChange(self,change,value):
+        if change==QGraphicsItem.GraphicsItemChange.ItemPositionChange and isinstance(value,QPointF):
+            x=value.x()
+            if not isfinite(x):x=self.pos().x()
+            return QPointF(max(self._min_x,min(self._max_x,x)),0)
+        return super().itemChange(change,value)
+
+    def mousePressEvent(self,event):
+        self._drag_origin=QPointF(self.pos());self._drag_canceled=False
+        if self.selected is not None:self.selected(self.marker_id)
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self,event):
+        if self._drag_canceled and self._drag_origin is not None:
+            self.setPos(self._drag_origin);event.accept();return
+        super().mouseMoveEvent(event)
+
+    def keyPressEvent(self,event):
+        if event.key()==Qt.Key.Key_Escape and self._drag_origin is not None:
+            self.setPos(self._drag_origin);self._drag_canceled=True
+            event.accept();return
+        super().keyPressEvent(event)
+
+    def mouseReleaseEvent(self,event):
+        origin=self._drag_origin
+        if origin is None:
+            super().mouseReleaseEvent(event);return
+        if self._drag_canceled:
+            self.setPos(origin);self._drag_origin=None;self._drag_canceled=False
+            event.accept();return
+        super().mouseReleaseEvent(event)
+        current=QPointF(self.pos());self._drag_origin=None
+        if current!=origin:
+            self._defer(self.moved,self.marker_id,current.x(),self.project_id,self.revision)
+
+
+
 class TimelinePanel(QWidget):
     project_changed=Signal()
     idle=Signal()
@@ -540,6 +613,69 @@ class TimelinePanel(QWidget):
         if self.stopping or self.playhead_slider.isSliderDown():return
         self.playhead_slider.setValue(max(self.playhead_slider.minimum(),
             min(self.playhead_slider.maximum(),self.playhead_slider.value()+delta)))
+
+    def _scene_x_for_frame(self,frame):
+        return self._timeline_left+float(Fraction(frame,1)/self._fps)*self._timeline_scale
+
+    def _frame_for_scene_x(self,scene_x):
+        if (type(scene_x) not in (int,float) or not isfinite(scene_x) or
+                self._frame_total<=0 or self._timeline_scale<=0 or self._fps<=0):
+            return None
+        raw=(scene_x-self._timeline_left)/self._timeline_scale*float(self._fps)
+        frame=int(floor(raw+.5))
+        return max(0,min(self._frame_total-1,frame))
+
+    def _select_marker_from_scene(self,marker_id):
+        session=self.get_session()
+        if session is None:return
+        marker=next((item for item in session.project.plan.to_dict().get('timeline_markers',[])
+                     if item['id']==marker_id),None)
+        if marker is None:return
+        self.selected_marker_id=marker_id
+        for row in range(self.marker_list.count()):
+            item=self.marker_list.item(row)
+            if item.data(Qt.ItemDataRole.UserRole)==marker_id:
+                self.marker_list.setCurrentRow(row);break
+        self.playhead_slider.setValue(marker['frame'])
+        self.update_actions()
+
+    def _timeline_marker_dragged(self,marker_id,scene_x,expected_project_id,expected_revision):
+        session=self.get_session()
+        if session is None or self.stopping:return
+        if session.project.id!=expected_project_id or session.revision!=expected_revision:
+            self.action_message.setText('Project đã đổi trong lúc kéo marker; vị trí đã lưu không đổi.')
+            self.update_project();return
+        if session.reconciliation_required:
+            self.action_message.setText('Project cần đối soát; marker được trả về vị trí đã lưu.')
+            self.update_project();return
+        frame=self._frame_for_scene_x(scene_x)
+        if frame is None:
+            self.action_message.setText('Không xác định được frame marker; vị trí đã lưu không đổi.')
+            self.update_project();return
+        current=next((item for item in session.project.plan.to_dict().get('timeline_markers',[])
+                      if item['id']==marker_id),None)
+        if current is None:
+            self.action_message.setText('Marker đã không còn trong project; vị trí kéo bị hủy.')
+            self.update_project();return
+        if current['frame']==frame:
+            self.action_message.setText('Marker vẫn ở frame cũ; project không đổi.')
+            self.update_project();return
+        before=session.project.plan.to_dict();expected=session.revision
+        try:
+            result=move_timeline_marker(
+                session.project,marker_id,frame,expected_revision=expected)
+            session.commit(result.command)
+        except TimelineEditError as exc:
+            self.action_message.setText(f'Không thể di chuyển marker: {exc}')
+            self.update_project();return
+        except Exception:
+            self.action_message.setText('Không xác nhận được vị trí marker; không tự gửi lại.')
+            self.update_project();return
+        self.history.record(before,session,expected,'timeline marker move')
+        self.selected_marker_id=marker_id
+        self.action_message.setText(f'Đã chuyển marker tới frame {frame}.')
+        self.project_changed.emit()
+        self.playhead_slider.setValue(frame)
 
     def _select_timeline_marker(self,row):
         item=self.marker_list.item(row) if row>=0 else None
@@ -1320,15 +1456,17 @@ class TimelinePanel(QWidget):
             self.scene.addItem(out_line)
             out_text=QGraphicsTextItem('OUT');out_text.setDefaultTextColor(QColor('#f08a8a'))
             out_text.setPos(out_x+2,18);out_text.setZValue(9001);self.scene.addItem(out_text)
+        marker_min_x=left
+        marker_max_x=self._scene_x_for_frame(max_frame)
+        marker_movable=not self.stopping and not session.reconciliation_required
         for marker in sorted(timeline_markers,key=lambda x:(x['frame'],x['id'])):
-            marker_x=left+float(Fraction(marker['frame'],1)/self._fps)*scale
-            marker_line=QGraphicsRectItem(QRectF(marker_x-1,20,2,170))
-            marker_line.setBrush(QBrush(QColor('#e6b44a')));marker_line.setPen(QPen(Qt.PenStyle.NoPen))
-            marker_line.setZValue(8800);marker_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-            marker_line.setToolTip(f"{marker['label']} · frame {marker['frame']}")
-            self.scene.addItem(marker_line)
-            marker_text=QGraphicsTextItem(marker['label']);marker_text.setDefaultTextColor(QColor('#e6b44a'))
-            marker_text.setPos(marker_x+2,188);marker_text.setZValue(8801);self.scene.addItem(marker_text)
+            marker_item=TimelineMarkerItem(
+                marker['id'],marker['label'],self._scene_x_for_frame(marker['frame']),
+                marker_min_x,marker_max_x,self._timeline_marker_dragged,
+                self._select_marker_from_scene,data['id'],session.revision,movable=marker_movable)
+            marker_item.setToolTip(f"{marker['label']} · frame {marker['frame']} · kéo ngang để đổi frame")
+            self.scene.addItem(marker_item)
+            marker_item.setSelected(marker['id']==self.selected_marker_id)
         self._playhead_marker=QGraphicsRectItem(QRectF(0,18,2,174))
         self._playhead_marker.setBrush(QBrush(QColor('#f4d35e')))
         self._playhead_marker.setPen(QPen(Qt.PenStyle.NoPen))
