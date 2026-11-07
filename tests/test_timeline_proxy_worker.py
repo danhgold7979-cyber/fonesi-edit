@@ -87,7 +87,7 @@ def test_timeline_cancel_button_waits_for_worker_retirement(tmp_path, qt_app, mo
         wait_for(qt_app, lambda: timeline.proxy_worker is None)
         assert "Đã hủy video proxy" in timeline.proxy_status.text()
         assert source.read_bytes() == source_bytes
-        assert window.session.project.plan.to_dict() == window.session.project.plan.to_dict()
+        assert window.session.project.plan.to_dict() == project_before
         assert not timeline.proxy_progress.isVisible()
     finally:
         _close(store, window, qt_app)
