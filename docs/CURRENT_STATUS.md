@@ -574,3 +574,14 @@ Acceptance boundary: first encoder implementation slice only. It is not yet inte
 - Hosted clean-foundation run `42353709306` for `e0419055` exposed two test failures on Ubuntu: the proxy publication test still expected a relative placeholder path, and the cancel-before-launch test incorrectly expected the cache root not to exist even though the cache constructor creates it. Both assertions were corrected in `e04190552ce715323cb10f3c63d026d5a99ff042`.
 - The next run `42353709306` also exposed one fixture defect in `test_encoder_progress_callback_failure_retires_and_does_not_publish`: its progress bytes used literal backslash-n characters, so the progress parser never invoked the observer; the fake ffprobe response was also invalid JSON. The fixture now emits real newline-delimited progress and a valid expected H.264 probe response. Commit `2d517211132b9bb29cb325a6ed89e9901028961e`.
 - No PASS is claimed for the corrected test yet. The first real encoder integration is still unit-tested with mocked processes; no real FFmpeg media-fixture encode, Timeline integration, native Windows Job Object encode, playback or A/V seek acceptance has occurred.
+
+
+## P04-06 Timeline proxy worker integration slice — 2026-11-07
+
+Commits:
+- `49bd10cca99ddd009576717012fe22b04d469bd7`: introduces a QThread adapter for proxy encoding with progress signal, cooperative cancellation, distinct canceled/failed/retirement-unknown states and guarded result adoption.
+- `9cb3e8c4879f8061a01642f2a5c7566ba6682e95`: adds headless worker lifecycle tests for progress, completion, cancellation, retirement uncertainty and error redaction.
+- `518d2ee41cad7870bbc74cbc835caacd9deb314b`: adds Timeline controls to start/cancel proxy generation, shows progress/status, checks FFmpeg/FFprobe selection and trust, and refuses to adopt stale worker results after project/clip changes.
+- `984a893447a2270b8b305ff0fd1dc26d1f53c208`, `9cb35cc5e1d46ea552a1042c22b0f60cb5eba63c`: add/fix Timeline integration tests proving verified proxy result display does not mutate project plan/source media.
+
+Acceptance boundary: UI worker and Timeline integration are newly added; exact-head clean-foundation CI is pending and has been canceled/restarted across successive commits. Native Windows pinned FFmpeg proxy encode/full-decode/cache-reuse passed in run `42356861281` at commit `3472225b`, but the new Timeline UI adapter has not yet been verified on all four runner environments. Continuous video/audio playback and synchronized A/V seek remain unimplemented; P04-06 remains IN_PROGRESS.
