@@ -160,6 +160,13 @@ class PersistentProxyCache:
                 return None
             if sha256(payload).hexdigest() != manifest.get("payload_sha256"):
                 return None
+            # Update directory recency only after the complete entry has passed
+            # all integrity checks. A recency-write failure must not corrupt a
+            # valid read; quota eviction remains bounded but may use old mtime.
+            try:
+                os.utime(entry, None, follow_symlinks=False)
+            except OSError:
+                pass
             return payload
 
     def put(self, key: ProxyCacheKey, payload: bytes, *, cancel: Callable[[], bool] = lambda: False) -> bool:
