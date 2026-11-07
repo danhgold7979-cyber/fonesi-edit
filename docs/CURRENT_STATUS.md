@@ -549,3 +549,10 @@ Commit `3c8747c4318f90b2ec25a8f3c6e92da102552b18` adds a regression proving a pe
 - This directly covers the newly added optional persistent-cache write failure test: a valid decoded frame remains available in memory and is reused without a second decoder launch.
 - Hosted clean-foundation run `42352647442` for exact HEAD `a3321fa0` was still in progress at last inspection; all four matrix jobs were running without reported failures. Exact-head hosted result remains pending.
 - Scope remains still-preview cache resilience. No encoded video proxy worker, continuous playback or synchronized A/V seek is implemented/accepted by this test slice.
+
+
+## P04-06 video proxy worker design checkpoint — 2026-11-07
+
+Commit `b3ec7ddb7a0d26f29047defdaa195bcf4be7a127` adds `docs/phases/P04-06_VIDEO_PROXY_WORKER_DESIGN.md`, a design-only implementation contract covering deterministic cache identity, explicit FFmpeg stream mapping, owned process lifecycle, progress/cancellation, staged validation, atomic publication, reader leases, Timeline states and acceptance gates. This is planning documentation only; it does not add encoder or playback code and must not increase implementation/acceptance percentages.
+
+Latest hosted matrix for parent `90ef2e804dbc9dd4347d65260a832b7d5f7a948d` (run `42352793776`) remains in progress; all four jobs were active without reported failures at last check. Handoff ZIP exists for that parent; latest docs commit requires its own CI/artifact run.
