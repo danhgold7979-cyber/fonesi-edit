@@ -669,3 +669,7 @@ P04 playback lifecycle hardening: session completion now waits for both audio de
 
 
 P04 playback lifecycle: the prior HEAD `0304618` passed clean-foundation CI on Linux/Windows Python 3.12/3.13 (run `42373320039`). Latest change `47c5ea9` only removes duplicate fake-worker signal declaration in the test fixture; its exact-head CI is pending. A/V session now waits for decoder QThread retirement before reporting finished; still a finite <=5s prototype.
+
+
+
+P04 playback producer backpressure: added a cancellable 64-frame default in-flight budget (maximum 256), exact credits returned as frames retire from the audio-master presentation queue, and cancellation wake-up. Queue batch validation is atomic; late/rejected batches return their credits; duplicate/excess acknowledgements fail. Regression covers backpressure, cancellation, credit retirement, queue atomicity and late batches. See P04_RESULTS Slice AY. Prior four-runner PASS at `0304618` predates this slice; latest exact-head CI pending. Playback remains finite <=5 seconds.
