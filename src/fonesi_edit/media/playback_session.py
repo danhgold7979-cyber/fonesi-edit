@@ -117,10 +117,16 @@ class PlaybackSession(QObject):
 
     def _video_batch(self, batch):
         if not self._active or not self._audio_ready:
+            if self.video_worker is not None and batch.frames:
+                self.video_worker.acknowledge_frames(len(batch.frames))
             return
         try:
             self.controller.enqueue_video_batch(batch)
         except BaseException:
+            # enqueue_video_batch validates atomically; this batch was not
+            # adopted, so return its reservation before canceling the producer.
+            if self.video_worker is not None and batch.frames:
+                self.video_worker.acknowledge_frames(len(batch.frames))
             self._fail("Video presentation queue rejected a decoded frame batch.")
 
     def _video_finished_signal(self):
