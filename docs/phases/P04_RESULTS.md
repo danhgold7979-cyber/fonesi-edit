@@ -540,3 +540,18 @@ Regression coverage in `tests/test_proxy_cache.py`: key identity/validation, rou
 The initial implementation commit's full hosted foundation run 42348806219 completed SUCCESS on four runners (Ubuntu/Windows Python 3.12/3.13). This run predates the subsequent hardening commits and must not be used as their test evidence. The exact post-hardening HEAD requires a fresh four-runner CI result before PASS is recorded.
 
 Acceptance boundary: P04-06 and P04 remain IN_PROGRESS; this slice does not satisfy persistent encoded proxy generation, worker ownership integration, cancellation of real FFmpeg proxy jobs, stale cache lifecycle integration, A/V seek, warm/cold performance or physical Windows filesystem acceptance.
+
+
+
+### Slice AS follow-up — persistent cache budgets and root revalidation (2026-11-07)
+
+Follow-up implementation commits:
+- `83c457829d3e562a03d09a174d70823cc1dfd214`: total-byte and entry-count quotas with oldest-entry eviction, retaining the newly published entry.
+- `c27729e83c1eb21511d1c3c675211703b02a9fc4`: quota regression tests.
+- `a562bc0eefdd2aa34ac8d6b9aeb69a5c0e9c60be`: replacement, symlink payload/manifest and invalidation refusal tests.
+- `946ed3d302d6dd7decb0c7e3309cc36e6169fb55`: revalidate cache root before each filesystem operation.
+- `3ac286aaa93142e4afa63e0c83ba6d45716394aa`: root replacement/symlink regression.
+
+Default cache bounds: 512 MiB per entry, 2 GiB total and 256 entries; caller may lower bounds within validated ceilings. LRU-style eviction uses entry directory modification time, which is refreshed by atomic replacement but not yet by cache reads. This is a bounded persistent cache with oldest-entry eviction, not a true access-updated LRU. Reads verify manifest and payload digest; cancellation and symlink/reparse guards remain fail-closed.
+
+Latest exact-head four-runner CI is required for the follow-up changes; prior run 42348806219 tested only the first implementation commit and must not be reused as evidence. P04-06 remains partial: cache is not yet integrated with an encoder/proxy worker, and no actual proxy generation, synchronized A/V playback seek, warm/cold benchmark, GPU or render parity is claimed.
