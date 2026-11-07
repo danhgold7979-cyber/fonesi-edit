@@ -126,6 +126,7 @@ class PersistentProxyCache:
         return self.root / key.cache_id
 
     def get(self, key: ProxyCacheKey) -> bytes | None:
+        self._ensure_directory(self.root)
         entry = self._entry(key)
         with self._LOCK:
             try:
@@ -162,6 +163,7 @@ class PersistentProxyCache:
             return payload
 
     def put(self, key: ProxyCacheKey, payload: bytes, *, cancel: Callable[[], bool] = lambda: False) -> bool:
+        self._ensure_directory(self.root)
         entry = self._entry(key)
         if type(payload) is not bytes or not 1 <= len(payload) <= self.max_entry_bytes:
             raise ProxyCacheError("encoded proxy payload is empty or exceeds the configured bound")
@@ -273,6 +275,7 @@ class PersistentProxyCache:
             count -= 1
 
     def invalidate(self, key: ProxyCacheKey) -> bool:
+        self._ensure_directory(self.root)
         entry = self._entry(key)
         with self._LOCK:
             try:
@@ -285,6 +288,7 @@ class PersistentProxyCache:
             return True
 
     def invalidate_source(self, source_sha256: str) -> int:
+        self._ensure_directory(self.root)
         if (type(source_sha256) is not str or len(source_sha256) != 64
                 or any(ch not in "0123456789abcdef" for ch in source_sha256)):
             raise ProxyCacheError("source_sha256 must be a lowercase SHA-256 digest")
