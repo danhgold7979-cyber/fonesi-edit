@@ -44,3 +44,18 @@ E. Timeline integration is exercised with real media fixtures.
 F. Separate A/V playback and synchronized seek evidence is complete.
 
 Until gates A–F are evidenced, P04-06 remains IN_PROGRESS. This design document is not implementation evidence.
+
+
+
+## A/V playback producer backpressure follow-up (2026-11-07)
+
+The finite playback frame producer now uses explicit frame credits:
+- `VideoFrameQueueWorker` reserves capacity before each decode batch and blocks on a condition while the in-flight frame budget is exhausted.
+- Default maximum is 64 in-flight frames (hard ceiling 256); batch size is validated against the budget.
+- `PlaybackController.frames_retired` returns credits only when due/stale frames are retired from the presentation queue or the queue is stopped.
+- `PlaybackSession` connects retirement to producer acknowledgement and returns credits for batches that arrive after session shutdown or fail atomic queue validation.
+- Cancellation wakes a producer blocked on credits. Acknowledgement underflow/double-release is rejected.
+- Controller batch enqueue validates all PTS values before mutating the live queue, preventing partial adoption and mismatched credits.
+- At audio end, the session cancels a still-running video producer before controller queue cleanup releases remaining frame credits.
+
+This bounds decoded RGB memory by the in-flight frame budget and avoids overflowing the controller queue when decode outpaces the audio master. It does not implement continuous multi-chunk playback, multi-track mixing or real-device A/V acceptance.
