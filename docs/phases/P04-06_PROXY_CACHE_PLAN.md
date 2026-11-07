@@ -63,3 +63,9 @@ Waveform cache reads now impose an additional 64 KiB envelope cap and require ex
 - The current finite playback prototype deliberately rejects zero or multiple active original audio streams, speed != 1, freeze frames, mismatched source assets and intervals that do not cover the playhead. It remains capped at five seconds.
 - Regression wraps the real seek planner and verifies the exact plan's video/audio decoder times reach the playback session.
 - This aligns seek arithmetic for still preview and finite playback; it does not claim arbitrary multi-track mixing, continuous playback, drift correction or user-device acceptance.
+
+
+
+## Playback timestamp domain — source seek vs segment presentation clock
+
+FFmpeg decode start remains the exact source decoder timestamp supplied by the shared seek plan. The playback worker must convert returned frame timestamps to the finite segment-relative presentation clock (zero at audio-buffer start) before enqueueing them into the audio-master controller. Regression covers nonzero source trims. This does not claim end-to-end hardware-clock synchronization.
