@@ -695,3 +695,11 @@ Implementation commits:
 - `8f34ae1f641b526842186a1545073bd0f15ebd1d`, `97152d4ed1d5de7e5faafa5edf617ecea0d5bfe5`, `5562090b5e8757990598425538bc7538103941d3`, `e2d094fa15d54d7455dad3e5508129f1082032bb`, `23b55c17675e0b9a69dfeedda368c18b6f9f0cdf`, `b8819d1709653ef935fc8dee1d0f6ee5aa987090`, `7d3897d608ddb4fdf91ba00fca1dd509f2d19624`, `59cb17ac576e49c3882d575ff9838c43486eed00`, `4f6bdfdf6a670d07dffa002227ea01b89ddfbc0b`, `206eeddea411822d4c1a7fc13c15db87aa43034b`, `75db23697cf906bb40695b0cdf088b6e4dc2cecc`: strict credit underflow, atomic controller queue adoption, late-batch retirement and regression hardening.
 
 The producer budget is 64 frames by default and at most 256; controller queue remains independently bounded at 256. The frame budget bounds pending decoded RGB data; this does not make the finite <=5 second prototype a continuous renderer. Exact-head Linux/Windows Python 3.12/3.13 CI is pending. Prior four-runner PASS at `0304618592762a6c5471216e82f1626736b1a251` (run `42373320039`) predates this slice.
+
+
+
+### Slice AZ — rebase video frame PTS to the audio-master segment clock (2026-11-07)
+
+- `427f4d26f80ea087700707ad21fddafa3340a79b`: `VideoFrameQueueWorker` now rebases decoded source PTS onto a zero-based segment timeline using exact rational frame offsets. FFmpeg still seeks from the source decoder timestamp, but the presentation controller compares frame PTS against the audio buffer's elapsed segment clock. This prevents a nonzero source trim (for example, 12.5 s) from delaying all video frames until the audio clock reaches 12.5 s.
+- `67a8af01170ebbfe355c9398e2c14485b1823831`: regression decodes from a nonzero 12.5 s source start and asserts six frames are presented with PTS 0, 1/24, …, 5/24.
+- Exact-head four-runner CI is pending; no local execution is claimed. This fixes timestamp-domain alignment for the bounded finite prototype only; device latency, drift correction, continuous multi-chunk playback and real-media A/V acceptance remain open.
