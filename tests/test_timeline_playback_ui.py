@@ -52,6 +52,13 @@ def test_timeline_playback_buttons_start_bounded_session_and_render_frame(
         monkeypatch.setattr(timeline_module, "PlaybackController", FakeController)
         monkeypatch.setattr(timeline_module, "QtAudioOutput", lambda parent: object())
         monkeypatch.setattr(timeline_module, "PlaybackSession", FakePlaybackSession)
+        original_seek = timeline_module.plan_preview_seek
+        planned_seeks = []
+        def recording_seek(plan, clip_id, output_frame):
+            result = original_seek(plan, clip_id, output_frame)
+            planned_seeks.append(result)
+            return result
+        monkeypatch.setattr(timeline_module, "plan_preview_seek", recording_seek)
         timeline.preview_path.setText(str(ffmpeg))
         timeline.preview_trust.setChecked(True)
         assert timeline.play_button.isEnabled()
@@ -61,8 +68,11 @@ def test_timeline_playback_buttons_start_bounded_session_and_render_frame(
         assert playback is not None and playback.active
         assert playback.options["duration_seconds"] <= Fraction(5)
         assert playback.options["fps"] == Fraction(30)
-        assert playback.options["video_start_seconds"] == 0.48
-        assert playback.options["audio_track"].source_start_seconds == 0.5
+        assert len(planned_seeks) == 1
+        assert planned_seeks[0].output_frame == timeline._playhead
+        assert playback.options["video_start_seconds"] == float(planned_seeks[0].video.decoder_time) == 0.48
+        assert playback.options["audio_track"].source_start_seconds == float(planned_seeks[0].audio[0].decoder_time) == 0.5
+        assert planned_seeks[0].video.output_time == planned_seeks[0].audio[0].output_time
         assert timeline.preview_image.pixmap() is not None
         assert timeline.pause_button.isEnabled()
         timeline.pause_button.click()
