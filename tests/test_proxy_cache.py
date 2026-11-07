@@ -259,3 +259,22 @@ def test_invalidate_refuses_symlink_and_preserves_external_target(tmp_path):
     with pytest.raises(ProxyCacheError):
         cache.invalidate(key)
     assert (external / "keep.txt").read_text(encoding="utf-8") == "keep"
+
+
+
+def test_cache_revalidates_root_if_directory_is_replaced_by_symlink(tmp_path):
+    root = tmp_path / "cache"
+    cache = PersistentProxyCache(root, max_entry_bytes=1024)
+    key = _key()
+    cache.put(key, b"cache-bytes")
+    moved = tmp_path / "cache-moved"
+    root.rename(moved)
+    external = tmp_path / "external-cache"
+    external.mkdir()
+    root.symlink_to(external, target_is_directory=True)
+    with pytest.raises(ProxyCacheError):
+        cache.get(key)
+    with pytest.raises(ProxyCacheError):
+        cache.put(key, b"new-cache-bytes")
+    assert list(moved.iterdir())
+    assert not list(external.iterdir())
