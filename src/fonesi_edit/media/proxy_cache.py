@@ -166,8 +166,10 @@ class PersistentProxyCache:
             # all integrity checks. A recency-write failure must not corrupt a
             # valid read; quota eviction remains bounded but may use old mtime.
             try:
-                os.utime(entry, None, follow_symlinks=False)
-            except OSError:
+                # Windows does not implement os.utime(..., follow_symlinks=False).
+                # The entry has just passed lstat-based directory/reparse checks.
+                os.utime(entry, None)
+            except (OSError, NotImplementedError):
                 pass
             return payload
 
