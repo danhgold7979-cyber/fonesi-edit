@@ -969,7 +969,7 @@ class TimelinePanel(QWidget):
         self._preview_generation+=1;self._waveform_generation+=1
         if self.preview_worker is not None:self.preview_worker.requestInterruption()
         if self.waveform_worker is not None:self.waveform_worker.requestInterruption()
-        if self.proxy_worker is not None:self.proxy_worker.requestInterruption()
+        if self.proxy_worker is not None:self.proxy_worker.request_cancel()
         if hasattr(self,'preview_message'):
             if hasattr(self,'crop_edit_toggle'):
                 self.crop_edit_toggle.setChecked(False)
