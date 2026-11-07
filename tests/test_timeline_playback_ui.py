@@ -32,6 +32,7 @@ class FakePlaybackSession(QObject):
         super().__init__(parent)
         self.controller = controller
         self.active = False
+        self.retiring = False
         self.options = None
         self.stopped = False
     def start(self, **kwargs):
