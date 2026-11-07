@@ -526,3 +526,12 @@ Still-preview cache only: video proxy encoding/worker, continuous playback, audi
 Exact-head run `42352060158` exposed one deterministic test defect on both Ubuntu Python 3.12/3.13: the cancellation callback was polled during source/tool fingerprinting before reaching the intended pre-persistent-cache boundary. The production code correctly raised `PreviewCanceled('Preview canceled while fingerprinting')`; the test expected the later lookup-boundary message. The test now pins source/tool fingerprints and supplies exactly two cancellation polls (pre-inspection false, pre-cache-lookup true), isolating the intended boundary. Commit: `f9f701dfcb72605c53a5e70cb65a04da24f97623`. Exact-head CI is pending; no PASS is claimed yet.
 
 The previous `42352060158` Ubuntu jobs each reported 1 failed, 1086 passed, 39 skipped; Windows jobs remained in progress at last inspection. The failure is in the test's cancellation sequencing, not evidence of a production cache-read bypass. P04 remains IN_PROGRESS; video proxy generation/playback/A-V seek remain open.
+
+
+## P04-06 deterministic cancellation regression: exact-head acceptance evidence — 2026-11-07
+
+- Exact-head clean-foundation run `42352221012` for `1a0a227777a65ee05beac899e01d40f1bf3e47f4` completed SUCCESS across all four runners: Ubuntu 24.04/Python 3.12, Ubuntu 24.04/Python 3.13, Windows/Python 3.12 and Windows/Python 3.13. The Windows 3.12 development onedir build also completed successfully.
+- The corrected cancellation test is deterministic: source/tool fingerprint calls are pinned, cancellation poll 1 permits pre-inspection, cancellation poll 2 stops immediately before persistent-cache lookup. Commit `f9f701dfcb72605c53a5e70cb65a04da24f97623`; exact-head matrix includes it.
+- Local exact-checkout targeted preview regression command `python -m pytest -q tests/test_media_preview.py tests/test_preview_cache_fallback.py`: **52 passed in 0.41s** on Linux/Python 3.13.5.
+- Full local `pytest -q` was not a valid full-suite run in this container because project dependencies (including PySide6 and pysubs2) are not installed; collection stopped with 57 import errors. Hosted clean-foundation run is the full environment evidence above.
+- Acceptance boundary: still-preview cache only. No encoded video proxy worker, continuous video/audio playback, synchronized A/V seek or render/export parity is implemented/accepted by this slice. P04-06 and P04 remain IN_PROGRESS.
