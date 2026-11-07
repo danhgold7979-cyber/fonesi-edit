@@ -37,6 +37,10 @@ class PlaybackSession(QObject):
         self._active = False
         self._audio_ready = False
         self._video_finished = False
+        self._audio_worker_finished = False
+        self._audio_output_finished = False
+        self._video_cancel_requested = False
+        self._terminal_state = None
         self._pcm = None
 
     def start(
@@ -64,6 +68,10 @@ class PlaybackSession(QObject):
         self._active = True
         self._audio_ready = False
         self._video_finished = False
+        self._audio_worker_finished = False
+        self._audio_output_finished = False
+        self._video_cancel_requested = False
+        self._terminal_state = None
         self._pcm = None
         self.state_changed.emit("decoding-audio")
         audio = AudioChunkWorker(
@@ -79,6 +87,7 @@ class PlaybackSession(QObject):
         )
         self.audio_worker, self.video_worker = audio, video
         audio.chunk_ready.connect(self._audio_ready_signal)
+        audio.finished.connect(self._audio_worker_finished_signal)
         audio.chunk_failed.connect(self._fail)
         audio.chunk_canceled.connect(self._canceled)
         audio.retirement_unknown.connect(self._retirement_unknown)
@@ -112,15 +121,40 @@ class PlaybackSession(QObject):
             self._fail("Video presentation queue rejected a decoded frame batch.")
 
     def _video_finished_signal(self):
+        # QThread.finished means the worker's run() returned; the worker may
+        # have emitted its final batch earlier, but it is now safe to retire.
         self._video_finished = True
         self.state_changed.emit("video-decoding-finished")
+        self._complete_if_retired()
+
+    def _audio_worker_finished_signal(self):
+        self._audio_worker_finished = True
+        self._complete_if_retired()
 
     def _audio_finished_signal(self):
         if not self._active:
             return
-        self._active = False
+        self._audio_output_finished = True
+        # Audio is the master clock. Stop any decoder that is still producing
+        # frames, but do not publish "finished" until its QThread retires.
         if self.video_worker is not None and self.video_worker.isRunning():
+            self._video_cancel_requested = True
             self.video_worker.request_cancel()
+        elif self.video_worker is None:
+            self._video_finished = True
+        self._complete_if_retired()
+
+    def _complete_if_retired(self):
+        if self._terminal_state is not None:
+            if (self._audio_worker_finished and self._video_finished):
+                self.state_changed.emit(self._terminal_state + "-retired")
+            return
+        if not self._audio_output_finished:
+            return
+        if not self._audio_worker_finished or not self._video_finished:
+            return
+        self._active = False
+        self._terminal_state = "finished"
         self.state_changed.emit("finished")
         self.finished.emit()
 
@@ -128,19 +162,35 @@ class PlaybackSession(QObject):
         if not self._active:
             return
         self._active = False
+        self._terminal_state = "failed"
         self.controller.stop()
         if self.audio_worker is not None and self.audio_worker.isRunning():
             self.audio_worker.request_cancel()
+        else:
+            self._audio_worker_finished = True
         if self.video_worker is not None and self.video_worker.isRunning():
             self.video_worker.request_cancel()
+        else:
+            self._video_finished = True
         self.failed.emit(message)
+        self._complete_if_retired()
 
     def _canceled(self):
         if not self._active:
             return
         self._active = False
+        self._terminal_state = "canceled"
         self.controller.stop()
+        if self.audio_worker is not None and self.audio_worker.isRunning():
+            self.audio_worker.request_cancel()
+        else:
+            self._audio_worker_finished = True
+        if self.video_worker is not None and self.video_worker.isRunning():
+            self.video_worker.request_cancel()
+        else:
+            self._video_finished = True
         self.state_changed.emit("canceled")
+        self._complete_if_retired()
 
     def _retirement_unknown(self, message):
         self._fail("Decoder retirement is unknown: " + message)
@@ -149,12 +199,18 @@ class PlaybackSession(QObject):
         if not self._active:
             return
         self._active = False
-        if self.audio_worker is not None:
+        self._terminal_state = "stopped"
+        if self.audio_worker is not None and self.audio_worker.isRunning():
             self.audio_worker.request_cancel()
-        if self.video_worker is not None:
+        else:
+            self._audio_worker_finished = True
+        if self.video_worker is not None and self.video_worker.isRunning():
             self.video_worker.request_cancel()
+        else:
+            self._video_finished = True
         self.controller.stop()
         self.state_changed.emit("stopped")
+        self._complete_if_retired()
 
     @property
     def active(self):
