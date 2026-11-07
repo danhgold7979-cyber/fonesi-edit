@@ -215,3 +215,39 @@ def test_session_fails_and_releases_frame_credit_on_early_video_eof(
     assert output.stops>=1
     assert session.video_worker.acknowledged==1
     assert controller.queued_frames==0
+
+
+
+def test_stopped_session_remains_retiring_until_decoder_thread_finishes(
+        qt_app, monkeypatch, tmp_path):
+    class DelayedVideoWorker(FakeVideoWorker):
+        def __init__(self,*args,**kwargs):
+            super().__init__(*args,**kwargs)
+            self.running=False
+        def start(self):
+            self.started=True
+            self.running=True
+        def isRunning(self):
+            return self.running
+        def request_cancel(self):
+            self.canceled=True
+        def retire(self):
+            self.running=False
+            self.finished.emit()
+
+    monkeypatch.setattr(session_module,"AudioChunkWorker",FakeAudioWorker)
+    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",DelayedVideoWorker)
+    session=session_module.PlaybackSession(PlaybackController(FakeOutput()))
+    track=AudioTrackSpec(tmp_path/"audio.mp4","a"*64,0,0,0.0)
+    session.start(audio_track=track,audio_ffmpeg=tmp_path/"ffmpeg",
+        video_source=tmp_path/"video.mp4",video_ffmpeg=tmp_path/"ffmpeg",
+        video_sha256="b"*64,video_stream_index=0,
+        video_start_seconds=0.0,fps=Fraction(30,1),
+        duration_seconds=Fraction(1,2),width=16,height=16)
+    assert session.video_worker.isRunning()
+    session.stop()
+    assert not session.active
+    assert session.retiring
+    assert session.video_worker.canceled
+    session.video_worker.retire()
+    assert not session.retiring
