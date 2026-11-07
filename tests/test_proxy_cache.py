@@ -324,3 +324,15 @@ def test_cache_revalidates_mutated_relative_root_before_get(tmp_path):
     cache.root = Path("relative-cache")
     with pytest.raises(ProxyCacheError):
         cache.get(_key())
+
+
+
+def test_verified_read_remains_available_when_platform_cannot_update_directory_time(tmp_path, monkeypatch):
+    import fonesi_edit.media.proxy_cache as module
+
+    key = _key()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.put(key, b"verified")
+    monkeypatch.setattr(module.os, "utime",
+                        lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError()))
+    assert cache.get(key) == b"verified"
