@@ -417,8 +417,10 @@ def test_move_selected_video_clip_to_playhead_keeps_original_audio_and_shared_un
 def test_timeline_delete_button_distinguishes_gap_and_ripple_without_deleting_source(tmp_path,qt_app,ripple,expected_start):
     project=empty_project(NewProjectIntent('Timeline delete',1920,1080,Fraction(30),Fraction(10)))
     path=tmp_path/'project.json';save_project_file(path,project)
-    first=_record(tmp_path/'first-delete.mp4',b'first-delete-source')
-    second=_record(tmp_path/'second-delete.mp4',b'second-delete-source')
+    first_path=tmp_path/'first-delete.mp4';first_path.write_bytes(b'first-delete-source')
+    second_path=tmp_path/'second-delete.mp4';second_path.write_bytes(b'second-delete-source')
+    first=_record(first_path,b'first-delete-source')
+    second=_record(second_path,b'second-delete-source')
     with ProjectStore(tmp_path/'store.db') as store:
         window=MainWindow(store);window.show()
         try:
