@@ -41,6 +41,9 @@ class FakeAudioWorker(QObject):
         super().__init__()
         self.started = False
         self.canceled = False
+        self.acknowledged = 0
+    def acknowledge_frames(self, count):
+        self.acknowledged += count
     def start(self):
         self.started = True
         pcm = PCMBuffer("a"*64, 0, 48000, 2, 4, (0.1,-0.1)*4, 4)
@@ -92,6 +95,7 @@ def test_finite_session_starts_audio_then_video_and_stops_on_master_finish(
     assert session.audio_worker.started and session.video_worker.started
     assert controller.queued_frames == 1
     controller.playback_finished.emit()
+    assert session.video_worker.acknowledged == 1
     assert not session.active
     assert finished == [True]
     assert "playing" in states and "finished" in states
