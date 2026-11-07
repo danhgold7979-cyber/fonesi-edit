@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QObject, Signal
 from fonesi_edit.media.video_decode import RGBVideoFrame
+from fonesi_edit.storage.autosave import CompletedCommand
 from fonesi_edit.ui import timeline as timeline_module
 from test_timeline_preview_ui import _open, _close
 
@@ -86,9 +87,13 @@ def test_timeline_playback_refuses_video_speed_effect(tmp_path, qt_app, monkeypa
         timeline.preview_trust.setChecked(True)
         data = window.session.project.plan.to_dict()
         data["clips"][0]["speed"] = [2, 1]
+        data["revision"] += 1
+        data["provenance"]["project_revision"] = data["revision"]
         from fonesi_edit.domain.composition import CompositionPlan
         changed = CompositionPlan.parse(data)
-        window.session.project = window.session.project.with_plan(changed)
+        window.session.commit(CompletedCommand(
+            window.session.project.with_plan(changed), window.session.revision
+        ))
         window._project_changed()
         timeline.play_button.click()
         assert timeline.playback_session is None
