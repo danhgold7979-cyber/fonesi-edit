@@ -242,6 +242,22 @@ class PersistentProxyCache:
                 size = manifest["size"]
                 if not 1 <= size <= self.max_entry_bytes:
                     continue
+                # Only count entries whose payload still matches its manifest.
+                # A corrupt entry must not consume the eviction budget and cause
+                # a valid older proxy to be discarded instead.
+                digest = sha256()
+                with payload.open("rb") as stream:
+                    remaining = size
+                    while remaining:
+                        chunk = stream.read(min(1024 * 1024, remaining))
+                        if not chunk:
+                            raise ValueError("truncated proxy payload")
+                        digest.update(chunk)
+                        remaining -= len(chunk)
+                    if stream.read(1):
+                        raise ValueError("proxy payload grew during verification")
+                if digest.hexdigest() != manifest.get("payload_sha256"):
+                    continue
             except (OSError, ValueError, TypeError, ProxyCacheError, AttributeError):
                 continue
             total += size
