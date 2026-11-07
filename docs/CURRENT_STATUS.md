@@ -556,3 +556,14 @@ Commit `3c8747c4318f90b2ec25a8f3c6e92da102552b18` adds a regression proving a pe
 Commit `b3ec7ddb7a0d26f29047defdaa195bcf4be7a127` adds `docs/phases/P04-06_VIDEO_PROXY_WORKER_DESIGN.md`, a design-only implementation contract covering deterministic cache identity, explicit FFmpeg stream mapping, owned process lifecycle, progress/cancellation, staged validation, atomic publication, reader leases, Timeline states and acceptance gates. This is planning documentation only; it does not add encoder or playback code and must not increase implementation/acceptance percentages.
 
 Latest hosted matrix for parent `90ef2e804dbc9dd4347d65260a832b7d5f7a948d` (run `42352793776`) remains in progress; all four jobs were active without reported failures at last check. Handoff ZIP exists for that parent; latest docs commit requires its own CI/artifact run.
+
+
+## P04-06 first video proxy encoder implementation slice — 2026-11-07
+
+Commits:
+- `6d035beec95feea80b9b2a588f420f2f67141b1f`: adds `src/fonesi_edit/media/proxy_encode.py` with a bounded H.264/yuv420p video-only profile, explicit selected-stream mapping, exact rational FPS, FFmpeg progress parser, owned-process invocation, ffprobe metadata validation, staging and persistent cache publication.
+- `e6d164122384656f4064c5ed70ef3d7d1d915838` and `63a6903432a218e0bd1615287f58f7f81f17caa6`: correct returned proxy path to point to the persistent cache entry, not a deleted temporary directory or relative placeholder.
+- `fbdc329a779f4e7be72680f2a8b7c55a13ca271e`: initial tests for command construction, progress parsing, cache reuse, source hash refusal and pre-launch cancellation.
+- `b92a671d22ac3011b61ea7753da6af759f5d991d`: tests for invalid ffprobe metadata and staging cleanup after validation/progress-observer failure.
+
+Acceptance boundary: first encoder implementation slice only. It is not yet integrated into Timeline; no real FFmpeg fixture or native Windows Job Object proxy encode acceptance has been recorded; continuous playback and synchronized A/V seek remain unimplemented. The module's exact-head CI is pending. Do not mark P04-06 complete.
