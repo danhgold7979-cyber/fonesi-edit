@@ -69,3 +69,9 @@ Waveform cache reads now impose an additional 64 KiB envelope cap and require ex
 ## Playback timestamp domain — source seek vs segment presentation clock
 
 FFmpeg decode start remains the exact source decoder timestamp supplied by the shared seek plan. The playback worker must convert returned frame timestamps to the finite segment-relative presentation clock (zero at audio-buffer start) before enqueueing them into the audio-master controller. Regression covers nonzero source trims. This does not claim end-to-end hardware-clock synchronization.
+
+
+
+## Early EOF policy for finite A/V session
+
+A decoded video batch whose `complete` flag is false indicates the requested frame interval was not fulfilled. The finite session must return that batch's in-flight credits and fail/stop the audio master; it must not continue as audio-only playback. Rebuffering, retry, seamless gap handling and continuous playback are separate future work.
