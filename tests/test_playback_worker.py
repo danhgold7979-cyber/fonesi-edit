@@ -183,3 +183,10 @@ def test_queue_worker_validates_inflight_frame_bound(tmp_path):
             stream_index=0, start_seconds=0, fps_num=24, fps_den=1,
             total_frames=8, batch_size=4, max_inflight_frames=3,
         )
+
+
+
+def test_queue_worker_rejects_duplicate_frame_credit_acknowledgement(tmp_path):
+    worker = _worker(tmp_path)
+    with pytest.raises(RuntimeError, match="exceeds in-flight"):
+        worker.acknowledge_frames(1)
