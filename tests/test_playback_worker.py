@@ -1,5 +1,7 @@
 """Tests for asynchronous bounded video frame queue lifecycle."""
 from pathlib import Path
+from threading import Event, Thread, Timer
+import time
 
 import pytest
 
@@ -101,4 +103,83 @@ def test_queue_worker_validates_bounds(tmp_path):
             tmp_path/"s", tmp_path/"f", expected_sha256="a"*64,
             stream_index=0, start_seconds=0, fps_num=24, fps_den=1,
             total_frames=100001,
+        )
+
+
+
+def test_queue_worker_applies_frame_credit_backpressure_until_consumer_retires(
+        tmp_path, monkeypatch):
+    worker = playback_worker.VideoFrameQueueWorker(
+        tmp_path/"source.mp4", tmp_path/"ffmpeg", expected_sha256="a"*64,
+        stream_index=0, start_seconds=0.0, fps_num=24, fps_den=1,
+        total_frames=8, width=16, height=16, batch_size=4,
+        max_inflight_frames=4,
+    )
+    calls, batches, timers = [], [], []
+    first_batch = Event()
+
+    def fake_decode(*args, **kwargs):
+        calls.append(kwargs["frame_count"])
+        return _batch((len(calls)-1)*4, kwargs["frame_count"])
+
+    def consume(batch):
+        batches.append(batch)
+        if len(batches) == 1:
+            first_batch.set()
+        timer = Timer(0.08, lambda: worker.acknowledge_frames(len(batch.frames)))
+        timers.append(timer)
+        timer.start()
+
+    monkeypatch.setattr(playback_worker, "decode_video_frame_batch", fake_decode)
+    worker.batch_ready.connect(consume)
+    thread = Thread(target=worker.run)
+    thread.start()
+    assert first_batch.wait(1)
+    time.sleep(0.02)
+    assert calls == [4]
+    assert worker.inflight_frames == 4
+    thread.join(2)
+    for timer in timers:
+        timer.join(1)
+    assert not thread.is_alive()
+    assert calls == [4, 4]
+    assert worker.inflight_frames == 0
+    assert worker.frames_decoded == 8
+
+
+def test_queue_worker_cancel_wakes_waiting_frame_credit_producer(tmp_path, monkeypatch):
+    worker = playback_worker.VideoFrameQueueWorker(
+        tmp_path/"source.mp4", tmp_path/"ffmpeg", expected_sha256="a"*64,
+        stream_index=0, start_seconds=0.0, fps_num=24, fps_den=1,
+        total_frames=8, width=16, height=16, batch_size=4,
+        max_inflight_frames=4,
+    )
+    calls, canceled = [], []
+    first_batch = Event()
+
+    def fake_decode(*args, **kwargs):
+        calls.append(kwargs["frame_count"])
+        return _batch(0, kwargs["frame_count"])
+
+    monkeypatch.setattr(playback_worker, "decode_video_frame_batch", fake_decode)
+    worker.batch_ready.connect(lambda _batch: first_batch.set())
+    worker.decode_canceled.connect(lambda: canceled.append(True))
+    thread = Thread(target=worker.run)
+    thread.start()
+    assert first_batch.wait(1)
+    time.sleep(0.02)
+    assert calls == [4] and worker.inflight_frames == 4
+    worker.request_cancel()
+    thread.join(1)
+    assert not thread.is_alive()
+    assert calls == [4]
+    assert canceled == [True]
+
+
+def test_queue_worker_validates_inflight_frame_bound(tmp_path):
+    with pytest.raises(ValueError, match="max_inflight_frames"):
+        playback_worker.VideoFrameQueueWorker(
+            tmp_path/"s", tmp_path/"f", expected_sha256="a"*64,
+            stream_index=0, start_seconds=0, fps_num=24, fps_den=1,
+            total_frames=8, batch_size=4, max_inflight_frames=3,
         )
