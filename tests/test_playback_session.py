@@ -41,9 +41,6 @@ class FakeAudioWorker(QObject):
         super().__init__()
         self.started = False
         self.canceled = False
-        self.acknowledged = 0
-    def acknowledge_frames(self, count):
-        self.acknowledged += count
     def start(self):
         self.started = True
         pcm = PCMBuffer("a"*64, 0, 48000, 2, 4, (0.1,-0.1)*4, 4)
@@ -65,6 +62,9 @@ class FakeVideoWorker(QObject):
         super().__init__()
         self.started = False
         self.canceled = False
+        self.acknowledged = 0
+    def acknowledge_frames(self, count):
+        self.acknowledged += count
     def start(self):
         self.started = True
         frames = (RGBVideoFrame(0,16,16,0.0,b"x"*(16*16*3)),)
