@@ -149,12 +149,15 @@ def build_proxy_command(ffmpeg: Path | str, source: Path | str, output: Path | s
     vf = (f"scale={spec.width}:{spec.height}:force_original_aspect_ratio=decrease,"
           f"pad={spec.width}:{spec.height}:(ow-iw)/2:(oh-ih)/2,"
           f"setsar=1,fps={fps},format={spec.pixel_format}")
+    quality_args = (["-crf", str(spec.crf)] if spec.codec == "libx264"
+                    else ["-q:v", str(max(2, min(10, round((spec.crf - 10) / 3))))])
+    preset_args = ["-preset", spec.preset] if spec.codec == "libx264" else []
     return [
         str(ffmpeg), "-nostdin", "-hide_banner", "-loglevel", "error",
         "-y", "-protocol_whitelist", "file,pipe",
         "-i", str(source), "-map", f"0:{stream_index}", "-an", "-sn", "-dn",
-        "-vf", vf, "-c:v", spec.codec, "-preset", spec.preset,
-        "-crf", str(spec.crf), "-pix_fmt", spec.pixel_format,
+        "-vf", vf, "-c:v", spec.codec, *preset_args, *quality_args,
+        "-pix_fmt", spec.pixel_format,
         "-movflags", "+faststart", "-f", "mp4",
         "-progress", "pipe:1", "-nostats", str(output),
     ]
