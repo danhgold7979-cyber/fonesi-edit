@@ -125,3 +125,48 @@ def test_encoder_cancel_before_launch_does_not_publish(tmp_path, monkeypatch):
                                   cancel=lambda: True)
     assert calls == []
     assert not cache.root.exists()
+
+
+
+def test_invalid_ffprobe_metadata_never_publishes_and_cleans_staging(tmp_path, monkeypatch):
+    source, ffmpeg, ffprobe, digest = _files(tmp_path)
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024 * 1024,
+                                 max_total_bytes=2 * 1024 * 1024, max_entries=8)
+    def fake_run(argv, **kwargs):
+        if argv[0] == str(ffmpeg):
+            Path(argv[-1]).write_bytes(b"not-a-real-mp4")
+            return ProcessResult(0, b"", b"")
+        return ProcessResult(0, json.dumps({
+            "streams": [{"codec_type": "audio", "codec_name": "aac"}],
+            "format": {"duration": "1.0"},
+        }).encode(), b"")
+    monkeypatch.setattr(module, "run_owned", fake_run)
+    with pytest.raises(module.ProxyEncodeError, match="metadata is invalid"):
+        module.encode_video_proxy(source, ffmpeg, ffprobe, cache,
+                                  expected_source_sha256=digest, stream_index=0,
+                                  spec=module.ProxySpec(width=640, height=360))
+    entries = list(cache.root.iterdir())
+    assert entries == []
+
+
+def test_encoder_progress_callback_failure_retires_and_does_not_publish(tmp_path, monkeypatch):
+    source, ffmpeg, ffprobe, digest = _files(tmp_path)
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024 * 1024,
+                                 max_total_bytes=2 * 1024 * 1024, max_entries=8)
+    def fake_run(argv, **kwargs):
+        if argv[0] == str(ffmpeg):
+            Path(argv[-1]).write_bytes(b"synthetic output")
+            callback = kwargs.get("on_stdout")
+            if callback:
+                callback(b"frame=1\\nprogress=end\\n")
+            return ProcessResult(0, b"", b"")
+        return ProcessResult(0, b"{}", b"")
+    monkeypatch.setattr(module, "run_owned", fake_run)
+    def bad_progress(_event):
+        raise RuntimeError("UI observer failed")
+    with pytest.raises(RuntimeError, match="UI observer failed"):
+        module.encode_video_proxy(source, ffmpeg, ffprobe, cache,
+                                  expected_source_sha256=digest, stream_index=0,
+                                  spec=module.ProxySpec(width=640, height=360),
+                                  progress=bad_progress)
+    assert list(cache.root.iterdir()) == []
