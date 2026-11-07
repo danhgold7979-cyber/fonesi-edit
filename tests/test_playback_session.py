@@ -159,3 +159,24 @@ def test_audio_master_waits_for_video_worker_retirement_before_session_finished(
     video.retire()
     assert not session.active
     assert finished==[True]
+
+
+
+def test_session_returns_credit_for_batch_arriving_after_stop(qt_app, monkeypatch, tmp_path):
+    monkeypatch.setattr(session_module,"AudioChunkWorker",FakeAudioWorker)
+    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",FakeVideoWorker)
+    controller=PlaybackController(FakeOutput())
+    session=session_module.PlaybackSession(controller)
+    track=AudioTrackSpec(tmp_path/"audio.mp4","a"*64,0,0,0.0)
+    session.start(audio_track=track,audio_ffmpeg=tmp_path/"ffmpeg",
+        video_source=tmp_path/"video.mp4",video_ffmpeg=tmp_path/"ffmpeg",
+        video_sha256="b"*64,video_stream_index=0,
+        video_start_seconds=0.0,fps=Fraction(30,1),
+        duration_seconds=Fraction(1,2),width=16,height=16)
+    worker=session.video_worker
+    session.stop()
+    before=worker.acknowledged
+    late_batch=VideoFrameBatch("b"*64,0,16,16,
+        (RGBVideoFrame(9,16,16,0.3,b"x"*(16*16*3)),),True)
+    session._video_batch(late_batch)
+    assert worker.acknowledged==before+1
