@@ -193,6 +193,8 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
         type(max_width) is not int or not 1<=max_width<=1280 or
         type(max_height) is not int or not 1<=max_height<=720):
         raise PreviewError('Explicit bounded still-preview inputs required')
+    if persistent_cache is not None and not isinstance(persistent_cache,PersistentProxyCache):
+        raise PreviewError('Persistent preview cache must be a validated PersistentProxyCache')
     if cancel():raise PreviewCanceled('Preview canceled before input inspection')
     try:_regular_tree(source);_regular_tree(ffmpeg)
     except OSError:raise PreviewError('Preview source or FFmpeg is missing/inaccessible') from None
