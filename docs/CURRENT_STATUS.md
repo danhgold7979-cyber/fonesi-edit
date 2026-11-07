@@ -472,3 +472,7 @@ Verification: source/test changes are committed on `develop/fonesi-full`. No wor
 
 
 P04-06 LRU refinement: verified cache reads now refresh entry recency; a regression confirms recently accessed entries survive quota eviction. Commits `5d6a46e249c77696b3558ab2bf3dd531a8bd1ed3` and `a7bae68cd0f2a178dd598d7b1bade3a8c25d61e9`. Latest HEAD requires its own four-runner CI; previous successful runs do not transfer.
+
+
+
+P04-06 cache pruning follow-up: corrupt payloads are now deleted only when their manifest validates to a ProxyCacheKey and the directory name matches its canonical cache ID; unknown directories remain untouched. Commits `049f42af99ada2e8cf3ecc336f27b987b5bd5870` and `eb6b6ca27b976326765de6ffcb7bb7fd314a43e8`. Exact-head CI pending.
