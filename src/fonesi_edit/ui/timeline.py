@@ -1117,33 +1117,21 @@ class TimelinePanel(QWidget):
         try:
             data=session.project.plan.to_dict()
             video_asset=next(x for x in data['assets'] if x['id']==clip['asset_id'])
-            video_stream_index=clip['video_stream_index']
-            video_stream=next(x for x in video_asset['probe']['streams']
-                if x['index']==video_stream_index and x['type']=='video')
-            video_start=_q(clip['output_start'])
-            video_end=video_start+(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])+_q(clip['freeze_duration'])
             playhead=Fraction(self._playhead,1)/self._fps
-            if not video_start<=playhead<video_end:
-                raise PlaybackSessionError('Playhead phải nằm trong clip video đang chọn.')
+            seek=plan_preview_seek(session.project.plan,clip['id'],self._playhead)
             if _q(clip['speed'])!=1 or _q(clip['freeze_duration'])!=0:
                 raise PlaybackSessionError('Bản phát thử hiện chỉ hỗ trợ video tốc độ 1× và không freeze.')
-            audio_clip=self._selected_audio_clip(data)
-            if audio_clip is None:
-                raise PlaybackSessionError('Không tìm thấy audio gốc tương ứng với clip video.')
-            audio_asset=next(x for x in data['assets'] if x['id']==audio_clip['asset_id'])
-            audio_stream_index=audio_clip['audio_stream_index']
-            audio_stream=next(x for x in audio_asset['probe']['streams']
-                if x['index']==audio_stream_index and x['type']=='audio')
-            audio_start=_q(audio_clip['output_start'])
-            audio_end=audio_start+(_q(audio_clip['source_out'])-_q(audio_clip['source_in']))/_q(audio_clip['speed'])
-            if not audio_start<=playhead<audio_end:
-                raise PlaybackSessionError('Audio gốc không phủ playhead hiện tại.')
+            if len(seek.audio)!=1:
+                raise PlaybackSessionError('Bản phát thử hiện yêu cầu đúng một audio gốc đang hoạt động tại playhead.')
+            audio_seek=seek.audio[0]
+            audio_clip=next(x for x in data['audio']['clips'] if x['id']==audio_seek.clip_id)
             if _q(audio_clip['speed'])!=1:
                 raise PlaybackSessionError('Bản phát thử hiện chỉ hỗ trợ audio tốc độ 1×.')
-            video_source_time=_q(clip['source_in'])+(playhead-video_start)
-            audio_source_time=_q(audio_clip['source_in'])+(playhead-audio_start)
-            video_decoder_time=_q(video_stream['start_time'])+video_source_time
-            audio_decoder_time=_q(audio_stream['start_time'])+audio_source_time
+            audio_asset=next(x for x in data['assets'] if x['id']==audio_seek.asset_id)
+            video_start=_q(clip['output_start'])
+            video_end=video_start+(_q(clip['source_out'])-_q(clip['source_in']))/_q(clip['speed'])
+            audio_start=_q(audio_clip['output_start'])
+            audio_end=audio_start+(_q(audio_clip['source_out'])-_q(audio_clip['source_in']))/_q(audio_clip['speed'])
             remaining=min(Fraction(5),video_end-playhead,audio_end-playhead)
             if remaining<=0:raise PlaybackSessionError('Không còn thời lượng để phát thử.')
             video_path=resolve_asset_path(video_asset,session.project_base)
@@ -1152,8 +1140,8 @@ class TimelinePanel(QWidget):
                 raise PlaybackSessionError('Bản phát thử hiện yêu cầu video và audio gốc cùng một asset.')
             audio_track=AudioTrackSpec(
                 source=audio_path,expected_sha256=audio_asset['sha256'],
-                stream_index=audio_stream_index,output_start_sample=0,
-                source_start_seconds=float(audio_decoder_time),gain=1.0)
+                stream_index=audio_seek.stream_index,output_start_sample=0,
+                source_start_seconds=float(audio_seek.decoder_time),gain=1.0)
             dimensions=(320,180)
             controller=PlaybackController(QtAudioOutput(self))
             playback=PlaybackSession(controller,parent=self)
@@ -1166,14 +1154,14 @@ class TimelinePanel(QWidget):
                 audio_track=audio_track,audio_ffmpeg=ffmpeg,
                 video_source=video_path,video_ffmpeg=ffmpeg,
                 video_sha256=video_asset['sha256'],
-                video_stream_index=video_stream_index,
-                video_start_seconds=float(video_decoder_time),
+                video_stream_index=seek.video.stream_index,
+                video_start_seconds=float(seek.video.decoder_time),
                 fps=self._fps,duration_seconds=remaining,
                 width=dimensions[0],height=dimensions[1])
-            self.playback_status.setText('Đang khởi động audio master và video frame queue…')
+            self.playback_status.setText('Đang khởi động audio master và video frame queue từ cùng seek plan phân số…')
             self.update_actions()
-        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PlaybackSessionError) as exc:
-            self.playback_status.setText(str(exc) if isinstance(exc,PlaybackSessionError)
+        except (StopIteration,KeyError,ValueError,OSError,RuntimeError,PreviewSeekError,PlaybackSessionError) as exc:
+            self.playback_status.setText(str(exc) if isinstance(exc,(PlaybackSessionError,PreviewSeekError))
                 else 'Không thể khởi tạo playback; không thay đổi project.')
 
     def _playback_frame_presented(self,frame):
