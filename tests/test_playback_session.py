@@ -163,8 +163,13 @@ def test_audio_master_waits_for_video_worker_retirement_before_session_finished(
 
 
 def test_session_returns_credit_for_batch_arriving_after_stop(qt_app, monkeypatch, tmp_path):
+    class DeferredVideoWorker(FakeVideoWorker):
+        def start(self):
+            self.started=True
+        def isRunning(self):
+            return True
     monkeypatch.setattr(session_module,"AudioChunkWorker",FakeAudioWorker)
-    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",FakeVideoWorker)
+    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",DeferredVideoWorker)
     controller=PlaybackController(FakeOutput())
     session=session_module.PlaybackSession(controller)
     track=AudioTrackSpec(tmp_path/"audio.mp4","a"*64,0,0,0.0)
