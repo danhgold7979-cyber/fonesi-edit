@@ -461,3 +461,10 @@ Verification boundary: both commits are present on the integration branch. The G
 
 
 P04-06 persistent cache follow-up (2026-11-07): added default 512 MiB per-entry, 2 GiB total and 256-entry bounds; oldest-entry eviction; cache-root revalidation before filesystem operations; regression tests for replacement, symlink manifest/payload/root and quota behavior. Latest evidence is pending on the exact new HEAD; earlier successful runs predate these changes. The cache does not yet generate or integrate encoded proxies and is not playback/A-V-sync evidence. See final Slice AS notes in P04_RESULTS.md.
+
+
+## P04-06 quota-pruning regression correction — 2026-11-07
+
+Commit `65149b33d37adefcd0ca878876f599af1b2b907b` makes `tests/test_proxy_cache_prune_integrity.py` discriminating: it first stores two valid entries under a 12-byte budget, corrupts one payload, then lowers the budget to 7 bytes and publishes a one-byte entry. The valid six-byte entry must remain; the corrupt entry must not count toward quota. This specifically exercises the integrity-aware pruning added in `6c86719c4b9fe6f60c291d2c9b2125dcbad3d6d7`.
+
+Verification: source/test changes are committed on `develop/fonesi-full`. No workflow run is associated with the latest commit through the available read-only workflow-run endpoint; local pytest and exact-head CI are NOT_RUN in this session. Do not report PASS until executed on the exact head. No encoder/playback/A/V implementation is added.
