@@ -18,14 +18,16 @@ def test_timeline_starts_proxy_worker_and_reports_only_verified_result(
         tmp_path, qt_app, monkeypatch):
     store, window, timeline, source, source_bytes = _open(tmp_path)
     try:
-        ffmpeg = Path(sys.executable).resolve()
-        ffprobe = ffmpeg.with_name("ffprobe")
+        ffmpeg = tmp_path / "ffmpeg"
+        ffprobe = tmp_path / "ffprobe"
+        ffmpeg.write_bytes(b"test ffmpeg tool")
+        ffmpeg.chmod(0o700)
         ffprobe.write_bytes(b"test probe tool")
         ffprobe.chmod(0o700)
         timeline.preview_path.setText(str(ffmpeg))
         timeline.preview_trust.setChecked(True)
         assert timeline.proxy_button.isEnabled()
-        project_before = window.session.project.to_dict()
+        project_before = window.session.project.plan.to_dict()
         observed = []
 
         def fake_encode(source_path, ffmpeg_path, ffprobe_path, cache, **kwargs):
@@ -48,7 +50,7 @@ def test_timeline_starts_proxy_worker_and_reports_only_verified_result(
         assert "Proxy sẵn sàng" in timeline.proxy_status.text()
         assert "640×360" in timeline.proxy_status.text()
         assert "đã mã hóa và full-decode" in timeline.proxy_status.text()
-        assert window.session.project.to_dict() == project_before
+        assert window.session.project.plan.to_dict() == project_before
         assert source.read_bytes() == source_bytes
         assert not timeline.proxy_progress.isVisible()
     finally:
