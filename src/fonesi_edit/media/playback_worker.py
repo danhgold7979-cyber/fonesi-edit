@@ -6,6 +6,7 @@ It deliberately does not schedule presentation or claim A/V synchronization.
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import replace
 
 from PySide6.QtCore import QThread, Signal
 
@@ -77,6 +78,11 @@ class VideoFrameQueueWorker(QThread):
                     raise VideoDecodeCanceled("Frame queue canceled before batch adoption.")
                 if not batch.frames:
                     raise VideoDecodeError("Video decoder returned an empty frame batch.")
+                indexed_frames = tuple(
+                    replace(frame, index=self.frames_decoded + offset)
+                    for offset, frame in enumerate(batch.frames)
+                )
+                batch = replace(batch, frames=indexed_frames)
                 self.batch_ready.emit(batch)
                 self.frames_decoded += len(batch.frames)
                 self.progress_changed.emit(self.frames_decoded, self.total_frames)
