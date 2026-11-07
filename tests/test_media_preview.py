@@ -370,3 +370,28 @@ def test_memory_preview_cache_hit_precedes_persistent_disk_lookup(inputs,monkeyp
     assert second.cache_hit is True
     assert second.png==first.png
     assert len(calls)==1
+
+
+
+def test_cancel_before_persistent_lookup_does_not_touch_disk_or_launch_decoder(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    disk_cache=PersistentProxyCache(
+        source.parent/"persistent-preview-cache",
+        max_entry_bytes=1024*1024,
+        max_total_bytes=2*1024*1024,
+        max_entries=16,
+    )
+    def forbidden_get(_key):
+        pytest.fail("persistent cache must not be touched after cancellation")
+    monkeypatch.setattr(disk_cache,"get",forbidden_get)
+    cancel_calls=iter((False,False,False,True))
+    with pytest.raises(module.PreviewCanceled,match="before persistent-cache lookup"):
+        module.extract_preview_frame(
+            source,ffmpeg,expected_sha256=digest,stream_index=4,
+            decoder_time=Fraction(11,4),persistent_cache=disk_cache,
+            cancel=lambda:next(cancel_calls,True),
+        )
+    assert calls==[]
+    assert not list(disk_cache.root.iterdir()) if disk_cache.root.exists() else True
