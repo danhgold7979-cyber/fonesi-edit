@@ -540,3 +540,12 @@ The previous `42352060158` Ubuntu jobs each reported 1 failed, 1086 passed, 39 s
 ## P04-06 optional cache publication fallback regression — 2026-11-07
 
 Commit `3c8747c4318f90b2ec25a8f3c6e92da102552b18` adds a regression proving a persistent-cache write/publication failure does not discard a valid FFmpeg still-preview: the decoded PNG is returned, retained in the process memory cache, and reused on the next request without another decoder launch. This is optional-cache resilience only; exact-head four-runner CI is pending. No video proxy generation/playback/A-V sync is added.
+
+
+## P04-06 optional cache publication fallback — exact-checkout targeted test evidence — 2026-11-07
+
+- GitHub handoff artifact for HEAD `a3321fa02c9263a7c12f1ed93867ac5e52bbae7b` was downloaded and its nested repository checkout verified with `git rev-parse HEAD`.
+- Local targeted command: `PYTHONPATH=src python -m pytest -q tests/test_media_preview.py tests/test_preview_cache_fallback.py tests/test_preview_cache_write_fallback.py` — **79 passed in 0.94s** on Linux / Python 3.13.5.
+- This directly covers the newly added optional persistent-cache write failure test: a valid decoded frame remains available in memory and is reused without a second decoder launch.
+- Hosted clean-foundation run `42352647442` for exact HEAD `a3321fa0` was still in progress at last inspection; all four matrix jobs were running without reported failures. Exact-head hosted result remains pending.
+- Scope remains still-preview cache resilience. No encoded video proxy worker, continuous playback or synchronized A/V seek is implemented/accepted by this test slice.
