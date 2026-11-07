@@ -12,6 +12,7 @@ from threading import RLock
 
 from fonesi_edit.jobs.process import run_owned,ProcessError,ProcessCanceled
 from .probe import fingerprint,ProbeError,ProbeCanceled
+from .proxy_cache import PersistentProxyCache,ProxyCacheKey,ProxyCacheError,ProxyCacheCanceled
 
 
 class PreviewError(RuntimeError):
@@ -173,7 +174,8 @@ def clear_preview_cache():
 
 def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
                           stream_index:int,decoder_time:Fraction,cancel=lambda:False,
-                          timeout:float=20,max_width:int=1280,max_height:int=720)->PreviewFrame:
+                          timeout:float=20,max_width:int=1280,max_height:int=720,
+                          persistent_cache:PersistentProxyCache|None=None)->PreviewFrame:
     """Extract one explicit stream frame into bounded memory; no disk/cache writes.
 
     Decoder time is absolute stream timestamp (stream_start + stream-relative time).
@@ -199,6 +201,32 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
     if source_hash!=expected_sha256:raise PreviewError('Source content no longer matches the project asset hash')
     tool_hash,tool_signature=_hash_pinned(ffmpeg,tool=True,cancel=cancel)
     key=_cache_key(source_hash,tool_hash,stream_index,decoder_time,max_width,max_height)
+    persistent_key=None
+    if persistent_cache is not None:
+        timestamp_identity=f"{decoder_time.numerator}/{decoder_time.denominator}".encode("ascii")
+        algorithm="p1-"+sha256(timestamp_identity).hexdigest()[:60]
+        persistent_key=ProxyCacheKey(source_hash,tool_hash,stream_index,max_width,max_height,algorithm)
+        if cancel():raise PreviewCanceled("Preview canceled before persistent-cache lookup")
+        try:
+            persistent_png=persistent_cache.get(persistent_key)
+        except ProxyCacheError:
+            persistent_png=None
+        if persistent_png is not None:
+            try:
+                persistent_width,persistent_height=_png_dimensions(persistent_png)
+            except PreviewError:
+                try:persistent_cache.invalidate(persistent_key)
+                except ProxyCacheError:pass
+            else:
+                if _signature(source)==source_signature and _signature(ffmpeg)==tool_signature:
+                    frame=PreviewFrame(persistent_png,source_hash,tool_hash,stream_index,decoder_time,
+                                       persistent_width,persistent_height,True)
+                    with _CACHE_LOCK:
+                        _FRAME_CACHE[key]=frame;_FRAME_CACHE_SIZE+=len(frame.png)
+                        _FRAME_CACHE.move_to_end(key)
+                        while _FRAME_CACHE and (_FRAME_CACHE_SIZE>_FRAME_CACHE_BYTES or len(_FRAME_CACHE)>_FRAME_CACHE_LIMIT):
+                            _,removed=_FRAME_CACHE.popitem(last=False);_FRAME_CACHE_SIZE-=len(removed.png)
+                    return frame
     with _CACHE_LOCK:
         cached=_FRAME_CACHE.get(key)
         if cached is not None:
@@ -231,6 +259,16 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
         raise PreviewError('Source or FFmpeg changed during preview extraction')
     width,height=_png_dimensions(result.stdout)
     frame=PreviewFrame(result.stdout,source_hash,tool_hash,stream_index,decoder_time,width,height,False)
+    if persistent_cache is not None and persistent_key is not None:
+        if cancel():raise PreviewCanceled("Preview canceled before persistent-cache publication")
+        try:
+            persistent_cache.put(persistent_key,frame.png,cancel=cancel)
+        except ProxyCacheCanceled as exc:
+            raise PreviewCanceled("Preview canceled before persistent-cache publication") from exc
+        except ProxyCacheError:
+            # Persistent storage is an optimization; a valid in-memory preview
+            # remains usable when the optional disk cache is unavailable.
+            pass
     with _CACHE_LOCK:
         existing=_FRAME_CACHE.get(key)
         if existing is None:
