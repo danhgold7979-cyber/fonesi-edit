@@ -277,22 +277,32 @@ def encode_video_proxy(source: Path | str, ffmpeg: Path | str, ffprobe: Path | s
     except ProxyCacheError:
         cached = None
     if cached is not None:
-        # A cached payload is still independently probed; a manifest digest alone
-        # is not evidence that the bytes are a decodable MP4.
-        with tempfile.TemporaryDirectory(prefix="fonesi-proxy-hit-") as temp:
-            cached_path = Path(temp) / "cached.mp4"
-            cached_path.write_bytes(cached)
-            duration, width, height = _probe_proxy(ffprobe, cached_path, cancel=cancel, timeout=timeout,
-                                                       expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
-        if (width, height) != (spec.width, spec.height):
-            raise ProxyEncodeError("cached proxy dimensions differ from requested profile")
-        if (_sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] == source_hash
-                and _sha256_file(ffmpeg, maximum=_MAX_TOOL_BYTES, cancel=cancel)[0] == tool_hash
-                and _sha256_file(ffprobe, maximum=_MAX_TOOL_BYTES, cancel=cancel)[0] == probe_hash):
-            return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
-                                     sha256(cached).hexdigest(), len(cached), duration,
-                                     width, height, spec.codec, "yuv420p", True)
-        raise ProxyEncodeError("source changed before cached proxy could be returned")
+        # A verified manifest does not guarantee a decodable MP4. Repair an
+        # invalid cache entry, never converting cancellation into a retry.
+        try:
+            with tempfile.TemporaryDirectory(prefix="fonesi-proxy-hit-") as temp:
+                cached_path = Path(temp) / "cached.mp4"
+                cached_path.write_bytes(cached)
+                duration, width, height = _probe_proxy(
+                    ffprobe, cached_path, cancel=cancel, timeout=timeout,
+                    expected_codec="h264" if spec.codec == "libx264" else "mpeg4")
+            if (width, height) != (spec.width, spec.height):
+                raise ProxyEncodeError("cached proxy dimensions differ from requested profile")
+        except (ProxyEncodeCanceled, ProxyEncodeRetirementUnknown):
+            raise
+        except ProxyEncodeError:
+            try:
+                cache.invalidate(key)
+            except ProxyCacheError as exc:
+                raise ProxyEncodeError("invalid cached proxy cannot be retired") from exc
+        else:
+            if (_sha256_file(source, maximum=_MAX_SOURCE_BYTES, cancel=cancel)[0] == source_hash
+                    and _sha256_file(ffmpeg, maximum=_MAX_TOOL_BYTES, cancel=cancel)[0] == tool_hash
+                    and _sha256_file(ffprobe, maximum=_MAX_TOOL_BYTES, cancel=cancel)[0] == probe_hash):
+                return EncodedVideoProxy(cache.root / key.cache_id / "proxy.bin", key,
+                                         sha256(cached).hexdigest(), len(cached), duration,
+                                         width, height, spec.codec, "yuv420p", True)
+            raise ProxyEncodeError("source/tool changed before cached proxy could be returned")
     root = cache.root
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink() or not root.is_dir():
