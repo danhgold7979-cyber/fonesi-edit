@@ -1,4 +1,5 @@
 from hashlib import sha256
+import os
 import json
 from pathlib import Path
 
@@ -176,3 +177,39 @@ def test_invalidate_source_never_deletes_unrelated_directory_with_forged_manifes
 def test_cache_root_rejects_parent_path_traversal(tmp_path):
     with pytest.raises(ProxyCacheError):
         PersistentProxyCache(tmp_path / ".." / "outside")
+
+
+
+def test_persistent_cache_evicts_oldest_entries_to_respect_total_byte_budget(tmp_path):
+    first = _key()
+    second = _key(tool_sha256=sha256(b"second-tool").hexdigest())
+    cache = PersistentProxyCache(
+        tmp_path / "cache", max_entry_bytes=10, max_total_bytes=10, max_entries=8
+    )
+    cache.put(first, b"first!")
+    first_dir = cache.root / first.cache_id
+    os.utime(first_dir, ns=(1, 1))
+    cache.put(second, b"second")
+    assert cache.get(first) is None
+    assert cache.get(second) == b"second"
+
+
+def test_persistent_cache_enforces_maximum_entry_count(tmp_path):
+    first = _key()
+    second = _key(tool_sha256=sha256(b"second-tool").hexdigest())
+    cache = PersistentProxyCache(
+        tmp_path / "cache", max_entry_bytes=32, max_total_bytes=64, max_entries=1
+    )
+    cache.put(first, b"first")
+    first_dir = cache.root / first.cache_id
+    os.utime(first_dir, ns=(1, 1))
+    cache.put(second, b"second")
+    assert cache.get(first) is None
+    assert cache.get(second) == b"second"
+
+
+def test_persistent_cache_rejects_budget_smaller_than_entry_limit(tmp_path):
+    with pytest.raises(ProxyCacheError):
+        PersistentProxyCache(
+            tmp_path / "cache", max_entry_bytes=1024, max_total_bytes=512
+        )
