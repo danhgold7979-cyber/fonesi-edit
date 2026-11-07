@@ -314,7 +314,7 @@ class TimelineMarkerItem(QGraphicsRectItem):
         self.marker_id=marker_id;self.moved=moved;self.selected=selected
         self.project_id=project_id;self.revision=revision
         self._min_x=float(min_x);self._max_x=float(max_x)
-        self._drag_origin=None;self._drag_canceled=False
+        self._drag_origin=None;self._drag_canceled=False;self._drag_pointer_offset=0.0
         self.setPos(float(scene_x),0)
         self.setZValue(8800)
         self.setBrush(QBrush(QColor(230,180,74,70)))
@@ -349,14 +349,21 @@ class TimelineMarkerItem(QGraphicsRectItem):
 
     def mousePressEvent(self,event):
         self._drag_origin=QPointF(self.pos());self._drag_canceled=False
+        self._drag_pointer_offset=event.scenePos().x()-self.pos().x()
         if self.selected is not None:self.selected(self.marker_id)
         self.setFocus(Qt.FocusReason.MouseFocusReason)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self,event):
-        if self._drag_canceled and self._drag_origin is not None:
+        if self._drag_origin is None:
+            super().mouseMoveEvent(event);return
+        if self._drag_canceled:
             self.setPos(self._drag_origin);event.accept();return
-        super().mouseMoveEvent(event)
+        # Use the scene coordinate carried by the event rather than Qt's default
+        # device-cursor delta. The latter may be quantized by the offscreen plugin
+        # and by mixed-DPI desktops, while the canonical marker position is a scene X.
+        self.setPos(event.scenePos().x()-self._drag_pointer_offset,0)
+        event.accept()
 
     def keyPressEvent(self,event):
         if event.key()==Qt.Key.Key_Escape and self._drag_origin is not None:
@@ -370,9 +377,14 @@ class TimelineMarkerItem(QGraphicsRectItem):
             super().mouseReleaseEvent(event);return
         if self._drag_canceled:
             self.setPos(origin);self._drag_origin=None;self._drag_canceled=False
+            self._drag_pointer_offset=0.0
             event.accept();return
-        super().mouseReleaseEvent(event)
-        current=QPointF(self.pos());self._drag_origin=None
+        # Release carries the authoritative pointer position even when a platform
+        # coalesces or quantizes intermediate move events.
+        self.setPos(event.scenePos().x()-self._drag_pointer_offset,0)
+        current=QPointF(self.pos())
+        self._drag_origin=None;self._drag_pointer_offset=0.0
+        event.accept()
         if current!=origin:
             self._defer(self.moved,self.marker_id,current.x(),self.project_id,self.revision)
 

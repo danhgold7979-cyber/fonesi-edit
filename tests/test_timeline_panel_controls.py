@@ -469,6 +469,7 @@ def test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo(tmp_pat
             window.navigation.setCurrentRow(3)
             timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1)
             timeline.playhead_slider.setValue(12);timeline.add_timeline_marker()
+            qt_app.processEvents()
             marker_id=timeline.selected_marker_id
             item=next(value for value in timeline.scene.items()
                       if getattr(value,'marker_id',None)==marker_id)
@@ -516,6 +517,7 @@ def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_pa
             timeline.playhead_slider.setValue(10);timeline.add_timeline_marker()
             first_id=timeline.selected_marker_id
             timeline.playhead_slider.setValue(20);timeline.add_timeline_marker()
+            qt_app.processEvents()
             second_id=timeline.selected_marker_id
             before=window.session.revision
 
