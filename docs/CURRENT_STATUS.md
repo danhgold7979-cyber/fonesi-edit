@@ -488,3 +488,10 @@ P04-06 Windows CI correction: run `42350134903` exposed `NotImplementedError` fo
 
 
 P04-06 integration progress: persistent cache is now wired to the timeline still-preview worker via Qt CacheLocation. Disk cache keys bind exact rational decoder timestamp in addition to source/tool hashes, stream and dimensions. Validated disk hits are PNG-bounded; corrupt entries trigger re-decode/repair; cancellation is checked before publication. Cache setup failure falls back to memory-only preview. Regression tests added for restart-style memory reset reuse, corrupt-cache repair, timestamp separation and invalid cache object refusal. See P04_RESULTS Slice AT. Exact-head CI pending. Background proxy generation, waveform persistence, video playback and A/V synchronized seek remain open.
+
+
+## P04-06 still-preview cache exact-head CI checkpoint — 2026-11-07
+
+- Exact-head clean-foundation run `42351281405` for `512dd60fc2374477529d14315fdf4d2874219613` completed SUCCESS on Ubuntu 24.04 / Python 3.12 and 3.13, and Windows / Python 3.12 and 3.13. All four `Source foundation and actual platform process tests` steps passed. The Windows 3.12 development onedir build also passed. This is foundation evidence, not full P04 or playback acceptance.
+- Commit `2069dd0e2d5f39ce1fac680c69682780f3c5d733` adds a regression for optional persistent-cache read failure: the still-preview must fall back to FFmpeg and return a valid in-memory frame. Exact-head test/CI for this new commit is pending.
+- Persistent still-preview cache integration remains distinct from encoded video proxy generation. Continuous video/audio playback, synchronized A/V seek, cache lifecycle UI and renderer/export parity remain open. P04-06 and P04 remain IN_PROGRESS; P04 whole-task acceptance remains 0/8.
