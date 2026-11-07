@@ -12,8 +12,10 @@ from fonesi_edit.ui import timeline as timeline_module
 from test_timeline_preview_ui import _open, _close
 
 
-class FakeController:
+class FakeController(QObject):
+    frames_retired = Signal(int)
     def __init__(self, *_args, **_kwargs):
+        super().__init__()
         self.paused = False
     def pause(self):
         self.paused = True
