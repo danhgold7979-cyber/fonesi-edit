@@ -35,8 +35,9 @@ def test_playback_frame_maps_overlapping_clips_and_audio_independently(tmp_path)
         other = dict(clip)
         other["id"] = "00000000-0000-0000-0000-000000000010"
         other["output_start"] = [0, 1]
+        other["speed"] = [1, 1]
         other["source_in"] = [0, 1]
-        other["source_out"] = [1, 1]
+        other["source_out"] = [9, 10]
         data["clips"].append(other)
     changed = _parse_changed(plan, mutate)
     result = plan_playback_frame(changed, 15)
