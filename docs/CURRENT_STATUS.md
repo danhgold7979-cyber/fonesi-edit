@@ -653,3 +653,7 @@ P04 Timeline playback test follow-up: resume button remains enabled during activ
 
 
 P04-06 follow-on: persistent waveform observation is integrated with the shared bounded cache and Timeline WaveformWorker via Qt CacheLocation. Cache identity includes exact rational window, source/tool SHA-256, stream, sample rate and bucket count; payload schema/peaks are validated and corrupt data is re-decoded/repaired. Tests cover reuse after memory-cache clear, corruption, identity and invalid cache object. Commits `83964e5`, `55e1691`, `4d6fd77`, `739c156`; plan/results documented. Exact latest-head CI pending. Waveform is still amplitude observation, not playback.
+
+
+
+P04 CI follow-up: Linux jobs for run `42371559854` exposed a playback-speed test fixture whose playhead sat exactly at the shortened half-open interval end after changing speed to 2×. Production guard was correct; test now moves playhead to frame 0 before asserting the unsupported-speed refusal. Commit `f9017bf`. Exact new-head matrix pending.
