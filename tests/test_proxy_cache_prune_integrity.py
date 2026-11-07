@@ -27,8 +27,10 @@ def test_prune_does_not_evict_valid_entry_because_corrupt_entry_claims_bytes(tmp
     cache.put(corrupt, b"broken")
     (cache.root / corrupt.cache_id / "proxy.bin").write_bytes(b"tamper")
 
-    # The corrupt six-byte entry must not count toward the quota. Adding one
-    # byte keeps the valid six-byte entry within the ten-byte budget.
+    # Lower the quota only after corruption. The valid six-byte entry plus
+    # the new one-byte entry fit exactly; counting the corrupt entry would
+    # incorrectly evict the older valid entry.
+    cache.max_total_bytes = 7
     third = _key(b"third-tool")
     cache.put(third, b"x")
 
