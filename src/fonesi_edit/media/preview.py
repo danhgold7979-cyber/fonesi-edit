@@ -357,7 +357,7 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
                 peaks=[]
                 for pair in payload['peaks']:
                     if (type(pair) is not list or len(pair)!=2
-                            or any(type(v) not in (int,float) or not math.isfinite(v) or not -1<=v<=1 for v in pair)
+                            or any(type(v) not in (int,float) or type(v) is bool or not math.isfinite(v) or not -1<=v<=1 for v in pair)
                             or pair[0]>pair[1]):
                         raise ValueError('Invalid cached waveform peak')
                     peaks.append((float(pair[0]),float(pair[1])))
