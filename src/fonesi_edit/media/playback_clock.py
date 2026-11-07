@@ -51,7 +51,7 @@ class PlaybackClock:
 
     def _current_frame(self, stamp: float) -> int:
         elapsed = max(0.0, stamp - self._anchor_time)
-        advanced = int(Fraction(str(elapsed)) * self.fps)
+        advanced = int(Fraction(str(elapsed)) * self.fps + Fraction(1, 1_000_000_000))
         frame = self._anchor_frame + advanced
         if self._loop is not None:
             start, end = self._loop
