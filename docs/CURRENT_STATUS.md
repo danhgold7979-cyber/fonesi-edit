@@ -480,3 +480,7 @@ P04-06 cache pruning follow-up: corrupt payloads are now deleted only when their
 
 
 P04-06 follow-up: canonical corrupt cache entries are removed during quota pruning; root path is revalidated at every operation; malformed non-object manifests are ignored safely during source invalidation. Regressions committed in `37d8aa4ddcb47d1b3e75aa32a6341403982f57f8` and `c94d7936db1e36e13c6b1c6131936dadef87b262`. Exact-head CI is pending.
+
+
+
+P04-06 Windows CI correction: run `42350134903` exposed `NotImplementedError` for `os.utime(..., follow_symlinks=False)` on Windows. The cache now uses the Windows-supported path-based timestamp update after lstat/reparse validation; if timestamp update is unsupported it preserves the verified cache read. Regression added. Commits `25bb61c3e92a8f45f46b347c0cfa9742ab6b3935`, `16aaf6b624a2c69cab89d249e78ed4664a69fe8e`. New exact-head matrix pending.
