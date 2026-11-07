@@ -99,8 +99,10 @@ class PlaybackController(QObject):
                 self.frame_presented.emit(frame)
                 self.drift_changed.emit(audio_video_drift(master, due.pts))
             if self.audio_output.state().name == "IdleState":
-                self.stop()
+                # Notify the session first so it can cancel a producer that is
+                # still decoding before queue retirement releases its credits.
                 self.playback_finished.emit()
+                self.stop()
         except BaseException:
             self.stop()
             self.playback_failed.emit("A/V presentation tick failed; playback stopped.")
