@@ -54,7 +54,7 @@ def test_worker_cancel_before_launch_never_invokes_encoder(tmp_path, monkeypatch
     worker = _worker(tmp_path)
     monkeypatch.setattr(workers, "encode_video_proxy",
                         lambda *a, **k: pytest.fail("must not launch"))
-    worker.requestInterruption()
+    worker.request_cancel()
     worker.run()
     assert worker.canceled and worker.result is None
     assert worker.error is None
