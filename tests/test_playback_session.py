@@ -1,0 +1,110 @@
+"""Finite A/V session orchestration tests with injected worker/output fakes."""
+from fractions import Fraction
+from pathlib import Path
+
+from PySide6.QtCore import QObject, Signal
+
+from fonesi_edit.media.audio_decode import PCMBuffer
+from fonesi_edit.media.audio_output import QtAudioOutput
+from fonesi_edit.media.audio_worker import AudioTrackSpec
+from fonesi_edit.media.video_decode import RGBVideoFrame, VideoFrameBatch
+from fonesi_edit.media.playback_controller import PlaybackController
+from fonesi_edit.media import playback_session as session_module
+
+
+class FakeOutput(QtAudioOutput):
+    def __init__(self):
+        QObject.__init__(self)
+        self.elapsed = 0
+        self.running = False
+    def start(self, pcm):
+        self.running = True
+    def processed_us(self):
+        return self.elapsed
+    def state(self):
+        return type("State", (), {"name": "ActiveState" if self.running else "StoppedState"})()
+    def suspend(self):
+        pass
+    def resume(self):
+        pass
+    def stop(self):
+        self.running = False
+
+
+class FakeAudioWorker(QObject):
+    chunk_ready = Signal(object)
+    chunk_failed = Signal(str)
+    chunk_canceled = Signal()
+    retirement_unknown = Signal(str)
+    def __init__(self, tracks, ffmpeg, **kwargs):
+        super().__init__()
+        self.started = False
+        self.canceled = False
+    def start(self):
+        self.started = True
+        pcm = PCMBuffer("a"*64, 0, 48000, 2, 4, (0.1,-0.1)*4, 4)
+        self.chunk_ready.emit(pcm)
+    def isRunning(self):
+        return False
+    def request_cancel(self):
+        self.canceled = True
+
+
+class FakeVideoWorker(QObject):
+    batch_ready = Signal(object)
+    decode_failed = Signal(str)
+    decode_canceled = Signal()
+    retirement_unknown = Signal(str)
+    finished = Signal()
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.started = False
+        self.canceled = False
+    def start(self):
+        self.started = True
+        frames = (RGBVideoFrame(0,16,16,0.0,b"x"*(16*16*3)),)
+        self.batch_ready.emit(VideoFrameBatch("b"*64,0,16,16,frames,True))
+        self.finished.emit()
+    def isRunning(self):
+        return False
+    def request_cancel(self):
+        self.canceled = True
+
+
+def test_finite_session_starts_audio_then_video_and_stops_on_master_finish(
+        qt_app, monkeypatch, tmp_path):
+    monkeypatch.setattr(session_module, "AudioChunkWorker", FakeAudioWorker)
+    monkeypatch.setattr(session_module, "VideoFrameQueueWorker", FakeVideoWorker)
+    controller = PlaybackController(FakeOutput())
+    session = session_module.PlaybackSession(controller)
+    states, finished = [], []
+    session.state_changed.connect(states.append)
+    session.finished.connect(lambda: finished.append(True))
+    track = AudioTrackSpec(tmp_path/"audio.mp4", "a"*64, 0, 0, 0.0)
+    session.start(audio_track=track, audio_ffmpeg=tmp_path/"ffmpeg",
+        video_source=tmp_path/"video.mp4", video_ffmpeg=tmp_path/"ffmpeg",
+        video_sha256="b"*64, video_stream_index=0,
+        video_start_seconds=0.0, fps=Fraction(30,1),
+        duration_seconds=Fraction(1,2), width=16, height=16)
+    assert session.active
+    assert session.audio_worker.started and session.video_worker.started
+    assert controller.queued_frames == 1
+    controller.playback_finished.emit()
+    assert not session.active
+    assert finished == [True]
+    assert "playing" in states and "finished" in states
+
+
+def test_finite_session_rejects_duration_over_five_seconds(qt_app, tmp_path):
+    session = session_module.PlaybackSession(PlaybackController(FakeOutput()))
+    track = AudioTrackSpec(tmp_path/"audio.mp4", "a"*64, 0, 0, 0.0)
+    try:
+        session.start(audio_track=track, audio_ffmpeg=tmp_path/"ffmpeg",
+            video_source=tmp_path/"video.mp4", video_ffmpeg=tmp_path/"ffmpeg",
+            video_sha256="b"*64, video_stream_index=0,
+            video_start_seconds=0.0, fps=Fraction(30,1),
+            duration_seconds=Fraction(6,1))
+    except session_module.PlaybackSessionError as exc:
+        assert "<=5" in str(exc)
+    else:
+        raise AssertionError("Unbounded session duration was accepted")
