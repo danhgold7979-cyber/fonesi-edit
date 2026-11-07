@@ -350,3 +350,23 @@ def test_persistent_preview_cache_requires_validated_cache_object(inputs,monkeyp
         module.extract_preview_frame(source,ffmpeg,expected_sha256=digest,
             stream_index=0,decoder_time=Fraction(0),persistent_cache=object())
     assert calls==[]
+
+
+
+def test_memory_preview_cache_hit_precedes_persistent_disk_lookup(inputs,monkeypatch):
+    source,ffmpeg,digest=inputs
+    calls=[]
+    monkeypatch.setattr(module,"run_owned",lambda *a,**k:(calls.append(a) or ProcessResult(0,_png(),b"")))
+    disk_cache=PersistentProxyCache(
+        source.parent/"persistent-preview-cache",
+        max_entry_bytes=1024*1024,
+        max_total_bytes=2*1024*1024,
+        max_entries=16,
+    )
+    kwargs=dict(expected_sha256=digest,stream_index=2,decoder_time=Fraction(7,4))
+    first=module.extract_preview_frame(source,ffmpeg,**kwargs)
+    monkeypatch.setattr(disk_cache,"get",lambda key: pytest.fail("disk cache must not be read after memory hit"))
+    second=module.extract_preview_frame(source,ffmpeg,persistent_cache=disk_cache,**kwargs)
+    assert second.cache_hit is True
+    assert second.png==first.png
+    assert len(calls)==1
