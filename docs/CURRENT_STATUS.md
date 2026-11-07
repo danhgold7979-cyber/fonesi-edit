@@ -681,3 +681,7 @@ P04 playback timestamp correction: FFmpeg source PTS are now rebased to the zero
 
 
 P04 playback guard: finite A/V session now fails closed if FFmpeg returns a short video batch before the planned interval, returns its frame credits and stops audio rather than continuing audio-only. Regression added. Commits `f201c28`, `44a1965`. Exact latest-head CI pending; earlier run on HEAD `49a39bb` was cancelled.
+
+
+
+P04 playback UI lifecycle: Timeline now remains busy until stopped/failed playback decoder threads retire, not merely until session.active becomes false. New session.retiring property and delayed-worker regression. Commits `de366e0`, `0ef5c66`, `e0ce07b`, `124c69a`. Latest exact-head matrix pending.
