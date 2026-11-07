@@ -649,3 +649,7 @@ Acceptance boundary: finite <=5s A/V buffer session prototype and unit tests onl
 
 
 P04 Timeline playback test follow-up: resume button remains enabled during active paused sessions and changes label to “Tiếp tục”; shutdown stops the active finite playback session. The speed-effect rejection test now mutates the plan through a valid revision increment and ProjectSession CAS commit, never by assigning to the read-only project property. See P04_RESULTS Slice AU. Exact latest-head four-runner CI pending. Finite A/V session remains capped at 5 seconds.
+
+
+
+P04-06 follow-on: persistent waveform observation is integrated with the shared bounded cache and Timeline WaveformWorker via Qt CacheLocation. Cache identity includes exact rational window, source/tool SHA-256, stream, sample rate and bucket count; payload schema/peaks are validated and corrupt data is re-decoded/repaired. Tests cover reuse after memory-cache clear, corruption, identity and invalid cache object. Commits `83964e5`, `55e1691`, `4d6fd77`, `739c156`; plan/results documented. Exact latest-head CI pending. Waveform is still amplitude observation, not playback.
