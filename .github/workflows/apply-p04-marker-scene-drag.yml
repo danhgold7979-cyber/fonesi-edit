@@ -1,0 +1,49 @@
+name: Apply P04 marker scene-drag fix
+
+on:
+  push:
+    branches: [develop/fonesi-full]
+    paths:
+      - '.github/patches/p04-marker-scene-drag.patch'
+      - '.github/workflows/apply-p04-marker-scene-drag.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-p04-marker-scene-drag
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor == 'danhgold7979-cyber'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact integration HEAD
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate and apply reviewed fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "dd590bb7733b303e86d09bc4d64d1281ed309cf9f366ba4aae41152cc8721518  .github/patches/p04-marker-scene-drag.patch" | sha256sum --check --strict -
+          git apply --check .github/patches/p04-marker-scene-drag.patch
+          git apply .github/patches/p04-marker-scene-drag.patch
+          git diff --check
+          python -m compileall -q src tests scripts
+          PYTHONPATH=src python -m pytest -q tests/test_timeline_edit_commands.py
+
+      - name: Commit reviewed fix and remove transfer files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/patches/p04-marker-scene-drag.patch .github/workflows/apply-p04-marker-scene-drag.yml
+          git add src/fonesi_edit/ui/timeline.py tests/test_timeline_panel_controls.py
+          git config user.name 'danhgold7979-cyber'
+          git config user.email 'danhgold7979@gmail.com'
+          git commit -m 'fix(P04-05): use scene coordinates for marker drag'
+          git push origin HEAD:develop/fonesi-full
