@@ -438,3 +438,13 @@ Repository `danhgold7979-cyber/fonesi-edit`, integration branch `develop/fonesi-
 Targeted hosted run `42341716342` passed both exact marker regressions on Ubuntu 24.04 / Python 3.12 and committed the tested diff. It verifies one commit for successful drag, shared undo/redo and save/reopen persistence, collision refusal, Escape rollback and no-op press/release. It is not a completed four-runner clean-foundation result.
 
 A user-authored descendant verification commit must run Ubuntu and Windows Python 3.12/3.13 against the exact product tree because GitHub does not recursively trigger workflows from a `GITHUB_TOKEN` push. Until that matrix is green, latest cross-platform status remains pending. Physical Windows pointer/HiDPI/IME, continuous playback, synchronized A/V seek, real-media/GPU/Chrome/provider and render/export gates remain open. P04-05 and P04 remain IN_PROGRESS; global task/criterion acceptance counts are unchanged.
+
+
+
+## P04-06 continuation — persistent proxy cache boundary (2026-11-07)
+
+Current work on `develop/fonesi-full` adds an atomic content-addressed persistent cache for already-encoded proxy bytes. Identity binds source/tool SHA-256, stream, dimensions and algorithm version. Reads are bounded and verify the manifest and payload digest; writes stage, flush and atomically publish; cancellation before publication leaves no ready entry. Source invalidation validates canonical entry identity and does not delete unrelated directories.
+
+Commits: `a894891dc39012a803a8072212dbaf5112a2d25c`, `e3b85ed86f6d66aafb7cca4e8cb18538f072014e`, `a3d76d44cd905096205fb993a54fb6ad643703ed`. Regression tests: `tests/test_proxy_cache.py`. Documentation: `docs/phases/P04-06_PROXY_CACHE_PLAN.md` and final P04 results Slice AS.
+
+Initial CI run 42348806219 passed four runners on the first implementation commit, but predates hardening/test-only follow-up commits and is not evidence for latest HEAD. Latest exact-head CI must finish before reporting PASS. This cache is not yet connected to an encoder/proxy worker; no playback, A/V sync or renderer acceptance is claimed. P04-06 and P04 remain IN_PROGRESS; P04 whole-task acceptance remains 0/8.
