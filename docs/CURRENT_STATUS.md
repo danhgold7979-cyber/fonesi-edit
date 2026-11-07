@@ -645,3 +645,7 @@ Acceptance boundary: finite native Windows decode primitives are verified, but c
 - The new exact-head clean-foundation run `42361777492` for `2004a074` is in progress at last check. Handoff ZIP artifact exists for exact HEAD; matrix not yet accepted. Earlier base run `42361045469` at `0bdb0c72` passed 4/4 before the controller/session integration.
 
 Acceptance boundary: finite <=5s A/V buffer session prototype and unit tests only. No Timeline Play/Pause integration, continuous multi-chunk audio/video playback, arbitrary project clip graph scheduling, seamless looping, robust A/V drift correction/resampling or user-device hardware acceptance yet. P04-06 remains IN_PROGRESS.
+
+
+
+P04 Timeline playback test follow-up: resume button remains enabled during active paused sessions and changes label to “Tiếp tục”; shutdown stops the active finite playback session. The speed-effect rejection test now mutates the plan through a valid revision increment and ProjectSession CAS commit, never by assigning to the read-only project property. See P04_RESULTS Slice AU. Exact latest-head four-runner CI pending. Finite A/V session remains capped at 5 seconds.
