@@ -75,3 +75,9 @@ FFmpeg decode start remains the exact source decoder timestamp supplied by the s
 ## Early EOF policy for finite A/V session
 
 A decoded video batch whose `complete` flag is false indicates the requested frame interval was not fulfilled. The finite session must return that batch's in-flight credits and fail/stop the audio master; it must not continue as audio-only playback. Rebuffering, retry, seamless gap handling and continuous playback are separate future work.
+
+
+
+## UI retirement contract
+
+Timeline operations remain busy while a playback session is active or its canceled/failed/stopped decoder workers have not retired. The playback session exposes `retiring`; its transition to false is driven by audio/video worker completion, not by merely issuing cancellation. New media work must not start while that flag is true.
