@@ -4,7 +4,7 @@ on:
   push:
     branches: [develop/fonesi-full]
     paths:
-      - '.github/patches/p04-marker-test-events.patch'
+      - '.github/scripts/apply_p04_marker_fix.py'
       - '.github/workflows/apply-p04-marker-test-events.yml'
 
 permissions:
@@ -43,15 +43,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
 
-      - name: Validate and test reviewed marker fix
+      - name: Apply guarded fix and run exact regressions
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .github/patches/p04-marker-test-events.patch)" = "529719a61e89223d109fcbb741db68710ce4e9d0"
-          git apply --check .github/patches/p04-marker-test-events.patch
-          git apply .github/patches/p04-marker-test-events.patch
+          test "$(git hash-object .github/scripts/apply_p04_marker_fix.py)" = "f885843811c62816b5d3f6c8b3cd5772413ba49b"
+          uv run --no-sync python .github/scripts/apply_p04_marker_fix.py
           git diff --check
-          uv run --no-sync python -m compileall -q src tests scripts
+          uv run --no-sync python -m compileall -q src tests scripts .github/scripts
           uv run --no-sync python -m pytest -q \
             tests/test_timeline_panel_controls.py::test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo \
             tests/test_timeline_panel_controls.py::test_timeline_marker_drag_collision_and_escape_do_not_create_commands
@@ -60,7 +59,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm .github/patches/p04-marker-test-events.patch .github/workflows/apply-p04-marker-test-events.yml
+          git rm .github/scripts/apply_p04_marker_fix.py \
+            .github/patches/p04-marker-test-events.patch \
+            .github/workflows/apply-p04-marker-test-events.yml
           git add src/fonesi_edit/ui/timeline.py tests/test_timeline_panel_controls.py
           git config user.name 'danhgold7979-cyber'
           git config user.email 'danhgold7979@gmail.com'
