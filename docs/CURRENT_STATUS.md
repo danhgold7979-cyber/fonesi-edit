@@ -673,3 +673,7 @@ P04 playback lifecycle: the prior HEAD `0304618` passed clean-foundation CI on L
 
 
 P04 playback producer backpressure: added a cancellable 64-frame default in-flight budget (maximum 256), exact credits returned as frames retire from the audio-master presentation queue, and cancellation wake-up. Queue batch validation is atomic; late/rejected batches return their credits; duplicate/excess acknowledgements fail. Regression covers backpressure, cancellation, credit retirement, queue atomicity and late batches. See P04_RESULTS Slice AY. Prior four-runner PASS at `0304618` predates this slice; latest exact-head CI pending. Playback remains finite <=5 seconds.
+
+
+
+P04 playback timestamp correction: FFmpeg source PTS are now rebased to the zero-based finite playback segment clock before entering the audio-master queue. This prevents nonzero source trims from creating a false initial A/V offset. Regression covers 12.5-second source start at 24 fps. Commits `427f4d2`, `67a8af0`; exact latest-head Linux/Windows CI pending.
