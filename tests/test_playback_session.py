@@ -95,6 +95,7 @@ def test_finite_session_starts_audio_then_video_and_stops_on_master_finish(
     assert session.audio_worker.started and session.video_worker.started
     assert controller.queued_frames == 1
     controller.playback_finished.emit()
+    controller.stop()  # mirrors the controller's IdleState completion path
     assert session.video_worker.acknowledged == 1
     assert not session.active
     assert finished == [True]
@@ -151,6 +152,7 @@ def test_audio_master_waits_for_video_worker_retirement_before_session_finished(
     video=session.video_worker
     assert video.isRunning()
     controller.playback_finished.emit()
+    controller.stop()  # retire queued frames only after producer cancellation
     assert video.canceled
     assert session.active
     assert finished==[]
