@@ -21,6 +21,7 @@ class PlaybackControllerError(RuntimeError):
 
 class PlaybackController(QObject):
     frame_presented = Signal(object)
+    frames_retired = Signal(int)
     state_changed = Signal(str)
     drift_changed = Signal(object)
     playback_finished = Signal()
@@ -90,7 +91,9 @@ class PlaybackController(QObject):
             if due is not None:
                 # Present the newest due frame and discard it plus every stale frame.
                 selected = self._queue[due.dropped_before]
-                del self._queue[:due.dropped_before + 1]
+                retired_count = due.dropped_before + 1
+                del self._queue[:retired_count]
+                self.frames_retired.emit(retired_count)
                 frame = selected[2]
                 self._last_presented = selected[0]
                 self.frame_presented.emit(frame)
@@ -123,7 +126,10 @@ class PlaybackController(QObject):
         self.audio_output.stop()
         self._active = False
         self._paused = False
+        retired_count = len(self._queue)
         self._queue.clear()
+        if retired_count:
+            self.frames_retired.emit(retired_count)
         self.state_changed.emit("stopped")
 
     @property
