@@ -657,3 +657,7 @@ P04-06 follow-on: persistent waveform observation is integrated with the shared 
 
 
 P04 CI follow-up: Linux jobs for run `42371559854` exposed a playback-speed test fixture whose playhead sat exactly at the shortened half-open interval end after changing speed to 2×. Production guard was correct; test now moves playhead to frame 0 before asserting the unsupported-speed refusal. Commit `f9017bf`. Exact new-head matrix pending.
+
+
+
+P04-06: Timeline finite playback now uses the same exact rational A/V seek planner as still preview. It passes planner-produced decoder timestamps to video/audio workers and rejects unsupported multi-audio/speed/freeze/mismatched-source cases. Commits `4d4102d`, `593e7d5`. Exact latest-head CI pending; finite <=5s prototype only.
