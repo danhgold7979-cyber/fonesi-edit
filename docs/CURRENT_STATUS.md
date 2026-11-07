@@ -633,3 +633,15 @@ Acceptance boundary: audio output sink is a primitive that can play one supplied
 - Handoff ZIP for exact HEAD `27ceb5dc5ed0a1c93f11d1931bf44a8a2f468959` is artifact `Fonesi_Edit_FULL_27ceb5dc.zip`; SHA-256: `9f65811b1430bb12af239df883634a87c209f2a87febfb57d12d4fa0c8a1970b`.
 
 Acceptance boundary: finite native Windows decode primitives are verified, but continuous playback queue, Qt audio output with a real device, audio mixer, master-clock scheduling, A/V drift correction and Timeline Play/Pause remain unimplemented. P04-06 remains IN_PROGRESS.
+
+
+## P04-06 finite A/V session integration slice — 2026-11-07
+
+- Added `src/fonesi_edit/media/playback_controller.py`: finite PCM-buffer audio-master presentation controller, bounded RGB frame queue, selects newest due frame against QAudioSink processed time, reports signed A/V drift, stops on audio Idle, pause/resume via QAudioSink suspend/resume.
+- Added `src/fonesi_edit/media/playback_session.py`: composes one bounded audio track decode/mix chunk and one video frame batch worker for <=5 seconds; starts video only after audio output starts; stops/cancels video when audio master buffer finishes. This is an integration prototype, not full project playback.
+- Added `src/fonesi_edit/media/audio_worker.py`: asynchronous per-chunk multi-track decode/mix worker. Added `src/fonesi_edit/media/playback_worker.py`: asynchronous bounded RGB frame batch producer; global frame indices are normalized across batches.
+- Tests: `tests/test_playback_controller.py`, `tests/test_playback_session.py`, `tests/test_audio_worker.py`, `tests/test_playback_worker.py`, plus mixer and A/V scheduler tests.
+- CI run `42361489079` at `964647a0` failed only on exact Fraction equality for drift derived from float frame PTS; changed to explicit 1 ns tolerance in `0ee5482e`.
+- The new exact-head clean-foundation run `42361777492` for `2004a074` is in progress at last check. Handoff ZIP artifact exists for exact HEAD; matrix not yet accepted. Earlier base run `42361045469` at `0bdb0c72` passed 4/4 before the controller/session integration.
+
+Acceptance boundary: finite <=5s A/V buffer session prototype and unit tests only. No Timeline Play/Pause integration, continuous multi-chunk audio/video playback, arbitrary project clip graph scheduling, seamless looping, robust A/V drift correction/resampling or user-device hardware acceptance yet. P04-06 remains IN_PROGRESS.
