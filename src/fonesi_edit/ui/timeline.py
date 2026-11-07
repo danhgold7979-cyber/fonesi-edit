@@ -1408,6 +1408,9 @@ class TimelinePanel(QWidget):
 
     def request_stop(self):
         self._loop_timer.stop()
+        if self.playback_session is not None and self.playback_session.active:
+            self.playback_session.stop()
+            self.playback_status.setText('Đã dừng playback để đóng timeline an toàn.')
         if self.proxy_worker is not None:self.proxy_worker.requestInterruption()
         self.loop_button.setText('Lặp vùng')
         self.stopping=True
