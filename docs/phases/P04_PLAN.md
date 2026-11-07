@@ -803,3 +803,20 @@ Acceptance boundary: ED-17.03/05 remain NOT_RUN until hosted Linux/Windows regre
 ### Acceptance boundary
 
 This slice closes the locally implementable marker reposition portion of ED-17.04 only. Continuous thumbnails, synchronized A/V playback/seek, sample-boundary evidence and physical Windows mouse/HiDPI acceptance remain open; P04-05 and P04 remain IN_PROGRESS.
+
+
+## Slice AR — viewport-routed marker drag and cancel semantics (P04-05)
+
+**Entry condition:** marker rename, frame-only loop, rational clip move and gap/ripple delete already exist, but viewport marker reposition remained unverified and the first Linux offscreen tests exposed deterministic failures.
+
+**Observed defects:**
+- The marker item captured the composition-plan ID while the release callback compared it with `ProjectSession.project.id`, so every legitimate release was rejected as a stale project.
+- Qt offscreen clamps the virtual global cursor; `QTest.mouseMove` could deliver a different local coordinate for a wide timeline viewport.
+- The playhead is visually above markers, requiring full item-stack lookup rather than top-item-only hit testing.
+- The shared shortcut router consumed Escape before the view could cancel an active drag.
+
+**Implementation contract:** use a dedicated `TimelineGraphicsView` to own marker viewport gesture state; bind the canonical project ID and current revision at marker construction; commit only once on a changed, non-cancelled release; restore without revision on collision, Escape or no movement; preserve Escape's In/Out clear action when no marker drag is active. Tests must send exact local viewport mouse events while retaining all command-count, persistence, collision and cancellation assertions.
+
+**Verified targeted result:** guarded Ubuntu 24.04 / Python 3.12 run `42341716342` passed both marker regressions and committed product SHA `b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6`.
+
+**Remaining gate:** run the full clean-foundation Linux/Windows Python 3.12/3.13 matrix on an exact descendant checkpoint before treating the slice as cross-platform regression-verified. Physical Windows pointer/HiDPI acceptance remains external. P04-05/P04 stay IN_PROGRESS; no ED-17 criterion is accepted. After this gate, continue the next independent P04-06 proxy/seek slice without claiming continuous playback or preview/render parity.

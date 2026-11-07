@@ -429,3 +429,12 @@ Acceptance ledger remains 8/94 tasks ACCEPTED, 17 IN_PROGRESS, 69 PLANNED; 13/43
 Remaining P04 gates: actual text editing/logo import/font rendering and glyph coverage; complete effect-property catalog; unified undo across timeline/text/subtitle; timeline loop and marker rename/drag; persistent encoded proxies, continuous playback and synchronized A/V seek; complete Settings installer/update/repair/rollback and Chrome profile/account readiness; physical Windows Explorer, mixed-DPI/HiDPI, screen-reader and Vietnamese/Chinese IME acceptance; real-media codec corpus, GPU, crop compositor and renderer/export parity.
 
 Next: continue P04-02 with crop overlay/geometry integration and preview/export parity dependencies, then advance P04-03/04 in dependency order. Keep all work on `develop/fonesi-full`; do not merge `main`. Do not mark P04-02 or P04 complete until all mapped criteria and external gates are evidenced.
+
+
+## P04 marker-drag product checkpoint — 2026-11-07
+
+Repository `danhgold7979-cyber/fonesi-edit`, integration branch `develop/fonesi-full`; release branch `main` remains unchanged and no merge was performed. Product commit [`b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6`](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6) fixes P04-05 marker viewport drag by using canonical project identity, a viewport-local gesture router, full stacked hit testing and contextual Escape cancellation.
+
+Targeted hosted run [`42341716342`](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/42341716342) passed both exact marker regressions on Ubuntu 24.04 / Python 3.12 and committed the tested diff. It verifies one commit for successful drag, shared undo/redo and save/reopen persistence, collision refusal, Escape rollback and no-op press/release. It is not a completed four-runner clean-foundation result.
+
+A user-authored descendant verification commit must run Ubuntu and Windows Python 3.12/3.13 against the exact product tree because GitHub does not recursively trigger workflows from a `GITHUB_TOKEN` push. Until that matrix is green, latest cross-platform status remains pending. Physical Windows pointer/HiDPI/IME, continuous playback, synchronized A/V seek, real-media/GPU/Chrome/provider and render/export gates remain open. P04-05 and P04 remain IN_PROGRESS; global task/criterion acceptance counts are unchanged.

@@ -497,3 +497,22 @@ Regression cases:
 - Qt integration tests both modes and shared undo/redo.
 
 The tests require a hosted run on the exact commit. ED-17.03 and ED-17.05 remain NOT_RUN; P04 remains IN_PROGRESS.
+
+
+## Slice AR — viewport-routed marker drag and cancel semantics (P04-05, 2026-11-07)
+
+Implementation commit: [`b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6`](https://github.com/danhgold7979-cyber/fonesi-edit/commit/b14c409c8abbcb34d6d94b4ded5ca1c5f2571ed6). The exact guarded candidate diff was tested by targeted workflow run [`42341716342`](https://github.com/danhgold7979-cyber/fonesi-edit/actions/runs/42341716342), which completed SUCCESS on Ubuntu 24.04 / Python 3.12 and then committed that tested diff to `develop/fonesi-full`.
+
+Implemented:
+- `TimelineGraphicsView` routes marker press/move/release through real viewport-local coordinates, scans the full item stack below the mouse-transparent playhead and clamps movement through the existing marker item bounds.
+- Marker mutation now binds the canonical `session.project.id`, not the composition-plan ID, so the existing stale-project/revision CAS guard accepts the active project and still rejects stale callbacks.
+- A successful drag commits exactly one shared-history command; undo/redo and project-file save/reopen preserve the moved frame.
+- Collision refusal restores the prior marker frame without creating a project revision. Escape first cancels an active marker drag and restores its visual origin; when no drag is active it retains the existing In/Out clear behavior. Press/release without movement is a no-op.
+- Offscreen regression input uses explicit `QMouseEvent` viewport-local coordinates because Qt's virtual global cursor can be clamped on a small offscreen screen. Assertions still exercise the production viewport event path and were not weakened.
+
+Targeted regression evidence:
+- `test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo`
+- `test_timeline_marker_drag_collision_and_escape_do_not_create_commands`
+- Result: 2 passed, 0 failed in the guarded apply job. Temporary transfer workflow/script/patch files were deleted by the successful product commit.
+
+Acceptance boundary: this is targeted hosted Linux/Qt-offscreen evidence, not the required exact-HEAD four-runner foundation result and not physical Windows mouse, mixed-DPI/HiDPI, screen-reader, IME, real-media, synchronized A/V seek or render/export acceptance. P04-05 and P04 remain IN_PROGRESS; ED-17 criteria and all acceptance counters remain unchanged pending complete criteria and external gates.
