@@ -585,3 +585,9 @@ Commits:
 - `c94d7936db1e36e13c6b1c6131936dadef87b262`: regression covers JSON list/broken manifests and post-construction cache-root mutation.
 
 Exact latest-head Linux/Windows matrix remains pending. No local execution is claimed.
+
+
+
+### Slice AS Windows LRU timestamp portability fix — 2026-11-07
+
+The exact-head matrix at commit `82408efd827f3aa5f4fdead34d7abe35fed5a6ed` exposed seven Windows Python 3.12 failures: `os.utime(..., follow_symlinks=False)` raises `NotImplementedError` on Windows. Commits `25bb61c3e92a8f45f46b347c0cfa9742ab6b3935` and `16aaf6b624a2c69cab89d249e78ed4664a69fe8e` remove the unsupported flag after the cache entry passed lstat/reparse validation and add a regression proving a verified read remains usable if recency update is unsupported. Exact new-head four-runner CI is required; prior failures and Linux PASS do not count as current acceptance.
