@@ -193,6 +193,36 @@ def native_cases(ffmpeg, ffprobe, work, pin, report):
     assert lifecycle.mechanisms == ('WINDOWS_JOB_EMPTY',)
     assert digest(cfr) == before
     report['cases'].append('actual-FFmpeg-progress-cancel-job-empty')
+
+    # Exercise actual video proxy encode + full-decode validation on the pinned
+    # Windows FFmpeg candidate. This is a native CPU capability gate, not UI
+    # playback, GPU, renderer or product acceptance.
+    from fonesi_edit.media.proxy_encode import ProxySpec, encode_video_proxy
+    from fonesi_edit.media.proxy_cache import PersistentProxyCache
+    cache = PersistentProxyCache(work / 'owned-proxy-cache',
+        max_entry_bytes=16 * 1024 * 1024, max_total_bytes=32 * 1024 * 1024,
+        max_entries=8)
+    spec = ProxySpec(width=48, height=32, fps_num=10, fps_den=1, codec='mpeg4')
+    events = []
+    proxy = encode_video_proxy(cfr, ffmpeg, ffprobe, cache,
+        expected_source_sha256=before, stream_index=0, spec=spec,
+        progress=events.append, timeout=60)
+    assert not proxy.cache_hit and proxy.path.is_file()
+    assert proxy.size_bytes == proxy.path.stat().st_size
+    assert proxy.payload_sha256 == digest(proxy.path)
+    assert (proxy.width, proxy.height) == (48, 32) and proxy.duration > 0
+    assert events and events[-1].progress == 'end'
+    reused = encode_video_proxy(cfr, ffmpeg, ffprobe, cache,
+        expected_source_sha256=before, stream_index=0, spec=spec, timeout=60)
+    assert reused.cache_hit and reused.path == proxy.path
+    assert reused.payload_sha256 == proxy.payload_sha256
+    assert digest(cfr) == before
+    report['cases'].append('actual-pinned-FFmpeg-MPEG4-proxy-full-decode-cache-reuse')
+    report['proxy'] = {
+        'codec': proxy.codec, 'width': proxy.width, 'height': proxy.height,
+        'duration': str(proxy.duration), 'payload_sha256': proxy.payload_sha256,
+        'progress_events': len(events), 'cache_hit_verified': reused.cache_hit
+    }
     report['fixture_sha256'] = {x.name: digest(x) for x in (cfr,vfr,rotated,corrupt)}
 
 
