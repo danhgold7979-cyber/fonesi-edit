@@ -1,6 +1,6 @@
 --- a/src/fonesi_edit/ui/timeline.py
 +++ b/src/fonesi_edit/ui/timeline.py
-@@ -389,6 +389,71 @@
+@@ -389,6 +389,75 @@
              self._defer(self.moved,self.marker_id,current.x(),self.project_id,self.revision)
  
  
@@ -12,10 +12,14 @@
 +        self._marker_pointer_offset=0.0;self._marker_canceled=False
 +
 +    def _marker_at(self,position):
-+        item=self.itemAt(position)
-+        while item is not None and not isinstance(item,TimelineMarkerItem):
-+            item=item.parentItem()
-+        return item
++        # itemAt() returns only the top visual item, which may be the mouse-transparent
++        # playhead. Search the complete stack and return the first marker or child.
++        for candidate in self.items(position):
++            item=candidate
++            while item is not None and not isinstance(item,TimelineMarkerItem):
++                item=item.parentItem()
++            if item is not None:return item
++        return None
 +
 +    def _scene_x(self,event):
 +        return self.mapToScene(event.position().toPoint()).x()
@@ -72,7 +76,7 @@
  
  class TimelinePanel(QWidget):
      project_changed=Signal()
-@@ -523,7 +588,7 @@
+@@ -523,7 +592,7 @@
          self.move_button.clicked.connect(lambda:self._apply_timeline_edit('move'))
          self.delete_clip_button.clicked.connect(self.delete_selected_clip)
          self.scene=QGraphicsScene(self)
