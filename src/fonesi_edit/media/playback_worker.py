@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import replace
+from fractions import Fraction
 
 from PySide6.QtCore import QThread, Signal
 from threading import Condition
@@ -125,8 +126,21 @@ class VideoFrameQueueWorker(QThread):
                     if len(batch.frames) < reserved:
                         self._release_frames(reserved - len(batch.frames))
                         reserved = len(batch.frames)
+                    # FFmpeg frame PTS are source/decoder timestamps, while
+                    # the audio-master clock starts at zero for this playback
+                    # segment. Rebase every decoded frame onto the segment's
+                    # relative timeline so a non-zero source trim does not
+                    # delay video presentation by the source in-point.
+                    segment_offset = Fraction(self.frames_decoded * self.fps_den,
+                                              self.fps_num)
                     indexed_frames = tuple(
-                        replace(frame, index=self.frames_decoded + offset)
+                        replace(
+                            frame,
+                            index=self.frames_decoded + offset,
+                            pts_seconds=float(segment_offset + Fraction(
+                                offset * self.fps_den, self.fps_num
+                            )),
+                        )
                         for offset, frame in enumerate(batch.frames)
                     )
                     batch = replace(batch, frames=indexed_frames)
