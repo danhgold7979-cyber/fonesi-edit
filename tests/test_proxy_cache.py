@@ -153,3 +153,26 @@ def test_cache_refuses_non_absolute_root_and_invalid_payload(tmp_path, monkeypat
             cache.put(key, payload)
     with pytest.raises(ProxyCacheError):
         cache.put(key, b"proxy", cancel=None)
+
+
+
+def test_invalidate_source_never_deletes_unrelated_directory_with_forged_manifest(tmp_path):
+    source_hash = sha256(b"source").hexdigest()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    unrelated = cache.root / "user-data"
+    unrelated.mkdir()
+    key_data = _key().to_dict()
+    (unrelated / "manifest.json").write_text(json.dumps({
+        "schema": 1,
+        "key": key_data,
+        "size": 5,
+        "payload_sha256": sha256(b"other").hexdigest(),
+    }), encoding="utf-8")
+    (unrelated / "important.txt").write_text("preserve", encoding="utf-8")
+    assert cache.invalidate_source(source_hash) == 0
+    assert (unrelated / "important.txt").read_text(encoding="utf-8") == "preserve"
+
+
+def test_cache_root_rejects_parent_path_traversal(tmp_path):
+    with pytest.raises(ProxyCacheError):
+        PersistentProxyCache(tmp_path / ".." / "outside")
