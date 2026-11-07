@@ -389,6 +389,80 @@ class TimelineMarkerItem(QGraphicsRectItem):
             self._defer(self.moved,self.marker_id,current.x(),self.project_id,self.revision)
 
 
+class TimelineGraphicsView(QGraphicsView):
+    """Route marker drags from viewport coordinates, independent of scene mouse synthesis."""
+    def __init__(self,scene,parent=None):
+        super().__init__(scene,parent)
+        self._marker_drag=None;self._marker_origin=None
+        self._marker_pointer_offset=0.0;self._marker_canceled=False
+
+    def _marker_at(self,position):
+        # itemAt() returns only the top visual item, which may be the mouse-transparent
+        # playhead. Search the complete stack and return the first marker or child.
+        for candidate in self.items(position):
+            item=candidate
+            while item is not None and not isinstance(item,TimelineMarkerItem):
+                item=item.parentItem()
+            if item is not None:return item
+        return None
+
+    def _scene_x(self,event):
+        return self.mapToScene(event.position().toPoint()).x()
+
+    def _clear_marker_drag(self):
+        self._marker_drag=None;self._marker_origin=None
+        self._marker_pointer_offset=0.0;self._marker_canceled=False
+
+    def mousePressEvent(self,event):
+        if event.button()==Qt.MouseButton.LeftButton:
+            marker=self._marker_at(event.position().toPoint())
+            movable=(marker is not None and
+                bool(marker.flags()&QGraphicsItem.GraphicsItemFlag.ItemIsMovable))
+            if movable:
+                self._marker_drag=marker;self._marker_origin=QPointF(marker.pos())
+                self._marker_pointer_offset=self._scene_x(event)-marker.pos().x()
+                self._marker_canceled=False
+                if marker.selected is not None:marker.selected(marker.marker_id)
+                marker.setSelected(True);marker.setFocus(Qt.FocusReason.MouseFocusReason)
+                self.setFocus(Qt.FocusReason.MouseFocusReason)
+                event.accept();return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self,event):
+        marker=self._marker_drag
+        if marker is None:
+            super().mouseMoveEvent(event);return
+        if self._marker_canceled:
+            marker.setPos(self._marker_origin);event.accept();return
+        marker.setPos(self._scene_x(event)-self._marker_pointer_offset,0)
+        event.accept()
+
+    def cancel_marker_drag(self):
+        marker=self._marker_drag
+        if marker is None:return False
+        marker.setPos(self._marker_origin);self._marker_canceled=True
+        return True
+
+    def keyPressEvent(self,event):
+        if event.key()==Qt.Key.Key_Escape and self.cancel_marker_drag():
+            event.accept();return
+        super().keyPressEvent(event)
+
+    def mouseReleaseEvent(self,event):
+        marker=self._marker_drag;origin=self._marker_origin
+        if marker is None or origin is None:
+            super().mouseReleaseEvent(event);return
+        canceled=self._marker_canceled
+        if canceled:
+            marker.setPos(origin)
+        else:
+            marker.setPos(self._scene_x(event)-self._marker_pointer_offset,0)
+        current=QPointF(marker.pos())
+        self._clear_marker_drag();event.accept()
+        if not canceled and current!=origin:
+            marker._defer(marker.moved,marker.marker_id,current.x(),
+                          marker.project_id,marker.revision)
+
 
 class TimelinePanel(QWidget):
     project_changed=Signal()
@@ -523,11 +597,15 @@ class TimelinePanel(QWidget):
         self.move_button.clicked.connect(lambda:self._apply_timeline_edit('move'))
         self.delete_clip_button.clicked.connect(self.delete_selected_clip)
         self.scene=QGraphicsScene(self)
-        self.view=QGraphicsView(self.scene)
+        self.view=TimelineGraphicsView(self.scene,self)
         self.view.setBackgroundBrush(QBrush(QColor('#111820')))
         layout.addWidget(self.view)
         self._install_timeline_shortcuts()
         self.update_project()
+
+    def _escape_timeline_context(self):
+        if self.view.cancel_marker_drag():return
+        self.clear_range_markers()
 
     def _install_timeline_shortcuts(self):
         bindings=(
@@ -540,7 +618,7 @@ class TimelinePanel(QWidget):
             ('timeline.mark_in',self.set_in_marker),
             ('timeline.mark_out',self.set_out_marker),
             ('timeline.add_marker',self.add_timeline_marker),
-            ('timeline.clear_range',self.clear_range_markers),
+            ('timeline.clear_range',self._escape_timeline_context),
             ('layer.undo',self.undo_project),
             ('layer.redo',self.redo_project),
         )
@@ -1475,7 +1553,7 @@ class TimelinePanel(QWidget):
             marker_item=TimelineMarkerItem(
                 marker['id'],marker['label'],self._scene_x_for_frame(marker['frame']),
                 marker_min_x,marker_max_x,self._timeline_marker_dragged,
-                self._select_marker_from_scene,data['id'],session.revision,movable=marker_movable)
+                self._select_marker_from_scene,session.project.id,session.revision,movable=marker_movable)
             marker_item.setToolTip(f"{marker['label']} · frame {marker['frame']} · kéo ngang để đổi frame")
             self.scene.addItem(marker_item)
             marker_item.setSelected(marker['id']==self.selected_marker_id)

@@ -2,7 +2,8 @@
 import os
 import pytest
 from pathlib import Path
-from PySide6.QtCore import QCoreApplication,QEvent
+from PySide6.QtCore import QCoreApplication,QEvent,QPointF,Qt
+from PySide6.QtGui import QMouseEvent
 from fractions import Fraction
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
@@ -13,6 +14,34 @@ from fonesi_edit.storage.timeline_commands import add_video_clip
 from fonesi_edit.ui.shell import MainWindow
 from test_timeline_commands import _record,_scan
 from test_queue_view import wait_for
+
+
+def _send_viewport_mouse(view,event_type,pos,button,buttons):
+    """Send exact local coordinates through the real viewport event path.
+
+    Qt's offscreen platform clamps the virtual global cursor to its small screen.
+    QTest.mouseMove can therefore report a different local coordinate for wide
+    timeline views. Explicit local events keep the production viewport dispatch
+    path while making the requested frame coordinate deterministic.
+    """
+    viewport=view.viewport()
+    local=QPointF(pos)
+    global_pos=QPointF(viewport.mapToGlobal(pos))
+    event=QMouseEvent(event_type,local,global_pos,button,buttons,
+                      Qt.KeyboardModifier.NoModifier)
+    QCoreApplication.sendEvent(viewport,event)
+
+
+def _drag_viewport(view,start,end,app):
+    _send_viewport_mouse(view,QEvent.Type.MouseButtonPress,start,
+        Qt.MouseButton.LeftButton,Qt.MouseButton.LeftButton)
+    app.processEvents()
+    _send_viewport_mouse(view,QEvent.Type.MouseMove,end,
+        Qt.MouseButton.NoButton,Qt.MouseButton.LeftButton)
+    app.processEvents()
+    _send_viewport_mouse(view,QEvent.Type.MouseButtonRelease,end,
+        Qt.MouseButton.LeftButton,Qt.MouseButton.NoButton)
+    app.processEvents()
 
 
 def test_playhead_split_updates_video_and_audio_tracks_once(tmp_path,qt_app):
@@ -479,9 +508,7 @@ def test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo(tmp_pat
             start=timeline.view.mapFromScene(start_scene)
             end=timeline.view.mapFromScene(target_scene)
             expected_frame=timeline._frame_for_scene_x(timeline.view.mapToScene(end).x())
-            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
-            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
-            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            _drag_viewport(timeline.view,QPoint(start),QPoint(end),qt_app)
             wait_for(qt_app,lambda:window.session.revision==before+1)
 
             marker=next(value for value in window.session.project.plan.to_dict()['timeline_markers']
@@ -528,9 +555,7 @@ def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_pa
             start_scene=first.mapToScene(QPointF(0,90))
             end_scene=QPointF(second.pos().x(),start_scene.y())
             start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
-            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
-            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
-            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            _drag_viewport(timeline.view,QPoint(start),QPoint(end),qt_app)
             wait_for(qt_app,lambda:timeline.action_message.text().startswith('Không thể di chuyển marker:'))
             assert window.session.revision==before
             assert [item['frame'] for item in window.session.project.plan.to_dict()['timeline_markers']]==[10,20]
@@ -542,21 +567,23 @@ def test_timeline_marker_drag_collision_and_escape_do_not_create_commands(tmp_pa
             start_scene=restored.mapToScene(QPointF(0,90))
             end_scene=QPointF(timeline._scene_x_for_frame(45),start_scene.y())
             start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
-            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
-            QTest.mouseMove(timeline.view.viewport(),QPoint(end))
+            _send_viewport_mouse(timeline.view,QEvent.Type.MouseButtonPress,QPoint(start),
+                Qt.MouseButton.LeftButton,Qt.MouseButton.LeftButton)
+            qt_app.processEvents()
+            _send_viewport_mouse(timeline.view,QEvent.Type.MouseMove,QPoint(end),
+                Qt.MouseButton.NoButton,Qt.MouseButton.LeftButton)
             qt_app.processEvents()
             assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))>1e-6
             QTest.keyClick(timeline.view,Qt.Key.Key_Escape)
-            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+            _send_viewport_mouse(timeline.view,QEvent.Type.MouseButtonRelease,QPoint(end),
+                Qt.MouseButton.LeftButton,Qt.MouseButton.NoButton)
             qt_app.processEvents()
             assert window.session.revision==before
             assert abs(restored.pos().x()-timeline._scene_x_for_frame(10))<1e-6
 
             # Press/release without movement is also a no-op.
             start=timeline.view.mapFromScene(restored.mapToScene(QPointF(0,90)))
-            QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
-            QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start))
-            qt_app.processEvents()
+            _drag_viewport(timeline.view,QPoint(start),QPoint(start),qt_app)
             assert window.session.revision==before
         finally:
             window.close()
