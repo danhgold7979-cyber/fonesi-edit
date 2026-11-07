@@ -661,3 +661,7 @@ P04 CI follow-up: Linux jobs for run `42371559854` exposed a playback-speed test
 
 
 P04-06: Timeline finite playback now uses the same exact rational A/V seek planner as still preview. It passes planner-produced decoder timestamps to video/audio workers and rejects unsupported multi-audio/speed/freeze/mismatched-source cases. Commits `4d4102d`, `593e7d5`. Exact latest-head CI pending; finite <=5s prototype only.
+
+
+
+P04 playback lifecycle hardening: session completion now waits for both audio decoder and video frame worker QThreads to retire after audio-master completion. If video decoding is still active at audio end, it is canceled and the UI remains in a waiting state until the worker's finished signal. Regression covers delayed video retirement. Commits `4b26306`, `2e52376`, `6bff644`, `4c03dff`. Latest exact-head CI pending.
