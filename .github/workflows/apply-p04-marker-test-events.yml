@@ -43,7 +43,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
 
-      - name: Validate and apply reviewed viewport router
+      - name: Validate, apply and diagnose reviewed viewport router
         shell: bash
         run: |
           set -euo pipefail
@@ -52,6 +52,45 @@ jobs:
           git apply .github/patches/p04-marker-test-events.patch
           git diff --check
           uv run --no-sync python -m compileall -q src tests scripts
+          uv run --no-sync python - <<'PY'
+          import tempfile
+          from fractions import Fraction
+          from pathlib import Path
+          from PySide6.QtCore import QPoint, QPointF, Qt
+          from PySide6.QtTest import QTest
+          from PySide6.QtWidgets import QApplication
+          from fonesi_edit.storage.project_creation import NewProjectIntent, empty_project
+          from fonesi_edit.storage.projects import ProjectStore, save_project_file
+          from fonesi_edit.ui.shell import MainWindow
+
+          app=QApplication.instance() or QApplication([])
+          root=Path(tempfile.mkdtemp(prefix='marker-router-'))
+          path=root/'project.json'
+          save_project_file(path,empty_project(NewProjectIntent('Marker router',1920,1080,Fraction(30),Fraction(10))))
+          store=ProjectStore(root/'store.db')
+          window=MainWindow(store);window.show();app.processEvents()
+          window.open_project(path);window.navigation.setCurrentRow(3)
+          timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1);app.processEvents()
+          timeline.playhead_slider.setValue(12);timeline.add_timeline_marker();app.processEvents()
+          marker_id=timeline.selected_marker_id
+          marker=next(x for x in timeline.scene.items() if getattr(x,'marker_id',None)==marker_id)
+          start_scene=marker.mapToScene(QPointF(0,90))
+          end_scene=QPointF(timeline._scene_x_for_frame(75),start_scene.y())
+          start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
+          print('VIEW_TYPE',type(timeline.view).__name__)
+          print('START_END',start,end,'IN_VIEW',timeline.view.viewport().rect().contains(start),timeline.view.viewport().rect().contains(end))
+          print('STACK',[(type(x).__name__,getattr(x,'marker_id',None),x.zValue()) for x in timeline.view.items(start)])
+          print('MARKER_AT',getattr(timeline.view._marker_at(start),'marker_id',None))
+          before=window.session.revision
+          QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start));app.processEvents()
+          print('PRESS',getattr(timeline.view._marker_drag,'marker_id',None),marker.pos(),before)
+          QTest.mouseMove(timeline.view.viewport(),QPoint(end));app.processEvents()
+          print('MOVE',getattr(timeline.view._marker_drag,'marker_id',None),marker.pos(),window.session.revision)
+          QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end));app.processEvents()
+          for _ in range(20):app.processEvents()
+          print('RELEASE',timeline.view._marker_drag,marker.pos(),window.session.revision,timeline.action_message.text())
+          window.close();app.processEvents();store.close()
+          PY
           uv run --no-sync python -m pytest -q \
             tests/test_timeline_panel_controls.py::test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo \
             tests/test_timeline_panel_controls.py::test_timeline_marker_drag_collision_and_escape_do_not_create_commands
