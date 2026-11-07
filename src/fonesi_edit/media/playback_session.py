@@ -30,6 +30,8 @@ class PlaybackSession(QObject):
         if not isinstance(controller, PlaybackController):
             raise PlaybackSessionError("PlaybackController is required.")
         self.controller = controller
+        self.controller.playback_finished.connect(self._audio_finished_signal)
+        self.controller.playback_failed.connect(self._fail)
         self.audio_worker: AudioChunkWorker | None = None
         self.video_worker: VideoFrameQueueWorker | None = None
         self._active = False
@@ -112,6 +114,15 @@ class PlaybackSession(QObject):
     def _video_finished_signal(self):
         self._video_finished = True
         self.state_changed.emit("video-decoding-finished")
+
+    def _audio_finished_signal(self):
+        if not self._active:
+            return
+        self._active = False
+        if self.video_worker is not None and self.video_worker.isRunning():
+            self.video_worker.request_cancel()
+        self.state_changed.emit("finished")
+        self.finished.emit()
 
     def _fail(self, message):
         if not self._active:
