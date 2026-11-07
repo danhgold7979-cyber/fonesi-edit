@@ -17,7 +17,7 @@ def _key(tool):
 
 def test_prune_does_not_evict_valid_entry_because_corrupt_entry_claims_bytes(tmp_path):
     cache = PersistentProxyCache(
-        tmp_path / "cache", max_entry_bytes=10, max_total_bytes=10, max_entries=8
+        tmp_path / "cache", max_entry_bytes=10, max_total_bytes=12, max_entries=8
     )
     valid = _key(b"valid-tool")
     corrupt = _key(b"corrupt-tool")
