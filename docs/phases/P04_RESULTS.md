@@ -643,3 +643,9 @@ Commits:
 - `ee8c0145414172d76053a84ffd878075c2623eda`: regression injects a digest-valid cache payload with boolean schema and verifies it is rejected, re-decoded and repaired.
 
 Exact latest-head CI is pending; no local execution is claimed.
+
+
+
+### Slice AU test fixture correction — playback speed guard (2026-11-07)
+
+Run `42371559854` at the prior exact head exposed one deterministic UI fixture error: after changing clip speed to 2×, the default playhead was exactly at the shortened half-open clip end, so the earlier interval guard correctly refused playback before the speed guard. Commit `f9017bf5223bf6674fdfd209df462024c6e29114` moves the fixture playhead to frame 0, isolating the intended unsupported-speed assertion without changing production validation. The two Linux jobs failed only this assertion; Windows jobs were still running at inspection. Exact new-head four-runner CI is required.
