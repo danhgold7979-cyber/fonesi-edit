@@ -43,7 +43,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
 
-      - name: Validate and test reviewed viewport router
+      - name: Diagnose exact marker release path
         shell: bash
         run: |
           set -euo pipefail
@@ -52,7 +52,60 @@ jobs:
           git apply .github/patches/p04-marker-test-events.patch
           git diff --check
           uv run --no-sync python -m compileall -q src tests scripts
-          uv run --no-sync python -m pytest -q \
+          uv run --no-sync python - <<'PY'
+          import tempfile
+          from fractions import Fraction
+          from pathlib import Path
+          from types import MethodType
+          from PySide6.QtCore import QPoint, QPointF, Qt
+          from PySide6.QtTest import QTest
+          from PySide6.QtWidgets import QApplication
+          from fonesi_edit.storage.project_creation import NewProjectIntent, empty_project
+          from fonesi_edit.storage.projects import ProjectStore, save_project_file
+          from fonesi_edit.ui.shell import MainWindow
+
+          app=QApplication.instance() or QApplication([])
+          root=Path(tempfile.mkdtemp(prefix='marker-router-'))
+          path=root/'project.json'
+          save_project_file(path,empty_project(NewProjectIntent('Marker router',1920,1080,Fraction(30),Fraction(10))))
+          store=ProjectStore(root/'store.db')
+          window=MainWindow(store);window.show();app.processEvents()
+          window.open_project(path);window.navigation.setCurrentRow(3)
+          timeline=window.timeline_panel;timeline.parentWidget().setCurrentIndex(1);app.processEvents()
+          original=timeline._timeline_marker_dragged
+          def traced(self,*args):
+              print('CALLBACK_BEFORE',args,'REV',window.session.revision,flush=True)
+              original(*args)
+              print('CALLBACK_AFTER','REV',window.session.revision,'MSG',timeline.action_message.text(),
+                    'MARKERS',window.session.project.plan.to_dict().get('timeline_markers'),flush=True)
+          timeline._timeline_marker_dragged=MethodType(traced,timeline)
+          timeline.playhead_slider.setValue(12);timeline.add_timeline_marker();app.processEvents()
+          marker_id=timeline.selected_marker_id
+          marker=next(x for x in timeline.scene.items() if getattr(x,'marker_id',None)==marker_id)
+          start_scene=marker.mapToScene(QPointF(0,90))
+          end_scene=QPointF(timeline._scene_x_for_frame(75),start_scene.y())
+          start=timeline.view.mapFromScene(start_scene);end=timeline.view.mapFromScene(end_scene)
+          before=window.session.revision
+          print('INITIAL','REV',before,'START',start,'END',end,
+                'EXPECTED_FRAME',timeline._frame_for_scene_x(timeline.view.mapToScene(end).x()),flush=True)
+          QTest.mousePress(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(start));app.processEvents()
+          active=timeline.view._marker_drag
+          print('PRESS','ACTIVE',getattr(active,'marker_id',None),
+                'POS',active.pos() if active is not None else None,flush=True)
+          QTest.mouseMove(timeline.view.viewport(),QPoint(end));app.processEvents()
+          active=timeline.view._marker_drag
+          print('MOVE','ACTIVE',getattr(active,'marker_id',None),
+                'POS',active.pos() if active is not None else None,flush=True)
+          QTest.mouseRelease(timeline.view.viewport(),Qt.MouseButton.LeftButton,pos=QPoint(end))
+          for _ in range(100):app.processEvents()
+          current=next((x for x in timeline.scene.items() if getattr(x,'marker_id',None)==marker_id),None)
+          print('RELEASE','ACTIVE',timeline.view._marker_drag,'REV',window.session.revision,
+                'MSG',timeline.action_message.text(),
+                'PLAN',window.session.project.plan.to_dict().get('timeline_markers'),
+                'CURRENT_POS',current.pos() if current is not None else None,flush=True)
+          window.close();app.processEvents();store.close()
+          PY
+          uv run --no-sync python -m pytest -q -s \
             tests/test_timeline_panel_controls.py::test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo \
             tests/test_timeline_panel_controls.py::test_timeline_marker_drag_collision_and_escape_do_not_create_commands
 
