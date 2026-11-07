@@ -39,14 +39,14 @@ def test_playback_frame_maps_overlapping_clips_and_audio_independently(tmp_path)
         other["source_out"] = [1, 1]
         data["clips"].append(other)
     changed = _parse_changed(plan, mutate)
-    result = plan_playback_frame(changed, 30)
-    assert result.output_time == Fraction(1, 1)
+    result = plan_playback_frame(changed, 15)
+    assert result.output_time == Fraction(1, 2)
     assert len(result.video) == 2
     assert len(result.audio) == 1
     by_id = {sample.clip_id: sample for sample in result.video}
-    assert by_id[clip_id].source_time == Fraction(11, 10)
-    assert by_id["00000000-0000-0000-0000-000000000010"].source_time == Fraction(1, 1)
-    assert result.audio[0].source_time == Fraction(6, 5)
+    assert by_id[clip_id].source_time == Fraction(1, 10)
+    assert by_id["00000000-0000-0000-0000-000000000010"].source_time == Fraction(1, 2)
+    assert result.audio[0].source_time == Fraction(7, 10)
 
 
 def test_playback_frame_returns_silence_and_video_gap_and_rejects_bad_frame(tmp_path):
