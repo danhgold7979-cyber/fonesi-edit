@@ -448,3 +448,12 @@ Current work on `develop/fonesi-full` adds an atomic content-addressed persisten
 Commits: `a894891dc39012a803a8072212dbaf5112a2d25c`, `e3b85ed86f6d66aafb7cca4e8cb18538f072014e`, `a3d76d44cd905096205fb993a54fb6ad643703ed`. Regression tests: `tests/test_proxy_cache.py`. Documentation: `docs/phases/P04-06_PROXY_CACHE_PLAN.md` and final P04 results Slice AS.
 
 Initial CI run 42348806219 passed four runners on the first implementation commit, but predates hardening/test-only follow-up commits and is not evidence for latest HEAD. Latest exact-head CI must finish before reporting PASS. This cache is not yet connected to an encoder/proxy worker; no playback, A/V sync or renderer acceptance is claimed. P04-06 and P04 remain IN_PROGRESS; P04 whole-task acceptance remains 0/8.
+
+
+## P04-06 cache eviction integrity hardening — 2026-11-07
+
+Commits on `develop/fonesi-full`:
+- `6c86719c4b9fe6f60c291d2c9b2125dcbad3d6d7`: cache quota accounting now hashes each candidate payload in bounded 1 MiB chunks and counts only entries whose payload digest matches the manifest. Corrupt/truncated/growing payloads are excluded from eviction accounting, preventing a corrupt entry from causing eviction of a valid older proxy.
+- `d5f779748804922171c16fcc117b5b58f6795f70`: regression test proving corrupt quota claims do not evict a valid cache entry.
+
+Verification boundary: both commits are present on the integration branch. The GitHub connector did not return any workflow runs associated with the latest commit, so the new test and exact-head CI are NOT_RUN here. Do not report these changes as test-passing until the exact-head Windows/Linux matrix runs. No proxy encoder, playback or A/V synchronization is added by this slice.
