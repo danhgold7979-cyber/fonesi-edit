@@ -74,12 +74,18 @@ class PlaybackController(QObject):
             raise PlaybackControllerError("Validated VideoFrameBatch required.")
         if len(self._queue) + len(batch.frames) > self.max_queued_frames:
             raise PlaybackControllerError("Video presentation queue is full; producer must apply backpressure.")
+        pending = []
+        previous_pts = self._queue[-1][1] if self._queue else None
         for frame in batch.frames:
             pts = Fraction(str(frame.pts_seconds))
-            if self._queue and pts < self._queue[-1][1]:
+            if previous_pts is not None and pts < previous_pts:
                 raise PlaybackControllerError("Video PTS must be monotonic.")
-            self._queue.append((self._next_frame_id, pts, frame))
-            self._next_frame_id += 1
+            pending.append((self._next_frame_id + len(pending), pts, frame))
+            previous_pts = pts
+        # Validate the entire batch before mutating the live queue so a bad
+        # frame cannot partially consume producer credits.
+        self._queue.extend(pending)
+        self._next_frame_id += len(pending)
 
     def _tick(self):
         if not self._active:
