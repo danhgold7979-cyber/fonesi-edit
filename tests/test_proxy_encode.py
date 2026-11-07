@@ -124,7 +124,7 @@ def test_encoder_cancel_before_launch_does_not_publish(tmp_path, monkeypatch):
                                   expected_source_sha256=digest, stream_index=0,
                                   cancel=lambda: True)
     assert calls == []
-    assert not cache.root.exists()
+    assert list(cache.root.iterdir()) == []
 
 
 
