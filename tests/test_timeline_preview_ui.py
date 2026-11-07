@@ -306,3 +306,35 @@ def test_preview_quality_change_does_not_cancel_waveform_observation(tmp_path,qt
     finally:
         release.set()
         _close(store,window,qt_app)
+
+
+
+def test_waveform_worker_receives_app_local_persistent_cache(tmp_path,qt_app,monkeypatch):
+    import fonesi_edit.ui.timeline as module
+    from fonesi_edit.media.preview import AudioWaveform
+    from fonesi_edit.media.proxy_cache import PersistentProxyCache
+    store,window,timeline,source,_payload=_open(tmp_path)
+    try:
+        created=[]
+        real_cache=PersistentProxyCache
+        def cache_factory(root):
+            cache=real_cache(root,max_entry_bytes=1024*1024,max_total_bytes=2*1024*1024,max_entries=8)
+            created.append((Path(root),cache))
+            return cache
+        calls=[]
+        def fake_waveform(path,tool,*,expected_sha256,stream_index,decoder_start,duration,
+                          cancel,timeout,bucket_count,persistent_cache=None):
+            calls.append(persistent_cache)
+            return AudioWaveform(expected_sha256,'b'*64,stream_index,decoder_start,duration,
+                                 8000,4,((-1.0,-0.5),(0.5,1.0)),False)
+        monkeypatch.setattr(module,'PersistentProxyCache',cache_factory)
+        monkeypatch.setattr(module,'extract_audio_waveform',fake_waveform)
+        timeline.preview_path.setText(str(Path(sys.executable).resolve()))
+        timeline.preview_trust.setChecked(True)
+        timeline.request_waveform()
+        wait_for(qt_app,lambda:not timeline.busy and 'Waveform biên độ' in timeline.waveform_message.text())
+        assert len(created)==1 and len(calls)==1
+        assert calls[0] is created[0][1]
+        assert created[0][0].name=='waveform-cache'
+    finally:
+        _close(store,window,qt_app)
