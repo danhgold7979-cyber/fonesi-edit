@@ -87,7 +87,7 @@ def test_timeline_playback_refuses_video_speed_effect(tmp_path, qt_app, monkeypa
         data = window.session.project.plan.to_dict()
         data["clips"][0]["speed"] = [2, 1]
         from fonesi_edit.domain.composition import CompositionPlan
-        changed = CompositionPlan.from_dict(data)
+        changed = CompositionPlan.parse(data)
         window.session.project = window.session.project.with_plan(changed)
         window._project_changed()
         timeline.play_button.click()
