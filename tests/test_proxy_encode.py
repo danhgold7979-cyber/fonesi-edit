@@ -158,7 +158,7 @@ def test_encoder_progress_callback_failure_retires_and_does_not_publish(tmp_path
             Path(argv[-1]).write_bytes(b"synthetic output")
             callback = kwargs.get("on_stdout")
             if callback:
-                callback(b"frame=1\\nprogress=end\\n")
+                callback(b"frame=1\nprogress=end\n")
             return ProcessResult(0, b"", b"")
         return ProcessResult(0, json.dumps({
             "streams": [{"codec_type": "video", "codec_name": "h264",
