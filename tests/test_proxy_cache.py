@@ -302,3 +302,25 @@ def test_verified_cache_read_refreshes_lru_recency_before_eviction(tmp_path):
     assert cache.get(first) == b"first!"
     assert cache.get(second) is None
     assert cache.get(third) == b"x"
+
+
+
+def test_invalidate_source_ignores_non_object_and_malformed_manifests(tmp_path):
+    source_hash = sha256(b"source").hexdigest()
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    list_entry = cache.root / "not-a-key-list"
+    list_entry.mkdir()
+    (list_entry / "manifest.json").write_text("[]", encoding="utf-8")
+    broken_entry = cache.root / "not-a-key-broken"
+    broken_entry.mkdir()
+    (broken_entry / "manifest.json").write_text("{", encoding="utf-8")
+    assert cache.invalidate_source(source_hash) == 0
+    assert (list_entry / "manifest.json").exists()
+    assert (broken_entry / "manifest.json").exists()
+
+
+def test_cache_revalidates_mutated_relative_root_before_get(tmp_path):
+    cache = PersistentProxyCache(tmp_path / "cache", max_entry_bytes=1024)
+    cache.root = Path("relative-cache")
+    with pytest.raises(ProxyCacheError):
+        cache.get(_key())
