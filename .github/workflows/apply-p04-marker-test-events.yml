@@ -1,4 +1,4 @@
-name: Apply exact P04 marker viewport tests
+name: Apply P04 marker viewport router
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-p04-marker-test-events
+  group: apply-p04-marker-viewport-router
   cancel-in-progress: false
 
 jobs:
@@ -43,11 +43,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libopengl0 libxkbcommon0 libgl1
 
-      - name: Validate and apply reviewed test fix
+      - name: Validate and apply reviewed viewport router
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .github/patches/p04-marker-test-events.patch)" = "e696631a569af8615452510809bbf8f57be4defc"
+          test "$(git hash-object .github/patches/p04-marker-test-events.patch)" = "adb3c6b8b800342d3762ca6e22be6f072c923e90"
           git apply --check .github/patches/p04-marker-test-events.patch
           git apply .github/patches/p04-marker-test-events.patch
           git diff --check
@@ -56,13 +56,13 @@ jobs:
             tests/test_timeline_panel_controls.py::test_timeline_marker_viewport_drag_commits_once_and_shared_undo_redo \
             tests/test_timeline_panel_controls.py::test_timeline_marker_drag_collision_and_escape_do_not_create_commands
 
-      - name: Commit reviewed test fix and remove transfer files
+      - name: Commit reviewed fix and remove transfer files
         shell: bash
         run: |
           set -euo pipefail
           git rm .github/patches/p04-marker-test-events.patch .github/workflows/apply-p04-marker-test-events.yml
-          git add tests/test_timeline_panel_controls.py
+          git add src/fonesi_edit/ui/timeline.py
           git config user.name 'danhgold7979-cyber'
           git config user.email 'danhgold7979@gmail.com'
-          git commit -m 'test(P04-05): send exact viewport drag events'
+          git commit -m 'fix(P04-05): route marker drag through viewport'
           git push origin HEAD:develop/fonesi-full
