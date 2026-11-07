@@ -3,6 +3,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from fractions import Fraction
 from hashlib import sha256
+import json
 import math
 import os
 import struct
@@ -12,6 +13,7 @@ from threading import RLock
 
 from fonesi_edit.jobs.process import run_owned,ProcessError,ProcessCanceled
 from .probe import fingerprint,ProbeError,ProbeCanceled
+from fonesi_edit.domain.composition import canonical
 from .proxy_cache import PersistentProxyCache,ProxyCacheKey,ProxyCacheError,ProxyCacheCanceled
 
 
@@ -287,7 +289,8 @@ def extract_preview_frame(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
 
 def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str,
                            stream_index:int,decoder_start:Fraction,duration:Fraction,
-                           cancel=lambda:False,timeout:float=30,bucket_count:int=256)->AudioWaveform:
+                           cancel=lambda:False,timeout:float=30,bucket_count:int=256,
+                           persistent_cache:PersistentProxyCache|None=None)->AudioWaveform:
     """Decode a bounded mono PCM window and aggregate finite float samples.
 
     The returned bins are an amplitude visualization only, not loudness,
@@ -302,6 +305,8 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
         not 0<duration<=60 or type(timeout) not in (int,float) or not 0<timeout<=120 or
         type(bucket_count) is not int or not 1<=bucket_count<=512):
         raise PreviewError('Explicit bounded waveform inputs required')
+    if persistent_cache is not None and not isinstance(persistent_cache,PersistentProxyCache):
+        raise PreviewError('Persistent waveform cache must be a validated PersistentProxyCache')
     if cancel():raise PreviewCanceled('Waveform canceled before input inspection')
     try:_regular_tree(source);_regular_tree(ffmpeg)
     except OSError:raise PreviewError('Waveform source or FFmpeg is missing/inaccessible') from None
@@ -311,6 +316,13 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
     tool_hash,tool_signature=_hash_pinned(ffmpeg,tool=True,cancel=cancel)
     sample_rate=8000
     key=(source_hash,tool_hash,stream_index,decoder_start,duration,sample_rate,bucket_count,'f32le-wave-v1')
+    persistent_key=None
+    if persistent_cache is not None:
+        identity=canonical({'decoder_start':[decoder_start.numerator,decoder_start.denominator],
+            'duration':[duration.numerator,duration.denominator],
+            'sample_rate':sample_rate,'bucket_count':bucket_count,'format':'waveform-json-v1'})
+        algorithm='w1-'+sha256(identity.encode('utf-8')).hexdigest()[:60]
+        persistent_key=ProxyCacheKey(source_hash,tool_hash,stream_index,bucket_count,1,algorithm)
     with _CACHE_LOCK:
         cached=_WAVE_CACHE.get(key)
         if cached is not None:
@@ -320,6 +332,46 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
                     cached.decoder_start,cached.duration,cached.sample_rate,cached.sample_count,
                     cached.peaks,True)
             _WAVE_CACHE.pop(key,None)
+    if persistent_cache is not None and persistent_key is not None:
+        if cancel():raise PreviewCanceled('Waveform canceled before persistent-cache lookup')
+        try:
+            cached_bytes=persistent_cache.get(persistent_key)
+        except ProxyCacheError:
+            cached_bytes=None
+        if cached_bytes is not None:
+            try:
+                payload=json.loads(cached_bytes.decode('utf-8'))
+                if (type(payload) is not dict or payload.get('schema')!=1
+                        or payload.get('source_sha256')!=source_hash
+                        or payload.get('tool_sha256')!=tool_hash
+                        or payload.get('stream_index')!=stream_index
+                        or payload.get('decoder_start')!=[decoder_start.numerator,decoder_start.denominator]
+                        or payload.get('duration')!=[duration.numerator,duration.denominator]
+                        or payload.get('sample_rate')!=sample_rate
+                        or payload.get('bucket_count')!=bucket_count
+                        or type(payload.get('sample_count')) is not int
+                        or not 1<=payload['sample_count']<=sample_rate*60
+                        or type(payload.get('peaks')) is not list
+                        or not 1<=len(payload['peaks'])<=bucket_count):
+                    raise ValueError('Invalid cached waveform envelope')
+                peaks=[]
+                for pair in payload['peaks']:
+                    if (type(pair) is not list or len(pair)!=2
+                            or any(type(v) not in (int,float) or not math.isfinite(v) or not -1<=v<=1 for v in pair)
+                            or pair[0]>pair[1]):
+                        raise ValueError('Invalid cached waveform peak')
+                    peaks.append((float(pair[0]),float(pair[1])))
+                if _signature(source)!=source_signature or _signature(ffmpeg)!=tool_signature:
+                    raise PreviewError('Source or FFmpeg changed during waveform cache lookup')
+                waveform=AudioWaveform(source_hash,tool_hash,stream_index,decoder_start,duration,
+                    sample_rate,payload['sample_count'],tuple(peaks),True)
+                with _CACHE_LOCK:
+                    _WAVE_CACHE[key]=waveform;_WAVE_CACHE.move_to_end(key)
+                    while len(_WAVE_CACHE)>_WAVE_CACHE_LIMIT:_WAVE_CACHE.popitem(last=False)
+                return waveform
+            except (UnicodeError,ValueError,TypeError,KeyError,AttributeError):
+                try:persistent_cache.invalidate(persistent_key)
+                except ProxyCacheError:pass
     if cancel():raise PreviewCanceled('Waveform canceled before decoder launch')
     args=[str(ffmpeg),'-nostdin','-hide_banner','-loglevel','error',
           '-max_alloc','67108864','-filter_threads','1','-protocol_whitelist','file,pipe',
@@ -357,6 +409,20 @@ def extract_audio_waveform(source:Path|str,ffmpeg:Path|str,*,expected_sha256:str
     peaks=tuple((lows[i],highs[i]) for i in range(actual_buckets))
     waveform=AudioWaveform(source_hash,tool_hash,stream_index,decoder_start,duration,
                            sample_rate,sample_count,peaks,False)
+    if persistent_cache is not None and persistent_key is not None:
+        if cancel():raise PreviewCanceled('Waveform canceled before persistent-cache publication')
+        payload={'schema':1,'source_sha256':source_hash,'tool_sha256':tool_hash,
+            'stream_index':stream_index,
+            'decoder_start':[decoder_start.numerator,decoder_start.denominator],
+            'duration':[duration.numerator,duration.denominator],
+            'sample_rate':sample_rate,'bucket_count':bucket_count,
+            'sample_count':sample_count,'peaks':[[low,high] for low,high in peaks]}
+        try:
+            persistent_cache.put(persistent_key,json.dumps(payload,sort_keys=True,separators=(',',':')).encode('utf-8'),cancel=cancel)
+        except ProxyCacheCanceled as exc:
+            raise PreviewCanceled('Waveform canceled before persistent-cache publication') from exc
+        except ProxyCacheError:
+            pass
     with _CACHE_LOCK:
         existing=_WAVE_CACHE.get(key)
         if existing is not None:
