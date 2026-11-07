@@ -606,3 +606,15 @@ Implementation commits:
 Regression coverage: persistent reuse after clearing process-memory cache; corrupt disk payload is rejected, re-decoded and repaired; exact rational timestamps map to separate entries; invalid cache objects fail before decoder launch.
 
 Acceptance boundary: this connects persistent storage to still-frame preview only. It does not implement background proxy encoding, proxy worker queue, waveform persistence, playback or synchronized A/V seek. Latest code commits need exact-head four-runner CI before PASS is reported.
+
+
+
+### Slice AU — Timeline playback control and shutdown regression repair (2026-11-07)
+
+The exact-head run `42369998598` at `69bf2c9f0fc2b23d81f866e95292204b102c87a6` found two failures in the new Timeline playback UI tests:
+- Resume control was disabled while paused, making the second click unable to resume. Commit `17e04a2cdc664b412ecabc08e0208ce463163d39` keeps the control enabled during an active session and changes its label to “Tiếp tục” while paused.
+- The test attempted direct assignment to the read-only `ProjectSession.project` property and used no valid CAS commit. Commit `3c46c713dbf5a33ec885c4f7bb6c7e21a9010d2a` updates the fixture to create a valid next revision and commit it through `ProjectSession.commit(CompletedCommand(...))`.
+
+Shutdown now explicitly stops an active bounded playback session before Timeline teardown (commit `af79c738d159a1bd8ef1f11e629f0184b74e4775`), with a regression test in `69bf2c9f0fc2b23d81f866e95292204b102c87a6`.
+
+The failed run also recorded 1,179+ passed tests per runner; exact latest HEAD requires a new four-runner result. No local test execution is claimed. Finite A/V playback remains a <=5-second prototype, not full project playback acceptance.
