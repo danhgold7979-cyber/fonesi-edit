@@ -45,6 +45,7 @@ class PlaybackController(QObject):
         self._timer.setInterval(tick_interval_ms)
         self._timer.timeout.connect(self._tick)
         self._active = False
+        self._paused = False
 
     def start(self, pcm: PCMBuffer, *, audio_start_time: Fraction = Fraction(0)):
         if self._active:
@@ -61,6 +62,7 @@ class PlaybackController(QObject):
             self.playback_failed.emit(str(exc))
             raise PlaybackControllerError("Audio output could not start.") from exc
         self._active = True
+        self._paused = False
         self._timer.start()
         self.state_changed.emit("playing")
 
@@ -86,12 +88,9 @@ class PlaybackController(QObject):
             master = audio_clock_time(elapsed, start_time=self._audio_start)
             due = select_due_frame([(index, pts) for index, pts, _ in self._queue], master)
             if due is not None:
-                selected = self._queue.pop(due.dropped_before)
-                # Discard all older frames; the newest frame due to audio clock
-                # is presented to avoid accumulating visual latency.
-                for _ in range(due.dropped_before):
-                    if self._queue:
-                        self._queue.pop(0)
+                # Present the newest due frame and discard it plus every stale frame.
+                selected = self._queue[due.dropped_before]
+                del self._queue[:due.dropped_before + 1]
                 frame = selected[2]
                 self._last_presented = selected[0]
                 self.frame_presented.emit(frame)
@@ -104,19 +103,32 @@ class PlaybackController(QObject):
             self.playback_failed.emit("A/V presentation tick failed; playback stopped.")
 
     def pause(self):
-        if not self._active:
+        if not self._active or self._paused:
             return
         self._timer.stop()
-        self.audio_output.stop()
-        self._active = False
+        self.audio_output.suspend()
+        self._paused = True
         self.state_changed.emit("paused")
+
+    def resume(self):
+        if not self._active or not self._paused:
+            return
+        self.audio_output.resume()
+        self._paused = False
+        self._timer.start()
+        self.state_changed.emit("playing")
 
     def stop(self):
         self._timer.stop()
         self.audio_output.stop()
         self._active = False
+        self._paused = False
         self._queue.clear()
         self.state_changed.emit("stopped")
+
+    @property
+    def paused(self) -> bool:
+        return self._paused
 
     @property
     def queued_frames(self) -> int:
