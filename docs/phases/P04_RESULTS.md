@@ -703,3 +703,11 @@ The producer budget is 64 frames by default and at most 256; controller queue re
 - `427f4d26f80ea087700707ad21fddafa3340a79b`: `VideoFrameQueueWorker` now rebases decoded source PTS onto a zero-based segment timeline using exact rational frame offsets. FFmpeg still seeks from the source decoder timestamp, but the presentation controller compares frame PTS against the audio buffer's elapsed segment clock. This prevents a nonzero source trim (for example, 12.5 s) from delaying all video frames until the audio clock reaches 12.5 s.
 - `67a8af01170ebbfe355c9398e2c14485b1823831`: regression decodes from a nonzero 12.5 s source start and asserts six frames are presented with PTS 0, 1/24, …, 5/24.
 - Exact-head four-runner CI is pending; no local execution is claimed. This fixes timestamp-domain alignment for the bounded finite prototype only; device latency, drift correction, continuous multi-chunk playback and real-media A/V acceptance remain open.
+
+
+
+### Slice BA — reject early video EOF in finite A/V playback (2026-11-07)
+
+- `f201c281f68f45a871127389840e6910a243f7b1`: `PlaybackSession` now rejects a video batch marked incomplete (FFmpeg EOF before the planned frame count), returns the producer's reserved frame credits, stops the audio master and emits a playback failure instead of silently continuing audio without video.
+- `44a1965c408042923db61ae6c8967003f1f7b17c`: regression injects an incomplete video batch and verifies session failure, audio output stop, empty presentation queue and exactly one returned frame credit.
+- This is fail-closed behavior for the bounded <=5-second prototype; it does not implement continuous playback or recovery/rebuffering. Exact latest-head Linux/Windows Python 3.12/3.13 CI remains required.
