@@ -32,6 +32,7 @@ class FakeOutput(QtAudioOutput):
 
 
 class FakeAudioWorker(QObject):
+    finished = Signal()
     chunk_ready = Signal(object)
     chunk_failed = Signal(str)
     chunk_canceled = Signal()
@@ -44,6 +45,7 @@ class FakeAudioWorker(QObject):
         self.started = True
         pcm = PCMBuffer("a"*64, 0, 48000, 2, 4, (0.1,-0.1)*4, 4)
         self.chunk_ready.emit(pcm)
+        self.finished.emit()
     def isRunning(self):
         return False
     def request_cancel(self):
@@ -51,6 +53,7 @@ class FakeAudioWorker(QObject):
 
 
 class FakeVideoWorker(QObject):
+    finished = Signal()
     batch_ready = Signal(object)
     decode_failed = Signal(str)
     decode_canceled = Signal()
@@ -108,3 +111,47 @@ def test_finite_session_rejects_duration_over_five_seconds(qt_app, tmp_path):
         assert "<=5" in str(exc)
     else:
         raise AssertionError("Unbounded session duration was accepted")
+
+
+
+def test_audio_master_waits_for_video_worker_retirement_before_session_finished(
+        qt_app, monkeypatch, tmp_path):
+    class DelayedVideoWorker(FakeVideoWorker):
+        def __init__(self,*args,**kwargs):
+            super().__init__(*args,**kwargs)
+            self.running=False
+        def start(self):
+            self.started=True
+            self.running=True
+            frames=(RGBVideoFrame(0,16,16,0.0,b"x"*(16*16*3)),)
+            self.batch_ready.emit(VideoFrameBatch("b"*64,0,16,16,frames,True))
+        def isRunning(self):
+            return self.running
+        def request_cancel(self):
+            self.canceled=True
+        def retire(self):
+            self.running=False
+            self.finished.emit()
+
+    monkeypatch.setattr(session_module,"AudioChunkWorker",FakeAudioWorker)
+    monkeypatch.setattr(session_module,"VideoFrameQueueWorker",DelayedVideoWorker)
+    controller=PlaybackController(FakeOutput())
+    session=session_module.PlaybackSession(controller)
+    finished=[]
+    session.finished.connect(lambda:finished.append(True))
+    track=AudioTrackSpec(tmp_path/"audio.mp4","a"*64,0,0,0.0)
+    session.start(audio_track=track,audio_ffmpeg=tmp_path/"ffmpeg",
+        video_source=tmp_path/"video.mp4",video_ffmpeg=tmp_path/"ffmpeg",
+        video_sha256="b"*64,video_stream_index=0,
+        video_start_seconds=0.0,fps=Fraction(30,1),
+        duration_seconds=Fraction(1,2),width=16,height=16)
+    video=session.video_worker
+    assert session.audio_worker_finished if hasattr(session,"audio_worker_finished") else True
+    assert video.isRunning()
+    controller.playback_finished.emit()
+    assert video.canceled
+    assert session.active
+    assert finished==[]
+    video.retire()
+    assert not session.active
+    assert finished==[True]
