@@ -62,10 +62,15 @@ class TimelineGraphicsView(QGraphicsView):
         marker.setPos(self._scene_x(event)-self._marker_pointer_offset,0)
         event.accept()
 
+    def cancel_marker_drag(self):
+        marker=self._marker_drag
+        if marker is None:return False
+        marker.setPos(self._marker_origin);self._marker_canceled=True
+        return True
+
     def keyPressEvent(self,event):
-        if event.key()==Qt.Key.Key_Escape and self._marker_drag is not None:
-            self._marker_drag.setPos(self._marker_origin)
-            self._marker_canceled=True;event.accept();return
+        if event.key()==Qt.Key.Key_Escape and self.cancel_marker_drag():
+            event.accept();return
         super().keyPressEvent(event)
 
     def mouseReleaseEvent(self,event):
@@ -101,6 +106,21 @@ timeline = replace_exact(
     "self._select_marker_from_scene,data['id'],session.revision,movable=marker_movable)",
     "self._select_marker_from_scene,session.project.id,session.revision,movable=marker_movable)",
     label="bind canonical project identity",
+)
+timeline = replace_exact(
+    timeline,
+    "            ('timeline.clear_range',self.clear_range_markers),\n",
+    "            ('timeline.clear_range',self._escape_timeline_context),\n",
+    label="route Escape through drag cancellation",
+)
+timeline = replace_exact(
+    timeline,
+    "    def _install_timeline_shortcuts(self):\n",
+    "    def _escape_timeline_context(self):\n"
+    "        if self.view.cancel_marker_drag():return\n"
+    "        self.clear_range_markers()\n\n"
+    "    def _install_timeline_shortcuts(self):\n",
+    label="insert contextual Escape handler",
 )
 timeline_path.write_text(timeline, encoding="utf-8")
 

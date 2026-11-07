@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .github/scripts/apply_p04_marker_fix.py)" = "f885843811c62816b5d3f6c8b3cd5772413ba49b"
+          test "$(git hash-object .github/scripts/apply_p04_marker_fix.py)" = "b99818fc76902f67d486502f3506bafcbb4fd1cd"
           uv run --no-sync python .github/scripts/apply_p04_marker_fix.py
           git diff --check
           uv run --no-sync python -m compileall -q src tests scripts .github/scripts
